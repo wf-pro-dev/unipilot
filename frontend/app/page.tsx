@@ -10,16 +10,31 @@ import { AssignmentsDueToday } from "@/components/dashboard/assignments-due-toda
 import { AssignmentsThisWeek } from "@/components/dashboard/assignments-this-week"
 import { AssignmentDetailsModal } from "@/components/assignments/assignment-details-modal"
 import { Assignment } from "@/types/models"
+import { LogInfo } from "@/wailsjs/runtime/runtime"
+import { format } from "date-fns"
+import { useUpdateAssignment } from "@/hooks/use-assignments"
 
 export default function DashboardPage() {
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null)
 
-  const handleToggleComplete = (id: number) => {
-    console.log("Toggling completion for assignment:", id)
+  const updateMutation = useUpdateAssignment()
+
+  const handleEditAssignment = async (assignment: Assignment, column: string, value: string) => {
+    console.log("Editing assignment:", assignment)
+    const message = "assignment " + assignment.ID + " " + column + " changed to " + value
+    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
+
+    // Use the optimistic update mutation
+    updateMutation.mutate({
+      assignment,
+      column,
+      value
+    })
   }
 
-  const handleEditAssignment = (assignment: Assignment) => {
-    console.log("Editing assignment:", assignment)
+  const handleToggleComplete = async (assignment: Assignment) => {
+    const newStatus = assignment.StatusName === "Done" ? "Not started" : "Done"
+    handleEditAssignment(assignment, "status_name", newStatus)
   }
 
   const handleDeleteAssignment = (id: number) => {
@@ -39,10 +54,12 @@ export default function DashboardPage() {
           <StatsCards />
         </div>
 
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
           <div className="lg:col-span-2 space-y-6">
-            <AssignmentsDueToday onAssignmentClick={setSelectedAssignment} />
-            <AssignmentsThisWeek onAssignmentClick={setSelectedAssignment}  />
+
+            <AssignmentsDueToday />
+            <AssignmentsThisWeek />
             <RecentActivity />
           </div>
 
@@ -52,14 +69,15 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      
       <AssignmentDetailsModal
-          isOpen={!!selectedAssignment}
-          onClose={() => setSelectedAssignment(null)}
-          assignment={selectedAssignment}
-          onEdit={handleEditAssignment}
-          onDelete={handleDeleteAssignment}
-          onToggleComplete={handleToggleComplete}
-        />
+        isOpen={!!selectedAssignment}
+        onClose={() => setSelectedAssignment(null)}
+        assignment={selectedAssignment}
+        onEdit={handleEditAssignment}
+        onDelete={handleDeleteAssignment}
+        onToggleComplete={handleToggleComplete}
+      />
     </div>
   )
 }

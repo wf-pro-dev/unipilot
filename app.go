@@ -54,7 +54,13 @@ func (a *App) Login(username, password string) error {
 		return err
 	}
 
-	go a.Auth.SSE.Connect(a.Auth.Client)
+	// Create a dedicated HTTP client for SSE connections
+	sseClient, err := client.NewSSEClient()
+	if err != nil {
+		return fmt.Errorf("failed to create SSE client: %w", err)
+	}
+
+	go a.Auth.SSE.Connect(sseClient)
 
 	a.Events.Start(a.Auth.SSE)
 

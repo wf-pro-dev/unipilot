@@ -16,7 +16,7 @@ import (
 // Login handles only authentication and saving the session cookie to a file.
 func (a *Auth) Login(username, password string) error {
 
-	httpClient, err := client.NewClient()
+	httpClient, err := client.NewClientWithCookies() // Changed from NewClient()
 	if err != nil {
 		return fmt.Errorf("could not create http client: %w", err)
 	}

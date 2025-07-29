@@ -2,6 +2,7 @@ import { format } from "date-fns"
 import { CalendarItem } from "./calendar-item"
 import { Assignment } from "@/types/models"
 import { useDrop } from "react-dnd"
+import { useState } from "react"
 
 interface CalendarContainerProps {
     day: Date
@@ -10,9 +11,12 @@ interface CalendarContainerProps {
     isToday: boolean
     onMoveAssignment: (assignment: Assignment, date: Date) => void
     index: number
+    onEdit: (assignment: Assignment, column: string, value: string) => void
+    onAssignmentClick: (assignment: Assignment) => void
+    onDateClick: (date: Date) => void
 }
 
-function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMoveAssignment, index }: CalendarContainerProps) {
+function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMoveAssignment, index, onEdit, onAssignmentClick, onDateClick }: CalendarContainerProps) {
     const [{ isOver }, drop] = useDrop({
         accept: "assignment",
         drop: (item: { assignment: Assignment }) => {
@@ -36,7 +40,8 @@ function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMov
                 : "bg-gray-900/30 border-gray-700"
                 } ${isToday ? "ring-2 ring-blue-500" : ""}`}
         >
-            <div className="flex items-center justify-between mb-2">
+
+            <div className="flex items-center justify-between mb-2" onClick={() => onDateClick(day)}>
                 <span
                     className={`text-sm font-medium ${isCurrentMonth
                         ? isToday
@@ -58,9 +63,9 @@ function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMov
                 {dayAssignments.slice(0, 1).map((assignment) => (
                     <CalendarItem
                         key={assignment.ID}
-                        date={day}
                         assignment={assignment}
-                        onMoveAssignment={onMoveAssignment}
+                        onEdit={onEdit}
+                        onAssignmentClick={onAssignmentClick}
                     />
                 ))}
                 {dayAssignments.length > 1 && (
@@ -69,6 +74,7 @@ function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMov
                     </div>
                 )}
             </div>
+            
         </div>
     )
 }

@@ -23,7 +23,7 @@ func NewAuth() *Auth {
 func (a *Auth) IsAuthenticated() bool {
 	// If we don't have a client, try to initialize it with saved cookies
 	if a.Client == nil {
-		httpClient, err := client.NewClient()
+		httpClient, err := client.NewClientWithCookies() // Changed from NewClient()
 		if err != nil {
 			return false
 		}

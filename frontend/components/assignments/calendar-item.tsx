@@ -8,12 +8,12 @@ import { StatusTag } from "../utils/status-tag"
 import { format } from "date-fns"
 
 interface CalendarItemProps {
-  date: Date
   assignment: Assignment
-  onMoveAssignment: (assignment: Assignment, date: Date) => void
+  onEdit: (assignment: Assignment, column: string, value: string) => void
+  onAssignmentClick: (assignment: Assignment) => void
 }
 
-export function CalendarItem({ date, assignment, onMoveAssignment }: CalendarItemProps) {
+export function CalendarItem({ assignment, onEdit, onAssignmentClick }: CalendarItemProps) {
   
   
   const [{ isDragging }, drag] = useDrag({
@@ -28,7 +28,7 @@ export function CalendarItem({ date, assignment, onMoveAssignment }: CalendarIte
   const deadline = parseDeadline(assignment.Deadline)
 
   return (
-    <div ref={drag} className={`cursor-move ${isDragging ? "opacity-50" : ""}`}>
+    <div ref={drag} className={`cursor-move ${isDragging ? "opacity-50" : ""}`} onClick={() => onAssignmentClick(assignment)}>
       <Card className="glass-dark border-0 hover:glass-hover transition-all duration-300 mb-2">
         <CardContent className="p-3">
           <div className="flex flex-col space-y-2">
@@ -46,7 +46,7 @@ export function CalendarItem({ date, assignment, onMoveAssignment }: CalendarIte
               {format(deadline, "h:mm a")}
             </span>
 
-            <StatusTag assignment={assignment} onEdit={() => { }} />
+            <StatusTag assignment={assignment} onEdit={onEdit} />
 
           </div>
         </CardContent>

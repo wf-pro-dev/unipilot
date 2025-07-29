@@ -24,6 +24,12 @@ import {
   Users,
 } from "lucide-react"
 import { useState } from "react"
+import { useAuth } from "@/hooks/use-auth"
+import { useAssignments, useCompletedAssignments } from "@/hooks/use-assignments"
+import { useCourses } from "@/hooks/use-courses"
+import { CourseItem } from "@/components/courses/course-item"
+import { CourseDetailsModal } from "@/components/courses/course-details-modal"
+import { Course } from "@/types/models"
 
 // Mock user data
 const userData = {
@@ -102,8 +108,14 @@ const userData = {
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
   const [editedData, setEditedData] = useState(userData)
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
+  
+  const { user } = useAuth()
+  const { data: assignments } = useAssignments()
+  const { data: completedAssignments } =  useCompletedAssignments()
+  const { data: courses } = useCourses()
 
-  const completionPercentage = (userData.stats.assignmentsCompleted / userData.stats.totalAssignments) * 100
+  const completionPercentage = ( (completedAssignments || []).length / (assignments || []).length) * 100
 
   const handleSave = () => {
     // Here you would typically save to a backend
@@ -141,7 +153,7 @@ export default function ProfilePage() {
                     <Avatar className="h-24 w-24">
                       <AvatarImage src={userData.avatar || "/placeholder.svg"} alt={userData.name} />
                       <AvatarFallback className="text-lg">
-                        {userData.name
+                        {user?.username
                           .split(" ")
                           .map((n) => n[0])
                           .join("")}
@@ -171,8 +183,8 @@ export default function ProfilePage() {
                     </div>
                   ) : (
                     <div className="text-center">
-                      <h2 className="text-xl font-bold text-white">{userData.name}</h2>
-                      <p className="text-blue-400">{userData.username}</p>
+                      <h2 className="text-xl font-bold text-white">{user?.username}</h2>
+                      <p className="text-blue-400">{userData?.email}</p>
                     </div>
                   )}
 
@@ -360,49 +372,15 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {userData.courses.map((course) => {
-                    const completionPercentage = (course.completed / course.assignments) * 100
+                  {courses?.slice(0, 4).map((course) => {
                     return (
-                      <Card
-                        key={course.id}
-                        className="glass-dark border-0 hover:glass-hover transition-all duration-300"
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between mb-3">
-                            <div className="flex items-center space-x-3">
-                              <div className={`w-4 h-4 rounded-full ${course.color}`} />
-                              <div>
-                                <h3 className="font-semibold text-white">{course.code}</h3>
-                                <p className="text-sm text-gray-400">{course.name}</p>
-                              </div>
-                            </div>
-                            <Badge variant="outline" className="border-gray-600 text-xs">
-                              {course.credits} credits
-                            </Badge>
-                          </div>
-
-                          <div className="space-y-2 mb-3">
-                            <div className="flex items-center space-x-2 text-sm">
-                              <Users className="h-3 w-3 text-blue-400" />
-                              <span className="text-gray-300">{course.instructor}</span>
-                            </div>
-                            <div className="flex items-center space-x-2 text-sm">
-                              <Clock className="h-3 w-3 text-purple-400" />
-                              <span className="text-gray-300">{course.schedule}</span>
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-gray-400">Progress</span>
-                              <span className="text-gray-400">
-                                {course.completed}/{course.assignments}
-                              </span>
-                            </div>
-                            <Progress value={completionPercentage} className="h-1.5" />
-                          </div>
-                        </CardContent>
-                      </Card>
+                     <CourseItem 
+                        course={course} 
+                        onEdit={() => {}} 
+                        onDelete={() => {}} 
+                        onToggleComplete={() => {}} 
+                        onCourseClick={setSelectedCourse} 
+                     />
                     )
                   })}
                 </div>
@@ -411,6 +389,11 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+      <CourseDetailsModal
+          isOpen={!selectedCourse}
+          onClose={() => setSelectedCourse(null)}
+          course={selectedCourse}
+        />
     </div>
   )
 }

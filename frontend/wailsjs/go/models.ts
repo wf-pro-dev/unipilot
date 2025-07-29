@@ -24,6 +24,7 @@ export namespace assignment {
 	    Course: course.Course;
 	    Type: models.AssignmentType;
 	    Status: models.AssignmentStatus;
+	    Documents: document.Document[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Assignment(source);
@@ -50,6 +51,7 @@ export namespace assignment {
 	        this.Course = this.convertValues(source["Course"], course.Course);
 	        this.Type = this.convertValues(source["Type"], models.AssignmentType);
 	        this.Status = this.convertValues(source["Status"], models.AssignmentStatus);
+	        this.Documents = this.convertValues(source["Documents"], document.Document);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -267,6 +269,76 @@ export namespace course {
 	        this.Instructor = source["Instructor"];
 	        this.InstructorEmail = source["InstructorEmail"];
 	        this.SyncStatus = source["SyncStatus"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace document {
+	
+	export class Document {
+	    ID: number;
+	    // Go type: time
+	    CreatedAt: any;
+	    // Go type: time
+	    UpdatedAt: any;
+	    // Go type: gorm
+	    DeletedAt: any;
+	    AssignmentID: number;
+	    UserID: number;
+	    Type: string;
+	    FileName: string;
+	    FileType: string;
+	    FilePath: string;
+	    FileSize: number;
+	    Version: number;
+	    ParentDocID?: number;
+	    IsOriginal: boolean;
+	    User: user.User;
+	    ParentDoc?: Document;
+	    Versions: Document[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Document(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ID = source["ID"];
+	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
+	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
+	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.AssignmentID = source["AssignmentID"];
+	        this.UserID = source["UserID"];
+	        this.Type = source["Type"];
+	        this.FileName = source["FileName"];
+	        this.FileType = source["FileType"];
+	        this.FilePath = source["FilePath"];
+	        this.FileSize = source["FileSize"];
+	        this.Version = source["Version"];
+	        this.ParentDocID = source["ParentDocID"];
+	        this.IsOriginal = source["IsOriginal"];
+	        this.User = this.convertValues(source["User"], user.User);
+	        this.ParentDoc = this.convertValues(source["ParentDoc"], Document);
+	        this.Versions = this.convertValues(source["Versions"], Document);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

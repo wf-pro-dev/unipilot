@@ -8,7 +8,7 @@ import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Search } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 interface Filter {
   course: string | null
@@ -36,11 +36,10 @@ export function AssignmentsTable({
   isLoading = false
 }: AssignmentsTableProps) {
 
-
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCourse, setSelectedCourse] = useState("all")
-  const [selectedStatus, setSelectedStatus] = useState("all")
-  const [selectedPriority, setSelectedPriority] = useState("all")
+  const [selectedCourse, setSelectedCourse] = useState(filter.course || "all")
+  const [selectedStatus, setSelectedStatus] = useState(filter.status || "all")
+  const [selectedPriority, setSelectedPriority] = useState(filter.priority || "all")
 
   const courses = Array.from(new Set((assignments || []).map((assignment) => assignment.Course?.Code || "all")))
   const statuses = Array.from(new Set((assignments || []).map((assignment) => assignment.StatusName)))
@@ -50,18 +49,23 @@ export function AssignmentsTable({
 
 
   // Apply basic filters (simplified for now)
-  const filteredAssignments = (assignments || []).filter((assignment) => {
-    if (filter.course && filter.course !== "all" && assignment.Course?.Code !== filter.course) {
-      return false
-    }
-    if (filter.status && filter.status !== "all" && assignment.StatusName !== filter.status) {
-      return false
-    }
-    if (filter.priority && filter.priority !== "all" && assignment.Priority !== filter.priority) {
-      return false
-    }
-    return true
-  })
+  const filteredAssignments = useMemo(() => (assignments || []).filter((assignment) => {
+    const matchesSearch =
+      assignment.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      assignment.Course?.Name.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesCourse = selectedCourse === "all" || assignment.Course?.Code === selectedCourse
+    const matchesStatus = selectedStatus === "all" || assignment.StatusName === selectedStatus
+    const matchesPriority = selectedPriority === "all" || assignment.Priority === selectedPriority
+    return matchesSearch && matchesCourse && matchesStatus && matchesPriority
+  }), [assignments, searchTerm, selectedCourse, selectedStatus, selectedPriority])
+
+ 
+
+  useEffect(() => {
+    setSelectedCourse(filter.course || "all")
+    setSelectedStatus(filter.status || "all")
+    setSelectedPriority(filter.priority || "all")
+  }, [filter])  
 
   const clearFilters = () => {
     setSearchTerm("")
@@ -74,8 +78,8 @@ export function AssignmentsTable({
     <div className="space-y-6">
       <Card className="glass border-0">
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2 text-white">
-            <div className="flex flex-col md:flex-row justify-between mb-6">
+          <CardTitle className="flex flex-row  gap-3 mb-6 items-center">
+             
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <Input
@@ -86,7 +90,6 @@ export function AssignmentsTable({
                 />
               </div>
 
-              <div className="flex gap-2">
                 <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                   <SelectTrigger className="w-[180px] glass border-gray-600 bg-white/5">
                     <SelectValue placeholder="All Courses" />
@@ -140,8 +143,7 @@ export function AssignmentsTable({
                     Clear
                   </Button>
                 )}
-              </div>
-            </div>
+       
           </CardTitle>
         </CardHeader>
         <CardContent>

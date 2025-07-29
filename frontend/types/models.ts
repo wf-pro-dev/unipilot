@@ -8,7 +8,7 @@ interface Assignment {
   Deadline: Date 
   Link: string
   TypeName: string
-  StatusName: "Not Started" | "In Progress" | "Done"
+  StatusName: "Not started" | "In progress" | "Done"
   Priority: "low" | "medium" | "high"
   Completed: boolean
   CreatedAt: Date 

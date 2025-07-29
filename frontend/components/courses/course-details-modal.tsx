@@ -21,7 +21,12 @@ import {
 import Link from "next/link"
 import { Course } from "@/types/models"
 import { useAssignments } from "@/hooks/use-assignments"
-import { formatDeadline, parseDeadline } from "@/lib/date-utils"
+import { formatDeadline } from "@/lib/date-utils"
+import { Assignment } from "@/types/models"
+import { StatusTag } from "@/components/utils/status-tag"
+import { LogInfo } from "@/wailsjs/runtime/runtime"
+import { format } from "date-fns"
+import { useUpdateAssignment } from "@/hooks/use-assignments"
 
 interface CourseDetailsModalProps {
   isOpen: boolean
@@ -31,11 +36,27 @@ interface CourseDetailsModalProps {
 
 export function CourseDetailsModal({ isOpen, onClose, course }: CourseDetailsModalProps) {
   if (!course) return null
-  const { assignments } = useAssignments()
+  const { data: assignments, isLoading } = useAssignments()
 
-  var  course_assignments = assignments.filter((assignment) => assignment.Course?.Code === course.Code)
-  var completed_assignments_count = course_assignments.filter((assignment) => assignment.StatusName === "Done").length
+  var course_assignments = (assignments || []).filter((assignment: Assignment) => assignment.Course?.Code === course.Code) || []
+  var completed_assignments_count = course_assignments.filter((assignment: Assignment) => assignment.StatusName === "Done").length
   var completionPercentage = (completed_assignments_count / course_assignments.length) * 100
+  var isCompleted = completionPercentage === 100
+
+  const updateMutation = useUpdateAssignment()
+
+  const handleEditAssignment = async (assignment: Assignment, column: string, value: string) => {
+    console.log("Editing assignment:", assignment)
+    const message = "assignment " + assignment.ID + " " + column + " changed to " + value
+    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
+
+    // Use the optimistic update mutation
+    updateMutation.mutate({
+      assignment,
+      column,
+      value
+    })
+  }
 
   // Mock additional data
   const courseData = {
@@ -145,13 +166,6 @@ export function CourseDetailsModal({ isOpen, onClose, course }: CourseDetailsMod
                 </div>
               </div>
 
-              <div>
-                <label className="text-sm font-medium text-gray-400 block mb-2">Office Hours</label>
-                <div className="flex items-center space-x-2 text-white">
-                  <Clock className="h-4 w-4 text-yellow-400" />
-                  <span>{courseData.OfficeHours}</span>
-                </div>
-              </div>
             </div>
           </div>
 
@@ -164,13 +178,13 @@ export function CourseDetailsModal({ isOpen, onClose, course }: CourseDetailsMod
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <TrendingUp className="h-4 w-4 text-green-400" />
-                  <span className="text-white">
+                  <span className={`${isCompleted ? "text-green-400" : "text-white"}`}>
                     {completed_assignments_count} of {course_assignments.length} assignments completed
                   </span>
                 </div>
                 <span className="text-sm text-gray-400">{Math.round(completionPercentage)}%</span>
               </div>
-              <Progress value={completionPercentage} className="h-2" />
+              <Progress color={isCompleted ? "green" : "white"} value={completionPercentage} className="h-2" />
             </div>
           </div>
 
@@ -178,32 +192,21 @@ export function CourseDetailsModal({ isOpen, onClose, course }: CourseDetailsMod
           <div>
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-gray-400 block mb-3">Recent Assignments</label>
-                <Link href={`/assignments?view=list&course=${courseData.Code}`}>
+              <Link href={`/assignments?view=list&course=${courseData.Code}`}>
                 <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300">
                   View All
                 </Button>
               </Link>
             </div>
-            <div className="space-y-2">
-              {course_assignments.slice(0, 3).map((assignment, index) => (
+            <div className="grid md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-2">
+              {course_assignments.slice(0, 6).map((assignment, index) => (
                 <div key={index} className="flex items-center justify-between p-3 rounded-lg glass-dark">
-                  
-                  <span className="text-white">{assignment.Title}</span>
-                  <div className="flex items-center space-x-2">
+
+                  <span className="text-white text-sm line-clamp-2">{assignment.Title}</span>
+                  <div className="flex flex-col items-end space-y-2">
                     <span className="text-xs text-gray-400">{formatDeadline(assignment.Deadline)}</span>
 
-                    <Badge
-                      variant={
-                        assignment.StatusName === "Done"
-                          ? "default"
-                          : assignment.StatusName === "In Progress"
-                            ? "secondary"
-                            : "outline"
-                      }
-                      className="text-xs"
-                    >
-                      {assignment.StatusName}
-                    </Badge>
+                    <StatusTag assignment={assignment} onEdit={handleEditAssignment} />
                   </div>
                 </div>
               ))}

@@ -2,19 +2,16 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, Clock, AlertTriangle, CheckCircle2 } from "lucide-react"
-import { isToday, isWithinInterval, startOfWeek, endOfWeek } from "date-fns"
-import { Assignment } from "@/types/models"
-import { parseDeadline, isOverdue } from "@/lib/date-utils"
-import { useAssignments } from "@/hooks/use-assignments"
+import { useAssignments, useCompletedAssignments, useOverdueAssignments, useTodayAssignments, useWeekAssignments } from "@/hooks/use-assignments"
+import Link from "next/link"
 
 export function StatsCards() {
   const { data: assignments = [] } = useAssignments()
-  
-  const todayAssignments = (assignments || []).filter((a) => isToday(parseDeadline(a.Deadline)))
-  
-  const thisWeekAssignments = (assignments || []).filter((a) => isWithinInterval(parseDeadline(a.Deadline), { start: startOfWeek(new Date()), end: endOfWeek(new Date()) }))
-  const overdueAssignments = (assignments || []).filter((a) => isOverdue(parseDeadline(a.Deadline), a.StatusName))
-  const completedAssignments = (assignments || []).filter((a) => a.StatusName === "Done")
+  const { data: todayAssignments } = useTodayAssignments()
+  const { data: weekAssignments } = useWeekAssignments()
+  const { data: overdueAssignments } = useOverdueAssignments()
+  const { data: completedAssignments } = useCompletedAssignments()
+ 
 
   const stats = [
     {
@@ -24,14 +21,16 @@ export function StatsCards() {
       icon: Clock,
       color: "text-orange-400",
       bgColor: "bg-orange-500/10",
+      link: "/assignments?view=today"
     },
     {
       title: "This Week", 
-      value: thisWeekAssignments.length,
-      change: `${thisWeekAssignments.filter((a) => a.StatusName !== "Done").length} pending`,
+      value: weekAssignments.length,
+      change: `${weekAssignments.filter((a) => a.StatusName !== "Done").length} pending`,
       icon: Calendar,
       color: "text-blue-400",
       bgColor: "bg-blue-500/10",
+      link: "/assignments?view=week"
     },
     {
       title: "Overdue",
@@ -40,6 +39,7 @@ export function StatsCards() {
       icon: AlertTriangle,
       color: "text-red-400",
       bgColor: "bg-red-500/10",
+      link: "/assignments?view=overdue"
     },
     {
       title: "Completed",
@@ -48,13 +48,15 @@ export function StatsCards() {
       icon: CheckCircle2,
       color: "text-green-400",
       bgColor: "bg-green-500/10",
+      link: "/assignments?view=list&status=Done"
     },
   ]
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat, index) => (
-        <Card key={index} className="glass border-0">
+        <Link href={stat.link} key={index}>
+        <Card className="glass border-0 hover:scale-105 transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-white">
               {stat.title}
@@ -70,6 +72,7 @@ export function StatsCards() {
             </p>
           </CardContent>
         </Card>
+        </Link>
       ))}
     </div>
   )

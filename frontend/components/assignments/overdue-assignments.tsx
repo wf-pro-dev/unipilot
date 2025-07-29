@@ -16,7 +16,7 @@ export function OverdueAssignments({ assignments, onToggleComplete, onAssignment
 
   return (
     <AssignmentView 
-      title="Overdue Assignments" 
+      title="Overdue" 
       assignments={overdueAssignments} 
       onToggleComplete={onToggleComplete} 
       onAssignmentClick={onAssignmentClick}

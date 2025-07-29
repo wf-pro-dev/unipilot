@@ -4,8 +4,10 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, BookOpen, ClipboardList } from "lucide-react"
 import Link from "next/link"
+import { useAuth } from "@/hooks/use-auth"
 
 export function WelcomeSection() {
+  const { user } = useAuth()
   const currentTime = new Date()
   const hour = currentTime.getHours()
 
@@ -20,7 +22,7 @@ export function WelcomeSection() {
     <div className="space-y-6">
       <div>
         <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-          {greeting}, John! 👋
+          {greeting}, {user?.username} 👋
         </h1>
         <p className="text-gray-400 mt-2">Ready to tackle your assignments today?</p>
       </div>

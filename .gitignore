@@ -32,6 +32,9 @@ go.work.sum
 # .vscode/
 
 # Wails (frontend)
+node_module
+package*
+
 frontend/node_module
 frontend/package*
 

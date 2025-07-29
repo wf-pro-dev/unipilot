@@ -9,7 +9,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Calendar, Clock, MoreVertical, Edit, Trash2, Flag, User, FileText, Award, ExternalLink } from "lucide-react"
 import { format } from "date-fns"
 import { Assignment } from "@/types/models"
-import { parseDeadline, calculateDaysDifference, isOverdue } from "@/lib/date-utils"
+import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
+import { StatusTag } from "../utils/status-tag"
 
 interface AssignmentDetailsModalProps {
   isOpen: boolean
@@ -71,12 +72,14 @@ export function AssignmentDetailsModal({
             <DialogTitle className="text-xl font-semibold text-white">
               {assignment.Title}
             </DialogTitle>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
+
               <DropdownMenuContent align="end" className="glass border-gray-600">
                 <DropdownMenuItem onClick={() => onEdit(assignment, "title", assignment.Title)}>
                   <Edit className="mr-2 h-4 w-4" />
@@ -91,6 +94,7 @@ export function AssignmentDetailsModal({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
           </div>
         </DialogHeader>
 
@@ -98,18 +102,18 @@ export function AssignmentDetailsModal({
           {/* Status and Priority */}
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">
-              <Checkbox
-                checked={assignment.StatusName === "Done"}
-                onCheckedChange={() => onToggleComplete(assignment)}
-                className="mt-1"
-              />
-              <Badge variant="outline" className={`text-sm font-semibold border-gray-600 ${statusColors[assignment.StatusName.toLowerCase() as keyof typeof statusColors]}`}>
-                {assignment.StatusName}
+
+              <StatusTag assignment={assignment} onEdit={onEdit} />
+
+              <Badge variant="outline" className={`text-sm ${priorityColors[assignment.Priority]}`}>
+                {assignment.Priority}
               </Badge>
-   
-                <Badge variant="outline" className={`text-sm ${priorityColors[assignment.Priority]}`}>
-                  {assignment.Priority}
-                </Badge>
+
+              <Badge variant="outline" className={`text-sm font-semibold ${typeColors[assignment.TypeName as keyof typeof typeColors]}`}>
+                {assignment.TypeName}
+              </Badge>
+
+
             </div>
           </div>
 
@@ -124,40 +128,27 @@ export function AssignmentDetailsModal({
             </div>
             <div className="space-y-2">
               <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <FileText className="h-4 w-4" />
-                <span>Type</span>
+                <Calendar className="h-4 w-4" />
+                <span>Deadline</span>
               </div>
-              <Badge variant="outline" className={`text-sm font-semibold ${typeColors[assignment.TypeName as keyof typeof typeColors]}`}>
-                {assignment.TypeName}
-              </Badge>
+              <div className="flex items-center space-x-4">
+                <p className="text-white font-medium">{format(deadline, "EEEE, MMMM d, yyyy")}</p>
+                <div className={`flex items-center space-x-1 text-sm ${isOverdueStatus ? "text-red-400" : daysUntilDue <= 1 ? "text-yellow-400" : "text-gray-400"}`}>
+                  <Clock className="h-4 w-4" />
+                  <span>
+                    {getDueDescription(deadline, assignment.StatusName)}
+                  </span>
+                </div>
+              </div>
             </div>
+
           </div>
 
           {/* Deadline */}
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2 text-sm text-gray-400">
-              <Calendar className="h-4 w-4" />
-              <span>Deadline</span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <p className="text-white font-medium">{format(deadline, "EEEE, MMMM d, yyyy")}</p>
-              <div className={`flex items-center space-x-1 text-sm ${isOverdueStatus ? "text-red-400" : daysUntilDue <= 1 ? "text-yellow-400" : "text-gray-400"}`}>
-                <Clock className="h-4 w-4" />
-                <span>
-                  {isOverdueStatus
-                    ? `${Math.abs(daysUntilDue)} days overdue`
-                    : daysUntilDue === 0
-                      ? "Due today"
-                      : daysUntilDue === 1
-                        ? "Due tomorrow"
-                        : `${daysUntilDue} days left`}
-                </span>
-              </div>
-            </div>
-          </div>
+
 
           {/* Description */}
-            {assignment.Todo && (
+          {assignment.Todo && (
             <div className="space-y-2">
               <div className="flex items-center space-x-2 text-sm text-gray-400">
                 <FileText className="h-4 w-4" />
@@ -167,47 +158,8 @@ export function AssignmentDetailsModal({
             </div>
           )}
 
-          {/* Additional Details */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <User className="h-4 w-4" />
-                <span>Instructor</span>
-              </div>
-              <p className="text-white font-medium">{assignment.Instructor}</p>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <FileText className="h-4 w-4" />
-                <span>Submission</span>
-              </div>
-                <p className="text-white font-medium">{assignment.SubmissionType}</p>
-            </div>
-          </div>
 
-          {/* Score (if completed) */}
-          {assignment.Completed && assignment.EarnedPoints && (
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <Award className="h-4 w-4" />
-                <span>Score</span>
-              </div>
-              <div className="flex items-center space-x-4">
-                <p className="text-white font-medium">
-                  {assignment.EarnedPoints}/{assignment.MaxPoints} points
-                </p>
-                <div className="flex items-center space-x-2">
-                  <div className="w-20 h-2 bg-gray-600 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-green-500 rounded-full"
-                      style={{ width: `${scorePercentage}%` }}
-                    />
-                  </div>
-                  <span className="text-sm text-gray-400">{Math.round(scorePercentage)}%</span>
-                </div>
-              </div>
-            </div>
-          )}
+
 
           {/* Link */}
           {assignment.Link && (
@@ -220,7 +172,10 @@ export function AssignmentDetailsModal({
                 href={assignment.Link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-400 hover:text-blue-300 underline break-all"
+                className="text-blue-400 text-sm hover:text-blue-300 underline break-all"
+                onClick={() => {
+                  window.open(assignment.Link, "_self")
+                }}
               >
                 {assignment.Link}
               </a>

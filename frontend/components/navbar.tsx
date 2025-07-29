@@ -49,7 +49,7 @@ export function Navbar() {
             </Link>
           </div>
 
-          <div className="hidden md:flex items-center space-x-1">
+          <div className="hidden md:flex items-center space-x-2">
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
@@ -57,7 +57,7 @@ export function Navbar() {
                 <Link key={item.href} href={item.href}>
                   <Button
                     variant={isActive ? "secondary" : "ghost"}
-                    className={`flex items-center space-x-2 ${
+                    className={`flex items-center space-x-1 ${
                       isActive ? "bg-white/10 text-white" : "text-gray-300 hover:text-white hover:bg-white/5"
                     }`}
                   >

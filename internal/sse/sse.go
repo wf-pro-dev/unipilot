@@ -81,6 +81,11 @@ func (c *SSE) establishAndStream(httpClient *http.Client) error {
 	req.Header.Set("Accept", "text/event-stream")
 	req.Header.Set("Cache-Control", "no-cache")
 	req.Header.Set("Connection", "keep-alive")
+	// Add headers to prevent connection reuse issues
+	req.Header.Set("X-Requested-With", "XMLHttpRequest")
+	req.Header.Set("Pragma", "no-cache")
+	// Close connection on completion to prevent reuse
+	req.Close = true
 
 	resp, err := httpClient.Do(req)
 	if err != nil {

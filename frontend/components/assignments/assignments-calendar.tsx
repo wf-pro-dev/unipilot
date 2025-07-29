@@ -16,13 +16,19 @@ interface AssignmentsCalendarProps {
   onAddAssignment: () => void
   onMoveAssignment: (assignment: Assignment, date: Date) => void
   isLoading?: boolean
+  onEdit: (assignment: Assignment, column: string, value: string) => void
+  onAssignmentClick: (assignment: Assignment) => void
+  onDateClick: (date: Date) => void
 }
 
 export function AssignmentsCalendar({
-  assignments,
+  assignments,  
   onAddAssignment,
   onMoveAssignment,
-  isLoading = false
+  onEdit,
+  onAssignmentClick,
+  onDateClick,
+  isLoading = false,
 }: AssignmentsCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
 
@@ -151,8 +157,11 @@ export function AssignmentsCalendar({
                     isCurrentMonth={isCurrentMonth}
                     isToday={isToday}
                     onMoveAssignment={onMoveAssignment}
+                    onDateClick={onDateClick}
+                    onEdit={onEdit}
+                    onAssignmentClick={onAssignmentClick}
                     index={index}
-                  />
+                    />
                 )
               })}
             </div>

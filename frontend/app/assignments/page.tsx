@@ -8,44 +8,46 @@ import { AssignmentsTable } from "@/components/assignments/assignments-table"
 import { TodayAssignments } from "@/components/assignments/today-assignments"
 import { WeekAssignments } from "@/components/assignments/week-assignments"
 import { OverdueAssignments } from "@/components/assignments/overdue-assignments"
-import { CompletedAssignments } from "@/components/assignments/completed-assignments"
+import { ExamAssignments } from "@/components/assignments/exam-assignments"
 import { AddAssignmentDialog } from "@/components/assignments/add-assignment-dialog"
 import { AssignmentDetailsModal } from "@/components/assignments/assignment-details-modal"
 import { Calendar, List, Clock, CheckCircle2, AlertTriangle, CalendarDays, Loader2 } from "lucide-react"
 import { Assignment } from "@/types/models"
-import { 
-  useAssignments, 
-  useUpdateAssignment, 
+import {
+  useAssignments,
+  useUpdateAssignment,
   useTodayAssignments,
   useWeekAssignments,
   useOverdueAssignments,
-  useCompletedAssignments
+  useExamAssignments
 } from "@/hooks/use-assignments"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
+import { DayAssignmentsModal } from "@/components/assignments/day-assignments-modal"
 
 export default function AssignmentsPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  
+
   // Use the new optimized hooks
   const { data: assignments, isLoading, error } = useAssignments()
   const { data: todayAssignments } = useTodayAssignments()
   const { data: weekAssignments } = useWeekAssignments()
   const { data: overdueAssignments } = useOverdueAssignments()
-  const { data: completedAssignments } = useCompletedAssignments()
-  
+  const { data: examAssignments } = useExamAssignments()
+
   // Mutation for updates with optimistic updates
   const updateMutation = useUpdateAssignment()
 
   const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
   // Get the current view from URL parameters, default to "today"
   const currentView = searchParams.get("view") || "today"
-  
+
   // Valid view values
-  const validViews = ["today", "week", "overdue", "completed", "calendar", "list"]
-  
+  const validViews = ["today", "week", "overdue", "exam", "calendar", "list"]
+
   // Ensure the current view is valid, otherwise default to "today"
   const activeView = validViews.includes(currentView) ? currentView : "today"
 
@@ -58,7 +60,7 @@ export default function AssignmentsPage() {
     console.log("Editing assignment:", assignment)
     const message = "assignment " + assignment.ID + " " + column + " changed to " + value
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-    
+
     // Use the optimistic update mutation
     updateMutation.mutate({
       assignment,
@@ -75,7 +77,7 @@ export default function AssignmentsPage() {
   const handleMoveAssignment = async (assignment: Assignment, date: Date) => {
     const newDeadline = format(date, "yyyy-MM-dd HH:mm:ssxxx")
     handleEditAssignment(assignment, "deadline", newDeadline)
-  } 
+  }
 
   const handleDeleteAssignment = (id: number) => {
     console.log("Deleting assignment:", id)
@@ -145,9 +147,9 @@ export default function AssignmentsPage() {
               <AlertTriangle className="h-4 w-4" />
               <span>Overdue ({overdueAssignments?.length || 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="completed" className="flex items-center space-x-2">
+            <TabsTrigger value="exam" className="flex items-center space-x-2">
               <CheckCircle2 className="h-4 w-4" />
-              <span>Completed ({completedAssignments?.length || 0})</span>
+              <span>Exam ({examAssignments?.length || 0})</span>
             </TabsTrigger>
             <TabsTrigger value="calendar" className="flex items-center space-x-2">
               <Calendar className="h-4 w-4" />
@@ -186,9 +188,9 @@ export default function AssignmentsPage() {
             />
           </TabsContent>
 
-          <TabsContent value="completed">
-            <CompletedAssignments
-              assignments={completedAssignments || []}
+          <TabsContent value="exam">
+            <ExamAssignments
+              assignments={examAssignments || []}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
               isLoading={updateMutation.isPending}
@@ -198,8 +200,11 @@ export default function AssignmentsPage() {
           <TabsContent value="calendar">
             <AssignmentsCalendar
               assignments={assignments || []}
-              onAddAssignment={() => {}}
+              onAddAssignment={() => { }}
+              onEdit={handleEditAssignment}
               onMoveAssignment={handleMoveAssignment}
+              onAssignmentClick={setSelectedAssignment}
+              onDateClick={setSelectedDate}
               isLoading={updateMutation.isPending}
             />
           </TabsContent>
@@ -224,6 +229,18 @@ export default function AssignmentsPage() {
           onEdit={handleEditAssignment}
           onDelete={handleDeleteAssignment}
           onToggleComplete={handleToggleComplete}
+          isLoading={updateMutation.isPending}
+        />
+        <DayAssignmentsModal
+          isOpen={!!selectedDate}
+          onClose={() => setSelectedDate(null)}
+          date={selectedDate}
+          assignments={assignments || []}
+          onToggleComplete={handleToggleComplete}
+          onAddAssignment={() => {}}
+          onEdit={handleEditAssignment}
+          onDelete={handleDeleteAssignment}
+          onAssignmentClick={setSelectedAssignment}
           isLoading={updateMutation.isPending}
         />
       </div>

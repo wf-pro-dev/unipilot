@@ -12,6 +12,7 @@ import (
 
 	"unipilot/internal/models"
 	"unipilot/internal/models/course"
+	"unipilot/internal/models/document"
 	"unipilot/internal/models/user"
 
 	"gorm.io/gorm"
@@ -32,10 +33,11 @@ type Assignment struct {
 	Priority   string `gorm:"default:medium"`
 	Completed  bool   `gorm:"default:false"`
 
-	User   user.User               `gorm:"foreignKey:UserID;references:ID"`
-	Course course.Course           `gorm:"foreignKey:CourseCode;references:Code"`
-	Type   models.AssignmentType   `gorm:"foreignKey:TypeName;references:Name"`
-	Status models.AssignmentStatus `gorm:"foreignKey:StatusName;references:Name"`
+	User      user.User               `gorm:"foreignKey:UserID;references:ID"`
+	Course    course.Course           `gorm:"foreignKey:CourseCode;references:Code"`
+	Type      models.AssignmentType   `gorm:"foreignKey:TypeName;references:Name"`
+	Status    models.AssignmentStatus `gorm:"foreignKey:StatusName;references:Name"`
+	Documents []document.Document     `gorm:"foreignKey:AssignmentID;references:ID"`
 }
 
 type Filter struct {
@@ -218,4 +220,61 @@ func (a *Assignment) Delete(db *gorm.DB) (err error) {
 	}
 
 	return nil
+}
+
+// Document-related methods
+
+// GetDocuments retrieves all documents for this assignment
+func (a *Assignment) GetDocuments(db *gorm.DB) ([]document.Document, error) {
+	return document.GetDocumentsByAssignment(a.ID, a.UserID, db)
+}
+
+// GetLatestDocuments retrieves only the latest versions of documents for this assignment
+func (a *Assignment) GetLatestDocuments(db *gorm.DB) ([]document.Document, error) {
+	return document.GetLatestVersions(a.ID, a.UserID, db)
+}
+
+// GetSupportDocuments retrieves only support documents for this assignment
+func (a *Assignment) GetSupportDocuments(db *gorm.DB) ([]document.Document, error) {
+	var documents []document.Document
+	err := db.Preload("User").
+		Where("assignment_id = ? AND user_id = ? AND type = ?", a.ID, a.UserID, document.DocumentTypeSupport).
+		Order("created_at DESC").
+		Find(&documents).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get support documents: %w", err)
+	}
+
+	return documents, nil
+}
+
+// GetSubmissionDocuments retrieves only submission documents for this assignment
+func (a *Assignment) GetSubmissionDocuments(db *gorm.DB) ([]document.Document, error) {
+	var documents []document.Document
+	err := db.Preload("User").
+		Where("assignment_id = ? AND user_id = ? AND type = ?", a.ID, a.UserID, document.DocumentTypeSubmission).
+		Order("created_at DESC").
+		Find(&documents).Error
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get submission documents: %w", err)
+	}
+
+	return documents, nil
+}
+
+// GetDocumentStorageUsage returns total bytes used by documents in this assignment
+func (a *Assignment) GetDocumentStorageUsage(db *gorm.DB) (int64, error) {
+	var totalSize int64
+	err := db.Model(&document.Document{}).
+		Where("assignment_id = ? AND user_id = ?", a.ID, a.UserID).
+		Select("COALESCE(SUM(file_size), 0)").
+		Scan(&totalSize).Error
+
+	if err != nil {
+		return 0, fmt.Errorf("failed to calculate document storage: %w", err)
+	}
+
+	return totalSize, nil
 }

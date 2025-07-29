@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Assignment } from "@/types/models"
 import { LogError } from "@/wailsjs/runtime/runtime"
+import { addDays, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns'
 
 // Query keys for consistent cache management
 export const assignmentKeys = {
@@ -161,7 +162,7 @@ export function useOverdueAssignments() {
   
   const overdueAssignments = assignments?.filter(assignment => {
     if (!assignment.Deadline) return false
-    return new Date(assignment.Deadline) < new Date() && assignment.StatusName !== 'Done'
+    return new Date(assignment.Deadline) < addDays(new Date(), -1) && assignment.StatusName !== 'Done'
   }) || []
   
   return {
@@ -203,13 +204,10 @@ export function useAssignmentsByCourse(courseId?: number) {
 export function useWeekAssignments() {
   const { data: assignments, ...rest } = useAssignments()
   
-  const oneWeekFromNow = new Date()
-  oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7)
-  
   const weekAssignments = assignments?.filter(assignment => {
     if (!assignment.Deadline) return false
     const deadline = new Date(assignment.Deadline)
-    return deadline >= new Date() && deadline <= oneWeekFromNow
+    return isWithinInterval(deadline, { start: startOfWeek(new Date()), end: endOfWeek(new Date()) })
   }) || []
   
   return {
@@ -228,6 +226,20 @@ export function useCompletedAssignments() {
   
   return {
     data: completedAssignments,
+    ...rest
+  }
+}
+
+// Completed assignments
+export function useExamAssignments() {
+  const { data: assignments, ...rest } = useAssignments()
+  
+  const examAssignments = assignments?.filter(assignment => 
+    assignment.TypeName === 'Exam' 
+  ) || []
+  
+  return {
+    data: examAssignments,
     ...rest
   }
 }

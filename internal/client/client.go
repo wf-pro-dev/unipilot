@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"time"
 
 	"golang.org/x/net/publicsuffix"
 )
@@ -82,8 +83,6 @@ func SaveCookies(client *http.Client) error {
 		return fmt.Errorf("could not marshal cookies: %w", err)
 	}
 
-	fmt.Println("Cookies: ", string(data))
-
 	return os.WriteFile(cookieFile, data, 0600)
 }
 
@@ -94,17 +93,25 @@ func NewClientWithCookies() (*http.Client, error) {
 		return nil, err
 	}
 
+	// Configure transport to handle connection pooling properly
+	transport := &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+		DisableKeepAlives:   false,
+	}
+
 	cookieFile, err := getCookieFilePath()
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println("Cookie file path: ", cookieFile)
-
 	// It's okay if the cookie file doesn't exist yet.
 	if _, err := os.Stat(cookieFile); os.IsNotExist(err) {
 		log.Println("No cookie file found, creating new client.")
-		return &http.Client{Jar: jar}, nil
+		return &http.Client{
+			Jar:       jar,
+			Transport: transport,
+		}, nil
 	}
 
 	data, err := os.ReadFile(cookieFile)
@@ -116,9 +123,6 @@ func NewClientWithCookies() (*http.Client, error) {
 	if err := json.Unmarshal(data, &cookies); err != nil {
 		return nil, fmt.Errorf("could not unmarshal cookies: %w", err)
 	}
-
-	fmt.Println("Cookies: ", cookies)
-
 	// Assuming the cookies are for the correct domain.
 	if len(cookies) > 0 {
 		// We need a URL to set cookies in the jar.
@@ -127,7 +131,10 @@ func NewClientWithCookies() (*http.Client, error) {
 		jar.SetCookies(url, cookies)
 	}
 
-	return &http.Client{Jar: jar}, nil
+	return &http.Client{
+		Jar:       jar,
+		Transport: transport,
+	}, nil
 }
 
 func LoadCookies() ([]*http.Cookie, error) {
@@ -161,4 +168,47 @@ func ClearCookies() error {
 		return err
 	}
 	return nil
+}
+
+// NewSSEClient creates an HTTP client specifically configured for SSE connections
+func NewSSEClient() (*http.Client, error) {
+	// Configure transport specifically for SSE connections
+	transport := &http.Transport{
+		MaxIdleConns:          50,
+		MaxIdleConnsPerHost:   2, // Limit idle connections per host for SSE
+		IdleConnTimeout:       30 * time.Second,
+		ResponseHeaderTimeout: 10 * time.Second,
+		DisableKeepAlives:     false,
+		// Disable HTTP/2 for SSE to avoid protocol issues
+		ForceAttemptHTTP2: false,
+	}
+
+	// Include cookie jar for authentication
+	jar, err := cookiejar.New(&cookiejar.Options{PublicSuffixList: publicsuffix.List})
+	if err != nil {
+		return nil, err
+	}
+
+	// Load cookies if they exist
+	cookieFile, err := getCookieFilePath()
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := os.Stat(cookieFile); !os.IsNotExist(err) {
+		data, err := os.ReadFile(cookieFile)
+		if err == nil {
+			var cookies []*http.Cookie
+			if err := json.Unmarshal(data, &cookies); err == nil && len(cookies) > 0 {
+				url, _ := url.Parse("https://newsroom.dedyn.io")
+				jar.SetCookies(url, cookies)
+			}
+		}
+	}
+
+	return &http.Client{
+		Jar:       jar,
+		Transport: transport,
+		Timeout:   0, // No timeout for SSE connections
+	}, nil
 }

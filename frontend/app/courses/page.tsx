@@ -1,46 +1,43 @@
 "use client"
 
 import { useState } from "react"
-import { CoursesGrid } from "@/components/courses/courses-grid"
 import { AddCourseDialog } from "@/components/courses/add-course-dialog"
 import { CourseDetailsModal } from "@/components/courses/course-details-modal"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Search, Filter, X, Loader2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Loader2, Calendar, List } from "lucide-react"
 import { useCourses } from "@/hooks/use-courses"
 import { Course } from "@/types/models"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useRouter, useSearchParams } from "next/navigation"
+import CoursesSchedule from "@/components/courses/courses-schedule"
+import CoursesTable from "@/components/courses/courses-table"
 
 export default function CoursesPage() {
   const { data: courses = [], isLoading, error } = useCourses()
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedSemester, setSelectedSemester] = useState("all")
-  const [selectedInstructor, setSelectedInstructor] = useState("all")
 
-  const filteredCourses = (courses || []).filter((course) => {
-    const matchesSearch =
-      course.Code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.Instructor.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesSemester = selectedSemester === "all" || course.Semester === selectedSemester
-    const matchesInstructor = selectedInstructor === "all" || course.Instructor === selectedInstructor
 
-    return matchesSearch && matchesSemester && matchesInstructor
-  })
+  const searchParams = useSearchParams()
+  const router = useRouter()
 
-  const semesters = Array.from(new Set((courses || []).map((course) => course.Semester)))
-  const instructors = Array.from(new Set((courses || []).map((course) => course.Instructor)))
+  // Get the current view from URL parameters, default to "today"
+  const currentView = searchParams.get("view") || "calendar"
 
-  const hasActiveFilters = selectedSemester !== "all" || selectedInstructor !== "all" || searchTerm !== ""
+  // Valid view values
+  const validViews = ["calendar", "list"]
 
-  const clearFilters = () => {
-    setSearchTerm("")
-    setSelectedSemester("all")
-    setSelectedInstructor("all")
+  // Ensure the current view is valid, otherwise default to "today"
+  const activeView = validViews.includes(currentView) ? currentView : "calendar"
+
+  const semester = searchParams.get("semester") || null
+  const instructor = searchParams.get("instructor") || null
+
+
+  // Handle tab change and update URL
+  const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("view", value)
+    router.push(`/courses?${params.toString()}`)
   }
-
   // Show loading state
   if (isLoading) {
     return (
@@ -85,93 +82,41 @@ export default function CoursesPage() {
           <AddCourseDialog />
         </div>
 
-        {/* Search and Filters */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search courses..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 glass border-gray-600 bg-white/5"
+        <Tabs value={activeView} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="grid w-full grid-cols-6 glass border-0 mb-8">
+            <TabsTrigger value="calendar" className="flex items-center space-x-2">
+              <Calendar className="h-4 w-4" />
+              <span>Calendar</span>
+            </TabsTrigger>
+            <TabsTrigger value="list" className="flex items-center space-x-2">
+              <List className="h-4 w-4" />
+              <span>All ({courses.length || 0})</span>
+            </TabsTrigger>
+          </TabsList>
+
+
+          <TabsContent value="calendar">
+            <CoursesSchedule
+              courses={courses || []}
+              onCourseClick={setSelectedCourse}
             />
-          </div>
-          
-          <div className="flex gap-2">
-            <Select value={selectedSemester} onValueChange={setSelectedSemester}>
-              <SelectTrigger className="w-[180px] glass border-gray-600 bg-white/5">
-                <SelectValue placeholder="All Semesters" />
-              </SelectTrigger>
-              <SelectContent className="glass border-gray-600">
-                <SelectItem value="all">All Semesters</SelectItem>
-                {semesters.map((semester) => (
-                  <SelectItem key={semester} value={semester}>
-                    {semester}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          </TabsContent>
 
-            <Select value={selectedInstructor} onValueChange={setSelectedInstructor}>
-              <SelectTrigger className="w-[180px] glass border-gray-600 bg-white/5">
-                <SelectValue placeholder="All Instructors" />
-              </SelectTrigger>
-              <SelectContent className="glass border-gray-600">
-                <SelectItem value="all">All Instructors</SelectItem>
-                {instructors.map((instructor) => (
-                  <SelectItem key={instructor} value={instructor}>
-                    {instructor}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <TabsContent value="list">
+            <CoursesTable
+              courses={courses || []}
+              filter={{ semester: semester || "all", instructor: instructor || "all" }}
+              onCourseClick={setSelectedCourse}
+            />
+          </TabsContent>
+        </Tabs>
 
-            {hasActiveFilters && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={clearFilters}
-                className="glass border-gray-600"
-              >
-                <X className="h-4 w-4 mr-2" />
-                Clear
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Active Filters */}
-        {hasActiveFilters && (
-          <div className="flex items-center gap-2 mb-6">
-            <Filter className="h-4 w-4 text-gray-400" />
-            <span className="text-sm text-gray-400">Active filters:</span>
-            {searchTerm && (
-              <Badge variant="secondary" className="text-xs">
-                Search: {searchTerm}
-              </Badge>
-            )}
-            {selectedSemester !== "all" && (
-              <Badge variant="secondary" className="text-xs">
-                Semester: {selectedSemester}
-              </Badge>
-            )}
-            {selectedInstructor !== "all" && (
-              <Badge variant="secondary" className="text-xs">
-                Instructor: {selectedInstructor}
-              </Badge>
-            )}
-          </div>
-        )}
-
-        <CoursesGrid 
-          courses={filteredCourses} 
-          onCourseClick={setSelectedCourse} 
-        />
 
         <CourseDetailsModal
           isOpen={!!selectedCourse}
-          onClose={() => setSelectedCourse(null)}
           course={selectedCourse}
+          onClose={() => setSelectedCourse(null)}
+
         />
       </div>
     </div>
