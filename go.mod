@@ -3,7 +3,6 @@ module unipilot
 go 1.23
 
 require (
-	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/sessions v1.4.0
 	github.com/spf13/viper v1.20.1
 	github.com/wailsapp/wails/v2 v2.10.2

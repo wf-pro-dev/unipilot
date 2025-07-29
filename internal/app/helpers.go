@@ -51,9 +51,19 @@ func (h *DatabaseHelper) GetCourses() ([]course.LocalCourse, error) {
 
 // GetUser retrieves a user by ID
 func (h *DatabaseHelper) GetUser(id uint) (*user.User, error) {
-	// This would need to be implemented based on your user model
-	// For now, returning a placeholder
-	return &user.User{}, nil
+	var u user.User
+	err := h.db.First(&u, id).Error
+	return &u, err
+}
+
+// GetDB returns the database connection
+func (h *DatabaseHelper) GetDB() *gorm.DB {
+	return h.db
+}
+
+// GetCurrentUserID returns the current user ID
+func (h *DatabaseHelper) GetCurrentUserID() uint {
+	return h.userID
 }
 
 // CreateAssignment creates a new assignment

@@ -2,15 +2,24 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"unipilot/internal/app"
 	"unipilot/internal/auth"
 	"unipilot/internal/client"
 	"unipilot/internal/events"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
+	"unipilot/internal/models/document"
 	"unipilot/internal/models/user"
+	"unipilot/internal/services/fileops"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -131,6 +140,403 @@ func (a *App) GetCourses() ([]course.LocalCourse, error) {
 		return nil, fmt.Errorf("database not initialized")
 	}
 	return a.DB.GetCourses()
+}
+
+// Document Management Methods
+
+// UploadDocument opens a file dialog and uploads a document to an assignment
+func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.Document, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	// Validate document type
+	if documentType != string(document.DocumentTypeSupport) && documentType != string(document.DocumentTypeSubmission) {
+		return nil, fmt.Errorf("invalid document type: %s", documentType)
+	}
+
+	// Open file dialog
+	filters := []runtime.FileFilter{
+		{
+			DisplayName: "Documents",
+			Pattern:     "*.pdf;*.doc;*.docx;*.ppt;*.pptx;*.xls;*.xlsx;*.txt;*.md",
+		},
+		{
+			DisplayName: "Images",
+			Pattern:     "*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.svg",
+		},
+		{
+			DisplayName: "All Files",
+			Pattern:     "*",
+		},
+	}
+
+	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   "Select Document to Upload",
+		Filters: filters,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file dialog: %w", err)
+	}
+
+	if filePath == "" {
+		return nil, fmt.Errorf("no file selected")
+	}
+
+	// Get file info
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	// Open the file
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Get current user ID
+	userID := a.DB.GetCurrentUserID()
+
+	// Create upload request
+	uploadReq := fileops.FileUploadRequest{
+		AssignmentID: assignmentID,
+		UserID:       userID,
+		Type:         document.DocumentType(documentType),
+		FileName:     filepath.Base(filePath),
+		FileContent:  file,
+		FileSize:     fileInfo.Size(),
+	}
+
+	// Upload the document locally
+	response, err := fileops.UploadDocument(uploadReq, a.DB.GetDB())
+	if err != nil {
+		return nil, fmt.Errorf("upload failed: %w", err)
+	}
+
+	if !response.Success {
+		return nil, fmt.Errorf("upload failed: %s", response.Message)
+	}
+
+	// Also store metadata remotely for sharing
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
+		metadataReq := map[string]interface{}{
+			"assignment_id": assignmentID,
+			"type":          documentType,
+			"file_name":     filepath.Base(filePath),
+			"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
+			"file_size":     fileInfo.Size(),
+		}
+
+		// Make API call to store metadata (non-blocking, continue if it fails)
+		go func() {
+			jsonData, _ := json.Marshal(metadataReq)
+			resp, err := a.Auth.Client.Post("https://newsroom.dedyn.io/acc-homework/documents/metadata",
+				"application/json", strings.NewReader(string(jsonData)))
+			if err == nil {
+				defer resp.Body.Close()
+			}
+			// We don't block on this - local file upload is the priority
+		}()
+	}
+
+	return response.Document, nil
+}
+
+// GetAssignmentDocuments retrieves all documents for an assignment
+func (a *App) GetAssignmentDocuments(assignmentID uint) ([]document.Document, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	userID := a.DB.GetCurrentUserID()
+
+	return document.GetLatestVersions(assignmentID, userID, a.DB.GetDB())
+}
+
+// GetSupportDocuments retrieves only support documents for an assignment
+func (a *App) GetSupportDocuments(assignmentID uint) ([]document.Document, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	userID := a.DB.GetCurrentUserID()
+
+	var documents []document.Document
+	err := a.DB.GetDB().Preload("User").
+		Where("assignment_id = ? AND user_id = ? AND type = ?", assignmentID, userID, document.DocumentTypeSupport).
+		Order("created_at DESC").
+		Find(&documents).Error
+
+	return documents, err
+}
+
+// GetSubmissionDocuments retrieves only submission documents for an assignment
+func (a *App) GetSubmissionDocuments(assignmentID uint) ([]document.Document, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	userID := a.DB.GetCurrentUserID()
+
+	var documents []document.Document
+	err := a.DB.GetDB().Preload("User").
+		Where("assignment_id = ? AND user_id = ? AND type = ?", assignmentID, userID, document.DocumentTypeSubmission).
+		Order("created_at DESC").
+		Find(&documents).Error
+
+	return documents, err
+}
+
+// OpenDocument opens a document file with the system default application
+func (a *App) OpenDocument(documentID uint) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return fmt.Errorf("user not authenticated")
+	}
+
+	userID := a.DB.GetCurrentUserID()
+
+	// Get document record
+	var doc document.Document
+	if err := a.DB.DB.Where("id = ? AND user_id = ?", documentID, userID).First(&doc).Error; err != nil {
+		return fmt.Errorf("document not found or access denied")
+	}
+
+	// Check if file exists
+	if !doc.FileExists() {
+		return fmt.Errorf("file not found on disk")
+	}
+
+	// Get full path
+	fullPath, err := doc.GetFullPath()
+	if err != nil {
+		return fmt.Errorf("failed to get file path: %w", err)
+	}
+
+	// Open with system default application
+	runtime.BrowserOpenURL(a.ctx, "file://"+fullPath)
+	return nil
+}
+
+// SaveDocumentAs opens a save dialog and copies the document to chosen location
+func (a *App) SaveDocumentAs(documentID uint) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return fmt.Errorf("user not authenticated")
+	}
+
+	// Get document record
+	var doc document.Document
+	if err := a.DB.DB.Where("id = ? AND user_id = ?", documentID, currentUser.ID).First(&doc).Error; err != nil {
+		return fmt.Errorf("document not found or access denied")
+	}
+
+	// Check if file exists
+	if !doc.FileExists() {
+		return fmt.Errorf("file not found on disk")
+	}
+
+	// Open save dialog
+	savePath, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           fmt.Sprintf("Save %s", doc.FileName),
+		DefaultFilename: doc.FileName,
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to open save dialog: %w", err)
+	}
+
+	if savePath == "" {
+		return fmt.Errorf("no save location selected")
+	}
+
+	// Get source file path
+	sourcePath, err := doc.GetFullPath()
+	if err != nil {
+		return fmt.Errorf("failed to get source file path: %w", err)
+	}
+
+	// Copy file
+	sourceFile, err := os.Open(sourcePath)
+	if err != nil {
+		return fmt.Errorf("failed to open source file: %w", err)
+	}
+	defer sourceFile.Close()
+
+	destFile, err := os.Create(savePath)
+	if err != nil {
+		return fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer destFile.Close()
+
+	_, err = io.Copy(destFile, sourceFile)
+	if err != nil {
+		return fmt.Errorf("failed to copy file: %w", err)
+	}
+
+	return nil
+}
+
+// DeleteDocument removes a document and its file
+func (a *App) DeleteDocument(documentID uint) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return fmt.Errorf("user not authenticated")
+	}
+
+	userID := a.DB.GetCurrentUserID()
+
+	return fileops.DeleteDocument(documentID, userID, a.DB.GetDB())
+}
+
+// GetUserStorageInfo returns storage statistics for the current user
+func (a *App) GetUserStorageInfo() (*document.DocumentStorageInfo, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	userID := a.DB.GetCurrentUserID()
+
+	return fileops.GetUserStorageInfo(userID, a.DB.GetDB())
+}
+
+// UploadNewDocumentVersion uploads a new version of an existing document
+func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Document, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	// Open file dialog
+	filters := []runtime.FileFilter{
+		{
+			DisplayName: "Documents",
+			Pattern:     "*.pdf;*.doc;*.docx;*.ppt;*.pptx;*.xls;*.xlsx;*.txt;*.md",
+		},
+		{
+			DisplayName: "Images",
+			Pattern:     "*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.svg",
+		},
+		{
+			DisplayName: "All Files",
+			Pattern:     "*",
+		},
+	}
+
+	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   "Select New Version of Document",
+		Filters: filters,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file dialog: %w", err)
+	}
+
+	if filePath == "" {
+		return nil, fmt.Errorf("no file selected")
+	}
+
+	// Get file info
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	// Open the file
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Upload new version
+	response, err := fileops.UploadNewVersion(existingDocumentID, filepath.Base(filePath), file, fileInfo.Size(), a.DB.GetDB())
+	if err != nil {
+		return nil, fmt.Errorf("version upload failed: %w", err)
+	}
+
+	if !response.Success {
+		return nil, fmt.Errorf("version upload failed: %s", response.Message)
+	}
+
+	return response.Document, nil
+}
+
+// GetRemoteDocumentMetadata retrieves document metadata from remote server (for shared assignments)
+func (a *App) GetRemoteDocumentMetadata(assignmentID uint) ([]map[string]interface{}, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	if a.Auth.Client == nil {
+		return nil, fmt.Errorf("not connected to server")
+	}
+
+	// Make API call to get remote metadata
+	url := fmt.Sprintf("https://newsroom.dedyn.io/acc-homework/documents?assignment_id=%d", assignmentID)
+	resp, err := a.Auth.Client.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get remote metadata: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("server returned status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Success   bool                     `json:"success"`
+		Documents []map[string]interface{} `json:"documents"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if !result.Success {
+		return nil, fmt.Errorf("server request failed")
+	}
+
+	return result.Documents, nil
 }
 
 // CreateAssignment creates a new assignment
