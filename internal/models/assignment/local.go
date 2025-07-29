@@ -10,6 +10,7 @@ import (
 
 	"unipilot/internal/models"
 	"unipilot/internal/models/course"
+	"unipilot/internal/models/document"
 
 	"gorm.io/gorm"
 )
@@ -36,9 +37,10 @@ type LocalAssignment struct {
 	Completed  bool       `gorm:"default:false"`
 	SyncStatus SyncStatus `gorm:"not null;default:'pending'"`
 
-	Course course.LocalCourse           `gorm:"foreignKey:CourseCode;references:Code"`
-	Type   models.LocalAssignmentType   `gorm:"foreignKey:TypeName;references:Name"`
-	Status models.LocalAssignmentStatus `gorm:"foreignKey:StatusName;references:Name"`
+	Course    course.LocalCourse           `gorm:"foreignKey:CourseCode;references:Code"`
+	Type      models.LocalAssignmentType   `gorm:"foreignKey:TypeName;references:Name"`
+	Status    models.LocalAssignmentStatus `gorm:"foreignKey:StatusName;references:Name"`
+	Documents []document.LocalDocument     `gorm:"foreignKey:AssignmentID;references:ID"`
 }
 
 func (a *LocalAssignment) ToMap() map[string]string {

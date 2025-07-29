@@ -8,6 +8,7 @@ import (
 	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
+	"unipilot/internal/models/document"
 
 	"github.com/spf13/viper"
 	"gorm.io/driver/sqlite"
@@ -60,6 +61,11 @@ func GetLocalDB() (*gorm.DB, uint, error) {
 	}
 	sqlDB.SetMaxOpenConns(1) // SQLite works best with single connection
 
+	// Initialize schema (including new document tables)
+	if err := InitializeSchema(db); err != nil {
+		return nil, 0, fmt.Errorf("failed to initialize schema: %w", err)
+	}
+
 	// Cache the instance
 	dbInstances[userID] = db
 
@@ -99,6 +105,8 @@ func InitializeSchema(db *gorm.DB) error {
 		&models.LocalAssignmentStatus{},
 		&assignment.LocalAssignment{},
 		&models.LocalUpdate{},
+		&document.LocalDocument{},
+		&document.LocalDocumentCache{},
 	)
 
 	if err != nil {

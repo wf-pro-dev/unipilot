@@ -22,6 +22,7 @@ func NewDatabaseHelper() (*DatabaseHelper, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &DatabaseHelper{db: db, userID: userID}, nil
 }
 
