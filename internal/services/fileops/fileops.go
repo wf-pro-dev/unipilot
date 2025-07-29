@@ -25,9 +25,9 @@ type FileUploadRequest struct {
 
 // FileUploadResponse represents the result of a file upload
 type FileUploadResponse struct {
-	Document *document.Document
-	Success  bool
-	Message  string
+	LocalDocument *document.LocalDocument
+	Success       bool
+	Message       string
 }
 
 // SupportedFileTypes defines the allowed file extensions
@@ -68,18 +68,26 @@ func GetMimeType(fileName string) string {
 	return mimeType
 }
 
-// UploadDocument handles the complete file upload process
+// UploadDocument handles the local file upload process
 func UploadDocument(req FileUploadRequest, db *gorm.DB) (*FileUploadResponse, error) {
 	// Validate file type
 	if err := ValidateFileType(req.FileName); err != nil {
 		return &FileUploadResponse{
 			Success: false,
-			Message: err.Error(),
-		}, err
+			Message: "File type not supported",
+		}, fmt.Errorf("unsupported file type")
 	}
 
-	// Create document record
-	doc := &document.Document{
+	// Validate file size
+	if req.FileSize > document.MaxFileSize {
+		return &FileUploadResponse{
+			Success: false,
+			Message: fmt.Sprintf("File size exceeds limit of %d MB", document.MaxFileSize/(1024*1024)),
+		}, fmt.Errorf("file too large")
+	}
+
+	// Create LocalDocument record
+	localDoc := document.LocalDocument{
 		AssignmentID: req.AssignmentID,
 		UserID:       req.UserID,
 		Type:         req.Type,
@@ -87,151 +95,163 @@ func UploadDocument(req FileUploadRequest, db *gorm.DB) (*FileUploadResponse, er
 		FileType:     GetMimeType(req.FileName),
 		FileSize:     req.FileSize,
 		Version:      1,
-		IsOriginal:   true,
-	}
-
-	// Validate file size constraints
-	if err := doc.ValidateFileSize(db); err != nil {
-		return &FileUploadResponse{
-			Success: false,
-			Message: err.Error(),
-		}, err
+		HasLocalFile: false, // Will be set to true after successful file write
 	}
 
 	// Generate file path
-	filePath, err := doc.GenerateFilePath()
+	appDataPath, err := document.GetAppDataPath()
 	if err != nil {
 		return &FileUploadResponse{
 			Success: false,
-			Message: fmt.Sprintf("Failed to generate file path: %v", err),
+			Message: "Failed to get app data path",
 		}, err
 	}
-	doc.FilePath = filePath
 
-	// Get full path for writing
-	fullPath, err := doc.GetFullPath()
-	if err != nil {
+	// Create unique filename with assignment and user info
+	fileName := fmt.Sprintf("doc_%d_%d_%s", req.AssignmentID, req.UserID, req.FileName)
+	filePath := filepath.Join(appDataPath, "documents", fileName)
+	localDoc.FilePath = filePath
+
+	// Check storage quota
+	var totalSize int64
+	db.Model(&document.LocalDocument{}).
+		Where("user_id = ? AND has_local_file = ?", req.UserID, true).
+		Select("COALESCE(SUM(file_size), 0)").
+		Scan(&totalSize)
+
+	if totalSize+req.FileSize > document.MaxUserQuota {
 		return &FileUploadResponse{
 			Success: false,
-			Message: fmt.Sprintf("Failed to get full path: %v", err),
+			Message: fmt.Sprintf("Storage quota exceeded. Current: %d MB, Limit: %d MB",
+				totalSize/(1024*1024), document.MaxUserQuota/(1024*1024)),
+		}, fmt.Errorf("storage quota exceeded")
+	}
+
+	// Save to database first
+	if err := db.Create(&localDoc).Error; err != nil {
+		return &FileUploadResponse{
+			Success: false,
+			Message: "Failed to save document record",
+		}, err
+	}
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		// Clean up database record
+		db.Delete(&localDoc)
+		return &FileUploadResponse{
+			Success: false,
+			Message: "Failed to create directory",
 		}, err
 	}
 
 	// Write file to disk
-	if err := writeFile(fullPath, req.FileContent); err != nil {
+	if err := writeFile(filePath, req.FileContent); err != nil {
+		// Clean up database record
+		db.Delete(&localDoc)
 		return &FileUploadResponse{
 			Success: false,
-			Message: fmt.Sprintf("Failed to write file: %v", err),
+			Message: "Failed to write file",
 		}, err
 	}
 
-	// Save document record to database
-	if err := db.Create(doc).Error; err != nil {
-		// Clean up file if database insert fails
-		os.Remove(fullPath)
-		return &FileUploadResponse{
-			Success: false,
-			Message: fmt.Sprintf("Failed to save document record: %v", err),
-		}, err
-	}
+	// Update HasLocalFile to true after successful write
+	localDoc.HasLocalFile = true
+	db.Save(&localDoc)
 
-	// Update user storage info
-	if err := document.UpdateStorageInfo(req.UserID, db); err != nil {
-		// Log error but don't fail the upload
-		fmt.Printf("Warning: Failed to update storage info: %v\n", err)
-	}
+	// Update storage cache
+	document.UpdateLocalStorageCache(req.UserID, db)
 
 	return &FileUploadResponse{
-		Document: doc,
-		Success:  true,
-		Message:  "File uploaded successfully",
+		LocalDocument: &localDoc,
+		Success:       true,
+		Message:       "Upload successful",
 	}, nil
 }
 
-// UploadNewVersion uploads a new version of an existing document
-func UploadNewVersion(existingDocID uint, fileName string, fileContent io.Reader, fileSize int64, db *gorm.DB) (*FileUploadResponse, error) {
+// UploadNewVersion creates a new version of an existing document
+func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.DB) (*FileUploadResponse, error) {
 	// Get existing document
-	var existingDoc document.Document
-	if err := db.First(&existingDoc, existingDocID).Error; err != nil {
+	var existingDoc document.LocalDocument
+	if err := db.First(&existingDoc, existingDocumentID).Error; err != nil {
 		return &FileUploadResponse{
 			Success: false,
-			Message: "Existing document not found",
+			Message: "Original document not found",
 		}, err
 	}
 
 	// Validate file type
-	if err := ValidateFileType(fileName); err != nil {
+	if err := ValidateFileType(req.FileName); err != nil {
 		return &FileUploadResponse{
 			Success: false,
-			Message: err.Error(),
-		}, err
+			Message: "File type not supported",
+		}, fmt.Errorf("unsupported file type")
 	}
 
-	// Create new document for the version
-	newDoc := &document.Document{
+	// Create new version
+	newVersion := document.LocalDocument{
 		AssignmentID: existingDoc.AssignmentID,
 		UserID:       existingDoc.UserID,
 		Type:         existingDoc.Type,
-		FileName:     fileName,
-		FileType:     GetMimeType(fileName),
-		FileSize:     fileSize,
-		IsOriginal:   existingDoc.IsOriginal,
-	}
-
-	// Validate file size constraints
-	if err := newDoc.ValidateFileSize(db); err != nil {
-		return &FileUploadResponse{
-			Success: false,
-			Message: err.Error(),
-		}, err
+		FileName:     req.FileName,
+		FileType:     GetMimeType(req.FileName),
+		FileSize:     req.FileSize,
+		Version:      existingDoc.Version + 1,
+		ParentDocID:  &existingDoc.ID,
+		IsOriginal:   false,
+		HasLocalFile: false,
 	}
 
 	// Generate file path
-	filePath, err := newDoc.GenerateFilePath()
+	appDataPath, err := document.GetAppDataPath()
 	if err != nil {
 		return &FileUploadResponse{
 			Success: false,
-			Message: fmt.Sprintf("Failed to generate file path: %v", err),
+			Message: "Failed to get app data path",
 		}, err
 	}
 
-	// Create new version using existing document's method
-	newVersion, err := existingDoc.CreateNewVersion(fileName, fileSize, filePath, db)
-	if err != nil {
+	fileName := fmt.Sprintf("doc_%d_%d_v%d_%s", req.AssignmentID, req.UserID, newVersion.Version, req.FileName)
+	filePath := filepath.Join(appDataPath, "documents", fileName)
+	newVersion.FilePath = filePath
+
+	// Save to database
+	if err := db.Create(&newVersion).Error; err != nil {
 		return &FileUploadResponse{
 			Success: false,
-			Message: fmt.Sprintf("Failed to create new version: %v", err),
+			Message: "Failed to save new version",
 		}, err
 	}
 
-	// Get full path for writing
-	fullPath, err := newVersion.GetFullPath()
-	if err != nil {
+	// Create directory if needed
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		db.Delete(&newVersion)
 		return &FileUploadResponse{
 			Success: false,
-			Message: fmt.Sprintf("Failed to get full path: %v", err),
+			Message: "Failed to create directory",
 		}, err
 	}
 
-	// Write file to disk
-	if err := writeFile(fullPath, fileContent); err != nil {
-		// Clean up database record if file write fails
-		db.Delete(newVersion)
+	// Write file
+	if err := writeFile(filePath, req.FileContent); err != nil {
+		db.Delete(&newVersion)
 		return &FileUploadResponse{
 			Success: false,
-			Message: fmt.Sprintf("Failed to write file: %v", err),
+			Message: "Failed to write file",
 		}, err
 	}
 
-	// Update user storage info
-	if err := document.UpdateStorageInfo(newVersion.UserID, db); err != nil {
-		fmt.Printf("Warning: Failed to update storage info: %v\n", err)
-	}
+	// Update HasLocalFile after successful write
+	newVersion.HasLocalFile = true
+	db.Save(&newVersion)
+
+	// Update storage cache
+	document.UpdateLocalStorageCache(req.UserID, db)
 
 	return &FileUploadResponse{
-		Document: newVersion,
-		Success:  true,
-		Message:  "New version uploaded successfully",
+		LocalDocument: &newVersion,
+		Success:       true,
+		Message:       "New version uploaded successfully",
 	}, nil
 }
 

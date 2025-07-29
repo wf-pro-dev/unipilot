@@ -115,3 +115,35 @@ func SyncRemoteMetadata(assignmentID uint, remoteDocuments []Document, db *gorm.
 
 	return nil
 }
+
+// UpdateLocalStorageCache recalculates and updates the storage cache for a user
+func UpdateLocalStorageCache(userID uint, db *gorm.DB) error {
+	var cache LocalDocumentCache
+
+	// Get or create cache record
+	err := db.FirstOrCreate(&cache, LocalDocumentCache{UserID: userID}).Error
+	if err != nil {
+		return err
+	}
+
+	// Calculate current totals from local documents that have files
+	var totalSize int64
+	var count int64
+
+	db.Model(&LocalDocument{}).
+		Where("user_id = ? AND has_local_file = ?", userID, true).
+		Select("COALESCE(SUM(file_size), 0)").
+		Scan(&totalSize)
+
+	db.Model(&LocalDocument{}).
+		Where("user_id = ? AND has_local_file = ?", userID, true).
+		Count(&count)
+
+	// Update cache
+	now := time.Now()
+	cache.TotalSize = totalSize
+	cache.DocumentCount = int(count)
+	cache.LastCalculatedAt = now
+
+	return db.Save(&cache).Error
+}

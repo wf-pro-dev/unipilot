@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 	"unipilot/internal/app"
 	"unipilot/internal/auth"
 	"unipilot/internal/client"
@@ -145,7 +146,7 @@ func (a *App) GetCourses() ([]course.LocalCourse, error) {
 // Document Management Methods
 
 // UploadDocument opens a file dialog and uploads a document to an assignment
-func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.Document, error) {
+func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.LocalDocument, error) {
 	if a.DB == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -246,11 +247,11 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 		}()
 	}
 
-	return response.Document, nil
+	return response.LocalDocument, nil
 }
 
 // GetAssignmentDocuments retrieves all documents for an assignment
-func (a *App) GetAssignmentDocuments(assignmentID uint) ([]document.Document, error) {
+func (a *App) GetAssignmentDocuments(assignmentID uint) ([]document.LocalDocument, error) {
 	if a.DB == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -261,11 +262,18 @@ func (a *App) GetAssignmentDocuments(assignmentID uint) ([]document.Document, er
 
 	userID := a.DB.GetCurrentUserID()
 
-	return document.GetLatestVersions(assignmentID, userID, a.DB.GetDB())
+	// Use LocalDocument and only return documents we have locally
+	var documents []document.LocalDocument
+	err := a.DB.GetDB().Where(
+		"assignment_id = ? AND user_id = ? AND has_local_file = ?",
+		assignmentID, userID, true,
+	).Order("created_at DESC").Find(&documents).Error
+
+	return documents, err
 }
 
 // GetSupportDocuments retrieves only support documents for an assignment
-func (a *App) GetSupportDocuments(assignmentID uint) ([]document.Document, error) {
+func (a *App) GetSupportDocuments(assignmentID uint) ([]document.LocalDocument, error) {
 	if a.DB == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -276,17 +284,17 @@ func (a *App) GetSupportDocuments(assignmentID uint) ([]document.Document, error
 
 	userID := a.DB.GetCurrentUserID()
 
-	var documents []document.Document
-	err := a.DB.GetDB().Preload("User").
-		Where("assignment_id = ? AND user_id = ? AND type = ?", assignmentID, userID, document.DocumentTypeSupport).
-		Order("created_at DESC").
-		Find(&documents).Error
+	var documents []document.LocalDocument
+	err := a.DB.GetDB().Where(
+		"assignment_id = ? AND user_id = ? AND type = ? AND has_local_file = ?",
+		assignmentID, userID, document.DocumentTypeSupport, true,
+	).Order("created_at DESC").Find(&documents).Error
 
 	return documents, err
 }
 
 // GetSubmissionDocuments retrieves only submission documents for an assignment
-func (a *App) GetSubmissionDocuments(assignmentID uint) ([]document.Document, error) {
+func (a *App) GetSubmissionDocuments(assignmentID uint) ([]document.LocalDocument, error) {
 	if a.DB == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -297,11 +305,11 @@ func (a *App) GetSubmissionDocuments(assignmentID uint) ([]document.Document, er
 
 	userID := a.DB.GetCurrentUserID()
 
-	var documents []document.Document
-	err := a.DB.GetDB().Preload("User").
-		Where("assignment_id = ? AND user_id = ? AND type = ?", assignmentID, userID, document.DocumentTypeSubmission).
-		Order("created_at DESC").
-		Find(&documents).Error
+	var documents []document.LocalDocument
+	err := a.DB.GetDB().Where(
+		"assignment_id = ? AND user_id = ? AND type = ? AND has_local_file = ?",
+		assignmentID, userID, document.DocumentTypeSubmission, true,
+	).Order("created_at DESC").Find(&documents).Error
 
 	return documents, err
 }
@@ -318,25 +326,26 @@ func (a *App) OpenDocument(documentID uint) error {
 
 	userID := a.DB.GetCurrentUserID()
 
-	// Get document record
-	var doc document.Document
-	if err := a.DB.DB.Where("id = ? AND user_id = ?", documentID, userID).First(&doc).Error; err != nil {
+	// Get local document record
+	var doc document.LocalDocument
+	if err := a.DB.GetDB().Where("id = ? AND user_id = ?", documentID, userID).First(&doc).Error; err != nil {
 		return fmt.Errorf("document not found or access denied")
 	}
 
-	// Check if file exists
-	if !doc.FileExists() {
+	// Check if we have the file locally
+	if !doc.HasLocalFile {
+		return fmt.Errorf("file not available offline - please sync to download")
+	}
+
+	// Check if file actually exists on disk
+	if _, err := os.Stat(doc.FilePath); os.IsNotExist(err) {
+		// Update database to reflect missing file
+		a.DB.GetDB().Model(&doc).Update("has_local_file", false)
 		return fmt.Errorf("file not found on disk")
 	}
 
-	// Get full path
-	fullPath, err := doc.GetFullPath()
-	if err != nil {
-		return fmt.Errorf("failed to get file path: %w", err)
-	}
-
 	// Open with system default application
-	runtime.BrowserOpenURL(a.ctx, "file://"+fullPath)
+	runtime.BrowserOpenURL(a.ctx, "file://"+doc.FilePath)
 	return nil
 }
 
@@ -350,14 +359,23 @@ func (a *App) SaveDocumentAs(documentID uint) error {
 		return fmt.Errorf("user not authenticated")
 	}
 
-	// Get document record
-	var doc document.Document
-	if err := a.DB.DB.Where("id = ? AND user_id = ?", documentID, currentUser.ID).First(&doc).Error; err != nil {
+	userID := a.DB.GetCurrentUserID()
+
+	// Get local document record
+	var doc document.LocalDocument
+	if err := a.DB.GetDB().Where("id = ? AND user_id = ?", documentID, userID).First(&doc).Error; err != nil {
 		return fmt.Errorf("document not found or access denied")
 	}
 
-	// Check if file exists
-	if !doc.FileExists() {
+	// Check if we have the file locally
+	if !doc.HasLocalFile {
+		return fmt.Errorf("file not available offline - please sync to download")
+	}
+
+	// Check if file actually exists on disk
+	if _, err := os.Stat(doc.FilePath); os.IsNotExist(err) {
+		// Update database to reflect missing file
+		a.DB.GetDB().Model(&doc).Update("has_local_file", false)
 		return fmt.Errorf("file not found on disk")
 	}
 
@@ -375,14 +393,8 @@ func (a *App) SaveDocumentAs(documentID uint) error {
 		return fmt.Errorf("no save location selected")
 	}
 
-	// Get source file path
-	sourcePath, err := doc.GetFullPath()
-	if err != nil {
-		return fmt.Errorf("failed to get source file path: %w", err)
-	}
-
 	// Copy file
-	sourceFile, err := os.Open(sourcePath)
+	sourceFile, err := os.Open(doc.FilePath)
 	if err != nil {
 		return fmt.Errorf("failed to open source file: %w", err)
 	}
@@ -414,11 +426,32 @@ func (a *App) DeleteDocument(documentID uint) error {
 
 	userID := a.DB.GetCurrentUserID()
 
-	return fileops.DeleteDocument(documentID, userID, a.DB.GetDB())
+	// Get local document record
+	var doc document.LocalDocument
+	if err := a.DB.GetDB().Where("id = ? AND user_id = ?", documentID, userID).First(&doc).Error; err != nil {
+		return fmt.Errorf("document not found or access denied")
+	}
+
+	// Delete physical file if it exists
+	if doc.HasLocalFile && doc.FilePath != "" {
+		if err := os.Remove(doc.FilePath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("failed to delete file: %w", err)
+		}
+	}
+
+	// Delete database record
+	if err := a.DB.GetDB().Delete(&doc).Error; err != nil {
+		return fmt.Errorf("failed to delete document record: %w", err)
+	}
+
+	// Update local storage cache
+	document.UpdateLocalStorageCache(userID, a.DB.GetDB())
+
+	return nil
 }
 
 // GetUserStorageInfo returns storage statistics for the current user
-func (a *App) GetUserStorageInfo() (*document.DocumentStorageInfo, error) {
+func (a *App) GetUserStorageInfo() (*document.LocalDocumentCache, error) {
 	if a.DB == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -429,17 +462,39 @@ func (a *App) GetUserStorageInfo() (*document.DocumentStorageInfo, error) {
 
 	userID := a.DB.GetCurrentUserID()
 
-	return fileops.GetUserStorageInfo(userID, a.DB.GetDB())
+	// Get or create local storage cache
+	var cache document.LocalDocumentCache
+	err := a.DB.GetDB().FirstOrCreate(&cache, document.LocalDocumentCache{UserID: userID}).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to get storage info: %w", err)
+	}
+
+	// Update cache if it's stale (older than 1 hour)
+	if time.Since(cache.LastCalculatedAt) > time.Hour {
+		document.UpdateLocalStorageCache(userID, a.DB.GetDB())
+		// Reload updated cache
+		a.DB.GetDB().First(&cache, "user_id = ?", userID)
+	}
+
+	return &cache, nil
 }
 
 // UploadNewDocumentVersion uploads a new version of an existing document
-func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Document, error) {
+func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.LocalDocument, error) {
 	if a.DB == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
 	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	userID := a.DB.GetCurrentUserID()
+
+	// Verify the existing document belongs to the user
+	var existingDoc document.LocalDocument
+	if err := a.DB.GetDB().Where("id = ? AND user_id = ?", existingDocumentID, userID).First(&existingDoc).Error; err != nil {
+		return nil, fmt.Errorf("document not found or access denied")
 	}
 
 	// Open file dialog
@@ -484,8 +539,18 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Docum
 	}
 	defer file.Close()
 
-	// Upload new version
-	response, err := fileops.UploadNewVersion(existingDocumentID, filepath.Base(filePath), file, fileInfo.Size(), a.DB.GetDB())
+	// Create new version request
+	uploadReq := fileops.FileUploadRequest{
+		AssignmentID: existingDoc.AssignmentID,
+		UserID:       userID,
+		Type:         existingDoc.Type,
+		FileName:     filepath.Base(filePath),
+		FileContent:  file,
+		FileSize:     fileInfo.Size(),
+	}
+
+	// Upload new version locally
+	response, err := fileops.UploadNewVersion(existingDocumentID, uploadReq, a.DB.GetDB())
 	if err != nil {
 		return nil, fmt.Errorf("version upload failed: %w", err)
 	}
@@ -494,7 +559,28 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Docum
 		return nil, fmt.Errorf("version upload failed: %s", response.Message)
 	}
 
-	return response.Document, nil
+	// Also update metadata remotely for sharing (async)
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
+		metadataReq := map[string]interface{}{
+			"assignment_id": existingDoc.AssignmentID,
+			"type":          string(existingDoc.Type),
+			"file_name":     filepath.Base(filePath),
+			"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
+			"file_size":     fileInfo.Size(),
+			"version":       response.LocalDocument.Version,
+		}
+
+		go func() {
+			jsonData, _ := json.Marshal(metadataReq)
+			resp, err := a.Auth.Client.Post("https://newsroom.dedyn.io/acc-homework/documents/metadata",
+				"application/json", strings.NewReader(string(jsonData)))
+			if err == nil {
+				defer resp.Body.Close()
+			}
+		}()
+	}
+
+	return response.LocalDocument, nil
 }
 
 // GetRemoteDocumentMetadata retrieves document metadata from remote server (for shared assignments)

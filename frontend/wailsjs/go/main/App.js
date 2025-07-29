@@ -18,8 +18,16 @@ export function DeleteCourse(arg1) {
   return window['go']['main']['App']['DeleteCourse'](arg1);
 }
 
+export function DeleteDocument(arg1) {
+  return window['go']['main']['App']['DeleteDocument'](arg1);
+}
+
 export function GetAssignment(arg1) {
   return window['go']['main']['App']['GetAssignment'](arg1);
+}
+
+export function GetAssignmentDocuments(arg1) {
+  return window['go']['main']['App']['GetAssignmentDocuments'](arg1);
 }
 
 export function GetAssignments() {
@@ -34,8 +42,24 @@ export function GetCourses() {
   return window['go']['main']['App']['GetCourses']();
 }
 
+export function GetRemoteDocumentMetadata(arg1) {
+  return window['go']['main']['App']['GetRemoteDocumentMetadata'](arg1);
+}
+
+export function GetSubmissionDocuments(arg1) {
+  return window['go']['main']['App']['GetSubmissionDocuments'](arg1);
+}
+
+export function GetSupportDocuments(arg1) {
+  return window['go']['main']['App']['GetSupportDocuments'](arg1);
+}
+
 export function GetUser(arg1) {
   return window['go']['main']['App']['GetUser'](arg1);
+}
+
+export function GetUserStorageInfo() {
+  return window['go']['main']['App']['GetUserStorageInfo']();
 }
 
 export function Greet(arg1) {
@@ -54,10 +78,26 @@ export function Logout() {
   return window['go']['main']['App']['Logout']();
 }
 
+export function OpenDocument(arg1) {
+  return window['go']['main']['App']['OpenDocument'](arg1);
+}
+
+export function SaveDocumentAs(arg1) {
+  return window['go']['main']['App']['SaveDocumentAs'](arg1);
+}
+
 export function UpdateAssignment(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateAssignment'](arg1, arg2, arg3);
 }
 
 export function UpdateCourse(arg1) {
   return window['go']['main']['App']['UpdateCourse'](arg1);
+}
+
+export function UploadDocument(arg1, arg2) {
+  return window['go']['main']['App']['UploadDocument'](arg1, arg2);
+}
+
+export function UploadNewDocumentVersion(arg1) {
+  return window['go']['main']['App']['UploadNewDocumentVersion'](arg1);
 }

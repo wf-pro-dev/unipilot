@@ -96,6 +96,7 @@ export namespace assignment {
 	    Course: course.LocalCourse;
 	    Type: models.LocalAssignmentType;
 	    Status: models.LocalAssignmentStatus;
+	    Documents: document.LocalDocument[];
 	
 	    static createFrom(source: any = {}) {
 	        return new LocalAssignment(source);
@@ -122,6 +123,7 @@ export namespace assignment {
 	        this.Course = this.convertValues(source["Course"], course.LocalCourse);
 	        this.Type = this.convertValues(source["Type"], models.LocalAssignmentType);
 	        this.Status = this.convertValues(source["Status"], models.LocalAssignmentStatus);
+	        this.Documents = this.convertValues(source["Documents"], document.LocalDocument);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -339,6 +341,127 @@ export namespace document {
 	        this.User = this.convertValues(source["User"], user.User);
 	        this.ParentDoc = this.convertValues(source["ParentDoc"], Document);
 	        this.Versions = this.convertValues(source["Versions"], Document);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class LocalDocument {
+	    ID: number;
+	    // Go type: time
+	    CreatedAt: any;
+	    // Go type: time
+	    UpdatedAt: any;
+	    // Go type: gorm
+	    DeletedAt: any;
+	    RemoteID: number;
+	    AssignmentID: number;
+	    UserID: number;
+	    Type: string;
+	    FileName: string;
+	    FileType: string;
+	    FilePath: string;
+	    FileSize: number;
+	    Version: number;
+	    ParentDocID?: number;
+	    IsOriginal: boolean;
+	    HasLocalFile: boolean;
+	    // Go type: time
+	    LastSyncAt?: any;
+	    ParentDoc?: LocalDocument;
+	    Versions: LocalDocument[];
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalDocument(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ID = source["ID"];
+	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
+	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
+	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.RemoteID = source["RemoteID"];
+	        this.AssignmentID = source["AssignmentID"];
+	        this.UserID = source["UserID"];
+	        this.Type = source["Type"];
+	        this.FileName = source["FileName"];
+	        this.FileType = source["FileType"];
+	        this.FilePath = source["FilePath"];
+	        this.FileSize = source["FileSize"];
+	        this.Version = source["Version"];
+	        this.ParentDocID = source["ParentDocID"];
+	        this.IsOriginal = source["IsOriginal"];
+	        this.HasLocalFile = source["HasLocalFile"];
+	        this.LastSyncAt = this.convertValues(source["LastSyncAt"], null);
+	        this.ParentDoc = this.convertValues(source["ParentDoc"], LocalDocument);
+	        this.Versions = this.convertValues(source["Versions"], LocalDocument);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class LocalDocumentCache {
+	    ID: number;
+	    // Go type: time
+	    CreatedAt: any;
+	    // Go type: time
+	    UpdatedAt: any;
+	    // Go type: gorm
+	    DeletedAt: any;
+	    UserID: number;
+	    TotalSize: number;
+	    DocumentCount: number;
+	    // Go type: time
+	    LastCalculatedAt: any;
+	    // Go type: time
+	    LastSyncAt?: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalDocumentCache(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ID = source["ID"];
+	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
+	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
+	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.UserID = source["UserID"];
+	        this.TotalSize = source["TotalSize"];
+	        this.DocumentCount = source["DocumentCount"];
+	        this.LastCalculatedAt = this.convertValues(source["LastCalculatedAt"], null);
+	        this.LastSyncAt = this.convertValues(source["LastSyncAt"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

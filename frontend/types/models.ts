@@ -18,8 +18,43 @@ interface Assignment {
   Course?: Course
   Type?: AssignmentType
   Status?: AssignmentStatus
+  Documents?: LocalDocument[] // Add documents relationship
 }
 
+// LocalDocument type matching the Go struct
+interface LocalDocument {
+  ID: number
+  RemoteID: number
+  AssignmentID: number
+  UserID: number
+  Type: string // Changed from union type to string to match Go generated types
+  FileName: string
+  FileType: string
+  FilePath: string
+  FileSize: number
+  Version: number
+  ParentDocID?: number
+  IsOriginal: boolean
+  HasLocalFile: boolean
+  LastSyncAt?: Date
+  CreatedAt: Date
+  UpdatedAt: Date
+  DeletedAt?: Date
+  ParentDoc?: LocalDocument
+  Versions?: LocalDocument[]
+}
+
+// LocalDocumentCache type matching the Go struct
+interface LocalDocumentCache {
+  ID: number
+  UserID: number
+  TotalSize: number
+  DocumentCount: number
+  LastCalculatedAt: Date
+  LastSyncAt?: Date
+  CreatedAt: Date
+  UpdatedAt: Date
+}
 
 // Course type matching the Go struct
 interface Course {
@@ -96,5 +131,7 @@ export type {
   User, 
   AssignmentType, 
   AssignmentStatus,
-  LegacyAssignment 
+  LegacyAssignment,
+  LocalDocument,
+  LocalDocumentCache
 }
