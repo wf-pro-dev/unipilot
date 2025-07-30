@@ -106,13 +106,13 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := course.Get_Course_byId(uint(int_id), tx)
+	a, err := course.Get_Course_from_Local(uint(int_id), tx)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting course: %s", err))
 		return
 	}
 
-	if err := tx.Exec(fmt.Sprintf("UPDATE courses SET %s = ?, updated_at = ? WHERE local_id = ?", updateData.Column),
+	if err := tx.Exec(fmt.Sprintf("UPDATE courses SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), a.ID).Error; err != nil {
 		PrintERROR(w, http.StatusInternalServerError,
 			fmt.Sprintf("Error updating assignment in database: %s", err))

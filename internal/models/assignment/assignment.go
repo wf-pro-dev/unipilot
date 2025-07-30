@@ -100,6 +100,21 @@ func Get_Assignment_byId(id, user_id uint, db *gorm.DB) (*Assignment, error) {
 	return assignment, nil
 }
 
+func Get_Assignment_from_Local(id, user_id uint, db *gorm.DB) (*Assignment, error) {
+	assignment := &Assignment{}
+	err := db.Preload("User").
+		Preload("Course", "user_id = ?", user_id).
+		Preload("Type").
+		Preload("Status").
+		Where("local_id = ?", id).
+		First(assignment).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return assignment, nil
+}
+
 func Get_Assignment_byNotionID(notion_id string, db *gorm.DB) (*Assignment, error) {
 
 	assignment := &Assignment{}

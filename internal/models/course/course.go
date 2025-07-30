@@ -69,6 +69,17 @@ func Get_Course_byId(id uint, db *gorm.DB) (*Course, error) {
 	}
 	return course, nil
 }
+func Get_Course_from_Local(id uint, db *gorm.DB) (*Course, error) {
+	course := &Course{}
+	err := db.Preload("User").
+		Where("local_id = ?", id).
+		First(course).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return course, nil
+}
 func Get_Course_byCode(code, user_id string, db *gorm.DB) (*Course, error) {
 	course := &Course{}
 	err := db.Where("code = ? AND user_id = ?", code, user_id).First(course).Error

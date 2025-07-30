@@ -223,15 +223,15 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := assignment.Get_Assignment_byId(uint(int_id), userID, tx)
+	a, err := assignment.Get_Assignment_from_Local(uint(int_id), userID, tx)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
 		return
 	}
 
-	if err := tx.Exec(fmt.Sprintf("UPDATE assignments SET %s = ?, updated_at = ? WHERE local_id = ?", updateData.Column),
-	{
+	if err := tx.Exec(fmt.Sprintf("UPDATE assignments SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),	
 		updateData.Value, time.Now().Format(time.RFC3339), a.ID).Error; err != nil {
+
 		PrintERROR(w, http.StatusInternalServerError,
 			fmt.Sprintf("Error updating assignment in database: %s", err))
 		return
