@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Clock, MoreVertical, Edit, Trash2, Flag, Book, BookOpen } from "lucide-react"
+import { Clock, MoreVertical, Edit, Trash2, Flag, BookOpen } from "lucide-react"
 import { assignment } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
-import { StatusTag } from "../utils/status-tag"
+import { StatusTag } from "@/components/assignments/utils/status-tag"
 import { useState } from "react"
+import { CourseTag } from "./utils/course-tag"
 
 interface AssignmentItemProps {
   assignment: assignment.LocalAssignment
@@ -125,10 +126,10 @@ export function AssignmentItem({
 
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Badge variant="secondary" className="text-xs flex flex-row gap-2">
-                  <div className={`h-2 w-2  rounded-full ${assignment.Course?.Color}`} />
-                  {assignment.Course?.Code || 'No Course'}
-                </Badge>
+                <div onClick={(e) => e.stopPropagation()}>
+                  <CourseTag assignment={assignment} onEdit={onEdit} />
+                </div>
+
                 <div onClick={(e) => e.stopPropagation()}>
                   <StatusTag assignment={assignment} onEdit={onEdit} />
                 </div>

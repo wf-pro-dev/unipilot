@@ -10,7 +10,7 @@ import { Calendar, Clock, MoreVertical, Edit, Trash2, Flag, User, FileText, Awar
 import { format } from "date-fns"
 import { assignment } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
-import { StatusTag } from "../utils/status-tag"
+import { StatusTag } from "@/components/assignments/utils/status-tag"
 import { AssignmentDocuments } from "./assignment-documents"
 
 interface AssignmentDetailsModalProps {

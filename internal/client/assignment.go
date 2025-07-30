@@ -163,7 +163,7 @@ func CreateAssignment(assignmentData map[string]string) (map[string]string, erro
 	return a.ToMap(), nil
 }
 
-func SendUpdate(id, column, value string) error {
+func SendAssignmentUpdate(id, column, value string) error {
 
 	new_client, err := NewClientWithCookies()
 	if err != nil {

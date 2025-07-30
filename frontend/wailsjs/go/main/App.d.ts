@@ -12,7 +12,7 @@ export function CreateCourse(arg1:course.Course):Promise<void>;
 
 export function DeleteAssignment(arg1:assignment.LocalAssignment):Promise<void>;
 
-export function DeleteCourse(arg1:course.Course):Promise<void>;
+export function DeleteCourse(arg1:course.LocalCourse):Promise<void>;
 
 export function DeleteDocument(arg1:number):Promise<void>;
 
@@ -25,6 +25,8 @@ export function GetAssignmentDocuments(arg1:number):Promise<Array<document.Local
 export function GetAssignments():Promise<Array<assignment.LocalAssignment>>;
 
 export function GetCourse(arg1:number):Promise<course.Course>;
+
+export function GetCourseAssignments(arg1:course.LocalCourse):Promise<Array<assignment.LocalAssignment>>;
 
 export function GetCourses():Promise<Array<course.LocalCourse>>;
 
@@ -56,7 +58,7 @@ export function SaveDocumentAs(arg1:number):Promise<void>;
 
 export function UpdateAssignment(arg1:assignment.LocalAssignment,arg2:string,arg3:string):Promise<void>;
 
-export function UpdateCourse(arg1:course.Course):Promise<void>;
+export function UpdateCourse(arg1:course.LocalCourse,arg2:string,arg3:string):Promise<void>;
 
 export function UploadDocument(arg1:number,arg2:string):Promise<document.LocalDocument>;
 

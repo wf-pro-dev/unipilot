@@ -76,17 +76,12 @@ func (h *DatabaseHelper) CreateAssignment(assignment *assignment.Assignment) err
 // UpdateAssignment updates an existing assignment
 func (h *DatabaseHelper) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, column, value string) error {
 	// Only update the assignment fields, not the related course data
-
 	return h.db.Exec(fmt.Sprintf("UPDATE local_assignments SET %s = '%s' WHERE id = '%d'", column, value, LocalAssignment.ID)).Error
 }
 
 // DeleteAssignment deletes an assignment
 func (h *DatabaseHelper) DeleteAssignment(assignment *assignment.LocalAssignment) error {
-	if err := h.db.Delete(assignment).Error; err != nil {
-		return err
-	}
-
-	return nil
+	return h.db.Delete(assignment).Error
 }
 
 // CreateCourse creates a new course
@@ -96,11 +91,28 @@ func (h *DatabaseHelper) CreateCourse(course *course.Course) error {
 }
 
 // UpdateCourse updates an existing course
-func (h *DatabaseHelper) UpdateCourse(course *course.Course) error {
-	return h.db.Save(course).Error
+func (h *DatabaseHelper) UpdateCourse(LocalCourse *course.LocalCourse, column, value string) error {
+	// Only update the assignment fields, not the related course data
+	return h.db.Exec(fmt.Sprintf("UPDATE local_courses SET %s = '%s' WHERE id = '%d'", column, value, LocalCourse.ID)).Error
 }
 
 // DeleteCourse deletes a course
-func (h *DatabaseHelper) DeleteCourse(course *course.Course) error {
+func (h *DatabaseHelper) DeleteCourse(course *course.LocalCourse) error {
+	// Get all assignment related to the course
+	assignments := []assignment.LocalAssignment{}
+	err := h.db.Where("course_code = ?", course.Code).Find(&assignments).Error
+	if err != nil {
+		return err
+	}
+
+	// Delete all assignment related to the course
+	for _, assignment := range assignments {
+		if err := h.DeleteAssignment(&assignment); err != nil {
+			return err
+		}
+	}
+
+	// Delete all notes related to the course
+
 	return h.db.Delete(course).Error
 }

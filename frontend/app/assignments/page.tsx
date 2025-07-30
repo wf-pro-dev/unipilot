@@ -167,6 +167,7 @@ export default function AssignmentsPage() {
               assignments={todayAssignments || []}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
+              onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               isLoading={updateMutation.isPending}
             />
@@ -177,6 +178,7 @@ export default function AssignmentsPage() {
               assignments={weekAssignments || []}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
+              onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               isLoading={updateMutation.isPending}
             />
@@ -187,6 +189,7 @@ export default function AssignmentsPage() {
               assignments={overdueAssignments || []}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
+              onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               isLoading={updateMutation.isPending}
             />
@@ -197,6 +200,7 @@ export default function AssignmentsPage() {
               assignments={examAssignments || []}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
+              onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               isLoading={updateMutation.isPending}
             />
