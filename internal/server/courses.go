@@ -75,11 +75,11 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := userIDVal.(uint)
+	/*userID, ok := userIDVal.(uint)
 	if !ok {
 		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
 		return
-	}
+	}*/
 
 	tx := db.Begin()
 	defer func() {
@@ -112,7 +112,7 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := tx.Exec(fmt.Sprintf("UPDATE courses SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
+	if err := tx.Exec(fmt.Sprintf("UPDATE courses SET %s = ?, updated_at = ? WHERE local_id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), a.ID).Error; err != nil {
 		PrintERROR(w, http.StatusInternalServerError,
 			fmt.Sprintf("Error updating assignment in database: %s", err))

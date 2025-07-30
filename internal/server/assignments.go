@@ -229,7 +229,8 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := tx.Exec(fmt.Sprintf("UPDATE assignments SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
+	if err := tx.Exec(fmt.Sprintf("UPDATE assignments SET %s = ?, updated_at = ? WHERE local_id = ?", updateData.Column),
+	{
 		updateData.Value, time.Now().Format(time.RFC3339), a.ID).Error; err != nil {
 		PrintERROR(w, http.StatusInternalServerError,
 			fmt.Sprintf("Error updating assignment in database: %s", err))
