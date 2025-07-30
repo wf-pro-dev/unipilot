@@ -29,16 +29,13 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
 
-  useEffect(() => {
-    LogInfo("AuthProvider")
-  }, [])
   const auth = useAuth()
 
   // Show loading spinner while checking authentication
   if (auth.isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="w-32 h-32 rounded-full border-b-2 border-blue-500 animate-spin"></div>
       </div>
     )
   }

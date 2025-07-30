@@ -74,7 +74,7 @@
 }
 
 .glass-dark {
-  @apply bg-gray-800/40 backdrop-blur-xl border border-white/5;
+  @apply bg-gray-800/60 backdrop-blur-xl border border-white/5;
 }
 
 .glass-hover {

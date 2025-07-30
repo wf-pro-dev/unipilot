@@ -127,12 +127,7 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
                 <Clock className="h-3 w-3" />
                 {format(new Date(doc.UpdatedAt), "MMM d, yyyy")}
               </span>
-              {doc.HasLocalFile && (
-                <span className="flex items-center gap-1 text-green-600">
-                  <CheckCircle2 className="h-3 w-3" />
-                  Available offline
-                </span>
-              )}
+             
             </div>
           </div>
         </div>

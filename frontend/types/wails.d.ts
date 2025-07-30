@@ -8,7 +8,7 @@ declare global {
           Login: (username: string, password: string) => Promise<void>
           Logout: () => Promise<void>
           Greet: (name: string) => Promise<string>
-          IsAuthenticated: () => Promise<boolean>
+          IsAuthenticated: () => Promise<storage.LocalCredentials>
           GetAssignment: (id: number) => Promise<Assignment>
           GetCourse: (id: number) => Promise<Course>
           GetUser: (id: number) => Promise<User>

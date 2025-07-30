@@ -2,15 +2,17 @@ package storage
 
 import (
 	"encoding/json"
-
 	"os"
 	"path/filepath"
 	"sync"
 )
 
 type LocalCredentials struct {
-	UserID   uint   `json:"user_id"`
-	Username string `json:"username"`
+	IsAuthenticated bool `json:"is_authenticated"`
+	User            struct {
+		UserID   uint   `json:"user_id"`
+		Username string `json:"username"`
+	} `json:"user"`
 }
 
 var (
@@ -18,31 +20,39 @@ var (
 	credentials *LocalCredentials
 )
 
-func GetCurrentUserID() (uint, error) {
+func GetCurrentUser() (*LocalCredentials, error) {
 	credLock.Lock()
 	defer credLock.Unlock()
 
 	if credentials != nil {
-		return credentials.UserID, nil
+		return credentials, nil
 	}
 
 	path, err := getCredsPath()
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	var creds LocalCredentials
 	if err := json.Unmarshal(data, &creds); err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	credentials = &creds
-	return creds.UserID, nil
+	return credentials, nil
+}
+
+func GetCurrentUserID() (uint, error) {
+	creds, err := GetCurrentUser()
+	if err != nil {
+		return 0, err
+	}
+	return creds.User.UserID, nil
 }
 
 func getCredsPath() (string, error) {
@@ -58,8 +68,14 @@ func StoreCredentials(userID uint, username string) error {
 	defer credLock.Unlock()
 
 	creds := LocalCredentials{
-		UserID:   userID,
-		Username: username,
+		IsAuthenticated: true,
+		User: struct {
+			UserID   uint   `json:"user_id"`
+			Username string `json:"username"`
+		}{
+			UserID:   userID,
+			Username: username,
+		},
 	}
 
 	path, err := getCredsPath()

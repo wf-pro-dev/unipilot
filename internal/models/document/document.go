@@ -24,6 +24,7 @@ type Document struct {
 	gorm.Model
 	AssignmentID uint         `gorm:"not null;index"`
 	UserID       uint         `gorm:"not null;index"` // Original uploader
+	LocalID      uint         `gorm:"not null;index"` // Local document ID
 	Type         DocumentType `gorm:"not null;index"`
 	FileName     string       `gorm:"not null"`
 	FileType     string       `gorm:"not null"` // mime type or extension
@@ -175,6 +176,7 @@ func (d *Document) CreateNewVersion(newFileName string, newFileSize int64, newFi
 	// Create new version
 	newVersion := &Document{
 		AssignmentID: d.AssignmentID,
+		LocalID:      d.LocalID,
 		UserID:       d.UserID,
 		Type:         d.Type,
 		FileName:     newFileName,

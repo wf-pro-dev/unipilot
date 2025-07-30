@@ -4,6 +4,7 @@ import {assignment} from '../models';
 import {course} from '../models';
 import {document} from '../models';
 import {user} from '../models';
+import {storage} from '../models';
 
 export function CreateAssignment(arg1:assignment.Assignment):Promise<void>;
 
@@ -14,6 +15,8 @@ export function DeleteAssignment(arg1:assignment.Assignment):Promise<void>;
 export function DeleteCourse(arg1:course.Course):Promise<void>;
 
 export function DeleteDocument(arg1:number):Promise<void>;
+
+export function EnsureSSEConnection():Promise<void>;
 
 export function GetAssignment(arg1:number):Promise<assignment.LocalAssignment>;
 
@@ -27,6 +30,8 @@ export function GetCourses():Promise<Array<course.LocalCourse>>;
 
 export function GetRemoteDocumentMetadata(arg1:number):Promise<Array<Record<string, any>>>;
 
+export function GetSSEConnectionStatus():Promise<Record<string, any>>;
+
 export function GetSubmissionDocuments(arg1:number):Promise<Array<document.LocalDocument>>;
 
 export function GetSupportDocuments(arg1:number):Promise<Array<document.LocalDocument>>;
@@ -37,13 +42,15 @@ export function GetUserStorageInfo():Promise<document.LocalDocumentCache>;
 
 export function Greet(arg1:string):Promise<string>;
 
-export function IsAuthenticated():Promise<boolean>;
+export function IsAuthenticated():Promise<storage.LocalCredentials>;
 
 export function Login(arg1:string,arg2:string):Promise<void>;
 
 export function Logout():Promise<void>;
 
 export function OpenDocument(arg1:number):Promise<void>;
+
+export function ReconnectSSE():Promise<void>;
 
 export function SaveDocumentAs(arg1:number):Promise<void>;
 

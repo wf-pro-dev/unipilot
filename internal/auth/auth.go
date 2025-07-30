@@ -2,8 +2,8 @@ package auth
 
 import (
 	"net/http"
-	"unipilot/internal/client"
 	"unipilot/internal/sse"
+	"unipilot/internal/storage"
 
 	"gorm.io/gorm"
 )
@@ -19,25 +19,10 @@ func NewAuth() *Auth {
 	return &Auth{}
 }
 
-// IsAuthenticated checks if the user is currently authenticated
 func (a *Auth) IsAuthenticated() bool {
-	// If we don't have a client, try to initialize it with saved cookies
-	if a.Client == nil {
-		httpClient, err := client.NewClientWithCookies() // Changed from NewClient()
-		if err != nil {
-			return false
-		}
-		a.Client = httpClient
-	}
-
-	// Make a request to the user endpoint to check authentication
-	resp, err := a.Client.Get("https://newsroom.dedyn.io/acc-homework/user")
+	creds, err := storage.GetCurrentUser()
 	if err != nil {
 		return false
 	}
-	defer resp.Body.Close()
-
-	// If we get a 200 OK, we're authenticated
-	// If we get a 401 Unauthorized, we're not authenticated
-	return resp.StatusCode == http.StatusOK
+	return creds != nil
 }

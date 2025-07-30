@@ -10,7 +10,6 @@ import (
 // This is for local operations and caching remote metadata
 type LocalDocument struct {
 	gorm.Model
-	RemoteID     uint         `gorm:"index"` // Reference to remote document ID
 	AssignmentID uint         `gorm:"not null;index"`
 	UserID       uint         `gorm:"not null;index"` // Original uploader
 	Type         DocumentType `gorm:"not null;index"`
@@ -58,7 +57,6 @@ func (ld *LocalDocument) ToRemoteDocument() *Document {
 
 // FromRemoteDocument creates/updates local document from remote data
 func (ld *LocalDocument) FromRemoteDocument(rd *Document, hasLocalFile bool) {
-	ld.RemoteID = rd.ID
 	ld.AssignmentID = rd.AssignmentID
 	ld.UserID = rd.UserID
 	ld.Type = rd.Type
@@ -89,7 +87,7 @@ func SyncRemoteMetadata(assignmentID uint, remoteDocuments []Document, db *gorm.
 		var localDoc LocalDocument
 
 		// Check if we already have this document locally
-		err := db.Where("remote_id = ?", remoteDoc.ID).First(&localDoc).Error
+		err := db.Where("id = ?", remoteDoc.LocalID).First(&localDoc).Error
 
 		if err == gorm.ErrRecordNotFound {
 			// Create new local record

@@ -22,6 +22,10 @@ export function DeleteDocument(arg1) {
   return window['go']['main']['App']['DeleteDocument'](arg1);
 }
 
+export function EnsureSSEConnection() {
+  return window['go']['main']['App']['EnsureSSEConnection']();
+}
+
 export function GetAssignment(arg1) {
   return window['go']['main']['App']['GetAssignment'](arg1);
 }
@@ -44,6 +48,10 @@ export function GetCourses() {
 
 export function GetRemoteDocumentMetadata(arg1) {
   return window['go']['main']['App']['GetRemoteDocumentMetadata'](arg1);
+}
+
+export function GetSSEConnectionStatus() {
+  return window['go']['main']['App']['GetSSEConnectionStatus']();
 }
 
 export function GetSubmissionDocuments(arg1) {
@@ -80,6 +88,10 @@ export function Logout() {
 
 export function OpenDocument(arg1) {
   return window['go']['main']['App']['OpenDocument'](arg1);
+}
+
+export function ReconnectSSE() {
+  return window['go']['main']['App']['ReconnectSSE']();
 }
 
 export function SaveDocumentAs(arg1) {

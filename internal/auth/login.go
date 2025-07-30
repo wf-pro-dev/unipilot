@@ -63,6 +63,9 @@ func (a *Auth) Login(username, password string) error {
 		return fmt.Errorf("failed to store credentials: %w", err)
 	}
 
+	// Initialize the SSE connection early to ensure it's never nil
+	a.SSE = sse.NewSSE()
+
 	// Now try to get the local database and migrate data
 	// But handle the case where it might fail gracefully
 	localDB, _, err := storage.GetLocalDB()
@@ -96,9 +99,6 @@ func (a *Auth) Login(username, password string) error {
 		fmt.Printf("Warning: Failed to migrate assignments: %v\n", err)
 		// Don't rollback, continue with the transaction
 	}
-
-	// Initialize the SSE connection
-	a.SSE = sse.NewSSE()
 
 	return nil
 }

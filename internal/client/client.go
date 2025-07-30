@@ -77,7 +77,10 @@ func SaveCookies(client *http.Client) error {
 		return err
 	}
 
-	cookies := client.Jar.Cookies(nil) // Pass nil to get all cookies
+	// Use proper URL instead of nil to avoid nil pointer dereference
+	targetURL, _ := url.Parse("https://newsroom.dedyn.io")
+	cookies := client.Jar.Cookies(targetURL)
+
 	data, err := json.MarshalIndent(cookies, "", "  ")
 	if err != nil {
 		return fmt.Errorf("could not marshal cookies: %w", err)

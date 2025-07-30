@@ -39,21 +39,20 @@ export function DocumentStorageInfo() {
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-8">
-          <HardDrive className="h-4 w-4 mr-1" />
-          Storage
+          <HardDrive className="w-4 h-4" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-80" align="end">
         <div className="space-y-4">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex justify-between items-center">
             <h4 className="font-semibold">Storage Usage</h4>
             <Button
               variant="ghost"
               size="sm"
               onClick={() => refetch()}
               disabled={isLoading}
-              className="h-8 w-8 p-0"
+              className="p-0 w-8 h-8"
             >
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
@@ -63,7 +62,7 @@ export function DocumentStorageInfo() {
             <>
               {/* Storage Bar */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex justify-between items-center text-sm">
                   <span>Used Storage</span>
                   <span className="font-medium">
                     {formatFileSize(storageInfo.TotalSize)} / 2 GB
@@ -94,39 +93,39 @@ export function DocumentStorageInfo() {
               {/* Storage Levels */}
               <div className="space-y-2">
                 {getStoragePercentage() >= 90 && (
-                  <Badge variant="destructive" className="w-full justify-center">
+                  <Badge variant="destructive" className="justify-center w-full">
                     Storage Almost Full
                   </Badge>
                 )}
                 {getStoragePercentage() >= 75 && getStoragePercentage() < 90 && (
-                  <Badge variant="secondary" className="w-full justify-center bg-yellow-500/20 text-yellow-700">
+                  <Badge variant="secondary" className="justify-center w-full text-yellow-700 bg-yellow-500/20">
                     Storage Getting Full
                   </Badge>
                 )}
               </div>
 
               {/* Last Updated */}
-              <div className="text-xs text-muted-foreground text-center">
+              <div className="text-xs text-center text-muted-foreground">
                 Last updated: {new Date(storageInfo.LastCalculatedAt).toLocaleString()}
               </div>
             </>
           ) : isLoading ? (
-            <div className="flex items-center justify-center py-4">
-              <RefreshCw className="h-4 w-4 animate-spin mr-2" />
+            <div className="flex justify-center items-center py-4">
+              <RefreshCw className="mr-2 w-4 h-4 animate-spin" />
               <span className="text-sm">Loading storage info...</span>
             </div>
           ) : (
-            <div className="flex items-center justify-center py-4">
+            <div className="flex justify-center items-center py-4">
               <Button variant="outline" onClick={() => refetch()} size="sm">
-                <Info className="h-4 w-4 mr-2" />
+                <Info className="mr-2 w-4 h-4" />
                 Load Storage Info
               </Button>
             </div>
           )}
 
           {/* Storage Limits Info */}
-          <div className="border-t pt-3">
-            <div className="text-xs text-muted-foreground space-y-1">
+          <div className="pt-3 border-t">
+            <div className="space-y-1 text-xs text-muted-foreground">
               <div className="font-medium">Storage Limits:</div>
               <div>• Max file size: 50 MB</div>
               <div>• Max per assignment: 200 MB</div>

@@ -123,18 +123,18 @@ export function AssignmentDetailsModal({
               <p className="font-medium text-white">{assignment.Course?.Name}</p>
             </div>
             <div className="space-y-2">
-              <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <Calendar className="w-4 h-4" />
-                <span>Deadline</span>
+              <div className="flex items-center space-x-4 text-sm">
+                <div className="flex items-center space-x-2 text-gray-400">
+                  <Calendar className="w-4 h-4" />
+                  <span>Deadline</span>
+                </div>
+                <Badge variant="outline" className={`${isOverdueStatus ? "text-red-400" : daysUntilDue < 0 ? "text-gray-400" : "text-yellow-400"}`}>
+                  {getDueDescription(deadline, assignment.StatusName)}
+                </Badge>
               </div>
               <div className="flex items-center space-x-4">
                 <p className="font-medium text-white">{format(deadline, "EEEE, MMMM d, yyyy")}</p>
-                <div className={`flex items-center space-x-1 text-sm ${isOverdueStatus ? "text-red-400" : daysUntilDue <= 1 ? "text-yellow-400" : "text-gray-400"}`}>
-                  <Clock className="w-4 h-4" />
-                  <span>
-                    {getDueDescription(deadline, assignment.StatusName)}
-                  </span>
-                </div>
+
               </div>
             </div>
 

@@ -102,7 +102,12 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
             {allDocuments.data?.length || 0}
           </Badge>
         </div>
-        <DocumentStorageInfo />
+        <div className="flex gap-2 items-center">
+          <Button variant="outline" size="sm" className="h-8" onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}>
+            <Upload className="w-4 h-4" />
+          </Button>
+          <DocumentStorageInfo />
+        </div>
       </div>
 
       {/* Filter Tabs */}
@@ -139,14 +144,16 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
       <Separator />
 
       {/* Documents List */}
-      <div className="space-y-2">
+      <div className="flex flex-col">
         {filteredDocs.length > 0 ? (
-          filteredDocs.map((doc) => (
+          <div className="grid grid-cols-1 xl:grid-cols-2 lg:grid-cols-4 gap-4">
+          {filteredDocs.map((doc) => (
             <DocumentItem
               key={doc.ID}
               document={doc}
             />
-          ))
+          ))}
+          </div>
         ) : (
           <div className="flex flex-col justify-center items-center py-8 text-center">
             <FileText className="mb-2 w-12 h-12 text-muted-foreground" />
@@ -165,7 +172,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
               className="mt-2 h-8"
             >
               <Upload className="mr-1 w-4 h-4" />
-              Upload {filter === "submission" ? "Submission" : "Support Doc"}
+              Upload Document
             </Button>
           </div>
         )}

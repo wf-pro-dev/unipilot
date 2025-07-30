@@ -2,6 +2,7 @@
 
 import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { useState, useEffect } from "react"
+import { storage } from "@/wailsjs/go/models"
 
 interface AuthState {
   isAuthenticated: boolean
@@ -27,9 +28,9 @@ export function useAuth() {
       })
       return { success: true }
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : "Login failed" 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Login failed"
       }
     }
   }
@@ -44,9 +45,9 @@ export function useAuth() {
       })
       return { success: true }
     } catch (error) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : "Logout failed" 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Logout failed"
       }
     }
   }
@@ -56,13 +57,14 @@ export function useAuth() {
 
     const checkAuth = async () => {
       try {
-        const isAuthenticated = await window.go.main.App.IsAuthenticated()
-        LogInfo("IsAuthenticated: " + isAuthenticated)
-        setAuthState({
-          isAuthenticated,
-          isLoading: false,
-          user: isAuthenticated ? { username: "User" } : null,
-        })
+        if (!authState.isAuthenticated) {
+          const creds: storage.LocalCredentials = await window.go.main.App.IsAuthenticated()
+          setAuthState({
+            isAuthenticated: creds.is_authenticated,
+            isLoading: false,
+            user: creds.is_authenticated ? { username: creds.user.username } : null,
+          })
+        }
       } catch (error) {
         LogError("Error checking auth: " + error)
         // If there's an error checking auth, assume not authenticated

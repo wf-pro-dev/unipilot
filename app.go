@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -18,7 +19,10 @@ import (
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/document"
 	"unipilot/internal/models/user"
+	"unipilot/internal/network"
 	"unipilot/internal/services/fileops"
+	"unipilot/internal/sse"
+	"unipilot/internal/storage"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -51,6 +55,98 @@ func (a *App) startup(ctx context.Context) {
 	} else {
 		a.DB = dbHelper
 	}
+
+	// Check if user is already authenticated and initialize HTTP client + SSE if needed
+	if a.Auth.IsAuthenticated() && network.IsOnline() {
+		log.Println("[App] User already authenticated, initializing HTTP client and SSE connection...")
+		if err := a.initializeAuthenticatedClient(); err != nil {
+			log.Printf("[App] Failed to initialize authenticated client: %v", err)
+		} else {
+			a.startSSEConnection()
+		}
+	}
+}
+
+// initializeAuthenticatedClient creates HTTP client from stored cookies when user is already authenticated
+func (a *App) initializeAuthenticatedClient() error {
+	httpClient, err := client.NewClientWithCookies()
+	if err != nil {
+		return fmt.Errorf("could not create http client from stored cookies: %w", err)
+	}
+
+	a.Auth.Client = httpClient
+	log.Println("[App] HTTP client initialized from stored cookies")
+	return nil
+}
+
+// startSSEConnection initializes and starts the SSE connection with proper authentication check
+func (a *App) startSSEConnection() {
+	// Ensure we have an authenticated HTTP client
+	if a.Auth.Client == nil {
+		log.Println("[App] No HTTP client available, cannot start SSE")
+		return
+	}
+
+	// Stop any existing SSE connection first
+	a.stopSSEConnection()
+
+	// Initialize new SSE connection
+	a.Auth.SSE = sse.NewSSE()
+
+	// Start the SSE connection in a goroutine
+	go a.Auth.SSE.Connect(a.Auth.Client)
+
+	// Start the event handler
+	a.Events.Start(a.Auth.SSE)
+
+	log.Println("[App] SSE connection started successfully")
+}
+
+// stopSSEConnection stops the current SSE connection and event handling
+func (a *App) stopSSEConnection() {
+	if a.Auth.SSE != nil {
+		log.Println("[App] Stopping existing SSE connection...")
+		a.Auth.SSE.StopListener()
+		a.Auth.SSE = nil
+	}
+
+	if a.Events != nil {
+		a.Events.Stop()
+		// Recreate events handler for next connection
+		a.Events = events.NewEvents()
+	}
+
+	log.Println("[App] SSE connection stopped")
+}
+
+// ensureSSEConnection ensures SSE is running if user is authenticated and online
+func (a *App) ensureSSEConnection() {
+	if !a.Auth.IsAuthenticated() {
+		log.Println("[App] User not authenticated, stopping SSE if running")
+		a.stopSSEConnection()
+		return
+	}
+
+	if !network.IsOnline() {
+		log.Println("[App] Network offline, stopping SSE if running")
+		a.stopSSEConnection()
+		return
+	}
+
+	// If we don't have an HTTP client, try to initialize it
+	if a.Auth.Client == nil {
+		log.Println("[App] No HTTP client available, trying to initialize from stored cookies")
+		if err := a.initializeAuthenticatedClient(); err != nil {
+			log.Printf("[App] Failed to initialize HTTP client: %v", err)
+			return
+		}
+	}
+
+	// If we don't have an active SSE connection, start one
+	if a.Auth.SSE == nil {
+		log.Println("[App] No active SSE connection, starting new connection")
+		a.startSSEConnection()
+	}
 }
 
 // Greet returns a greeting for the given name
@@ -64,15 +160,10 @@ func (a *App) Login(username, password string) error {
 		return err
 	}
 
-	// Create a dedicated HTTP client for SSE connections
-	sseClient, err := client.NewSSEClient()
-	if err != nil {
-		return fmt.Errorf("failed to create SSE client: %w", err)
+	// Start SSE connection after successful login
+	if network.IsOnline() {
+		a.startSSEConnection()
 	}
-
-	go a.Auth.SSE.Connect(sseClient)
-
-	a.Events.Start(a.Auth.SSE)
 
 	// Reinitialize database helper after login
 	dbHelper, err := app.NewDatabaseHelper()
@@ -87,20 +178,98 @@ func (a *App) Login(username, password string) error {
 
 // Logout handles user logout
 func (a *App) Logout() error {
+	// Stop SSE connection first
+	a.stopSSEConnection()
+
 	if err := a.Auth.Logout(); err != nil {
 		return err
 	}
 
-	a.Auth.SSE.StopListener()
-	a.Events.Stop()
 	a.DB = nil
 
 	return nil
 }
 
 // IsAuthenticated checks if the user is currently authenticated
-func (a *App) IsAuthenticated() bool {
-	return a.Auth.IsAuthenticated()
+func (a *App) IsAuthenticated() (*storage.LocalCredentials, error) {
+	creds, err := storage.GetCurrentUser()
+	if err != nil {
+		// When no credentials exist, return a LocalCredentials object with IsAuthenticated = false
+		// instead of an error, so frontend can properly handle the unauthenticated state
+		log.Printf("[App] No credentials found: %v", err)
+		return &storage.LocalCredentials{
+			IsAuthenticated: false,
+			User: struct {
+				UserID   uint   `json:"user_id"`
+				Username string `json:"username"`
+			}{
+				UserID:   0,
+				Username: "",
+			},
+		}, nil
+	}
+	if creds == nil {
+		// Same handling for nil credentials
+		return &storage.LocalCredentials{
+			IsAuthenticated: false,
+			User: struct {
+				UserID   uint   `json:"user_id"`
+				Username string `json:"username"`
+			}{
+				UserID:   0,
+				Username: "",
+			},
+		}, nil
+	}
+	log.Println("creds: " + creds.User.Username)
+
+	return creds, nil
+}
+
+// EnsureSSEConnection manually checks and ensures SSE connection is in correct state
+func (a *App) EnsureSSEConnection() error {
+	log.Println("[App] Manual SSE connection check requested")
+	a.ensureSSEConnection()
+	return nil
+}
+
+// GetSSEConnectionStatus returns the current status of the SSE connection
+func (a *App) GetSSEConnectionStatus() map[string]interface{} {
+	status := map[string]interface{}{
+		"connected":     false,
+		"authenticated": a.Auth.IsAuthenticated(),
+		"online":        network.IsOnline(),
+		"client_ready":  a.Auth.Client != nil,
+	}
+
+	if a.Auth.SSE != nil {
+		status["connected"] = true
+		status["sse_instance"] = "active"
+	} else {
+		status["sse_instance"] = "inactive"
+	}
+
+	return status
+}
+
+// ReconnectSSE manually triggers an SSE reconnection (useful for network recovery)
+func (a *App) ReconnectSSE() error {
+	if !a.Auth.IsAuthenticated() {
+		return fmt.Errorf("user not authenticated")
+	}
+
+	if !network.IsOnline() {
+		return fmt.Errorf("network is offline")
+	}
+
+	if a.Auth.Client == nil {
+		return fmt.Errorf("HTTP client not available")
+	}
+
+	log.Println("[App] Manual SSE reconnection requested")
+	a.startSSEConnection()
+
+	return nil
 }
 
 // GetAssignment returns an assignment by ID
@@ -235,16 +404,14 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 			"file_size":     fileInfo.Size(),
 		}
 
-		// Make API call to store metadata (non-blocking, continue if it fails)
-		go func() {
-			jsonData, _ := json.Marshal(metadataReq)
-			resp, err := a.Auth.Client.Post("https://newsroom.dedyn.io/acc-homework/documents/metadata",
-				"application/json", strings.NewReader(string(jsonData)))
-			if err == nil {
-				defer resp.Body.Close()
-			}
-			// We don't block on this - local file upload is the priority
-		}()
+		jsonData, _ := json.Marshal(metadataReq)
+		resp, _ := a.Auth.Client.Post("https://newsroom.dedyn.io/acc-homework/document/metadata",
+			"application/json", strings.NewReader(string(jsonData)))
+		if resp.StatusCode == 200 {
+			defer resp.Body.Close()
+		}
+		// We don't block on this - local file upload is the priority
+
 	}
 
 	return response.LocalDocument, nil
@@ -439,13 +606,30 @@ func (a *App) DeleteDocument(documentID uint) error {
 		}
 	}
 
+	db := a.DB.GetDB()
+	db = db.Debug()
 	// Delete database record
-	if err := a.DB.GetDB().Delete(&doc).Error; err != nil {
+	if err := db.Delete(&doc).Error; err != nil {
 		return fmt.Errorf("failed to delete document record: %w", err)
 	}
 
 	// Update local storage cache
-	document.UpdateLocalStorageCache(userID, a.DB.GetDB())
+	document.UpdateLocalStorageCache(userID, db)
+
+	// Also store metadata remotely for sharing
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil && doc.RemoteID > 0 {
+
+		resp, _ := a.Auth.Client.Post(fmt.Sprintf("https://newsroom.dedyn.io/acc-homework/document/metadata/delete?document_id=%d", doc.RemoteID),
+			"application/json", nil)
+		if resp.StatusCode == 200 {
+			defer resp.Body.Close()
+		}
+
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("failed to delete document metadata: %s", resp.Status)
+		}
+
+	}
 
 	return nil
 }
@@ -563,6 +747,7 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
 		metadataReq := map[string]interface{}{
 			"assignment_id": existingDoc.AssignmentID,
+			"local_id":      existingDoc.ID,
 			"type":          string(existingDoc.Type),
 			"file_name":     filepath.Base(filePath),
 			"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
