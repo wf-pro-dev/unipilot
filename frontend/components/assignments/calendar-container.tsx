@@ -1,25 +1,24 @@
 import { format } from "date-fns"
 import { CalendarItem } from "./calendar-item"
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { useDrop } from "react-dnd"
-import { useState } from "react"
 
 interface CalendarContainerProps {
     day: Date
-    dayAssignments: Assignment[]
+    dayAssignments: assignment.LocalAssignment[]
     isCurrentMonth: boolean
     isToday: boolean
-    onMoveAssignment: (assignment: Assignment, date: Date) => void
+    onMoveAssignment: (assignment: assignment.LocalAssignment, date: Date) => void
     index: number
-    onEdit: (assignment: Assignment, column: string, value: string) => void
-    onAssignmentClick: (assignment: Assignment) => void
+    onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
+    onAssignmentClick: (assignment: assignment.LocalAssignment) => void
     onDateClick: (date: Date) => void
 }
 
 function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMoveAssignment, index, onEdit, onAssignmentClick, onDateClick }: CalendarContainerProps) {
     const [{ isOver }, drop] = useDrop({
         accept: "assignment",
-        drop: (item: { assignment: Assignment }) => {
+        drop: (item: { assignment: assignment.LocalAssignment }) => {
             if (item.assignment) {
                 onMoveAssignment(item.assignment, day)
             }

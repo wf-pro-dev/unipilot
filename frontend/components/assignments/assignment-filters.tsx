@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Search, Filter, X } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { useAssignments } from "@/hooks/use-assignments"
 
 interface Filter {
@@ -30,7 +30,7 @@ export function AssignmentFilters({
   const hasActiveFilters =
     filter.course !== "all" || filter.status !== "all" || filter.priority !== "all" || searchTerm !== ""
 
-  const { assignments } = useAssignments()
+  const { data: assignments } = useAssignments()
 
   const clearFilters = () => {
     setSearchTerm("")

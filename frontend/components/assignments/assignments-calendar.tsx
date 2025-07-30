@@ -5,19 +5,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Calendar, ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react"
 import { format } from "date-fns"
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { parseDeadline } from "@/lib/date-utils"
 import { CalendarContainer } from "./calendar-container"
 import { DndProvider } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
 
 interface AssignmentsCalendarProps {
-  assignments: Assignment[]
+  assignments: assignment.LocalAssignment[]
   onAddAssignment: () => void
-  onMoveAssignment: (assignment: Assignment, date: Date) => void
+  onMoveAssignment: (assignment: assignment.LocalAssignment, date: Date) => void
   isLoading?: boolean
-  onEdit: (assignment: Assignment, column: string, value: string) => void
-  onAssignmentClick: (assignment: Assignment) => void
+  onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
+  onAssignmentClick: (assignment: assignment.LocalAssignment) => void
   onDateClick: (date: Date) => void
 }
 

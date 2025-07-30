@@ -22,7 +22,7 @@ import Link from "next/link"
 import { Course } from "@/types/models"
 import { useAssignments } from "@/hooks/use-assignments"
 import { formatDeadline } from "@/lib/date-utils"
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { StatusTag } from "@/components/utils/status-tag"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
@@ -38,14 +38,14 @@ export function CourseDetailsModal({ isOpen, onClose, course }: CourseDetailsMod
   if (!course) return null
   const { data: assignments, isLoading } = useAssignments()
 
-  var course_assignments = (assignments || []).filter((assignment: Assignment) => assignment.Course?.Code === course.Code) || []
-  var completed_assignments_count = course_assignments.filter((assignment: Assignment) => assignment.StatusName === "Done").length
+  var course_assignments = (assignments || []).filter((assignment: assignment.LocalAssignment) => assignment.Course?.Code === course.Code) || []
+  var completed_assignments_count = course_assignments.filter((assignment: assignment.LocalAssignment) => assignment.StatusName === "Done").length
   var completionPercentage = (completed_assignments_count / course_assignments.length) * 100
   var isCompleted = completionPercentage === 100
 
   const updateMutation = useUpdateAssignment()
 
-  const handleEditAssignment = async (assignment: Assignment, column: string, value: string) => {
+  const handleEditAssignment = async (assignment: assignment.LocalAssignment, column: string, value: string) => {
     console.log("Editing assignment:", assignment)
     const message = "assignment " + assignment.ID + " " + column + " changed to " + value
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
@@ -136,14 +136,6 @@ export function CourseDetailsModal({ isOpen, onClose, course }: CourseDetailsMod
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-400 block mb-2">Location</label>
-                <div className="flex items-center space-x-2 text-white">
-                  <MapPin className="h-4 w-4 text-green-400" />
-                  <span>{courseData.location}</span>
-                </div>
-              </div>
-
-              <div>
                 <label className="text-sm font-medium text-gray-400 block mb-2">Credits</label>
                 <Badge variant="outline" className="border-gray-600">
                   {courseData.Credits} credits
@@ -159,7 +151,7 @@ export function CourseDetailsModal({ isOpen, onClose, course }: CourseDetailsMod
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-400 block mb-2">Office</label>
+                <label className="text-sm font-medium text-gray-400 block mb-2">Location</label>
                 <div className="flex items-center space-x-2 text-white">
                   <MapPin className="h-4 w-4 text-orange-400" />
                   <span>{courseData.RoomNumber}</span>

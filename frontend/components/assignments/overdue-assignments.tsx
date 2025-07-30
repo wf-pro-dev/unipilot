@@ -1,16 +1,17 @@
 "use client"
 
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { AssignmentView } from "./assignment-view"
 
 interface OverdueAssignmentsProps {
-  assignments: Assignment[]
-  onToggleComplete: (assignment: Assignment) => void
-  onAssignmentClick: (assignment: Assignment) => void
+  assignments: assignment.LocalAssignment[]
+  onToggleComplete: (assignment: assignment.LocalAssignment) => void
+  onAssignmentClick: (assignment: assignment.LocalAssignment) => void
+  onDelete: (assignment: assignment.LocalAssignment) => void
   isLoading?: boolean
 }
 
-export function OverdueAssignments({ assignments, onToggleComplete, onAssignmentClick, isLoading }: OverdueAssignmentsProps) {
+export function OverdueAssignments({ assignments, onToggleComplete, onAssignmentClick, onDelete, isLoading }: OverdueAssignmentsProps) {
   // No need to filter here - the hook already provides filtered data
   const overdueAssignments = assignments || []
 
@@ -20,6 +21,7 @@ export function OverdueAssignments({ assignments, onToggleComplete, onAssignment
       assignments={overdueAssignments} 
       onToggleComplete={onToggleComplete} 
       onAssignmentClick={onAssignmentClick}
+      onDelete={onDelete}
       isLoading={isLoading}
     />
   )

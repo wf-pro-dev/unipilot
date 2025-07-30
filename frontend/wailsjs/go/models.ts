@@ -306,6 +306,7 @@ export namespace document {
 	    DeletedAt: any;
 	    AssignmentID: number;
 	    UserID: number;
+	    LocalID: number;
 	    Type: string;
 	    FileName: string;
 	    FileType: string;
@@ -330,6 +331,7 @@ export namespace document {
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
 	        this.AssignmentID = source["AssignmentID"];
 	        this.UserID = source["UserID"];
+	        this.LocalID = source["LocalID"];
 	        this.Type = source["Type"];
 	        this.FileName = source["FileName"];
 	        this.FileType = source["FileType"];
@@ -369,7 +371,6 @@ export namespace document {
 	    UpdatedAt: any;
 	    // Go type: gorm
 	    DeletedAt: any;
-	    RemoteID: number;
 	    AssignmentID: number;
 	    UserID: number;
 	    Type: string;
@@ -396,7 +397,6 @@ export namespace document {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
-	        this.RemoteID = source["RemoteID"];
 	        this.AssignmentID = source["AssignmentID"];
 	        this.UserID = source["UserID"];
 	        this.Type = source["Type"];

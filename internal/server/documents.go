@@ -14,6 +14,7 @@ import (
 // DocumentMetadata represents document metadata for API responses
 type DocumentMetadata struct {
 	ID           uint   `json:"id"`
+	LocalID      uint   `json:"local_id"`
 	AssignmentID uint   `json:"assignment_id"`
 	UserID       uint   `json:"user_id"`
 	Type         string `json:"type"`
@@ -30,6 +31,7 @@ type DocumentMetadata struct {
 func CreateDocumentMetadataHandler(w http.ResponseWriter, r *http.Request) {
 	db := r.Context().Value("db").(*gorm.DB)
 
+	db = db.Debug()
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
 		PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
@@ -44,6 +46,7 @@ func CreateDocumentMetadataHandler(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		AssignmentID uint   `json:"assignment_id"`
+		LocalID      uint   `json:"local_id"`
 		Type         string `json:"type"`
 		FileName     string `json:"file_name"`
 		FileType     string `json:"file_type"`
@@ -56,8 +59,10 @@ func CreateDocumentMetadataHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create document metadata record (FilePath empty for local-only files)
+	// Create document metadata record (FilePath empty for local-only files)
 	doc := &document.Document{
 		AssignmentID: req.AssignmentID,
+		LocalID:      req.LocalID,
 		UserID:       userID,
 		Type:         document.DocumentType(req.Type),
 		FileName:     req.FileName,
@@ -75,6 +80,7 @@ func CreateDocumentMetadataHandler(w http.ResponseWriter, r *http.Request) {
 
 	response := DocumentMetadata{
 		ID:           doc.ID,
+		LocalID:      doc.LocalID,
 		AssignmentID: doc.AssignmentID,
 		UserID:       doc.UserID,
 		Type:         string(doc.Type),
@@ -162,6 +168,7 @@ func GetAssignmentDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 // DeleteDocumentMetadataHandler removes document metadata
 func DeleteDocumentMetadataHandler(w http.ResponseWriter, r *http.Request) {
 	db := r.Context().Value("db").(*gorm.DB)
+	db = db.Debug()
 
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
@@ -175,20 +182,14 @@ func DeleteDocumentMetadataHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	docIDStr := r.URL.Query().Get("document_id")
-	if docIDStr == "" {
+	docID := r.URL.Query().Get("document_id")
+	if docID == "" {
 		PrintERROR(w, http.StatusBadRequest, "Document ID required")
 		return
 	}
 
-	docID, err := strconv.ParseUint(docIDStr, 10, 32)
-	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, "Invalid document ID")
-		return
-	}
-
 	var doc document.Document
-	if err := db.Where("id = ? AND user_id = ?", docID, userID).First(&doc).Error; err != nil {
+	if err := db.Where("local_id = ? AND user_id = ?", docID, userID).First(&doc).Error; err != nil {
 		PrintERROR(w, http.StatusNotFound, "Document not found")
 		return
 	}

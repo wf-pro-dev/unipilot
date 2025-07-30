@@ -81,8 +81,12 @@ func (h *DatabaseHelper) UpdateAssignment(LocalAssignment *assignment.LocalAssig
 }
 
 // DeleteAssignment deletes an assignment
-func (h *DatabaseHelper) DeleteAssignment(assignment *assignment.Assignment) error {
-	return assignment.Delete(h.db)
+func (h *DatabaseHelper) DeleteAssignment(assignment *assignment.LocalAssignment) error {
+	if err := h.db.Delete(assignment).Error; err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CreateCourse creates a new course

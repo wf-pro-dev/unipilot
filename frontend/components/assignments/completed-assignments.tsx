@@ -1,12 +1,12 @@
 "use client"
 
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { AssignmentView } from "./assignment-view"
 
 interface CompletedAssignmentsProps {
-  assignments: Assignment[]
-  onToggleComplete: (assignment: Assignment) => void
-  onAssignmentClick: (assignment: Assignment) => void
+  assignments: assignment.LocalAssignment[]
+  onToggleComplete: (assignment: assignment.LocalAssignment) => void
+  onAssignmentClick: (assignment: assignment.LocalAssignment) => void
   isLoading?: boolean
 }
 

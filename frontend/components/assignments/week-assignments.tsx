@@ -1,16 +1,17 @@
 "use client"
 
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { AssignmentView } from "./assignment-view"
 
 interface WeekAssignmentsProps {
-  assignments: Assignment[]
-  onToggleComplete: (assignment: Assignment) => void
-  onAssignmentClick: (assignment: Assignment) => void
+  assignments: assignment.LocalAssignment[]
+  onToggleComplete: (assignment: assignment.LocalAssignment) => void
+  onAssignmentClick: (assignment: assignment.LocalAssignment) => void 
+  onDelete: (assignment: assignment.LocalAssignment) => void
   isLoading?: boolean
 }
 
-export function WeekAssignments({ assignments, onToggleComplete, onAssignmentClick, isLoading }: WeekAssignmentsProps) {
+export function WeekAssignments({ assignments, onToggleComplete, onAssignmentClick, onDelete, isLoading }: WeekAssignmentsProps) {
   // No need to filter here - the hook already provides filtered data
   const weekAssignments = assignments || []
 
@@ -20,6 +21,7 @@ export function WeekAssignments({ assignments, onToggleComplete, onAssignmentCli
       assignments={weekAssignments} 
       onToggleComplete={onToggleComplete} 
       onAssignmentClick={onAssignmentClick}
+      onDelete={onDelete}
       isLoading={isLoading}
     />
   )

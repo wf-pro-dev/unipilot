@@ -126,7 +126,6 @@ interface LegacyAssignment {
 }
 
 export type { 
-  Assignment, 
   Course, 
   User, 
   AssignmentType, 

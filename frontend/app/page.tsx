@@ -9,17 +9,17 @@ import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { AssignmentsDueToday } from "@/components/dashboard/assignments-due-today"
 import { AssignmentsThisWeek } from "@/components/dashboard/assignments-this-week"
 import { AssignmentDetailsModal } from "@/components/assignments/assignment-details-modal"
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
 import { useUpdateAssignment } from "@/hooks/use-assignments"
 
 export default function DashboardPage() {
-  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null)
+  const [selectedAssignment, setSelectedAssignment] = useState<assignment.LocalAssignment | null>(null)
 
   const updateMutation = useUpdateAssignment()
 
-  const handleEditAssignment = async (assignment: Assignment, column: string, value: string) => {
+  const handleEditAssignment = async (assignment: assignment.LocalAssignment, column: string, value: string) => {
     console.log("Editing assignment:", assignment)
     const message = "assignment " + assignment.ID + " " + column + " changed to " + value
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
@@ -32,7 +32,7 @@ export default function DashboardPage() {
     })
   }
 
-  const handleToggleComplete = async (assignment: Assignment) => {
+  const handleToggleComplete = async (assignment: assignment.LocalAssignment) => {
     const newStatus = assignment.StatusName === "Done" ? "Not started" : "Done"
     handleEditAssignment(assignment, "status_name", newStatus)
   }

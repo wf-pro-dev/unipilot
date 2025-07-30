@@ -2,15 +2,15 @@
 
 import { useDrag } from "react-dnd"
 import { Card, CardContent } from "@/components/ui/card"
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference } from "@/lib/date-utils"
 import { StatusTag } from "../utils/status-tag"
 import { format } from "date-fns"
 
 interface CalendarItemProps {
-  assignment: Assignment
-  onEdit: (assignment: Assignment, column: string, value: string) => void
-  onAssignmentClick: (assignment: Assignment) => void
+  assignment: assignment.LocalAssignment
+  onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
+  onAssignmentClick: (assignment: assignment.LocalAssignment) => void
 }
 
 export function CalendarItem({ assignment, onEdit, onAssignmentClick }: CalendarItemProps) {

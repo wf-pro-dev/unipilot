@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { Button } from "../ui/button"
 
 const statusColors = {
@@ -10,8 +10,8 @@ const statusColors = {
 }
 
 interface StatusTagProps {
-    assignment: Assignment
-    onEdit: (assignment: Assignment, column: string, value: string) => void
+    assignment: assignment.LocalAssignment
+    onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
 }
 
 function StatusTag({ assignment, onEdit }: StatusTagProps) {

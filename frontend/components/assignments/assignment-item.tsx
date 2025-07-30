@@ -6,17 +6,17 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Clock, MoreVertical, Edit, Trash2, Flag, Book, BookOpen } from "lucide-react"
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
 import { StatusTag } from "../utils/status-tag"
 import { useState } from "react"
 
 interface AssignmentItemProps {
-  assignment: Assignment
-  onEdit: (assignment: Assignment, column: string, value: string) => void
-  onDelete: (id: number) => void
-  onToggleComplete: (assignment: Assignment) => void
-  onAssignmentClick?: (assignment: Assignment) => void
+  assignment: assignment.LocalAssignment
+  onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
+  onToggleComplete: (assignment: assignment.LocalAssignment) => void
+  onAssignmentClick?: (assignment: assignment.LocalAssignment) => void
+  onDelete: (assignment: assignment.LocalAssignment) => void
   disabled?: boolean
 }
 
@@ -110,7 +110,7 @@ export function AssignmentItem({
                     <DropdownMenuItem
                       onClick={(e) => {
                         e.stopPropagation()
-                        onDelete(assignment.ID)
+                        onDelete(assignment)
                       }}
                       disabled={disabled}
                       className="text-red-400"

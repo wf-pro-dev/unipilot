@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AssignmentItem } from "./assignment-item"
 import { List, Loader2, X } from "lucide-react"
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
@@ -17,11 +17,11 @@ interface Filter {
 }
 
 interface AssignmentsTableProps {
-  assignments: Assignment[]
-  onToggleComplete: (assignment: Assignment) => void
-  onEdit: (assignment: Assignment, column: string, value: string) => void
-  onDelete: (id: number) => void
-  onAssignmentClick: (assignment: Assignment) => void
+  assignments: assignment.LocalAssignment[]
+  onToggleComplete: (assignment: assignment.LocalAssignment) => void
+  onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
+  onDelete: (assignment: assignment.LocalAssignment) => void
+  onAssignmentClick: (assignment: assignment.LocalAssignment) => void
   filter: Filter
   isLoading?: boolean
 }

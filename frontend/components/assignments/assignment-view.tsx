@@ -3,24 +3,22 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AssignmentItem } from "./assignment-item"
 import { CalendarDays, CheckCircle2, Loader2 } from "lucide-react"
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 
 interface AssignmentViewProps {
   title: string
-  assignments: Assignment[]
-  onToggleComplete: (assignment: Assignment) => void
-  onAssignmentClick: (assignment: Assignment) => void
+  assignments: assignment.LocalAssignment[]
+  onToggleComplete: (assignment: assignment.LocalAssignment) => void
+  onAssignmentClick: (assignment: assignment.LocalAssignment) => void
+  onDelete: (assignment: assignment.LocalAssignment) => void
   isLoading?: boolean
 }
 
-export function AssignmentView({ title, assignments, onToggleComplete, onAssignmentClick, isLoading }: AssignmentViewProps) {
-  const handleEdit = (assignment: Assignment) => {
+export function AssignmentView({ title, assignments, onToggleComplete, onAssignmentClick, onDelete, isLoading }: AssignmentViewProps) {
+  const handleEdit = (assignment: assignment.LocalAssignment) => {
     console.log("Editing assignment:", assignment)
   }
 
-  const handleDelete = (id: number) => {
-    console.log("Deleting assignment:", id)
-  }
 
   return (
     <div className="space-y-6">
@@ -48,7 +46,7 @@ export function AssignmentView({ title, assignments, onToggleComplete, onAssignm
                   assignment={assignment}
                   onToggleComplete={onToggleComplete}
                   onEdit={handleEdit}
-                  onDelete={handleDelete}
+                  onDelete={onDelete}
                   onAssignmentClick={onAssignmentClick}
                   disabled={isLoading}
                 />

@@ -1,4 +1,5 @@
-import { Assignment, Course, User } from './models'
+import {  Course, User } from './models'
+import { assignment } from '@/wailsjs/go/models'
 
 declare global {
   interface Window {
@@ -9,14 +10,14 @@ declare global {
           Logout: () => Promise<void>
           Greet: (name: string) => Promise<string>
           IsAuthenticated: () => Promise<storage.LocalCredentials>
-          GetAssignment: (id: number) => Promise<Assignment>
+          GetAssignment: (id: number) => Promise<assignment.LocalAssignment>
           GetCourse: (id: number) => Promise<Course>
           GetUser: (id: number) => Promise<User>
-          GetAssignments: () => Promise<Assignment[]>
+          GetAssignments: () => Promise<assignment.LocalAssignment[]>
           GetCourses: () => Promise<Course[]>
-          CreateAssignment: (assignment: Assignment) => Promise<void>
-          UpdateAssignment: (assignment: Assignment, column: string, value: string) => Promise<void>
-          DeleteAssignment: (assignment: Assignment) => Promise<void>
+          CreateAssignment: (assignment: assignment.LocalAssignment) => Promise<void>
+          UpdateAssignment: (assignment: assignment.LocalAssignment, column: string, value: string) => Promise<void>
+          DeleteAssignment: (assignment: assignment.LocalAssignment) => Promise<void>
           CreateCourse: (course: Course) => Promise<void>
           UpdateCourse: (course: Course) => Promise<void>
           DeleteCourse: (course: Course) => Promise<void>

@@ -104,49 +104,54 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
           </div>
 
           {/* File Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+          <div className="flex-1 min-w-0 flex flex-col gap-2">            
+            
               <p className="text-sm font-medium truncate">
                 {doc.FileName}
               </p>
+          
+            <div className="flex gap-x-1.5 items-center">
               <Badge 
-                variant="secondary" 
-                className={`text-xs ${getDocumentTypeColor(doc.Type)}`}
-              >
-                {doc.Type === "support" ? "Support" : "Submission"}
-              </Badge>
-              {doc.Version > 1 && (
-                <Badge variant="outline" className="text-xs">
-                  v{doc.Version}
+                  variant="secondary" 
+                  className={`text-xs ${getDocumentTypeColor(doc.Type)}`}
+                >
+                  {doc.Type === "support" ? "Support" : "Submission"}
                 </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+
+                
+                  <Badge variant="outline" className="text-xs">
+                    v{doc.Version}
+                  </Badge>
+              
+              </div>
+            
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span>{formatFileSize(doc.FileSize)}</span>
               <span className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                {format(new Date(doc.UpdatedAt), "MMM d, yyyy")}
+                {format(new Date(doc.UpdatedAt), "MMM d, yyyy hh:mm a")}
               </span>
              
             </div>
+
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center">
           <Button
             size="sm"
             variant="ghost"
             onClick={handleOpen}
             disabled={isLoading || !doc.HasLocalFile}
-            className="h-8 w-8 p-0"
+            className="p-0"
           >
             <Eye className="h-4 w-4" />
           </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0" disabled={isLoading}>
+              <Button size="sm" variant="ghost" className="p-0" disabled={isLoading}>
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>

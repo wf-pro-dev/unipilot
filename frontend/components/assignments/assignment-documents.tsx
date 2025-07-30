@@ -14,11 +14,11 @@ import {
   FileCheck,
   Send
 } from "lucide-react"
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { useAssignmentDocumentData } from "@/hooks/use-documents"
 
 interface AssignmentDocumentsProps {
-  assignment: Assignment
+  assignment: assignment.LocalAssignment
 }
 
 type DocumentFilter = "all" | "support" | "submission"
@@ -146,7 +146,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
       {/* Documents List */}
       <div className="flex flex-col">
         {filteredDocs.length > 0 ? (
-          <div className="grid grid-cols-1 xl:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 lg:grid-cols-4 gap-2">
           {filteredDocs.map((doc) => (
             <DocumentItem
               key={doc.ID}

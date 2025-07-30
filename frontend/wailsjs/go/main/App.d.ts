@@ -10,7 +10,7 @@ export function CreateAssignment(arg1:assignment.Assignment):Promise<void>;
 
 export function CreateCourse(arg1:course.Course):Promise<void>;
 
-export function DeleteAssignment(arg1:assignment.Assignment):Promise<void>;
+export function DeleteAssignment(arg1:assignment.LocalAssignment):Promise<void>;
 
 export function DeleteCourse(arg1:course.Course):Promise<void>;
 

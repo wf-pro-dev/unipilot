@@ -1,12 +1,7 @@
-"use client"
 
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { BookOpen, Users, Calendar, Clock } from "lucide-react"
-import { Assignment, Course } from "@/types/models"
-import { useAssignments } from "@/hooks/use-assignments"
+import { BookOpen } from "lucide-react"
 import { CourseItem } from "./course-item"
+import { Course } from "@/types/models"
 
 interface CoursesGridProps {
   courses: Course[]

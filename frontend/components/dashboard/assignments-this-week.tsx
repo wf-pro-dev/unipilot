@@ -3,7 +3,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CalendarDays } from "lucide-react"
 import { isWithinInterval, startOfWeek, endOfWeek } from "date-fns"
-import { Assignment } from "@/types/models"
 import { parseDeadline, isOverdue } from "@/lib/date-utils"
 import { useAssignments } from "@/hooks/use-assignments"
 

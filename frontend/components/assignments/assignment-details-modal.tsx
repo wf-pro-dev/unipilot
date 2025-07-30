@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Calendar, Clock, MoreVertical, Edit, Trash2, Flag, User, FileText, Award, ExternalLink } from "lucide-react"
 import { format } from "date-fns"
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
 import { StatusTag } from "../utils/status-tag"
 import { AssignmentDocuments } from "./assignment-documents"
@@ -16,10 +16,9 @@ import { AssignmentDocuments } from "./assignment-documents"
 interface AssignmentDetailsModalProps {
   isOpen: boolean
   onClose: () => void
-  assignment: Assignment | null
-  onEdit: (assignment: Assignment, column: string, value: string) => void
-  onDelete: (id: number) => void
-  onToggleComplete: (assignment: Assignment) => void
+  assignment: assignment.LocalAssignment | null
+  onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
+  onDelete: (assignment: assignment.LocalAssignment) => void
   isLoading?: boolean
 }
 
@@ -47,7 +46,6 @@ export function AssignmentDetailsModal({
   assignment,
   onEdit,
   onDelete,
-  onToggleComplete,
 }: AssignmentDetailsModalProps) {
   const [notes, setNotes] = useState("")
 
@@ -82,7 +80,7 @@ export function AssignmentDetailsModal({
                   Edit
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => onDelete(assignment.ID)}
+                  onClick={() => onDelete(assignment)}
                   className="text-red-400 hover:text-red-300"
                 >
                   <Trash2 className="mr-2 w-4 h-4" />
@@ -101,7 +99,7 @@ export function AssignmentDetailsModal({
 
               <StatusTag assignment={assignment} onEdit={onEdit} />
 
-              <Badge variant="outline" className={`text-sm ${priorityColors[assignment.Priority]}`}>
+              <Badge variant="outline" className={`text-sm ${priorityColors[assignment.Priority as keyof typeof priorityColors]}`}>
                 {assignment.Priority}
               </Badge>
 

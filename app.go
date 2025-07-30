@@ -221,8 +221,6 @@ func (a *App) IsAuthenticated() (*storage.LocalCredentials, error) {
 			},
 		}, nil
 	}
-	log.Println("creds: " + creds.User.Username)
-
 	return creds, nil
 }
 
@@ -398,6 +396,7 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
 		metadataReq := map[string]interface{}{
 			"assignment_id": assignmentID,
+			"local_id":      response.LocalDocument.ID,
 			"type":          documentType,
 			"file_name":     filepath.Base(filePath),
 			"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
@@ -617,9 +616,9 @@ func (a *App) DeleteDocument(documentID uint) error {
 	document.UpdateLocalStorageCache(userID, db)
 
 	// Also store metadata remotely for sharing
-	if a.Auth.IsAuthenticated() && a.Auth.Client != nil && doc.RemoteID > 0 {
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
 
-		resp, _ := a.Auth.Client.Post(fmt.Sprintf("https://newsroom.dedyn.io/acc-homework/document/metadata/delete?document_id=%d", doc.RemoteID),
+		resp, _ := a.Auth.Client.Post(fmt.Sprintf("https://newsroom.dedyn.io/acc-homework/document/metadata/delete?document_id=%d", documentID),
 			"application/json", nil)
 		if resp.StatusCode == 200 {
 			defer resp.Body.Close()
@@ -840,11 +839,22 @@ func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, colu
 }
 
 // DeleteAssignment deletes an assignment
-func (a *App) DeleteAssignment(assignment *assignment.Assignment) error {
+func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 	if a.DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	return a.DB.DeleteAssignment(assignment)
+
+	if err := a.DB.DeleteAssignment(assignment); err != nil {
+		return err
+	}
+
+	assignment_id_str := strconv.Itoa(int(assignment.RemoteID))
+
+	if err := client.SendUpdate(assignment_id_str, "deleted_at", time.Now().Format(time.RFC3339)); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // CreateCourse creates a new course

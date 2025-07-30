@@ -12,14 +12,15 @@ import { ExamAssignments } from "@/components/assignments/exam-assignments"
 import { AddAssignmentDialog } from "@/components/assignments/add-assignment-dialog"
 import { AssignmentDetailsModal } from "@/components/assignments/assignment-details-modal"
 import { Calendar, List, Clock, CheckCircle2, AlertTriangle, CalendarDays, Loader2 } from "lucide-react"
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import {
   useAssignments,
   useUpdateAssignment,
   useTodayAssignments,
   useWeekAssignments,
   useOverdueAssignments,
-  useExamAssignments
+  useExamAssignments,
+  useDeleteAssignment
 } from "@/hooks/use-assignments"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
@@ -38,8 +39,9 @@ export default function AssignmentsPage() {
 
   // Mutation for updates with optimistic updates
   const updateMutation = useUpdateAssignment()
+  const deleteMutation = useDeleteAssignment()
 
-  const [selectedAssignment, setSelectedAssignment] = useState<Assignment | null>(null)
+  const [selectedAssignment, setSelectedAssignment] = useState<assignment.LocalAssignment | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
   // Get the current view from URL parameters, default to "today"
@@ -56,7 +58,7 @@ export default function AssignmentsPage() {
   const statusFilter = searchParams.get("status") || null
   const priorityFilter = searchParams.get("priority") || null
 
-  const handleEditAssignment = async (assignment: Assignment, column: string, value: string) => {
+  const handleEditAssignment = async (assignment: assignment.LocalAssignment, column: string, value: string) => {
     console.log("Editing assignment:", assignment)
     const message = "assignment " + assignment.ID + " " + column + " changed to " + value
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
@@ -69,19 +71,18 @@ export default function AssignmentsPage() {
     })
   }
 
-  const handleToggleComplete = async (assignment: Assignment) => {
+  const handleToggleComplete = async (assignment: assignment.LocalAssignment) => {
     const newStatus = assignment.StatusName === "Done" ? "Not started" : "Done"
     handleEditAssignment(assignment, "status_name", newStatus)
   }
 
-  const handleMoveAssignment = async (assignment: Assignment, date: Date) => {
-    const newDeadline = format(date, "yyyy-MM-dd HH:mm:ssxxx")
-    handleEditAssignment(assignment, "deadline", newDeadline)
+  const handleDeleteAssignment = async (assignment: assignment.LocalAssignment) => {
+    deleteMutation.mutate(assignment)
   }
 
-  const handleDeleteAssignment = (id: number) => {
-    console.log("Deleting assignment:", id)
-    // TODO: Implement delete functionality using useDeleteAssignment hook
+  const handleMoveAssignment = async (assignment: assignment.LocalAssignment, date: Date) => {
+    const newDeadline = format(date, "yyyy-MM-dd HH:mm:ssxxx")
+    handleEditAssignment(assignment, "deadline", newDeadline)
   }
 
   // Handle tab change and update URL
@@ -166,6 +167,7 @@ export default function AssignmentsPage() {
               assignments={todayAssignments || []}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
+              onDelete={handleDeleteAssignment}
               isLoading={updateMutation.isPending}
             />
           </TabsContent>
@@ -175,6 +177,7 @@ export default function AssignmentsPage() {
               assignments={weekAssignments || []}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
+              onDelete={handleDeleteAssignment}
               isLoading={updateMutation.isPending}
             />
           </TabsContent>
@@ -184,6 +187,7 @@ export default function AssignmentsPage() {
               assignments={overdueAssignments || []}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
+              onDelete={handleDeleteAssignment}
               isLoading={updateMutation.isPending}
             />
           </TabsContent>
@@ -193,6 +197,7 @@ export default function AssignmentsPage() {
               assignments={examAssignments || []}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
+              onDelete={handleDeleteAssignment}
               isLoading={updateMutation.isPending}
             />
           </TabsContent>
@@ -228,7 +233,6 @@ export default function AssignmentsPage() {
           assignment={selectedAssignment}
           onEdit={handleEditAssignment}
           onDelete={handleDeleteAssignment}
-          onToggleComplete={handleToggleComplete}
           isLoading={updateMutation.isPending}
         />
         <DayAssignmentsModal

@@ -95,6 +95,7 @@ func StartServer() {
 	http.HandleFunc("/acc-homework/course/get", DBMiddleware(db, AuthMiddleware(GetCourseHandler)))
 
 	http.HandleFunc("/acc-homework/document/metadata", DBMiddleware(db, AuthMiddleware(CreateDocumentMetadataHandler)))
+	http.HandleFunc("/acc-homework/document/metadata/delete", DBMiddleware(db, AuthMiddleware(DeleteDocumentMetadataHandler)))
 
 	http.HandleFunc("/notion-webhooks/test", testHandler)
 	log.Println("Server listening on :3000...")

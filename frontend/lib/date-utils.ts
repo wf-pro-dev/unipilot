@@ -1,7 +1,7 @@
 /**
  * Utility functions for handling timezone-aware date parsing
  */
-import { format, differenceInDays } from "date-fns"
+import { format, differenceInDays, isTomorrow, isToday } from "date-fns"
 
 /**
  * Parses a deadline value with timezone awareness
@@ -70,7 +70,7 @@ export function formatDeadline(date: Date, formatString: string = "MMM d, yyyy")
  */
 export function calculateDaysDifference(deadline: Date): number {
   var difference = differenceInDays(deadline, new Date())
-  return difference < 0 ? difference : difference + 1
+  return difference <= 0 ? difference : difference + 1
 }
 
 /**
@@ -97,11 +97,11 @@ export function getDueDescription(deadline: Date, status: string): string {
 
   const daysDifference = calculateDaysDifference(deadline)
   
-  if (daysDifference <= 0) {
+  if (daysDifference < 0) {
     return `${Math.abs(daysDifference)} days overdue`
-  } else if (daysDifference === 1) {
+  } else if (isToday(deadline)) {
     return "Due today"
-  } else if (daysDifference === 2) {
+  } else if (isTomorrow(deadline)) {
     return "Due tomorrow"
   } else {
     return `${daysDifference} days left`

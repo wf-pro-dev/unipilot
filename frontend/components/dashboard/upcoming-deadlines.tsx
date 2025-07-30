@@ -2,12 +2,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Clock, AlertTriangle } from "lucide-react"
-import { Assignment } from "@/types/models"
+import { assignment } from "@/wailsjs/go/models"
 import { useAssignments } from "@/hooks/use-assignments"
 import { formatDeadline } from "@/lib/date-utils"
 
 interface UpcomingDeadlinesProps {
-  onAssignmentClick: (assignment: Assignment) => void
+  onAssignmentClick: (assignment: assignment.LocalAssignment) => void
 }
 
 export function UpcomingDeadlines({ onAssignmentClick }: UpcomingDeadlinesProps) {
