@@ -101,6 +101,21 @@ func Get_Assignment_byId(id, user_id uint, db *gorm.DB) (*Assignment, error) {
 	return assignment, nil
 }
 
+func Get_Assignment_byLocalID(id, user_id uint, db *gorm.DB) (*Assignment, error) {
+	assignment := &Assignment{}
+	err := db.Preload("User").
+		Preload("Course", "user_id = ?", user_id).
+		Preload("Type").
+		Preload("Status").
+		Where("local_id = ?", id).
+		First(assignment).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return assignment, nil
+}
+
 func Get_Assignment_byNotionID(notion_id string, db *gorm.DB) (*Assignment, error) {
 
 	assignment := &Assignment{}
@@ -122,6 +137,10 @@ func (a *Assignment) ToMap() map[string]string {
 		"id":          strconv.Itoa(int(a.ID)),
 		"local_id":    strconv.Itoa(int(a.LocalID)),
 		"user_id":     strconv.Itoa(int(a.UserID)),
+		"local_id":    strconv.Itoa(int(a.LocalID)),
+		"notion_id":   a.NotionID,
+		"type":        a.TypeName,
+		"deadline":    a.Deadline.Format(time.DateOnly),
 		"title":       a.Title,
 		"todo":        a.Todo,
 		"deadline":    a.Deadline.Format(time.RFC3339),

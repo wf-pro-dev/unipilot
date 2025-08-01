@@ -75,11 +75,11 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := userIDVal.(uint)
+	/*userID, ok := userIDVal.(uint)
 	if !ok {
 		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
 		return
-	}
+	}*/
 
 	tx := db.Begin()
 	defer func() {
@@ -106,7 +106,7 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := course.Get_Course_byId(uint(int_id), tx)
+	a, err := course.Get_Course_byLocalId(uint(int_id), tx)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting course: %s", err))
 		return
