@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Filter, X } from "lucide-react";
-import { Course } from "@/types/models";
+import { course as Course } from "@/wailsjs/go/models";
 
 interface Filter {
     semester: string | null
@@ -14,9 +14,9 @@ interface Filter {
   }
 
 interface CoursesTableProps {
-    courses: Course[]
+    courses: Course.LocalCourse[]
     filter: Filter
-    onCourseClick: (course: Course) => void
+    onCourseClick: (course: Course.LocalCourse) => void
 }
 
 
