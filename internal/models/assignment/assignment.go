@@ -22,6 +22,7 @@ import (
 type Assignment struct {
 	gorm.Model
 	UserID     uint
+	LocalID    uint	  `gorm:"unique"`
 	NotionID   string `gorm:"unique"`
 	Title      string `gorm:"not null"`
 	Todo       string
@@ -100,7 +101,7 @@ func Get_Assignment_byId(id, user_id uint, db *gorm.DB) (*Assignment, error) {
 	return assignment, nil
 }
 
-func Get_Assignment_from_Local(id, user_id uint, db *gorm.DB) (*Assignment, error) {
+func Get_Assignment_byLocalID(id, user_id uint, db *gorm.DB) (*Assignment, error) {
 	assignment := &Assignment{}
 	err := db.Preload("User").
 		Preload("Course", "user_id = ?", user_id).
@@ -135,6 +136,7 @@ func (a *Assignment) ToMap() map[string]string {
 	return map[string]string{
 		"id":          strconv.Itoa(int(a.ID)),
 		"user_id":     strconv.Itoa(int(a.UserID)),
+		"local_id":    strconv.Itoa(int(a.LocalID)),
 		"notion_id":   a.NotionID,
 		"type":        a.TypeName,
 		"deadline":    a.Deadline.Format(time.DateOnly),

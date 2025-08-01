@@ -17,6 +17,7 @@ import (
 type Course struct {
 	gorm.Model
 	UserID          uint      `gorm:"not null"`
+	LocalID         uint      `gorm:"not null"`
 	User            user.User `gorm:"foreignKey:UserID;references:ID"`
 	NotionID        string    `gorm:"unique;not null"`
 	Code            string    `gorm:"unique;not null"`
@@ -69,7 +70,7 @@ func Get_Course_byId(id uint, db *gorm.DB) (*Course, error) {
 	}
 	return course, nil
 }
-func Get_Course_from_Local(id uint, db *gorm.DB) (*Course, error) {
+func Get_Course_byLocalId(id uint, db *gorm.DB) (*Course, error) {
 	course := &Course{}
 	err := db.Preload("User").
 		Where("local_id = ?", id).
@@ -105,6 +106,7 @@ func Get_Course_byNotionID(notion_id string, db *gorm.DB) *Course {
 func (c *Course) ToMap() map[string]string {
 	return map[string]string{
 		"id":               strconv.Itoa(int(c.ID)),
+		"local_id":         strconv.Itoa(int(c.LocalID)),
 		"user_id":          strconv.Itoa(int(c.UserID)),
 		"notion_id":        c.NotionID,
 		"name":             c.Name,

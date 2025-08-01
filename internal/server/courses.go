@@ -106,7 +106,7 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := course.Get_Course_from_Local(uint(int_id), tx)
+	a, err := course.Get_Course_byLocalId(uint(int_id), tx)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting course: %s", err))
 		return

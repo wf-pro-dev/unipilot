@@ -89,12 +89,14 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	var input struct {
-		CourseCode string `json:"course_code"`
+		LocalID	   string `json:"local_id"`	
 		Title      string `json:"title"`
-		TypeName   string `json:"type_name"`
-		Deadline   string `json:"deadline"`
 		Todo       string `json:"todo"`
-		StatusName string `json:"status_name"`
+		Deadline   string `json:"deadline"`
+		CourseCode string `json:"course_code"`
+		TypeName   string `json:"type"`
+		StatusName string `json:"status"`
+		Priority   string `json:"priority"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -102,8 +104,12 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
+	PrintLog(fmt.Sprintf("assignment input data local ID : %s Title: %s : Course code: %s Type : %s Deadline : %s \n", input.LocalID, input.Title, input.CourseCode, input.TypeName, input.Deadline))
+	PrintLog(fmt.Sprintf("assignment input : %v\n",input))
+
 	// Validate all required fields
-	if input.CourseCode == "" || input.Title == "" || input.TypeName == "" || input.Deadline == "" {
+	if input.LocalID == "" || input.CourseCode == "" || input.Title == "" || input.TypeName == "" || input.Deadline == "" {
 		PrintERROR(w, http.StatusBadRequest, "Missing required fields")
 		return
 	}
@@ -113,16 +119,26 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		PrintERROR(w, http.StatusBadRequest, "Invalid deadline format")
 		return
 	}
+	
+	local_id, err := strconv.Atoi(input.LocalID)
+	if err != nil {
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating local_id : %s", err))
+
+		return 
+	}
+	
+
 
 	aVal := assignment.Assignment{
-		UserID:     userID,
-		CourseCode: input.CourseCode,
 		Title:      input.Title,
-		TypeName:   input.TypeName,
-		Deadline:   deadline,
+		UserID:     userID,
+		LocalID:    uint(local_id),
 		Todo:       input.Todo,
+		Deadline:   deadline,
+		CourseCode: input.CourseCode,
+		TypeName:   input.TypeName,
 		StatusName: input.StatusName,
-		Link:       "https://acconline.austincc.edu/ultra/stream",
+		Priority:   input.Priority,
 	}
 
 	result := tx.Create(&aVal)
@@ -139,7 +155,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	notion_id, err := a.Add_Notion()
+	/*notion_id, err := a.Add_Notion()
 	if err != nil {
 		tx.Rollback()
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error creating assignment in notion", err))
@@ -152,7 +168,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		tx.Rollback()
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error updating new assignment", err))
 		return
-	}
+	}*/
 
 	// Convert to map safely
 	assignmentMap := a.ToMap()
@@ -223,7 +239,7 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := assignment.Get_Assignment_from_Local(uint(int_id), userID, tx)
+	a, err := assignment.Get_Assignment_byLocalID(uint(int_id), userID, tx)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
 		return
