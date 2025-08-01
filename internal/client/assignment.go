@@ -6,12 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
-	"strconv"
-	"time"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/network"
-	"unipilot/internal/storage"
 )
 
 func GetAssignments() ([]map[string]string, error) {
@@ -62,105 +60,55 @@ func GetAssignments() ([]map[string]string, error) {
 
 }
 
-func CreateAssignment(assignmentData map[string]string) (map[string]string, error) {
+func CreateAssignment(a *assignment.Assignment) (map[string]interface{}, error) {
 
-	db, _, err := storage.GetLocalDB()
+	assignmentData := a.ToMap()
+
+	new_client, err := NewClientWithCookies()
 	if err != nil {
 		return nil, err
 	}
 
-	tx := db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
+	jsonData, _ := json.Marshal(assignmentData)
 
-	deadline, err := time.Parse(time.RFC3339, assignmentData["deadline"])
+	resp, err := new_client.Post(
+		"https://newsroom.dedyn.io/acc-homework/assignment",
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+
 	if err != nil {
 		return nil, err
 	}
 
-	// Create local assignment
-	a := assignment.LocalAssignment{
-		Title:      assignmentData["title"],
-		Todo:       assignmentData["todo"],
-		Deadline:   deadline,
-		Link:       assignmentData["link"],
-		CourseCode: assignmentData["course_code"],
-		TypeName:   assignmentData["type_name"],
-		StatusName: assignmentData["status_name"],
+	defer resp.Body.Close()
+
+	log.Printf("Response status code: %d\n", resp.StatusCode)
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
 	}
 
-	isOnline := network.IsOnline()
-
-	if isOnline {
-
-		new_client, err := NewClientWithCookies()
-		if err != nil {
-			return nil, err
-		}
-
-		jsonData, _ := json.Marshal(assignmentData)
-
-		resp, err := new_client.Post(
-			"https://newsroom.dedyn.io/acc-homework/assignment",
-			"application/json",
-			bytes.NewBuffer(jsonData),
-		)
-
-		if err != nil {
-			return nil, err
-		}
-
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return nil, fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
-		}
-
-		var response struct {
-			Message    string                 `json:"message"`
-			Assignment map[string]interface{} `json:"assignment"`
-			Error      string                 `json:"error,omitempty"`
-		}
-
-		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-			return nil, fmt.Errorf("failed to decode response: %w", err)
-		}
-
-		if response.Error != "" {
-			return nil, errors.New(response.Error)
-		}
-
-		if response.Assignment == nil {
-			return nil, fmt.Errorf("no assignment data in response")
-		}
-
-		a.NotionID = response.Assignment["notion_id"].(string)
-		remote_id, err := strconv.Atoi(response.Assignment["id"].(string))
-		if err != nil {
-			return nil, fmt.Errorf("error formating remote_id: %s", err)
-		}
-		fmt.Printf("Remote ID: %d\n", remote_id)
-		a.RemoteID = uint(remote_id)
-		a.SyncStatus = assignment.SyncStatusSynced
-
-	} else {
-		a.SyncStatus = assignment.SyncStatusPending
+	var response struct {
+		Message    string                 `json:"message"`
+		Assignment map[string]interface{} `json:"assignment"`
+		Error      string                 `json:"error,omitempty"`
 	}
 
-	if err := tx.Create(&a).Error; err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("local create failed: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		return nil, fmt.Errorf("commit failed: %w", err)
+	if response.Error != "" {
+		return nil, errors.New(response.Error)
 	}
 
-	return a.ToMap(), nil
+	if response.Assignment == nil {
+		return nil, fmt.Errorf("no assignment data in response")
+	}
+
+	return response.Assignment, nil
 }
 
 func SendAssignmentUpdate(id, column, value string) error {

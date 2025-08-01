@@ -29,10 +29,10 @@ func sync_indexing_assignments() {
 
 	// Upadete remote assignment local id with the local assignment id
 	for _, assignment := range assignments {
-		assignment_id_int := int(assignment.RemoteID)
-		assignment_id := strconv.Itoa(assignment_id_int)
+		assignment_id := strconv.Itoa(int(assignment.ID))
+		remote_id := strconv.Itoa(int(assignment.RemoteID))
 
-		if err := client.SendAssignmentUpdate(assignment_id, "local_id", assignment_id); err != nil {
+		if err := client.SendAssignmentUpdate(remote_id, "local_id", assignment_id); err != nil {
 			fmt.Printf("ERROR : %s", err)
 		} else {
 			fmt.Printf("Updated assignment %s\n", assignment_id)
@@ -60,10 +60,12 @@ func sync_indexing_courses() {
 
 	// Upadete remote assignment local id with the local assignment id
 	for _, course := range courses {
-		course_id_int := int(course.RemoteID)
-		course_id := strconv.Itoa(course_id_int)
+		
+		course_id := strconv.Itoa(int(course.ID))
+		remote_id := strconv.Itoa(int(course.RemoteID))
 
-		if err := client.SendCourseUpdate(course_id, "local_id", course_id); err != nil {
+
+		if err := client.SendCourseUpdate(remote_id, "local_id", course_id); err != nil {
 			fmt.Printf("ERROR : %s", err)
 		} else {
 			fmt.Printf("Updated course %s\n", course_id)

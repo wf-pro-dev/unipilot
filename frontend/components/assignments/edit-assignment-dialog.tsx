@@ -3,19 +3,21 @@
 import type React from "react"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { format } from "date-fns"
-import { BookOpen, CalendarIcon, Flag, Plus } from "lucide-react"
+import { format, isSameDay } from "date-fns"
+import { BookOpen, CalendarIcon, Flag } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useCourses } from "@/hooks/use-courses"
 import { assignment } from "@/wailsjs/go/models"
+import { useCourses } from "@/hooks/use-courses"
+import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { Textarea } from "../ui/textarea"
+
 
 const priorities = [
   { value: "low", label: "Low" },
@@ -37,32 +39,36 @@ const statuses = [
   { value: "Done", label: "Done" },
 ]
 
-interface AddAssignmentDialogProps {
-  onAdd: (assignment: assignment.LocalAssignment) => void
+interface EditAssignmentDialogProps {
+  open: boolean
+  setOpen: (open: boolean) => void
+  assignment: assignment.LocalAssignment
+  onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
 }
 
-export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
-  const [open, setOpen] = useState(false)
-  const [deadline, setDeadline] = useState<Date>(new Date())
+export function EditAssignmentDialog({ open, setOpen, assignment, onEdit }: EditAssignmentDialogProps) {
+  const [deadline, setDeadline] = useState<Date>(new Date(assignment.Deadline) || new Date())
   const [formData, setFormData] = useState({
-    title: "",
-    course_color: "",
-    course_code: "",
-    course_name: "",
-    type_name: "",
-    status_name: "",
-    priority: "low",
-    todo: "",
+    title: assignment.Title || "",
+    course_code: assignment.CourseCode || "",
+    course_name: assignment.Course?.Name || "",
+    type_name: assignment.TypeName || "",
+    status_name: assignment.StatusName || "",
+    priority: assignment.Priority || "",
+    todo: assignment.Todo || "",
   })
 
   const key_to_column = {
     title: "Title",
     course_code: "CourseCode",
+    course_name: "CourseName",
     type_name: "TypeName",
     status_name: "StatusName",
     priority: "Priority",
     todo: "Todo",
   }
+
+
 
   const { data: courses } = useCourses()
 
@@ -70,52 +76,35 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
     e.preventDefault()
     setOpen(false)
 
-    onAdd({
-      Title: formData.title,
-      Todo: formData.todo,
-      Deadline: deadline,
-      CourseCode: formData.course_code,
-      TypeName: formData.type_name,
-      StatusName: formData.status_name,
-      Priority: formData.priority,
+    for (const [key, value] of Object.entries(formData)) {
+      if (key === "course_name") { continue }
+        
+      const column = key_to_column[key as keyof typeof key_to_column] as keyof assignment.LocalAssignment
+      if (value !== assignment[column]) {
 
-      ID: 0,
-      CreatedAt: new Date(),
-      UpdatedAt: new Date(),
-      DeletedAt: null,
-      RemoteID: 0,
-      NotionID: "",
-      Link: "",
-      Completed: false,
-      SyncStatus: "pending",
-      Course: null as any,
-      Type: null as any,
-      Status: null as any,
-      Documents: [] as any,
-    } as assignment.LocalAssignment)
-    setFormData({
-      title: "",
-      course_color: "",
-      course_code: "",
-      course_name: "",
-      type_name: "",
-      status_name: "",
-      priority: "low",
-      todo: "",
-    })
+        const message = `Changes to ${column} value: ${value} assignment: ${assignment[column]}`
+        LogInfo(message)
+        onEdit(assignment, key, value)
+      }
+      else {
+        const message = `No changes to ${column} value: ${value} assignment: ${assignment[column]}`
+        LogInfo(message)
+      }
+    }
+
+    if (!isSameDay(deadline, new Date(assignment.Deadline))) {
+      onEdit(assignment, "deadline", format(deadline, "yyyy-MM-dd HH:mm:ssxxx"))
+    }
+    setDeadline(new Date())
+
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Assignment
-        </Button>
-      </DialogTrigger>
+
       <DialogContent className="glass border-0 text-white max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Assignment</DialogTitle>
+          <DialogTitle>Edit Assignment</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -141,11 +130,16 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
                 value={formData.course_code}
                 onValueChange={(value) => {
                   const course = courses?.find((course) => course.Code === value)
-                  setFormData({ ...formData, course_code: value, course_name: course?.Name || "", course_color: course?.Color || "" })
+                  setFormData({ ...formData, course_code: value, course_name: course?.Name || "" })
                 }}
               >
                 <SelectTrigger className="bg-gray-800/50 border-gray-600">
-                  <SelectValue placeholder="Select course" />
+                  <div className="flex items-center">
+                    <div className={` h-2 w-2 rounded-full ${assignment.Course?.Color}`} />
+                    <p className="line-clamp-1">
+                      {formData.course_code} - {formData.course_name}
+                    </p>
+                  </div>
                 </SelectTrigger>
                 <SelectContent className="glass border-gray-600">
                   {courses?.map((course) => (
@@ -213,7 +207,7 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
                 onValueChange={(value) => setFormData({ ...formData, status_name: value })}
               >
                 <SelectTrigger className="bg-gray-800/50 border-gray-600">
-                  <SelectValue placeholder="Select status" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="glass border-gray-600">
                   {statuses.map((status) => (
@@ -277,7 +271,7 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
               >
                 Cancel
               </Button>
-              <Button type="submit">Add Assignment</Button>
+              <Button type="submit">Edit Assignment</Button>
 
             </div>
           </div>
