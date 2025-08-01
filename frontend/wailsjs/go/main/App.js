@@ -42,6 +42,10 @@ export function GetCourse(arg1) {
   return window['go']['main']['App']['GetCourse'](arg1);
 }
 
+export function GetCourseAssignments(arg1) {
+  return window['go']['main']['App']['GetCourseAssignments'](arg1);
+}
+
 export function GetCourses() {
   return window['go']['main']['App']['GetCourses']();
 }
@@ -102,8 +106,8 @@ export function UpdateAssignment(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateAssignment'](arg1, arg2, arg3);
 }
 
-export function UpdateCourse(arg1) {
-  return window['go']['main']['App']['UpdateCourse'](arg1);
+export function UpdateCourse(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UpdateCourse'](arg1, arg2, arg3);
 }
 
 export function UploadDocument(arg1, arg2) {

@@ -7,11 +7,12 @@ interface WeekAssignmentsProps {
   assignments: assignment.LocalAssignment[]
   onToggleComplete: (assignment: assignment.LocalAssignment) => void
   onAssignmentClick: (assignment: assignment.LocalAssignment) => void 
+  onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
   onDelete: (assignment: assignment.LocalAssignment) => void
   isLoading?: boolean
 }
 
-export function WeekAssignments({ assignments, onToggleComplete, onAssignmentClick, onDelete, isLoading }: WeekAssignmentsProps) {
+export function WeekAssignments({ assignments, onToggleComplete, onAssignmentClick, onEdit, onDelete, isLoading }: WeekAssignmentsProps) {
   // No need to filter here - the hook already provides filtered data
   const weekAssignments = assignments || []
 
@@ -21,6 +22,7 @@ export function WeekAssignments({ assignments, onToggleComplete, onAssignmentCli
       assignments={weekAssignments} 
       onToggleComplete={onToggleComplete} 
       onAssignmentClick={onAssignmentClick}
+      onEdit={onEdit}
       onDelete={onDelete}
       isLoading={isLoading}
     />

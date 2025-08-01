@@ -22,7 +22,8 @@ import (
 type Assignment struct {
 	gorm.Model
 	UserID     uint
-	NotionID   string `gorm:"unique"`
+	LocalID    uint `gorm:"unique"`
+	NotionID   string
 	Title      string `gorm:"not null"`
 	Todo       string
 	Deadline   time.Time `gorm:"not null"`
@@ -119,19 +120,20 @@ func (a *Assignment) ToMap() map[string]string {
 
 	return map[string]string{
 		"id":          strconv.Itoa(int(a.ID)),
+		"local_id":    strconv.Itoa(int(a.LocalID)),
 		"user_id":     strconv.Itoa(int(a.UserID)),
-		"notion_id":   a.NotionID,
-		"type":        a.TypeName,
-		"deadline":    a.Deadline.Format(time.DateOnly),
 		"title":       a.Title,
 		"todo":        a.Todo,
+		"deadline":    a.Deadline.Format(time.RFC3339),
 		"course_code": a.CourseCode,
+		"type":        a.TypeName,
 		"status":      a.StatusName,
 		"link":        a.Link,
 		"priority":    a.Priority,
 		"completed":   strconv.FormatBool(a.Completed),
-		"created_at":  a.CreatedAt.Format(time.DateOnly),
-		"updated_at":  a.UpdatedAt.Format(time.DateOnly),
+		"created_at":  a.CreatedAt.Format(time.RFC3339),
+		"updated_at":  a.UpdatedAt.Format(time.RFC3339),
+		"notion_id":   a.NotionID,
 	}
 }
 

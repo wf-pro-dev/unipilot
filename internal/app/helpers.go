@@ -34,7 +34,7 @@ func (h *DatabaseHelper) GetAssignment(id uint) (*assignment.LocalAssignment, er
 // GetAssignments retrieves all assignments for a user
 func (h *DatabaseHelper) GetAssignments() ([]assignment.LocalAssignment, error) {
 	var LocalAssignment []assignment.LocalAssignment
-	err := h.db.Preload("Course").Preload("Type").Preload("Status").Order("deadline DESC").Find(&LocalAssignment).Error
+	err := h.db.Preload("Course").Preload("Type").Preload("Status").Order("deadline DESC").Order("created_at DESC").Find(&LocalAssignment).Error
 	return LocalAssignment, err
 }
 
@@ -68,25 +68,20 @@ func (h *DatabaseHelper) GetCurrentUserID() uint {
 }
 
 // CreateAssignment creates a new assignment
-func (h *DatabaseHelper) CreateAssignment(assignment *assignment.Assignment) error {
-	assignment.UserID = h.userID
-	return assignment.Add(h.db)
+func (h *DatabaseHelper) CreateAssignment(assignment *assignment.LocalAssignment) error {
+	h.db = h.db.Debug()
+	return h.db.Create(assignment).Error
 }
 
 // UpdateAssignment updates an existing assignment
 func (h *DatabaseHelper) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, column, value string) error {
 	// Only update the assignment fields, not the related course data
-
 	return h.db.Exec(fmt.Sprintf("UPDATE local_assignments SET %s = '%s' WHERE id = '%d'", column, value, LocalAssignment.ID)).Error
 }
 
 // DeleteAssignment deletes an assignment
 func (h *DatabaseHelper) DeleteAssignment(assignment *assignment.LocalAssignment) error {
-	if err := h.db.Delete(assignment).Error; err != nil {
-		return err
-	}
-
-	return nil
+	return h.db.Delete(assignment).Error
 }
 
 // CreateCourse creates a new course
@@ -96,11 +91,28 @@ func (h *DatabaseHelper) CreateCourse(course *course.Course) error {
 }
 
 // UpdateCourse updates an existing course
-func (h *DatabaseHelper) UpdateCourse(course *course.Course) error {
-	return h.db.Save(course).Error
+func (h *DatabaseHelper) UpdateCourse(LocalCourse *course.LocalCourse, column, value string) error {
+	// Only update the assignment fields, not the related course data
+	return h.db.Exec(fmt.Sprintf("UPDATE local_courses SET %s = '%s' WHERE id = '%d'", column, value, LocalCourse.ID)).Error
 }
 
 // DeleteCourse deletes a course
-func (h *DatabaseHelper) DeleteCourse(course *course.Course) error {
+func (h *DatabaseHelper) DeleteCourse(course *course.LocalCourse) error {
+	// Get all assignment related to the course
+	assignments := []assignment.LocalAssignment{}
+	err := h.db.Where("course_code = ?", course.Code).Find(&assignments).Error
+	if err != nil {
+		return err
+	}
+
+	// Delete all assignment related to the course
+	for _, assignment := range assignments {
+		if err := h.DeleteAssignment(&assignment); err != nil {
+			return err
+		}
+	}
+
+	// Delete all notes related to the course
+
 	return h.db.Delete(course).Error
 }

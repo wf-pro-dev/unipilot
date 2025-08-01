@@ -16,10 +16,10 @@ const (
 
 type LocalCourse struct {
 	gorm.Model
-	RemoteID        uint   `gorm:"unique"` // Empty until synced
+	RemoteID        uint
 	Code            string `gorm:"unique"`
 	Name            string `gorm:"not null"`
-	NotionID        string `gorm:"unique"` // Empty until synced
+	NotionID        string
 	Duration        string
 	RoomNumber      string
 	Color           string
