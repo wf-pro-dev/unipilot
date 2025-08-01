@@ -45,7 +45,7 @@ func NewApp() *App {
 
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
-func (a *App) startup(ctx context.Context) {
+func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 
 	// Initialize database helper
@@ -810,11 +810,66 @@ func (a *App) GetRemoteDocumentMetadata(assignmentID uint) ([]map[string]interfa
 }
 
 // CreateAssignment creates a new assignment
-func (a *App) CreateAssignment(assignment *assignment.Assignment) error {
+func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error {
 	if a.DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	return a.DB.CreateAssignment(assignment)
+
+	tx := a.DB.GetDB().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	localAssignment := &assignment.LocalAssignment{
+		Title:      assignmentData.Title,
+		Todo:       assignmentData.Todo,
+		Deadline:   assignmentData.Deadline,
+		CourseCode: assignmentData.CourseCode,
+		TypeName:   assignmentData.TypeName,
+		StatusName: assignmentData.StatusName,
+		Priority:   assignmentData.Priority,
+	}
+
+	fmt.Println("Creating assignment:", localAssignment)
+
+	if !a.Auth.IsAuthenticated() {
+		return fmt.Errorf("user not authenticated")
+	}
+	fmt.Println("User ID:", a.DB.GetCurrentUserID())
+
+	// Create the assignment within the transaction
+	if err := tx.Create(localAssignment).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	fmt.Println(" local assignment success ")
+	remoteAssignment := &assignment.Assignment{
+		LocalID:    localAssignment.ID,
+		Title:      localAssignment.Title,
+		Todo:       localAssignment.Todo,
+		Deadline:   localAssignment.Deadline,
+		CourseCode: localAssignment.CourseCode,
+		TypeName:   localAssignment.TypeName,
+		StatusName: localAssignment.StatusName,
+		Priority:   localAssignment.Priority,
+	}
+
+	responseAssignment, err := client.CreateAssignment(remoteAssignment)
+	if err != nil {
+		tx.Rollback()
+		fmt.Println("Error creating remote assignment:", err)
+		return err
+	}
+
+	fmt.Println("Remote assignment created:", responseAssignment)
+
+	tx.Commit()
+	log.Printf("Response assignment: %v\n", responseAssignment)
+
+	return nil
 }
 
 // UpdateAssignment updates an existing assignment
@@ -827,11 +882,11 @@ func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, colu
 		return err
 	}
 
-	assignment_id_int := int(LocalAssignment.RemoteID)
+	assignment_id_int := int(LocalAssignment.ID)
 
 	assignment_id := strconv.Itoa(assignment_id_int)
 
-	if err := client.SendUpdate(assignment_id, column, value); err != nil {
+	if err := client.SendAssignmentUpdate(assignment_id, column, value); err != nil {
 		return err
 	}
 
@@ -844,13 +899,27 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 		return fmt.Errorf("database not initialized")
 	}
 
+	//Get all documents related to the assignment
+	var documents []document.LocalDocument
+	documents, err := a.GetAssignmentDocuments(assignment.ID)
+	if err != nil {
+		return err
+	}
+
+	// Delete all documents related to the assignment
+	for _, document := range documents {
+		if err := a.DeleteDocument(document.ID); err != nil {
+			return err
+		}
+	}
+
 	if err := a.DB.DeleteAssignment(assignment); err != nil {
 		return err
 	}
 
-	assignment_id_str := strconv.Itoa(int(assignment.RemoteID))
+	assignment_id_str := strconv.Itoa(int(assignment.ID))
 
-	if err := client.SendUpdate(assignment_id_str, "deleted_at", time.Now().Format(time.RFC3339)); err != nil {
+	if err := client.SendAssignmentUpdate(assignment_id_str, "deleted_at", time.Now().Format(time.RFC3339)); err != nil {
 		return err
 	}
 
@@ -866,17 +935,69 @@ func (a *App) CreateCourse(course *course.Course) error {
 }
 
 // UpdateCourse updates an existing course
-func (a *App) UpdateCourse(course *course.Course) error {
+func (a *App) UpdateCourse(course *course.LocalCourse, column, value string) error {
 	if a.DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	return a.DB.UpdateCourse(course)
+	if err := a.DB.UpdateCourse(course, column, value); err != nil {
+		return err
+	}
+
+	course_id_int := int(course.ID)
+
+	course_id := strconv.Itoa(course_id_int)
+
+	if err := client.SendCourseUpdate(course_id, column, value); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // DeleteCourse deletes a course
-func (a *App) DeleteCourse(course *course.Course) error {
+func (a *App) DeleteCourse(course *course.LocalCourse) error {
 	if a.DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	return a.DB.DeleteCourse(course)
+
+	// Get all assignments related to the course
+	assignments, err := a.GetCourseAssignments(course)
+	if err != nil {
+		return err
+	}
+
+	// Delete all assignments related to the course
+	for _, assignment := range assignments {
+		if err := a.DeleteAssignment(&assignment); err != nil {
+			return err
+		}
+	}
+
+	if err := a.DB.DeleteCourse(course); err != nil {
+		return err
+	}
+
+	course_id_str := strconv.Itoa(int(course.ID))
+
+	if err := client.SendCourseUpdate(course_id_str, "deleted_at", time.Now().Format(time.RFC3339)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *App) GetCourseAssignments(course *course.LocalCourse) ([]assignment.LocalAssignment, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	userID := a.DB.GetCurrentUserID()
+
+	var assignments []assignment.LocalAssignment
+	err := a.DB.GetDB().Where("course_code = ? AND user_id = ?", course.Code, userID).Find(&assignments).Order("created_at ASC").Error
+	return assignments, err
 }

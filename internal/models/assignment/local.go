@@ -24,8 +24,8 @@ const (
 
 type LocalAssignment struct {
 	gorm.Model
-	RemoteID   uint   `gorm:"unique"` // Empty until synced
-	NotionID   string `gorm:"unique"` // Empty until synced
+	RemoteID   uint
+	NotionID   string
 	Title      string `gorm:"not null"`
 	Todo       string
 	Deadline   time.Time  `gorm:"not null;index"`

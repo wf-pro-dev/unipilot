@@ -10,14 +10,12 @@ interface AssignmentViewProps {
   assignments: assignment.LocalAssignment[]
   onToggleComplete: (assignment: assignment.LocalAssignment) => void
   onAssignmentClick: (assignment: assignment.LocalAssignment) => void
+  onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
   onDelete: (assignment: assignment.LocalAssignment) => void
   isLoading?: boolean
 }
 
-export function AssignmentView({ title, assignments, onToggleComplete, onAssignmentClick, onDelete, isLoading }: AssignmentViewProps) {
-  const handleEdit = (assignment: assignment.LocalAssignment) => {
-    console.log("Editing assignment:", assignment)
-  }
+export function AssignmentView({ title, assignments, onToggleComplete, onAssignmentClick, onDelete, onEdit, isLoading }: AssignmentViewProps) {
 
 
   return (
@@ -45,7 +43,7 @@ export function AssignmentView({ title, assignments, onToggleComplete, onAssignm
                   key={assignment.ID}
                   assignment={assignment}
                   onToggleComplete={onToggleComplete}
-                  onEdit={handleEdit}
+                  onEdit={onEdit}
                   onDelete={onDelete}
                   onAssignmentClick={onAssignmentClick}
                   disabled={isLoading}

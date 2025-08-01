@@ -19,10 +19,10 @@ type Course struct {
 	UserID          uint      `gorm:"not null"`
 	LocalID         uint      `gorm:"not null"`
 	User            user.User `gorm:"foreignKey:UserID;references:ID"`
-	NotionID        string    `gorm:"unique;not null"`
-	Code            string    `gorm:"unique;not null"`
-	Name            string    `gorm:"not null"`
-	Color           string    `gorm:"default:bg-blue-500"`
+	NotionID        string
+	Code            string `gorm:"unique;not null"`
+	Name            string `gorm:"not null"`
+	Color           string `gorm:"default:bg-blue-500"`
 	Duration        string
 	RoomNumber      string
 	StartDate       time.Time
