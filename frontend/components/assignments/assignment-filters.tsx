@@ -7,13 +7,13 @@ import { Badge } from "@/components/ui/badge"
 import { Search, Filter, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAssignments } from "@/hooks/use-assignments"
-import { useMemo } from "react"
+import { assignment } from "@/wailsjs/go/models"
 
 
 interface Filter {
-  course: string | undefined
-  status: string | undefined
-  priority: string | undefined
+  course: string | null
+  status: string | null
+  priority: string | null
 }
 interface AssignmentFiltersProps {
   searchTerm: string
@@ -53,18 +53,9 @@ export function AssignmentFilters({
     router.push(`/assignments?view=list&${params.toString()}`, { scroll: false })
   }
 
-  const courses = useMemo(() => 
-    Array.from(new Set((assignments || []).map((assignment) => assignment.Course?.Code))), 
-    [assignments]
-  )
-  const statuses = useMemo(() => 
-    Array.from(new Set((assignments || []).map((assignment) => assignment.StatusName))), 
-    [assignments]
-  )
-  const priorities = useMemo(() => 
-    Array.from(new Set((assignments || []).map((assignment) => assignment.Priority))), 
-    [assignments]
-  )
+  const courses = Array.from(new Set((assignments || []).map((assignment: assignment.LocalAssignment) => assignment.Course?.Code)))
+  const statuses = Array.from(new Set((assignments || []).map((assignment: assignment.LocalAssignment) => assignment.StatusName)))
+  const priorities = Array.from(new Set((assignments || []).map((assignment: assignment.LocalAssignment) => assignment.Priority)))
 
   return (
     <div className="space-y-4">
@@ -80,7 +71,7 @@ export function AssignmentFilters({
         </div>
 
         <div className="flex gap-2">
-          <Select value={filter.course || "all"} onValueChange={(value) => handleFilterChange({ ...filter, course: value === "all" ? undefined : value })}>
+          <Select value={filter.course || "all"} onValueChange={(value) => handleFilterChange({ ...filter, course: value === "all" ? null : value })}>
             <SelectTrigger className="w-40 bg-gray-800/50 border-gray-600">
               <SelectValue />
             </SelectTrigger>
@@ -94,7 +85,7 @@ export function AssignmentFilters({
             </SelectContent>
           </Select>
 
-            <Select value={filter.status || "all"} onValueChange={(value) => handleFilterChange({ ...filter, status: value === "all" ? undefined : value })}>
+            <Select value={filter.status || "all"} onValueChange={(value) => handleFilterChange({ ...filter, status: value === "all" ? null : value })}>
             <SelectTrigger className="w-36 bg-gray-800/50 border-gray-600">
               <SelectValue />
             </SelectTrigger>
@@ -108,7 +99,7 @@ export function AssignmentFilters({
             </SelectContent>
           </Select>
 
-                    <Select value={filter.priority || "all"} onValueChange={(value) => handleFilterChange({ ...filter, priority: value === "all" ? undefined : value })}>
+          <Select value={filter.priority || "all"} onValueChange={(value) => handleFilterChange({ ...filter, priority: value === "all" ? null : value })}>
             <SelectTrigger className="w-36 bg-gray-800/50 border-gray-600">
               <SelectValue />
             </SelectTrigger>

@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AssignmentItem } from "./assignment-item"
-import { List, Loader2, X } from "lucide-react"
+import { List, X } from "lucide-react"
 import { assignment } from "@/wailsjs/go/models"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
@@ -41,18 +41,9 @@ export function AssignmentsTable({
   const [selectedStatus, setSelectedStatus] = useState(filter.status || "all")
   const [selectedPriority, setSelectedPriority] = useState(filter.priority || "all")
 
-  const courses = useMemo(() => 
-    Array.from(new Set((assignments || []).map((assignment) => assignment.Course?.Code || "all"))), 
-    [assignments]
-  )
-  const statuses = useMemo(() => 
-    Array.from(new Set((assignments || []).map((assignment) => assignment.StatusName))), 
-    [assignments]
-  )
-  const priorities = useMemo(() => 
-    Array.from(new Set((assignments || []).map((assignment) => assignment.Priority))), 
-    [assignments]
-  )
+  const courses = Array.from(new Set((assignments || []).map((assignment) => assignment.Course?.Code || "all")))
+  const statuses = Array.from(new Set((assignments || []).map((assignment) => assignment.StatusName)))
+  const priorities = Array.from(new Set((assignments || []).map((assignment) => assignment.Priority)))
 
   const hasActiveFilters = selectedCourse !== "all" || selectedStatus !== "all" || selectedPriority !== "all" || searchTerm !== ""
 

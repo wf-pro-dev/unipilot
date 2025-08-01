@@ -27,7 +27,6 @@ import { StatusTag } from "@/components/assignments/utils/status-tag"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
 import { useUpdateAssignment } from "@/hooks/use-assignments"
-import { useMemo } from "react"
 
 interface CourseDetailsModalProps {
   isOpen: boolean
@@ -59,14 +58,14 @@ export function CourseDetailsModal({ isOpen, onClose, course }: CourseDetailsMod
     })
   }
 
-  // Mock additional data - memoized to prevent recreation
-  const courseData = useMemo(() => ({
+  // Mock additional data
+  const courseData = {
     ...course,
     location: "Science Building, Room 204",
     email: "instructor@university.edu",
     office: "Faculty Building, Room 301",
     officeHours: "MW 2:00-4:00 PM",
-  }), [course])
+  }
 
   const handleCreateNote = () => {
     // Navigate to notes creation page with course pre-selected

@@ -18,10 +18,10 @@ export function QueryProvider({ children }: QueryProviderProps) {
         gcTime: 10 * 60 * 1000,
         // Retry failed requests 2 times
         retry: 2,
-        // Disable aggressive refetching to prevent recompilation loops
-        refetchOnWindowFocus: false,
+        // Refetch on window focus for important data
+        refetchOnWindowFocus: true,
         // Don't refetch on reconnect by default (can be overridden per query)
-        refetchOnReconnect: false,
+        refetchOnReconnect: true,
       },
       mutations: {
         // Retry mutations once on failure

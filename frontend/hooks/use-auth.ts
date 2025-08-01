@@ -76,7 +76,7 @@ export function useAuth() {
     }
 
     checkAuth()
-  }, [authState.isAuthenticated]) // Add dependency to prevent infinite loop
+  }, [])
 
   return {
     ...authState,

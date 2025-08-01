@@ -23,6 +23,8 @@ func NewDatabaseHelper() (*DatabaseHelper, error) {
 		return nil, err
 	}
 
+	db = db.Debug()
+
 	return &DatabaseHelper{db: db, userID: userID}, nil
 }
 
