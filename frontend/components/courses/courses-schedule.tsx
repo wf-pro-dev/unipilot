@@ -1,12 +1,11 @@
-import { useCourses } from "@/hooks/use-courses"
-import { Course } from "@/types/models"
+import { course as Course } from "@/wailsjs/go/models"
 import { useState, useMemo } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface CoursesScheduleProps {
-    courses: Course[]
-    onCourseClick: (course: Course) => void
+    courses: Course.LocalCourse[]
+    onCourseClick: (course: Course.LocalCourse) => void
 }
 
 // Day abbreviations mapping
@@ -31,7 +30,7 @@ interface ParsedSchedule {
     endTimeString: string
 }
 
-interface CourseWithSchedule extends Course {
+interface CourseWithSchedule extends Course.LocalCourse {
     parsedSchedule: ParsedSchedule | null
 }
 

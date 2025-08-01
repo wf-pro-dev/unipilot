@@ -4,17 +4,18 @@ import { useState } from "react"
 import { AddCourseDialog } from "@/components/courses/add-course-dialog"
 import { CourseDetailsModal } from "@/components/courses/course-details-modal"
 import { Loader2, Calendar, List } from "lucide-react"
-import { useCourses } from "@/hooks/use-courses"
-import { Course } from "@/types/models"
+import { useCourses, useUpdateCourse } from "@/hooks/use-courses"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter, useSearchParams } from "next/navigation"
 import CoursesSchedule from "@/components/courses/courses-schedule"
 import CoursesTable from "@/components/courses/courses-table"
+import { LogInfo } from "@/wailsjs/runtime/runtime"
+import { format } from "date-fns"
+import { course } from "@/wailsjs/go/models"
 
 export default function CoursesPage() {
   const { data: courses = [], isLoading, error } = useCourses()
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
-
+  const [selectedCourse, setSelectedCourse] = useState<course.LocalCourse | null>(null)
 
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -30,6 +31,20 @@ export default function CoursesPage() {
 
   const semester = searchParams.get("semester") || null
   const instructor = searchParams.get("instructor") || null
+
+  const updateMutation = useUpdateCourse()
+
+  const handleEditCourse = async (courseData: course.LocalCourse, column: string, value: string) => {
+    const message = "course " + courseData.Code + " " + column + " changed to " + value
+    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
+
+    // Use the optimistic update mutation
+    updateMutation.mutate({
+      courseData,
+      column,
+      value
+    })
+  }
 
 
   // Handle tab change and update URL
@@ -116,8 +131,9 @@ export default function CoursesPage() {
           isOpen={!!selectedCourse}
           course={selectedCourse}
           onClose={() => setSelectedCourse(null)}
-
-        />
+          onEdit={handleEditCourse}
+        />  
+        
       </div>
     </div>
   )

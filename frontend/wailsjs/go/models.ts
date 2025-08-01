@@ -86,6 +86,7 @@ export namespace course {
 	    // Go type: gorm
 	    DeletedAt: any;
 	    UserID: number;
+	    LocalID: number;
 	    User: user.User;
 	    NotionID: string;
 	    Code: string;
@@ -114,6 +115,7 @@ export namespace course {
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
 	        this.UserID = source["UserID"];
+	        this.LocalID = source["LocalID"];
 	        this.User = this.convertValues(source["User"], user.User);
 	        this.NotionID = source["NotionID"];
 	        this.Code = source["Code"];
