@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Plus, BookOpen, ClipboardList } from "lucide-react"
 import Link from "next/link"
 import { useAuth } from "@/hooks/use-auth"
+import { useMemo } from "react"
 
 export function WelcomeSection() {
   const { user } = useAuth()
-  const currentTime = new Date()
+  const currentTime = useMemo(() => new Date(), [])
   const hour = currentTime.getHours()
 
   let greeting = "Good morning"

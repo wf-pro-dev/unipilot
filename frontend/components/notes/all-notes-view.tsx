@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -82,9 +82,18 @@ export function AllNotesView() {
     return matchesSearch && matchesCourse && matchesType && matchesSource
   })
 
-  const courses = Array.from(new Set(notes.map((note) => note.course)))
-  const types = Array.from(new Set(notes.map((note) => note.type)))
-  const sources = Array.from(new Set(notes.map((note) => note.source)))
+  const courses = useMemo(() => 
+    Array.from(new Set(notes.map((note) => note.course))), 
+    [notes]
+  )
+  const types = useMemo(() => 
+    Array.from(new Set(notes.map((note) => note.type))), 
+    [notes]
+  )
+  const sources = useMemo(() => 
+    Array.from(new Set(notes.map((note) => note.source))), 
+    [notes]
+  )
 
   const hasActiveFilters =
     selectedCourse !== "all" || selectedType !== "all" || selectedSource !== "all" || searchTerm !== ""

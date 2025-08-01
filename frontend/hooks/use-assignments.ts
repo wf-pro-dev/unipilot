@@ -69,17 +69,14 @@ export function useUpdateAssignment() {
       return { previousAssignments }
     },
     
-    // If the mutation fails, rollback
+    // If the mutation fails, rollback and invalidate
     onError: (err, variables, context) => {
       if (context?.previousAssignments) {
         queryClient.setQueryData(assignmentKeys.lists(), context.previousAssignments)
       }
-      LogError("Failed to update assignment: " + err)
-    },
-    
-    // Always refetch after error or success to ensure consistency
-    onSettled: () => {
+      // Only invalidate on error, not success to prevent infinite loops
       queryClient.invalidateQueries({ queryKey: assignmentKeys.lists() })
+      LogError("Failed to update assignment: " + err)
     },
   })
 }

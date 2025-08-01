@@ -34,7 +34,7 @@ func (h *DatabaseHelper) GetAssignment(id uint) (*assignment.LocalAssignment, er
 // GetAssignments retrieves all assignments for a user
 func (h *DatabaseHelper) GetAssignments() ([]assignment.LocalAssignment, error) {
 	var LocalAssignment []assignment.LocalAssignment
-	err := h.db.Preload("Course").Preload("Type").Preload("Status").Order("deadline DESC").Find(&LocalAssignment).Error
+	err := h.db.Preload("Course").Preload("Type").Preload("Status").Order("deadline DESC").Order("created_at DESC").Find(&LocalAssignment).Error
 	return LocalAssignment, err
 }
 
@@ -68,9 +68,9 @@ func (h *DatabaseHelper) GetCurrentUserID() uint {
 }
 
 // CreateAssignment creates a new assignment
-func (h *DatabaseHelper) CreateAssignment(assignment *assignment.Assignment) error {
-	assignment.UserID = h.userID
-	return assignment.Add(h.db)
+func (h *DatabaseHelper) CreateAssignment(assignment *assignment.LocalAssignment) error {
+	h.db = h.db.Debug()
+	return h.db.Create(assignment).Error
 }
 
 // UpdateAssignment updates an existing assignment

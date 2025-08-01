@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { CoursesGrid } from "./courses-grid";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -45,8 +45,14 @@ export default function CoursesTable({ courses, filter, onCourseClick }: Courses
   }
 
 
-    const semesters = Array.from(new Set((courses || []).map((course) => course.Semester)))
-    const instructors = Array.from(new Set((courses || []).map((course) => course.Instructor)))
+      const semesters = useMemo(() => 
+    Array.from(new Set((courses || []).map((course) => course.Semester))), 
+    [courses]
+  )
+  const instructors = useMemo(() => 
+    Array.from(new Set((courses || []).map((course) => course.Instructor))), 
+    [courses]
+  )
 
     const hasActiveFilters = selectedSemester !== "all" || selectedInstructor !== "all" || searchTerm !== ""
     return (

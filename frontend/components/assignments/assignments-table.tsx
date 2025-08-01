@@ -41,9 +41,18 @@ export function AssignmentsTable({
   const [selectedStatus, setSelectedStatus] = useState(filter.status || "all")
   const [selectedPriority, setSelectedPriority] = useState(filter.priority || "all")
 
-  const courses = Array.from(new Set((assignments || []).map((assignment) => assignment.Course?.Code || "all")))
-  const statuses = Array.from(new Set((assignments || []).map((assignment) => assignment.StatusName)))
-  const priorities = Array.from(new Set((assignments || []).map((assignment) => assignment.Priority)))
+  const courses = useMemo(() => 
+    Array.from(new Set((assignments || []).map((assignment) => assignment.Course?.Code || "all"))), 
+    [assignments]
+  )
+  const statuses = useMemo(() => 
+    Array.from(new Set((assignments || []).map((assignment) => assignment.StatusName))), 
+    [assignments]
+  )
+  const priorities = useMemo(() => 
+    Array.from(new Set((assignments || []).map((assignment) => assignment.Priority))), 
+    [assignments]
+  )
 
   const hasActiveFilters = selectedCourse !== "all" || selectedStatus !== "all" || selectedPriority !== "all" || searchTerm !== ""
 

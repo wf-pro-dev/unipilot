@@ -36,27 +36,41 @@ export function AssignmentsCalendar({
     const year = date.getFullYear()
     const month = date.getMonth()
     const firstDay = new Date(year, month, 1)
-    const lastDay = new Date(year, month + 1, 0)
-    const daysInMonth = lastDay.getDate()
     const startingDayOfWeek = firstDay.getDay()
-
+    
     const days = []
-
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null)
+    
+    // Add days from previous month to fill beginning
+    const prevMonth = new Date(year, month - 1)
+    const prevMonthYear = prevMonth.getFullYear()
+    const prevMonthIndex = prevMonth.getMonth()
+    const daysInPrevMonth = new Date(prevMonthYear, prevMonthIndex + 1, 0).getDate()
+    
+    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+      days.push(new Date(prevMonthYear, prevMonthIndex, daysInPrevMonth - i))
     }
-
-    // Add all days of the month
+    
+    // Add all days of current month
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month, day))
     }
-
+    
+    // Add days from next month to reach exactly 35 days
+    const nextMonth = new Date(year, month + 1)
+    const nextMonthYear = nextMonth.getFullYear()
+    const nextMonthIndex = nextMonth.getMonth()
+    
+    let nextMonthDay = 1
+    while (days.length < 35) {
+      days.push(new Date(nextMonthYear, nextMonthIndex, nextMonthDay))
+      nextMonthDay++
+    }
+    
     return days
   }
 
   const getAssignmentsForDate = (date: Date) => {
-    if (!date) return []
     return (assignments || []).filter(assignment => {
       if (!assignment.Deadline) return false
       const deadline = parseDeadline(assignment.Deadline)
@@ -141,11 +155,7 @@ export function AssignmentsCalendar({
             {/* Calendar Days */}
             <div className="grid grid-cols-7 gap-1">
               {days.map((day, index) => {
-                if (!day) {
-                  return <div key={index} className="h-32 p-1"></div>
-                }
-
-                const isCurrentMonth = format(day, "MMM") === format(currentDate, "MMM")
+                const isCurrentMonth = day.getMonth() === currentDate.getMonth() && day.getFullYear() === currentDate.getFullYear()
                 const isToday = format(day, "MMM d, yyyy") === format(new Date(), "MMM d, yyyy")
                 const dayAssignments = getAssignmentsForDate(day)
 

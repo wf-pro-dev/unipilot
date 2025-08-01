@@ -45,7 +45,7 @@ func NewApp() *App {
 
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
-func (a *App) startup(ctx context.Context) {
+func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 
 	// Initialize database helper
@@ -810,11 +810,66 @@ func (a *App) GetRemoteDocumentMetadata(assignmentID uint) ([]map[string]interfa
 }
 
 // CreateAssignment creates a new assignment
-func (a *App) CreateAssignment(assignment *assignment.Assignment) error {
+func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error {
 	if a.DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	return a.DB.CreateAssignment(assignment)
+
+	tx := a.DB.GetDB().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	localAssignment := &assignment.LocalAssignment{
+		Title:      assignmentData.Title,
+		Todo:       assignmentData.Todo,
+		Deadline:   assignmentData.Deadline,
+		CourseCode: assignmentData.CourseCode,
+		TypeName:   assignmentData.TypeName,
+		StatusName: assignmentData.StatusName,
+		Priority:   assignmentData.Priority,
+	}
+
+	fmt.Println("Creating assignment:", localAssignment)
+
+	if !a.Auth.IsAuthenticated() {
+		return fmt.Errorf("user not authenticated")
+	}
+	fmt.Println("User ID:", a.DB.GetCurrentUserID())
+
+	// Create the assignment within the transaction
+	if err := tx.Create(localAssignment).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	fmt.Println(" local assignment success ")
+	remoteAssignment := &assignment.Assignment{
+		LocalID:    localAssignment.ID,
+		Title:      localAssignment.Title,
+		Todo:       localAssignment.Todo,
+		Deadline:   localAssignment.Deadline,
+		CourseCode: localAssignment.CourseCode,
+		TypeName:   localAssignment.TypeName,
+		StatusName: localAssignment.StatusName,
+		Priority:   localAssignment.Priority,
+	}
+
+	responseAssignment, err := client.CreateAssignment(remoteAssignment)
+	if err != nil {
+		tx.Rollback()
+		fmt.Println("Error creating remote assignment:", err)
+		return err
+	}
+
+	fmt.Println("Remote assignment created:", responseAssignment)
+
+	tx.Commit()
+	log.Printf("Response assignment: %v\n", responseAssignment)
+
+	return nil
 }
 
 // UpdateAssignment updates an existing assignment

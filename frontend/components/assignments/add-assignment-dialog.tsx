@@ -7,20 +7,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
-import { CalendarIcon, Plus } from "lucide-react"
+import { BookOpen, CalendarIcon, Flag, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
-
-const courses = [
-  { value: "cs-201", label: "CS 201 - Data Structures" },
-  { value: "math-301", label: "MATH 301 - Calculus III" },
-  { value: "ai-401", label: "AI 401 - Artificial Intelligence" },
-  { value: "eng-102", label: "ENG 102 - English Composition" },
-]
+import { useCourses } from "@/hooks/use-courses"
+import { assignment } from "@/wailsjs/go/models"
+import { Textarea } from "../ui/textarea"
 
 const priorities = [
   { value: "low", label: "Low" },
@@ -29,37 +24,85 @@ const priorities = [
 ]
 
 const types = [
-  { value: "homework", label: "Homework" },
-  { value: "project", label: "Project" },
-  { value: "exam", label: "Exam" },
-  { value: "quiz", label: "Quiz" },
-  { value: "lab", label: "Lab" },
-  { value: "essay", label: "Essay" },
+  { value: "HW", label: "HW", color: "text-blue-400 border-blue-400" },
+  { value: "Group Project", label: "Group Project", color: "text-yellow-400 border-yellow-400" },
+  { value: "Exam", label: "Exam", color: "text-red-400 border-red-400" },
+  { value: "Quiz", label: "Quiz", color: "text-orange-400 border-orange-400" },
+  { value: "Lab", label: "Lab", color: "text-green-400 border-green-400" },
 ]
 
-export function AddAssignmentDialog() {
+const statuses = [
+  { value: "Not started", label: "Not started" },
+  { value: "In progress", label: "In progress" },
+  { value: "Done", label: "Done" },
+]
+
+interface AddAssignmentDialogProps {
+  onAdd: (assignment: assignment.LocalAssignment) => void
+}
+
+export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
   const [open, setOpen] = useState(false)
-  const [dueDate, setDueDate] = useState<Date>()
+  const [deadline, setDeadline] = useState<Date>(new Date())
   const [formData, setFormData] = useState({
     title: "",
-    course: "",
-    type: "",
-    priority: "medium",
-    description: "",
+    course_color: "",
+    course_code: "",
+    course_name: "",
+    type_name: "",
+    status_name: "",
+    priority: "low",
+    todo: "",
   })
+
+  const key_to_column = {
+    title: "Title",
+    course_code: "CourseCode",
+    type_name: "TypeName",
+    status_name: "StatusName",
+    priority: "Priority",
+    todo: "Todo",
+  }
+
+  const { data: courses } = useCourses()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Adding assignment:", { ...formData, dueDate })
     setOpen(false)
+
+    onAdd({
+      Title: formData.title,
+      Todo: formData.todo,
+      Deadline: deadline,
+      CourseCode: formData.course_code,
+      TypeName: formData.type_name,
+      StatusName: formData.status_name,
+      Priority: formData.priority,
+
+      ID: 0,
+      CreatedAt: new Date(),
+      UpdatedAt: new Date(),
+      DeletedAt: null,
+      RemoteID: 0,
+      NotionID: "",
+      Link: "",
+      Completed: false,
+      SyncStatus: "pending",
+      Course: null as any,
+      Type: null as any,
+      Status: null as any,
+      Documents: [] as any,
+    } as assignment.LocalAssignment)
     setFormData({
       title: "",
-      course: "",
-      type: "",
-      priority: "medium",
-      description: "",
+      course_color: "",
+      course_code: "",
+      course_name: "",
+      type_name: "",
+      status_name: "",
+      priority: "low",
+      todo: "",
     })
-    setDueDate(undefined)
   }
 
   return (
@@ -72,7 +115,7 @@ export function AddAssignmentDialog() {
       </DialogTrigger>
       <DialogContent className="glass border-0 text-white max-w-md">
         <DialogHeader>
-          <DialogTitle>Add New Assignment</DialogTitle>
+          <DialogTitle>Add Assignment</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -94,14 +137,23 @@ export function AddAssignmentDialog() {
               <Label htmlFor="course" className="text-gray-300">
                 Course
               </Label>
-              <Select value={formData.course} onValueChange={(value) => setFormData({ ...formData, course: value })}>
+              <Select
+                value={formData.course_code}
+                onValueChange={(value) => {
+                  const course = courses?.find((course) => course.Code === value)
+                  setFormData({ ...formData, course_code: value, course_name: course?.Name || "", course_color: course?.Color || "" })
+                }}
+              >
                 <SelectTrigger className="bg-gray-800/50 border-gray-600">
                   <SelectValue placeholder="Select course" />
                 </SelectTrigger>
                 <SelectContent className="glass border-gray-600">
-                  {courses.map((course) => (
-                    <SelectItem key={course.value} value={course.value}>
-                      {course.label}
+                  {courses?.map((course) => (
+                    <SelectItem key={course.Code} value={course.Code}>
+                      <div className="flex items-center gap-2">
+                        <div className={` h-2 w-2 rounded-full ${course.Color}`} />
+                        {course.Code} - {course.Name}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -112,14 +164,17 @@ export function AddAssignmentDialog() {
               <Label htmlFor="type" className="text-gray-300">
                 Type
               </Label>
-              <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
+              <Select value={formData.type_name} onValueChange={(value) => setFormData({ ...formData, type_name: value })}>
                 <SelectTrigger className="bg-gray-800/50 border-gray-600">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent className="glass border-gray-600">
                   {types.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
-                      {type.label}
+                      <div className="flex items-center gap-2">
+                        <BookOpen className={` h-4 w-4 ${type.color}`} />
+                        {type.label}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -136,34 +191,34 @@ export function AddAssignmentDialog() {
                     variant="outline"
                     className={cn(
                       "w-full justify-start text-left font-normal bg-gray-800/50 border-gray-600",
-                      !dueDate && "text-muted-foreground",
+                      !deadline && "text-muted-foreground",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dueDate ? format(dueDate, "PPP") : <span>Pick a date</span>}
+                    {deadline ? format(deadline, "PPP") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 glass border-gray-600">
-                  <Calendar mode="single" selected={dueDate} onSelect={setDueDate} initialFocus />
+                  <Calendar mode="single" selected={deadline} onSelect={setDeadline} required />
                 </PopoverContent>
               </Popover>
             </div>
 
             <div>
               <Label htmlFor="priority" className="text-gray-300">
-                Priority
+                Status
               </Label>
               <Select
-                value={formData.priority}
-                onValueChange={(value) => setFormData({ ...formData, priority: value })}
+                value={formData.status_name}
+                onValueChange={(value) => setFormData({ ...formData, status_name: value })}
               >
                 <SelectTrigger className="bg-gray-800/50 border-gray-600">
-                  <SelectValue />
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent className="glass border-gray-600">
-                  {priorities.map((priority) => (
-                    <SelectItem key={priority.value} value={priority.value}>
-                      {priority.label}
+                  {statuses.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -172,30 +227,61 @@ export function AddAssignmentDialog() {
           </div>
 
           <div>
-            <Label htmlFor="description" className="text-gray-300">
-              Description (Optional)
+            <Label htmlFor="todo" className="text-gray-300">
+              Todo
             </Label>
             <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Assignment description..."
+              id="todo"
+              value={formData.todo}
+              onChange={(e) => setFormData({ ...formData, todo: e.target.value })}
+              placeholder="What do you need to do?"
               className="bg-gray-800/50 border-gray-600"
-              rows={3}
             />
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen(false)}
-              className="border-gray-600 bg-transparent"
-            >
-              Cancel
-            </Button>
-            <Button type="submit">Add Assignment</Button>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <div>
+                <Label htmlFor="priority" className="text-gray-300">
+                  Priority
+                </Label>
+                <Select
+                  value={formData.priority}
+                  onValueChange={(value) => setFormData({ ...formData, priority: value })}
+                >
+                  <SelectTrigger className="bg-gray-800/50 border-gray-600">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="glass border-gray-600">
+                    {priorities.map((priority) => (
+                      <SelectItem key={priority.value} value={priority.value}>
+                        <div className="flex items-center gap-2">
+                          <Flag className=" h-4 w-4" />
+                          {priority.label}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOpen(false)}
+                className="border-gray-600 bg-transparent"
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Add Assignment</Button>
+
+            </div>
           </div>
+
         </form>
       </DialogContent>
     </Dialog>

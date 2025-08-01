@@ -6,7 +6,7 @@ import {document} from '../models';
 import {user} from '../models';
 import {storage} from '../models';
 
-export function CreateAssignment(arg1:assignment.Assignment):Promise<void>;
+export function CreateAssignment(arg1:assignment.LocalAssignment):Promise<void>;
 
 export function CreateCourse(arg1:course.Course):Promise<void>;
 

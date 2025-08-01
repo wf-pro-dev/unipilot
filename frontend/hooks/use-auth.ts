@@ -54,7 +54,6 @@ export function useAuth() {
 
   // Check authentication status on mount
   useEffect(() => {
-
     const checkAuth = async () => {
       try {
         if (!authState.isAuthenticated) {
@@ -66,7 +65,7 @@ export function useAuth() {
           })
         }
       } catch (error) {
-        LogError("Error checking auth: " + error)
+        //LogError("Error checking auth: " + error)
         // If there's an error checking auth, assume not authenticated
         setAuthState({
           isAuthenticated: false,
@@ -77,7 +76,7 @@ export function useAuth() {
     }
 
     checkAuth()
-  }, [])
+  }, [authState.isAuthenticated]) // Add dependency to prevent infinite loop
 
   return {
     ...authState,
