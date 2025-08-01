@@ -15,7 +15,7 @@ import { course } from "@/wailsjs/go/models"
 
 export default function CoursesPage() {
   const { data: courses = [], isLoading, error } = useCourses()
-  const [selectedCourse, setSelectedCourse] = useState<course.LocalCourse | null>(null)
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
 
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -40,12 +40,16 @@ export default function CoursesPage() {
 
     // Use the optimistic update mutation
     updateMutation.mutate({
-      courseData,
+      course: courseData,
       column,
       value
     })
   }
 
+  // Handle course selection
+  const handleCourseClick = (course: course.LocalCourse) => {
+    setSelectedCourseId(course.ID)
+  }
 
   // Handle tab change and update URL
   const handleTabChange = (value: string) => {
@@ -113,7 +117,7 @@ export default function CoursesPage() {
           <TabsContent value="calendar">
             <CoursesSchedule
               courses={courses || []}
-              onCourseClick={setSelectedCourse}
+              onCourseClick={handleCourseClick}
             />
           </TabsContent>
 
@@ -121,16 +125,17 @@ export default function CoursesPage() {
             <CoursesTable
               courses={courses || []}
               filter={{ semester: semester || "all", instructor: instructor || "all" }}
-              onCourseClick={setSelectedCourse}
+              onCourseClick={handleCourseClick}
             />
           </TabsContent>
         </Tabs>
 
 
         <CourseDetailsModal
-          isOpen={!!selectedCourse}
-          course={selectedCourse}
-          onClose={() => setSelectedCourse(null)}
+          isOpen={!!selectedCourseId}
+          courseId={selectedCourseId}
+          courses={courses || []}
+          onClose={() => setSelectedCourseId(null)}
           onEdit={handleEditCourse}
         />  
         

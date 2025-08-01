@@ -63,7 +63,7 @@ export function AssignmentDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="glass border-0 text-white max-w-2xl max-h-[95vh] overflow-y-auto">
+      <DialogContent className="glass border-0 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex justify-between items-start">
             <DialogTitle className="text-xl font-semibold text-white">
@@ -148,7 +148,6 @@ export function AssignmentDetailsModal({
 
           </div>
 
-          {/* Deadline */}
 
 
           {/* Description */}
@@ -164,7 +163,7 @@ export function AssignmentDetailsModal({
                 </Button>
               </div>
               <div className="bg-gray-800/50 border border-gray-600 p-3 rounded-lg">
-                <p className={`leading-relaxed text-sm text-white ${showFullTodo ? "block" : "line-clamp-4"}`}>{assignment.Todo}</p>
+                <p className={`whitespace-pre-wrap leading-relaxed text-sm text-white ${showFullTodo ? "block" : "line-clamp-4"}`}>{assignment.Todo}</p>
               </div>
             </div>
           )}

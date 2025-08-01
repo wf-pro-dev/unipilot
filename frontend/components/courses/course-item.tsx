@@ -2,13 +2,13 @@ import { Card, CardContent } from "../ui/card"
 import { Progress } from "../ui/progress"
 import { Badge } from "../ui/badge"
 import { Users, Clock } from "lucide-react"
-import { Course } from "@/types/models"
+import { course } from "@/wailsjs/go/models"
 import { useAssignments } from "@/hooks/use-assignments"
 import { LogPrint } from "@/wailsjs/runtime/runtime"
 
 interface CourseItemProps {
-    course: Course
-    onCourseClick?: (course: Course) => void
+    course: course.LocalCourse
+    onCourseClick?: (course: course.LocalCourse) => void
     disabled?: boolean
 }
 

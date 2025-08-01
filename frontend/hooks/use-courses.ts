@@ -71,12 +71,12 @@ export function useUpdateCourse() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (courseData: course.LocalCourse, column: string, value: string) => {
-      return await window.go.main.App.UpdateCourse(courseData, column, value)
+    mutationFn: async ({ course, column, value }: { course: course.LocalCourse, column: string, value: string }) => {
+      return await window.go.main.App.UpdateCourse(course, column, value)
     },
     
     // Optimistic update for instant UI feedback
-    onMutate: async (course) => {
+    onMutate: async ({ course, column, value }) => {
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
       
       const previousCourses = queryClient.getQueryData<course.LocalCourse[]>(courseKeys.lists())
@@ -85,7 +85,7 @@ export function useUpdateCourse() {
         if (!old) return []
         return old.map(c => 
           c.ID === course.ID 
-            ? { ...course, UpdatedAt: new Date() } as course.LocalCourse
+            ? { ...course, [column]: value, UpdatedAt: new Date() } as course.LocalCourse
             : c
         )
       })

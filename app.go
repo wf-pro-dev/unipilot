@@ -43,6 +43,461 @@ func NewApp() *App {
 	}
 }
 
+// ========================================
+// CREATE OPERATIONS
+// ========================================
+
+// CreateAssignment creates a new assignment
+func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	tx := a.DB.GetDB().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	localAssignment := &assignment.LocalAssignment{
+		Title:      assignmentData.Title,
+		Todo:       assignmentData.Todo,
+		Deadline:   assignmentData.Deadline,
+		CourseCode: assignmentData.CourseCode,
+		TypeName:   assignmentData.TypeName,
+		StatusName: assignmentData.StatusName,
+		Priority:   assignmentData.Priority,
+	}
+
+	fmt.Println("Creating assignment:", localAssignment)
+
+	if !a.Auth.IsAuthenticated() {
+		return fmt.Errorf("user not authenticated")
+	}
+	fmt.Println("User ID:", a.DB.GetCurrentUserID())
+
+	// Create the assignment within the transaction
+	if err := tx.Create(localAssignment).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	fmt.Println(" local assignment success ")
+	remoteAssignment := &assignment.Assignment{
+		LocalID:    localAssignment.ID,
+		Title:      localAssignment.Title,
+		Todo:       localAssignment.Todo,
+		Deadline:   localAssignment.Deadline,
+		CourseCode: localAssignment.CourseCode,
+		TypeName:   localAssignment.TypeName,
+		StatusName: localAssignment.StatusName,
+		Priority:   localAssignment.Priority,
+	}
+
+	responseAssignment, err := client.CreateAssignment(remoteAssignment)
+	if err != nil {
+		tx.Rollback()
+		fmt.Println("Error creating remote assignment:", err)
+		return err
+	}
+
+	fmt.Println("Remote assignment created:", responseAssignment)
+
+	tx.Commit()
+	log.Printf("Response assignment: %v\n", responseAssignment)
+
+	return nil
+}
+
+// CreateCourse creates a new course
+func (a *App) CreateCourse(course *course.Course) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.DB.CreateCourse(course)
+}
+
+// UploadDocument opens a file dialog and uploads a document to an assignment
+func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.LocalDocument, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	// Validate document type
+	if documentType != string(document.DocumentTypeSupport) && documentType != string(document.DocumentTypeSubmission) {
+		return nil, fmt.Errorf("invalid document type: %s", documentType)
+	}
+
+	// Open file dialog
+	filters := []runtime.FileFilter{
+		{
+			DisplayName: "Documents",
+			Pattern:     "*.pdf;*.doc;*.docx;*.ppt;*.pptx;*.xls;*.xlsx;*.txt;*.md",
+		},
+		{
+			DisplayName: "Images",
+			Pattern:     "*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.svg",
+		},
+		{
+			DisplayName: "All Files",
+			Pattern:     "*",
+		},
+	}
+
+	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   "Select Document to Upload",
+		Filters: filters,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file dialog: %w", err)
+	}
+
+	if filePath == "" {
+		return nil, fmt.Errorf("no file selected")
+	}
+
+	// Get file info
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	// Open the file
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Get current user ID
+	userID := a.DB.GetCurrentUserID()
+
+	// Create upload request
+	uploadReq := fileops.FileUploadRequest{
+		AssignmentID: assignmentID,
+		UserID:       userID,
+		Type:         document.DocumentType(documentType),
+		FileName:     filepath.Base(filePath),
+		FileContent:  file,
+		FileSize:     fileInfo.Size(),
+	}
+
+	// Upload the document locally
+	response, err := fileops.UploadDocument(uploadReq, a.DB.GetDB())
+	if err != nil {
+		return nil, fmt.Errorf("upload failed: %w", err)
+	}
+
+	if !response.Success {
+		return nil, fmt.Errorf("upload failed: %s", response.Message)
+	}
+
+	// Also store metadata remotely for sharing
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
+		metadataReq := map[string]interface{}{
+			"assignment_id": assignmentID,
+			"local_id":      response.LocalDocument.ID,
+			"type":          documentType,
+			"file_name":     filepath.Base(filePath),
+			"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
+			"file_size":     fileInfo.Size(),
+		}
+
+		jsonData, _ := json.Marshal(metadataReq)
+		resp, _ := a.Auth.Client.Post("https://newsroom.dedyn.io/acc-homework/document/metadata",
+			"application/json", strings.NewReader(string(jsonData)))
+		if resp.StatusCode == 200 {
+			defer resp.Body.Close()
+		}
+		// We don't block on this - local file upload is the priority
+
+	}
+
+	return response.LocalDocument, nil
+}
+
+// ========================================
+// UPDATE OPERATIONS
+// ========================================
+
+// UpdateAssignment updates an existing assignment
+func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, column, value string) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	if err := a.DB.UpdateAssignment(LocalAssignment, column, value); err != nil {
+		return err
+	}
+
+	assignment_id_int := int(LocalAssignment.ID)
+
+	assignment_id := strconv.Itoa(assignment_id_int)
+
+	if err := client.SendAssignmentUpdate(assignment_id, column, value); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UpdateCourse updates an existing course
+func (a *App) UpdateCourse(course *course.LocalCourse, column, value string) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	if err := a.DB.UpdateCourse(course, column, value); err != nil {
+		return err
+	}
+
+	course_id_int := int(course.ID)
+
+	course_id := strconv.Itoa(course_id_int)
+
+	if err := client.SendCourseUpdate(course_id, column, value); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// UploadNewDocumentVersion uploads a new version of an existing document
+func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.LocalDocument, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return nil, fmt.Errorf("user not authenticated")
+	}
+
+	userID := a.DB.GetCurrentUserID()
+
+	// Verify the existing document belongs to the user
+	var existingDoc document.LocalDocument
+	if err := a.DB.GetDB().Where("id = ? AND user_id = ?", existingDocumentID, userID).First(&existingDoc).Error; err != nil {
+		return nil, fmt.Errorf("document not found or access denied")
+	}
+
+	// Open file dialog
+	filters := []runtime.FileFilter{
+		{
+			DisplayName: "Documents",
+			Pattern:     "*.pdf;*.doc;*.docx;*.ppt;*.pptx;*.xls;*.xlsx;*.txt;*.md",
+		},
+		{
+			DisplayName: "Images",
+			Pattern:     "*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.svg",
+		},
+		{
+			DisplayName: "All Files",
+			Pattern:     "*",
+		},
+	}
+
+	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   "Select New Version of Document",
+		Filters: filters,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file dialog: %w", err)
+	}
+
+	if filePath == "" {
+		return nil, fmt.Errorf("no file selected")
+	}
+
+	// Get file info
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	// Open the file
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Create new version request
+	uploadReq := fileops.FileUploadRequest{
+		AssignmentID: existingDoc.AssignmentID,
+		UserID:       userID,
+		Type:         existingDoc.Type,
+		FileName:     filepath.Base(filePath),
+		FileContent:  file,
+		FileSize:     fileInfo.Size(),
+	}
+
+	// Upload new version locally
+	response, err := fileops.UploadNewVersion(existingDocumentID, uploadReq, a.DB.GetDB())
+	if err != nil {
+		return nil, fmt.Errorf("version upload failed: %w", err)
+	}
+
+	if !response.Success {
+		return nil, fmt.Errorf("version upload failed: %s", response.Message)
+	}
+
+	// Also update metadata remotely for sharing (async)
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
+		metadataReq := map[string]interface{}{
+			"assignment_id": existingDoc.AssignmentID,
+			"local_id":      existingDoc.ID,
+			"type":          string(existingDoc.Type),
+			"file_name":     filepath.Base(filePath),
+			"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
+			"file_size":     fileInfo.Size(),
+			"version":       response.LocalDocument.Version,
+		}
+
+		go func() {
+			jsonData, _ := json.Marshal(metadataReq)
+			resp, err := a.Auth.Client.Post("https://newsroom.dedyn.io/acc-homework/documents/metadata",
+				"application/json", strings.NewReader(string(jsonData)))
+			if err == nil {
+				defer resp.Body.Close()
+			}
+		}()
+	}
+
+	return response.LocalDocument, nil
+}
+
+// ========================================
+// DELETE OPERATIONS
+// ========================================
+
+// DeleteAssignment deletes an assignment
+func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	//Get all documents related to the assignment
+	var documents []document.LocalDocument
+	documents, err := a.GetAssignmentDocuments(assignment.ID)
+	if err != nil {
+		return err
+	}
+
+	// Delete all documents related to the assignment
+	for _, document := range documents {
+		if err := a.DeleteDocument(document.ID); err != nil {
+			return err
+		}
+	}
+
+	if err := a.DB.DeleteAssignment(assignment); err != nil {
+		return err
+	}
+
+	assignment_id_str := strconv.Itoa(int(assignment.ID))
+
+	if err := client.SendAssignmentUpdate(assignment_id_str, "deleted_at", time.Now().Format(time.RFC3339)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteCourse deletes a course
+func (a *App) DeleteCourse(course *course.LocalCourse) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	// Get all assignments related to the course
+	assignments, err := a.GetCourseAssignments(course)
+	if err != nil {
+		return err
+	}
+
+	// Delete all assignments related to the course
+	for _, assignment := range assignments {
+		if err := a.DeleteAssignment(&assignment); err != nil {
+			return err
+		}
+	}
+
+	if err := a.DB.DeleteCourse(course); err != nil {
+		return err
+	}
+
+	course_id_str := strconv.Itoa(int(course.ID))
+
+	if err := client.SendCourseUpdate(course_id_str, "deleted_at", time.Now().Format(time.RFC3339)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteDocument removes a document and its file
+func (a *App) DeleteDocument(documentID uint) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return fmt.Errorf("user not authenticated")
+	}
+
+	userID := a.DB.GetCurrentUserID()
+
+	// Get local document record
+	var doc document.LocalDocument
+	if err := a.DB.GetDB().Where("id = ? AND user_id = ?", documentID, userID).First(&doc).Error; err != nil {
+		return fmt.Errorf("document not found or access denied")
+	}
+
+	// Delete physical file if it exists
+	if doc.HasLocalFile && doc.FilePath != "" {
+		if err := os.Remove(doc.FilePath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("failed to delete file: %w", err)
+		}
+	}
+
+	db := a.DB.GetDB()
+	db = db.Debug()
+	// Delete database record
+	if err := db.Delete(&doc).Error; err != nil {
+		return fmt.Errorf("failed to delete document record: %w", err)
+	}
+
+	// Update local storage cache
+	document.UpdateLocalStorageCache(userID, db)
+
+	// Also store metadata remotely for sharing
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
+
+		resp, _ := a.Auth.Client.Post(fmt.Sprintf("https://newsroom.dedyn.io/acc-homework/document/metadata/delete?document_id=%d", documentID),
+			"application/json", nil)
+		if resp.StatusCode == 200 {
+			defer resp.Body.Close()
+		}
+
+		if resp.StatusCode != 200 {
+			return fmt.Errorf("failed to delete document metadata: %s", resp.Status)
+		}
+
+	}
+
+	return nil
+}
+
+// ========================================
+// OTHER OPERATIONS
+// ========================================
+
 // startup is called when the app starts. The context is saved
 // so we can call the runtime methods
 func (a *App) Startup(ctx context.Context) {
@@ -312,110 +767,6 @@ func (a *App) GetCourses() ([]course.LocalCourse, error) {
 
 // Document Management Methods
 
-// UploadDocument opens a file dialog and uploads a document to an assignment
-func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.LocalDocument, error) {
-	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-
-	if !a.Auth.IsAuthenticated() {
-		return nil, fmt.Errorf("user not authenticated")
-	}
-
-	// Validate document type
-	if documentType != string(document.DocumentTypeSupport) && documentType != string(document.DocumentTypeSubmission) {
-		return nil, fmt.Errorf("invalid document type: %s", documentType)
-	}
-
-	// Open file dialog
-	filters := []runtime.FileFilter{
-		{
-			DisplayName: "Documents",
-			Pattern:     "*.pdf;*.doc;*.docx;*.ppt;*.pptx;*.xls;*.xlsx;*.txt;*.md",
-		},
-		{
-			DisplayName: "Images",
-			Pattern:     "*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.svg",
-		},
-		{
-			DisplayName: "All Files",
-			Pattern:     "*",
-		},
-	}
-
-	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:   "Select Document to Upload",
-		Filters: filters,
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file dialog: %w", err)
-	}
-
-	if filePath == "" {
-		return nil, fmt.Errorf("no file selected")
-	}
-
-	// Get file info
-	fileInfo, err := os.Stat(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get file info: %w", err)
-	}
-
-	// Open the file
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	// Get current user ID
-	userID := a.DB.GetCurrentUserID()
-
-	// Create upload request
-	uploadReq := fileops.FileUploadRequest{
-		AssignmentID: assignmentID,
-		UserID:       userID,
-		Type:         document.DocumentType(documentType),
-		FileName:     filepath.Base(filePath),
-		FileContent:  file,
-		FileSize:     fileInfo.Size(),
-	}
-
-	// Upload the document locally
-	response, err := fileops.UploadDocument(uploadReq, a.DB.GetDB())
-	if err != nil {
-		return nil, fmt.Errorf("upload failed: %w", err)
-	}
-
-	if !response.Success {
-		return nil, fmt.Errorf("upload failed: %s", response.Message)
-	}
-
-	// Also store metadata remotely for sharing
-	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
-		metadataReq := map[string]interface{}{
-			"assignment_id": assignmentID,
-			"local_id":      response.LocalDocument.ID,
-			"type":          documentType,
-			"file_name":     filepath.Base(filePath),
-			"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
-			"file_size":     fileInfo.Size(),
-		}
-
-		jsonData, _ := json.Marshal(metadataReq)
-		resp, _ := a.Auth.Client.Post("https://newsroom.dedyn.io/acc-homework/document/metadata",
-			"application/json", strings.NewReader(string(jsonData)))
-		if resp.StatusCode == 200 {
-			defer resp.Body.Close()
-		}
-		// We don't block on this - local file upload is the priority
-
-	}
-
-	return response.LocalDocument, nil
-}
-
 // GetAssignmentDocuments retrieves all documents for an assignment
 func (a *App) GetAssignmentDocuments(assignmentID uint) ([]document.LocalDocument, error) {
 	if a.DB == nil {
@@ -580,59 +931,6 @@ func (a *App) SaveDocumentAs(documentID uint) error {
 	return nil
 }
 
-// DeleteDocument removes a document and its file
-func (a *App) DeleteDocument(documentID uint) error {
-	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
-	}
-
-	if !a.Auth.IsAuthenticated() {
-		return fmt.Errorf("user not authenticated")
-	}
-
-	userID := a.DB.GetCurrentUserID()
-
-	// Get local document record
-	var doc document.LocalDocument
-	if err := a.DB.GetDB().Where("id = ? AND user_id = ?", documentID, userID).First(&doc).Error; err != nil {
-		return fmt.Errorf("document not found or access denied")
-	}
-
-	// Delete physical file if it exists
-	if doc.HasLocalFile && doc.FilePath != "" {
-		if err := os.Remove(doc.FilePath); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("failed to delete file: %w", err)
-		}
-	}
-
-	db := a.DB.GetDB()
-	db = db.Debug()
-	// Delete database record
-	if err := db.Delete(&doc).Error; err != nil {
-		return fmt.Errorf("failed to delete document record: %w", err)
-	}
-
-	// Update local storage cache
-	document.UpdateLocalStorageCache(userID, db)
-
-	// Also store metadata remotely for sharing
-	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
-
-		resp, _ := a.Auth.Client.Post(fmt.Sprintf("https://newsroom.dedyn.io/acc-homework/document/metadata/delete?document_id=%d", documentID),
-			"application/json", nil)
-		if resp.StatusCode == 200 {
-			defer resp.Body.Close()
-		}
-
-		if resp.StatusCode != 200 {
-			return fmt.Errorf("failed to delete document metadata: %s", resp.Status)
-		}
-
-	}
-
-	return nil
-}
-
 // GetUserStorageInfo returns storage statistics for the current user
 func (a *App) GetUserStorageInfo() (*document.LocalDocumentCache, error) {
 	if a.DB == nil {
@@ -660,111 +958,6 @@ func (a *App) GetUserStorageInfo() (*document.LocalDocumentCache, error) {
 	}
 
 	return &cache, nil
-}
-
-// UploadNewDocumentVersion uploads a new version of an existing document
-func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.LocalDocument, error) {
-	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-
-	if !a.Auth.IsAuthenticated() {
-		return nil, fmt.Errorf("user not authenticated")
-	}
-
-	userID := a.DB.GetCurrentUserID()
-
-	// Verify the existing document belongs to the user
-	var existingDoc document.LocalDocument
-	if err := a.DB.GetDB().Where("id = ? AND user_id = ?", existingDocumentID, userID).First(&existingDoc).Error; err != nil {
-		return nil, fmt.Errorf("document not found or access denied")
-	}
-
-	// Open file dialog
-	filters := []runtime.FileFilter{
-		{
-			DisplayName: "Documents",
-			Pattern:     "*.pdf;*.doc;*.docx;*.ppt;*.pptx;*.xls;*.xlsx;*.txt;*.md",
-		},
-		{
-			DisplayName: "Images",
-			Pattern:     "*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.svg",
-		},
-		{
-			DisplayName: "All Files",
-			Pattern:     "*",
-		},
-	}
-
-	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:   "Select New Version of Document",
-		Filters: filters,
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file dialog: %w", err)
-	}
-
-	if filePath == "" {
-		return nil, fmt.Errorf("no file selected")
-	}
-
-	// Get file info
-	fileInfo, err := os.Stat(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get file info: %w", err)
-	}
-
-	// Open the file
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
-	// Create new version request
-	uploadReq := fileops.FileUploadRequest{
-		AssignmentID: existingDoc.AssignmentID,
-		UserID:       userID,
-		Type:         existingDoc.Type,
-		FileName:     filepath.Base(filePath),
-		FileContent:  file,
-		FileSize:     fileInfo.Size(),
-	}
-
-	// Upload new version locally
-	response, err := fileops.UploadNewVersion(existingDocumentID, uploadReq, a.DB.GetDB())
-	if err != nil {
-		return nil, fmt.Errorf("version upload failed: %w", err)
-	}
-
-	if !response.Success {
-		return nil, fmt.Errorf("version upload failed: %s", response.Message)
-	}
-
-	// Also update metadata remotely for sharing (async)
-	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
-		metadataReq := map[string]interface{}{
-			"assignment_id": existingDoc.AssignmentID,
-			"local_id":      existingDoc.ID,
-			"type":          string(existingDoc.Type),
-			"file_name":     filepath.Base(filePath),
-			"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
-			"file_size":     fileInfo.Size(),
-			"version":       response.LocalDocument.Version,
-		}
-
-		go func() {
-			jsonData, _ := json.Marshal(metadataReq)
-			resp, err := a.Auth.Client.Post("https://newsroom.dedyn.io/acc-homework/documents/metadata",
-				"application/json", strings.NewReader(string(jsonData)))
-			if err == nil {
-				defer resp.Body.Close()
-			}
-		}()
-	}
-
-	return response.LocalDocument, nil
 }
 
 // GetRemoteDocumentMetadata retrieves document metadata from remote server (for shared assignments)
@@ -807,183 +1000,6 @@ func (a *App) GetRemoteDocumentMetadata(assignmentID uint) ([]map[string]interfa
 	}
 
 	return result.Documents, nil
-}
-
-// CreateAssignment creates a new assignment
-func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error {
-	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
-	}
-
-	tx := a.DB.GetDB().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
-	localAssignment := &assignment.LocalAssignment{
-		Title:      assignmentData.Title,
-		Todo:       assignmentData.Todo,
-		Deadline:   assignmentData.Deadline,
-		CourseCode: assignmentData.CourseCode,
-		TypeName:   assignmentData.TypeName,
-		StatusName: assignmentData.StatusName,
-		Priority:   assignmentData.Priority,
-	}
-
-	fmt.Println("Creating assignment:", localAssignment)
-
-	if !a.Auth.IsAuthenticated() {
-		return fmt.Errorf("user not authenticated")
-	}
-	fmt.Println("User ID:", a.DB.GetCurrentUserID())
-
-	// Create the assignment within the transaction
-	if err := tx.Create(localAssignment).Error; err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	fmt.Println(" local assignment success ")
-	remoteAssignment := &assignment.Assignment{
-		LocalID:    localAssignment.ID,
-		Title:      localAssignment.Title,
-		Todo:       localAssignment.Todo,
-		Deadline:   localAssignment.Deadline,
-		CourseCode: localAssignment.CourseCode,
-		TypeName:   localAssignment.TypeName,
-		StatusName: localAssignment.StatusName,
-		Priority:   localAssignment.Priority,
-	}
-
-	responseAssignment, err := client.CreateAssignment(remoteAssignment)
-	if err != nil {
-		tx.Rollback()
-		fmt.Println("Error creating remote assignment:", err)
-		return err
-	}
-
-	fmt.Println("Remote assignment created:", responseAssignment)
-
-	tx.Commit()
-	log.Printf("Response assignment: %v\n", responseAssignment)
-
-	return nil
-}
-
-// UpdateAssignment updates an existing assignment
-func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, column, value string) error {
-	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
-	}
-
-	if err := a.DB.UpdateAssignment(LocalAssignment, column, value); err != nil {
-		return err
-	}
-
-	assignment_id_int := int(LocalAssignment.ID)
-
-	assignment_id := strconv.Itoa(assignment_id_int)
-
-	if err := client.SendAssignmentUpdate(assignment_id, column, value); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// DeleteAssignment deletes an assignment
-func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
-	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
-	}
-
-	//Get all documents related to the assignment
-	var documents []document.LocalDocument
-	documents, err := a.GetAssignmentDocuments(assignment.ID)
-	if err != nil {
-		return err
-	}
-
-	// Delete all documents related to the assignment
-	for _, document := range documents {
-		if err := a.DeleteDocument(document.ID); err != nil {
-			return err
-		}
-	}
-
-	if err := a.DB.DeleteAssignment(assignment); err != nil {
-		return err
-	}
-
-	assignment_id_str := strconv.Itoa(int(assignment.ID))
-
-	if err := client.SendAssignmentUpdate(assignment_id_str, "deleted_at", time.Now().Format(time.RFC3339)); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// CreateCourse creates a new course
-func (a *App) CreateCourse(course *course.Course) error {
-	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
-	}
-	return a.DB.CreateCourse(course)
-}
-
-// UpdateCourse updates an existing course
-func (a *App) UpdateCourse(course *course.LocalCourse, column, value string) error {
-	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
-	}
-	if err := a.DB.UpdateCourse(course, column, value); err != nil {
-		return err
-	}
-
-	course_id_int := int(course.ID)
-
-	course_id := strconv.Itoa(course_id_int)
-
-	if err := client.SendCourseUpdate(course_id, column, value); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// DeleteCourse deletes a course
-func (a *App) DeleteCourse(course *course.LocalCourse) error {
-	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
-	}
-
-	// Get all assignments related to the course
-	assignments, err := a.GetCourseAssignments(course)
-	if err != nil {
-		return err
-	}
-
-	// Delete all assignments related to the course
-	for _, assignment := range assignments {
-		if err := a.DeleteAssignment(&assignment); err != nil {
-			return err
-		}
-	}
-
-	if err := a.DB.DeleteCourse(course); err != nil {
-		return err
-	}
-
-	course_id_str := strconv.Itoa(int(course.ID))
-
-	if err := client.SendCourseUpdate(course_id_str, "deleted_at", time.Now().Format(time.RFC3339)); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (a *App) GetCourseAssignments(course *course.LocalCourse) ([]assignment.LocalAssignment, error) {

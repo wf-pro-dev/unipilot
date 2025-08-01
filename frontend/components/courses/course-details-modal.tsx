@@ -31,11 +31,14 @@ import { format } from "date-fns"
 interface CourseDetailsModalProps {
   isOpen: boolean
   onClose: () => void
-  course: Course.LocalCourse | null
+  courseId: number | null
+  courses: Course.LocalCourse[]
   onEdit: (course: Course.LocalCourse, column: string, value: string) => void
 }
 
-export function CourseDetailsModal({ isOpen, onClose, course, onEdit }: CourseDetailsModalProps) {
+export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit }: CourseDetailsModalProps) {
+  const course = courses.find(c => c.ID === courseId) || null
+  
   if (!course) return null
   
   const { data: assignments, isLoading } = useAssignments()
@@ -46,8 +49,6 @@ export function CourseDetailsModal({ isOpen, onClose, course, onEdit }: CourseDe
   var completionPercentage = (completed_assignments_count / course_assignments.length) * 100
   var isCompleted = completionPercentage === 100
   const [open, setOpen] = useState(false)
-
-
 
   const handleEditAssignment = async (assignment: assignment.LocalAssignment, column: string, value: string) => {
     console.log("Editing assignment:", assignment)
@@ -78,7 +79,7 @@ export function CourseDetailsModal({ isOpen, onClose, course, onEdit }: CourseDe
   return (
     <div>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="glass border-0 text-white max-w-2xl max-h-[95vh] overflow-y-auto">
+        <DialogContent className="glass border-0 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
 
@@ -183,7 +184,7 @@ export function CourseDetailsModal({ isOpen, onClose, course, onEdit }: CourseDe
               </div>
             </div>
 
-            {/* Recent Assignmen  ts */}
+            {/* Recent Assignments */}
             <div>
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium text-gray-400 block mb-3">Recent Assignments</label>

@@ -1,11 +1,11 @@
 
 import { BookOpen } from "lucide-react"
 import { CourseItem } from "./course-item"
-import { Course } from "@/types/models"
+import { course } from "@/wailsjs/go/models"
 
 interface CoursesGridProps {
-  courses: Course[]
-  onCourseClick: (course: Course) => void
+  courses: course.LocalCourse[]
+  onCourseClick: (course: course.LocalCourse) => void
   disabled?: boolean
 }
 
