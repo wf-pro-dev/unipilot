@@ -93,11 +93,6 @@ func getDBPath(userID uint) (string, error) {
 }
 
 func InitializeSchema(db *gorm.DB) error {
-	// Enable foreign key support for SQLite
-	if err := db.Exec("PRAGMA foreign_keys = ON").Error; err != nil {
-		return fmt.Errorf("failed to enable foreign keys: %w", err)
-	}
-
 	// Run migrations
 	err := db.AutoMigrate(
 		&course.LocalCourse{},

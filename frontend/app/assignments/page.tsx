@@ -79,12 +79,13 @@ export default function AssignmentsPage() {
   }
 
   const handleDeleteAssignment = async (assignment: assignment.LocalAssignment) => {
+    const message = "assignment " + assignment.Title + " deleted"
+    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     deleteMutation.mutate(assignment)
   }
 
 
   const handleAddAssignment = async (assignment: assignment.LocalAssignment) => {
-    console.log("Adding assignment:", assignment)
     const message = "assignment " + assignment.Title + " added"
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     createMutation.mutate(assignment)

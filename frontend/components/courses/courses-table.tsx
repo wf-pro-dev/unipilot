@@ -17,10 +17,12 @@ interface CoursesTableProps {
     courses: Course.LocalCourse[]
     filter: Filter
     onCourseClick: (course: Course.LocalCourse) => void
+    onEdit: (course: Course.LocalCourse, column: string, value: string) => void
+    onDelete: (course: Course.LocalCourse) => void
 }
 
 
-export default function CoursesTable({ courses, filter, onCourseClick }: CoursesTableProps) {
+export default function CoursesTable({ courses, filter, onCourseClick, onEdit, onDelete }: CoursesTableProps) {
     
     const [searchTerm, setSearchTerm] = useState("")
     const [selectedSemester, setSelectedSemester] = useState(filter.semester || "all")
@@ -51,14 +53,14 @@ export default function CoursesTable({ courses, filter, onCourseClick }: Courses
     const hasActiveFilters = selectedSemester !== "all" || selectedInstructor !== "all" || searchTerm !== ""
     return (
         <div className="space-y-6">
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="flex flex-col gap-4 mb-6 md:flex-row">
                 <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <Search className="absolute left-3 top-1/2 w-4 h-4 text-gray-400 transform -translate-y-1/2" />
                     <Input
                         placeholder="Search courses..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 glass border-gray-600 bg-white/5"
+                        className="pl-10 border-gray-600 glass bg-white/5"
                     />
                 </div>
 
@@ -67,7 +69,7 @@ export default function CoursesTable({ courses, filter, onCourseClick }: Courses
                         <SelectTrigger className="w-[180px] glass border-gray-600 bg-white/5">
                             <SelectValue placeholder="All Semesters" />
                         </SelectTrigger>
-                        <SelectContent className="glass border-gray-600">
+                        <SelectContent className="border-gray-600 glass">
                             <SelectItem value="all">All Semesters</SelectItem>
                             {semesters.map((semester) => (
                                 <SelectItem key={semester} value={semester}>
@@ -81,7 +83,7 @@ export default function CoursesTable({ courses, filter, onCourseClick }: Courses
                         <SelectTrigger className="w-[180px] glass border-gray-600 bg-white/5">
                             <SelectValue placeholder="All Instructors" />
                         </SelectTrigger>
-                        <SelectContent className="glass border-gray-600">
+                        <SelectContent className="border-gray-600 glass">
                             <SelectItem value="all">All Instructors</SelectItem>
                             {instructors.map((instructor) => (
                                 <SelectItem key={instructor} value={instructor}>
@@ -96,9 +98,9 @@ export default function CoursesTable({ courses, filter, onCourseClick }: Courses
                             variant="outline"
                             size="sm"
                             onClick={clearFilters}
-                            className="glass border-gray-600"
+                            className="border-gray-600 glass"
                         >
-                            <X className="h-4 w-4 mr-2" />
+                            <X className="mr-2 w-4 h-4" />
                             Clear
                         </Button>
                     )}
@@ -107,8 +109,8 @@ export default function CoursesTable({ courses, filter, onCourseClick }: Courses
 
             {/* Active Filters */}
             {hasActiveFilters && (
-                <div className="flex items-center gap-2 mb-6">
-                    <Filter className="h-4 w-4 text-gray-400" />
+                <div className="flex gap-2 items-center mb-6">
+                    <Filter className="w-4 h-4 text-gray-400" />
                     <span className="text-sm text-gray-400">Active filters:</span>
                     {searchTerm && (
                         <Badge variant="secondary" className="text-xs">
@@ -131,6 +133,8 @@ export default function CoursesTable({ courses, filter, onCourseClick }: Courses
             <CoursesGrid
                 courses={filteredCourses}
                 onCourseClick={onCourseClick}
+                onEdit={onEdit}
+                onDelete={onDelete}
             />
         </div>
     )

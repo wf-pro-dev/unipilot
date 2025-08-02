@@ -142,7 +142,17 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 	}
 	fmt.Println("User ID:", a.DB.GetCurrentUserID())
 
-	// Create the assignment within the transaction
+	// Check if a soft-deleted course with the same code exists
+	var existingCourse course.LocalCourse
+	if err := tx.Unscoped().Where("code = ? AND deleted_at IS NOT NULL", localCourse.Code).First(&existingCourse).Error; err == nil {
+		// A soft-deleted course with this code exists, permanently delete it first
+		if err := tx.Unscoped().Delete(&existingCourse).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to clean up soft-deleted course: %w", err)
+		}
+	}
+
+	// Create the course within the transaction
 	if err := tx.Create(localCourse).Error; err != nil {
 		tx.Rollback()
 		return err
@@ -834,14 +844,11 @@ func (a *App) GetAssignmentDocuments(assignmentID uint) ([]document.LocalDocumen
 	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
-
-	userID := a.DB.GetCurrentUserID()
-
 	// Use LocalDocument and only return documents we have locally
 	var documents []document.LocalDocument
 	err := a.DB.GetDB().Where(
-		"assignment_id = ? AND user_id = ? AND has_local_file = ?",
-		assignmentID, userID, true,
+		"assignment_id = ? AND has_local_file = ?",
+		assignmentID, true,
 	).Order("created_at DESC").Find(&documents).Error
 
 	return documents, err
@@ -857,12 +864,10 @@ func (a *App) GetSupportDocuments(assignmentID uint) ([]document.LocalDocument, 
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
-	userID := a.DB.GetCurrentUserID()
-
 	var documents []document.LocalDocument
 	err := a.DB.GetDB().Where(
-		"assignment_id = ? AND user_id = ? AND type = ? AND has_local_file = ?",
-		assignmentID, userID, document.DocumentTypeSupport, true,
+		"assignment_id = ? AND type = ? AND has_local_file = ?",
+		assignmentID, document.DocumentTypeSupport, true,
 	).Order("created_at DESC").Find(&documents).Error
 
 	return documents, err
@@ -878,12 +883,10 @@ func (a *App) GetSubmissionDocuments(assignmentID uint) ([]document.LocalDocumen
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
-	userID := a.DB.GetCurrentUserID()
-
 	var documents []document.LocalDocument
 	err := a.DB.GetDB().Where(
-		"assignment_id = ? AND user_id = ? AND type = ? AND has_local_file = ?",
-		assignmentID, userID, document.DocumentTypeSubmission, true,
+		"assignment_id = ? AND type = ? AND has_local_file = ?",
+		assignmentID, document.DocumentTypeSubmission, true,
 	).Order("created_at DESC").Find(&documents).Error
 
 	return documents, err
@@ -899,11 +902,9 @@ func (a *App) OpenDocument(documentID uint) error {
 		return fmt.Errorf("user not authenticated")
 	}
 
-	userID := a.DB.GetCurrentUserID()
-
 	// Get local document record
 	var doc document.LocalDocument
-	if err := a.DB.GetDB().Where("id = ? AND user_id = ?", documentID, userID).First(&doc).Error; err != nil {
+	if err := a.DB.GetDB().Where("id = ?", documentID).First(&doc).Error; err != nil {
 		return fmt.Errorf("document not found or access denied")
 	}
 
@@ -934,11 +935,9 @@ func (a *App) SaveDocumentAs(documentID uint) error {
 		return fmt.Errorf("user not authenticated")
 	}
 
-	userID := a.DB.GetCurrentUserID()
-
 	// Get local document record
 	var doc document.LocalDocument
-	if err := a.DB.GetDB().Where("id = ? AND user_id = ?", documentID, userID).First(&doc).Error; err != nil {
+	if err := a.DB.GetDB().Where("id = ?", documentID).First(&doc).Error; err != nil {
 		return fmt.Errorf("document not found or access denied")
 	}
 
@@ -1061,9 +1060,7 @@ func (a *App) GetCourseAssignments(course *course.LocalCourse) ([]assignment.Loc
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
-	userID := a.DB.GetCurrentUserID()
-
 	var assignments []assignment.LocalAssignment
-	err := a.DB.GetDB().Where("course_code = ? AND user_id = ?", course.Code, userID).Find(&assignments).Order("created_at ASC").Error
+	err := a.DB.GetDB().Where("course_code = ?", course.Code).Find(&assignments).Order("created_at ASC").Error
 	return assignments, err
 }

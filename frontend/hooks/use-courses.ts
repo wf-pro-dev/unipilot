@@ -3,6 +3,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { course } from "@/wailsjs/go/models"
 import { LogError } from "@/wailsjs/runtime/runtime"
+import { assignmentKeys } from './use-assignments'
+import { assignment } from '@/wailsjs/go/models'
+import { documentKeys } from './use-documents'
 
 // Query keys for consistent cache management
 export const courseKeys = {
@@ -115,34 +118,64 @@ export function useDeleteCourse() {
       return await window.go.main.App.DeleteCourse(course)
     },
     
-    // Optimistically remove the course
+    // Optimistically remove the course, assignments, and documents
     onMutate: async (course) => {
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
+      await queryClient.cancelQueries({ queryKey: assignmentKeys.all })
+      await queryClient.cancelQueries({ queryKey: documentKeys.all })
       
       const previousCourses = queryClient.getQueryData<course.LocalCourse[]>(courseKeys.lists())
+      const previousAssignments = queryClient.getQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists())
       
+      // Remove course from cache
       queryClient.setQueryData<course.LocalCourse[]>(courseKeys.lists(), (old) => {
         if (!old) return []
         return old.filter(c => c.ID !== course.ID)
       })
       
-      return { previousCourses }
+      // Remove assignments that belong to this course from cache
+      queryClient.setQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
+        if (!old) return []
+        return old.filter(a => a.Course?.ID !== course.ID)
+      })
+      
+      // Remove all document caches for assignments that belong to this course
+      const assignmentsToRemove = previousAssignments?.filter(a => a.Course?.ID === course.ID) || []
+      
+      assignmentsToRemove.forEach(assignment => {
+        // Remove assignment documents
+        queryClient.removeQueries({ queryKey: documentKeys.list(assignment.ID) })
+        queryClient.removeQueries({ queryKey: documentKeys.support(assignment.ID) })
+        queryClient.removeQueries({ queryKey: documentKeys.submissions(assignment.ID) })
+      })
+      
+      return { previousCourses, previousAssignments }
     },
     
     onError: (err, variables, context) => {
       if (context?.previousCourses) {
         queryClient.setQueryData(courseKeys.lists(), context.previousCourses)
       }
+      if (context?.previousAssignments) {
+        queryClient.setQueryData(assignmentKeys.lists(), context.previousAssignments)
+      }
       LogError("Failed to delete course: " + err)
     },
     
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: courseKeys.lists() })
+      // Invalidate all related caches to ensure consistency
+      queryClient.invalidateQueries({ queryKey: courseKeys.all })
+      queryClient.invalidateQueries({ queryKey: assignmentKeys.all })
+      queryClient.invalidateQueries({ queryKey: documentKeys.all })
+      
+      // Also invalidate storage info since documents were deleted
+      queryClient.invalidateQueries({ queryKey: documentKeys.storage() })
     },
   })
 }
 
 // Derived data hooks for specific views
+
 export function useActiveCourses() {
   const { data: courses, ...rest } = useCourses()
   

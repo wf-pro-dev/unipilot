@@ -34,9 +34,10 @@ interface CourseDetailsModalProps {
   courseId: number | null
   courses: Course.LocalCourse[]
   onEdit: (course: Course.LocalCourse, column: string, value: string) => void
+  onDelete: (course: Course.LocalCourse) => void
 }
 
-export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit }: CourseDetailsModalProps) {
+export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit, onDelete }: CourseDetailsModalProps) {
   const course = courses.find(c => c.ID === courseId) || null
 
   if (!course) return null
@@ -86,9 +87,9 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit 
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-6 mt-6">
+          <div className="mt-6 space-y-6">
             {/* Course Header */}
-            <div className="flex items-start justify-between">
+            <div className="flex justify-between items-start">
               <div className="flex items-center space-x-4">
 
                 <div className={`w-6 h-6 rounded-full ${courseData.Color}`} />
@@ -99,18 +100,18 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit 
               </div>
               <div className="flex flex-col items-end space-y-4">
                 <div className="flex items-center space-x-2">
-                  <Button variant="outline" size="sm" className="border-gray-600 bg-transparent" onClick={() => setOpen(true)}>
-                    <Edit className="h-3 w-3 mr-1" />
+                  <Button variant="outline" size="sm" className="bg-transparent border-gray-600" onClick={() => setOpen(true)}>
+                    <Edit className="mr-1 w-3 h-3" />
                     Edit
                   </Button>
-                  <Button variant="destructive" size="sm">
-                    <Trash2 className="h-3 w-3 mr-1" />
+                  <Button variant="destructive" size="sm" onClick={() => onDelete(course)}>
+                    <Trash2 className="mr-1 w-3 h-3" />
                     Delete
                   </Button>
                 </div>
 
                 <Badge variant="outline" className="border-gray-600">
-                  <GraduationCap className="h-3 w-3 mr-1" />
+                  <GraduationCap className="mr-1 w-3 h-3" />
                   {courseData.Semester}
                 </Badge>
 
@@ -120,21 +121,21 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit 
             <Separator className="bg-gray-700" />
 
             {/* Course Info Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               {/* Left Column */}
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-400 block mb-2">Instructor</label>
+                  <label className="block mb-2 text-sm font-medium text-gray-400">Instructor</label>
                   <div className="flex items-center space-x-2 text-white">
-                    <Users className="h-4 w-4 text-blue-400" />
+                    <Users className="w-4 h-4 text-blue-400" />
                     <span>{courseData.Instructor}</span>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-400 block mb-2">Schedule</label>
+                  <label className="block mb-2 text-sm font-medium text-gray-400">Schedule</label>
                   <div className="flex items-center space-x-2 text-white">
-                    <Calendar className="h-4 w-4 text-purple-400" />
+                    <Calendar className="w-4 h-4 text-purple-400" />
                     <span>{courseData.Schedule}</span>
                   </div>
                 </div>
@@ -145,14 +146,14 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit 
               {/* Right Column */}
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-400 block mb-2">Email</label>
-                  <div className="text-blue-400 hover:text-blue-300 cursor-pointer">{courseData.InstructorEmail}</div>
+                  <label className="block mb-2 text-sm font-medium text-gray-400">Email</label>
+                  <div className="text-blue-400 cursor-pointer hover:text-blue-300">{courseData.InstructorEmail}</div>
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-400 block mb-2">Location</label>
+                  <label className="block mb-2 text-sm font-medium text-gray-400">Location</label>
                   <div className="flex items-center space-x-2 text-white">
-                    <MapPin className="h-4 w-4 text-orange-400" />
+                    <MapPin className="w-4 h-4 text-orange-400" />
                     <span>{courseData.RoomNumber}</span>
                   </div>
                 </div>
@@ -162,22 +163,22 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit 
 
             {/* Credits & Course Dates */}
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
 
               <div>
-                <label className="text-sm font-medium text-gray-400 block mb-2">Credits</label>
+                <label className="block mb-2 text-sm font-medium text-gray-400">Credits</label>
                 <Badge variant="outline" className="border-gray-600">
                   {courseData.Credits} credits
                 </Badge>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-400 block mb-2">Start Date</label>
+                <label className="block mb-2 text-sm font-medium text-gray-400">Start Date</label>
                 <p className="text-white">{format(courseData.StartDate, "MMMM d, yyyy")}</p>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-400 block mb-2">End Date</label>
+                <label className="block mb-2 text-sm font-medium text-gray-400">End Date</label>
                 <p className="text-white">{format(courseData.EndDate, "MMMM d, yyyy")}</p>
               </div>
 
@@ -187,11 +188,11 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit 
 
             {/* Assignment Progress */}
             <div>
-              <label className="text-sm font-medium text-gray-400 block mb-4">Assignment Progress</label>
+              <label className="block mb-4 text-sm font-medium text-gray-400">Assignment Progress</label>
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex justify-between items-center">
                   <div className="flex items-center space-x-2">
-                    <TrendingUp className="h-4 w-4 text-green-400" />
+                    <TrendingUp className="w-4 h-4 text-green-400" />
                     <span className={`${isCompleted ? "text-green-400" : "text-white"}`}>
                       {completed_assignments_count} of {course_assignments.length} assignments completed
                     </span>
@@ -204,19 +205,19 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit 
 
             {/* Recent Assignments */}
             <div>
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-gray-400 block mb-3">Recent Assignments</label>
+              <div className="flex justify-between items-center">
+                <label className="block mb-3 text-sm font-medium text-gray-400">Recent Assignments</label>
                 <Link href={`/assignments?view=list&course=${courseData.Code}`}>
                   <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300">
                     View All
                   </Button>
                 </Link>
               </div>
-              <div className="grid md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2 gap-2">
+              <div className="grid gap-2 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2">
                 {course_assignments.slice(0, 4).map((assignment, index) => (
-                  <div key={index} className="flex items-center p-3 rounded-lg bg-gray-800/50 border border-gray-600">
+                  <div key={index} className="flex items-center p-3 rounded-lg border border-gray-600 bg-gray-800/50">
 
-                    <span className="text-white text-sm line-clamp-2 w-2/3">{assignment.Title}</span>
+                    <span className="w-2/3 text-sm text-white line-clamp-2">{assignment.Title}</span>
                     <div className="flex flex-col items-end space-y-2 grow">
                       <span className="text-xs text-gray-400">{formatDeadline(assignment.Deadline)}</span>
                       <StatusTag assignment={assignment} onEdit={handleEditAssignment} />
@@ -230,16 +231,16 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit 
 
             {/* Actions */}
             <div className="flex space-x-2">
-              <Button variant="outline" className="border-gray-600 bg-transparent">
-                <Plus className="h-4 w-4 mr-2" />
+              <Button variant="outline" className="bg-transparent border-gray-600">
+                <Plus className="mr-2 w-4 h-4" />
                 Add Assignment
               </Button>
-              <Button variant="outline" className="border-gray-600 bg-transparent" onClick={handleCreateNote}>
-                <FileText className="h-4 w-4 mr-2" />
+              <Button variant="outline" className="bg-transparent border-gray-600" onClick={handleCreateNote}>
+                <FileText className="mr-2 w-4 h-4" />
                 Create Note
               </Button>
-              <Button variant="outline" className="border-gray-600 bg-transparent">
-                <Users className="h-4 w-4" />
+              <Button variant="outline" className="bg-transparent border-gray-600">
+                <Users className="w-4 h-4" />
                 Add Student
               </Button>
             </div>

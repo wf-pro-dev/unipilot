@@ -135,3 +135,104 @@ go run cmd/migrate_remote/main.go
 ---
 
 **Need Help?** Check the output messages - they provide specific guidance for each step. 
+
+## Course Code Unique Constraint Migration
+
+### Problem
+The original implementation had unique constraints on the `code` field in both `local_courses` (SQLite) and `courses` (PostgreSQL) tables. This caused issues when users tried to create a new course with a code that was previously used by a deleted course, even though the previous course was soft-deleted.
+
+### Solution
+The unique constraints have been replaced with composite unique indexes that only apply to non-deleted records:
+
+**Local Database (SQLite):**
+```go
+Code string `gorm:"index:idx_course_code_active,unique,where:deleted_at IS NULL"`
+```
+
+**Remote Database (PostgreSQL):**
+```sql
+CREATE UNIQUE INDEX idx_courses_user_code_active ON courses(user_id, code) WHERE deleted_at IS NULL;
+```
+
+This allows users to:
+1. Create courses with unique codes
+2. Delete courses (soft delete)
+3. Create new courses with the same code as previously deleted courses
+
+### Local Database Migration
+
+The local SQLite database migration is handled automatically by the application:
+
+1. **Automatic Migration** (Recommended)
+   - The new code will automatically handle the migration
+   - Soft-deleted courses with duplicate codes will be cleaned up
+   - New courses can be created with previously used codes
+
+2. **Manual Migration** (If automatic fails)
+   ```sql
+   -- Drop the old unique constraint (if it exists)
+   DROP INDEX IF EXISTS idx_local_courses_code;
+   
+   -- Create the new composite index
+   CREATE UNIQUE INDEX idx_course_code_active ON local_courses(code) WHERE deleted_at IS NULL;
+   ```
+
+### Remote Database Migration
+
+For the remote PostgreSQL database, use the provided migration script:
+
+1. **Navigate to the migration directory:**
+   ```bash
+   cd scripts/migration/remote
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   go mod tidy
+   ```
+
+3. **Set environment variables:**
+   ```bash
+   export DB_HOST=localhost
+   export DB_PORT=5432
+   export DB_USER=postgres
+   export DB_PASSWORD=your_password
+   export DB_NAME=unipilot
+   export DB_SSLMODE=disable
+   ```
+
+4. **Run the migration:**
+   ```bash
+   go run migrate_remote_courses.go
+   ```
+
+### Testing the Migration
+
+You can test the migration using the provided test method:
+
+```go
+// This will create a course, delete it, then create another with the same code
+err := app.TestCourseCreationWithDuplicateCode("TEST101")
+if err != nil {
+    log.Printf("Migration test failed: %v", err)
+} else {
+    log.Println("Migration test passed!")
+}
+```
+
+### Implementation Details
+
+1. **BeforeCreate Hook**: Added to the `LocalCourse` model to handle code conflicts
+2. **CreateCourse Function**: Updated to clean up soft-deleted courses before creating new ones
+3. **Migration Function**: Automatically handles existing database schemas
+4. **Cleanup Function**: Removes duplicate soft-deleted courses
+5. **Remote Migration Script**: Standalone Go script for PostgreSQL migration
+
+### Benefits
+
+- ✅ Users can reuse course codes after deletion
+- ✅ Maintains data integrity for active courses
+- ✅ Backward compatible with existing data
+- ✅ Automatic migration for local databases
+- ✅ Standalone migration script for remote databases
+- ✅ Manual migration path for existing databases 

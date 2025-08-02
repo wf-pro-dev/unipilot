@@ -14,6 +14,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { CalendarIcon, Plus } from "lucide-react"
 import { format } from "date-fns"
 import { course } from "@/wailsjs/go/models"
+import { toast } from "sonner"
 
 const colors = [
   { name: "Blue", value: "bg-blue-500" },
@@ -59,11 +60,20 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
     instructor_email: "",
     location: "",
   })
+  const validateDates = (startDate: Date, endDate: Date) => {
+    if (startDate > endDate) {
+        toast.error("Start date must be before end date")
+        return false
+    }
+
+    return true
+}
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Adding course:", formData)
-    setOpen(false)
+    if (startDate && endDate && !validateDates(startDate,endDate)) return 
+    
+   
     onAdd({
       Name: formData.name,
       Code: formData.code,
@@ -77,6 +87,12 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
       StartDate: startDate,
       EndDate: endDate,
     } as course.LocalCourse)
+    setStartDate(undefined)
+    setEndDate(undefined)
+
+    toast.success("Course added successfully")
+
+    setOpen(false)
     setFormData({
       name: "",
       code: "",
@@ -95,7 +111,7 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
-          <Plus className="h-4 w-4 mr-2" />
+          <Plus className="mr-2 w-4 h-4" />
           Add Course
         </Button>
       </DialogTrigger>
@@ -114,7 +130,7 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Data Structures"
-                className="bg-gray-800/50 border-gray-600"
+                className="border-gray-600 bg-gray-800/50"
                 required
               />
             </div>
@@ -127,7 +143,7 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                 placeholder="CS 101"
-                className="bg-gray-800/50 border-gray-600"
+                className="border-gray-600 bg-gray-800/50"
                 required
               />
             </div>
@@ -144,7 +160,7 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                 value={formData.location}
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                 placeholder="Building 1, Room 101 / Online"
-                className="bg-gray-800/50 border-gray-600"
+                className="border-gray-600 bg-gray-800/50"
                 required
               />
             </div>
@@ -158,7 +174,7 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                 value={formData.credits}
                 onChange={(e) => setFormData({ ...formData, credits: e.target.value })}
                 placeholder="3"
-                className="bg-gray-800/50 border-gray-600"
+                className="border-gray-600 bg-gray-800/50"
                 min={1}
                 max={4}
                 required
@@ -180,11 +196,11 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                       !startDate && "text-muted-foreground",
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    <CalendarIcon className="mr-2 w-4 h-4" />
                     {startDate ? format(startDate, "PPP") : <span>Pick a start date</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 glass border-gray-600">
+                <PopoverContent className="p-0 w-auto border-gray-600 glass">
                   <Calendar mode="single" selected={startDate} onSelect={setStartDate} required />
                 </PopoverContent>
               </Popover>
@@ -202,11 +218,11 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                       !endDate && "text-muted-foreground",
                     )}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    <CalendarIcon className="mr-2 w-4 h-4" />
                     {endDate ? format(endDate, "PPP") : <span>Pick a end date</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 glass border-gray-600">
+                <PopoverContent className="p-0 w-auto border-gray-600 glass">
                   <Calendar mode="single" selected={endDate} onSelect={setEndDate} required />
                 </PopoverContent>
               </Popover>
@@ -224,7 +240,7 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                 value={formData.instructor}
                 onChange={(e) => setFormData({ ...formData, instructor: e.target.value })}
                 placeholder="Dr. Smith"
-                className="bg-gray-800/50 border-gray-600"
+                className="border-gray-600 bg-gray-800/50"
                 required
               />
             </div>
@@ -234,10 +250,10 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                 Semester
               </Label>
               <Select value={formData.semester} onValueChange={(value) => setFormData({ ...formData, semester: value })}>
-                <SelectTrigger className="bg-gray-800/50 border-gray-600">
+                <SelectTrigger className="border-gray-600 bg-gray-800/50">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="glass border-gray-600">
+                <SelectContent className="border-gray-600 glass">
                   {semesters.map((semester) => (
                     <SelectItem key={semester.value} value={semester.value}>
                       <span>{semester.name}</span>
@@ -259,7 +275,7 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
               value={formData.instructor_email}
               onChange={(e) => setFormData({ ...formData, instructor_email: e.target.value })}
               placeholder="smith@example.com"
-              className="bg-gray-800/50 border-gray-600"
+              className="border-gray-600 bg-gray-800/50"
               required
             />
           </div>
@@ -274,8 +290,8 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
               id="schedule"
               value={formData.schedule}
               onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-              placeholder="M, T, W 9:00 AM - 10:30 AM"
-              className="bg-gray-800/50 border-gray-600"
+              placeholder="M, T, W 9:00 AM - 10:30 AM / Async / Asynchronous"
+              className="border-gray-600 bg-gray-800/50"
               required
             />
           </div>
@@ -287,10 +303,10 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
           <div className="flex justify-between items-center pt-4">
             <div>
               <Select value={formData.color} onValueChange={(value) => setFormData({ ...formData, color: value })}>
-                <SelectTrigger className="bg-gray-800/50 border-gray-600">
+                <SelectTrigger className="border-gray-600 bg-gray-800/50">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="glass border-gray-600">
+                <SelectContent className="border-gray-600 glass">
                   {colors.map((color) => (
                     <SelectItem key={color.value} value={color.value}>
                       <div className="flex items-center space-x-2">
@@ -310,7 +326,7 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                 type="button"
                 variant="outline"
                 onClick={() => setOpen(false)}
-                className="border-gray-600 bg-transparent"
+                className="bg-transparent border-gray-600"
               >
                 Cancel
               </Button>
