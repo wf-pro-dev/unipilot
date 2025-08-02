@@ -102,8 +102,6 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 		return err
 	}
 
-	fmt.Println("Remote assignment created:", responseAssignment)
-
 	tx.Commit()
 	log.Printf("Response assignment: %v\n", responseAssignment)
 
@@ -111,11 +109,72 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 }
 
 // CreateCourse creates a new course
-func (a *App) CreateCourse(course *course.Course) error {
+func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 	if a.DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
-	return a.DB.CreateCourse(course)
+
+	tx := a.DB.GetDB().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	localCourse := &course.LocalCourse{
+		Name:            courseData.Name,
+		Code:            courseData.Code,
+		Color:           courseData.Color,
+		Semester:        courseData.Semester,
+		Schedule:        courseData.Schedule,
+		Credits:         courseData.Credits,
+		RoomNumber:      courseData.RoomNumber,
+		Instructor:      courseData.Instructor,
+		InstructorEmail: courseData.InstructorEmail,
+		StartDate:       courseData.StartDate,
+		EndDate:         courseData.EndDate,
+	}
+
+	fmt.Println("Creating course:", localCourse)
+
+	if !a.Auth.IsAuthenticated() {
+		return fmt.Errorf("user not authenticated")
+	}
+	fmt.Println("User ID:", a.DB.GetCurrentUserID())
+
+	// Create the assignment within the transaction
+	if err := tx.Create(localCourse).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	fmt.Println(" local assignment success ")
+	remoteCourse := &course.Course{
+		LocalID:         localCourse.ID,
+		Name:            localCourse.Name,
+		Code:            localCourse.Code,
+		Color:           localCourse.Color,
+		Semester:        localCourse.Semester,
+		Schedule:        localCourse.Schedule,
+		Credits:         localCourse.Credits,
+		RoomNumber:      localCourse.RoomNumber,
+		Instructor:      localCourse.Instructor,
+		InstructorEmail: localCourse.InstructorEmail,
+		StartDate:       localCourse.StartDate,
+		EndDate:         localCourse.EndDate,
+	}
+
+	responseCourse, err := client.CreateCourse(remoteCourse)
+	if err != nil {
+		tx.Rollback()
+		fmt.Println("Error creating remote course:", err)
+		return err
+	}
+
+	tx.Commit()
+	log.Printf("Response course: %v\n", responseCourse)
+
+	return nil
 }
 
 // UploadDocument opens a file dialog and uploads a document to an assignment

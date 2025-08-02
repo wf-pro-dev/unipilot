@@ -87,7 +87,7 @@ export function AssignmentItem({
             <div className="flex-1 space-y-2">
               <div className="flex items-start justify-between gap-2">
                 <div className="space-y-1">
-                  <h3 className="font-medium text-white line-clamp-1">{assignment.Title}</h3>
+                  <h3 className={`font-medium ${assignment.StatusName === "Done" ? "line-through text-gray-500" : "text-white"} line-clamp-1`}>{assignment.Title}</h3>
                   <p className="text-sm text-gray-400 line-clamp-1">{assignment.Todo}</p>
                 </div>
                 <div className="flex items-center">

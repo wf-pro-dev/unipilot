@@ -101,7 +101,7 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
           flex items-center justify-between 
           bg-gray-800/50 
           border border-gray-600 
-          p-2
+          p-2.5
           rounded-lg 
           text-white
           hover:bg-accent/50 transition-colors"

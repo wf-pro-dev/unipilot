@@ -8,7 +8,7 @@ import {storage} from '../models';
 
 export function CreateAssignment(arg1:assignment.LocalAssignment):Promise<void>;
 
-export function CreateCourse(arg1:course.Course):Promise<void>;
+export function CreateCourse(arg1:course.LocalCourse):Promise<void>;
 
 export function DeleteAssignment(arg1:assignment.LocalAssignment):Promise<void>;
 

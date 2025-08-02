@@ -38,11 +38,11 @@ interface CourseDetailsModalProps {
 
 export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit }: CourseDetailsModalProps) {
   const course = courses.find(c => c.ID === courseId) || null
-  
+
   if (!course) return null
-  
+
   const { data: assignments, isLoading } = useAssignments()
-  const updateMutation = useUpdateAssignment() 
+  const updateMutation = useUpdateAssignment()
 
   var course_assignments = (assignments || []).filter((assignment: assignment.LocalAssignment) => assignment.Course?.Code === course.Code) || []
   var completed_assignments_count = course_assignments.filter((assignment: assignment.LocalAssignment) => assignment.StatusName === "Done").length
@@ -139,12 +139,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit 
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-sm font-medium text-gray-400 block mb-2">Credits</label>
-                  <Badge variant="outline" className="border-gray-600">
-                    {courseData.Credits} credits
-                  </Badge>
-                </div>
+
               </div>
 
               {/* Right Column */}
@@ -163,6 +158,29 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit 
                 </div>
 
               </div>
+            </div>
+
+            {/* Credits & Course Dates */}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+              <div>
+                <label className="text-sm font-medium text-gray-400 block mb-2">Credits</label>
+                <Badge variant="outline" className="border-gray-600">
+                  {courseData.Credits} credits
+                </Badge>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-400 block mb-2">Start Date</label>
+                <p className="text-white">{format(courseData.StartDate, "MMMM d, yyyy")}</p>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-400 block mb-2">End Date</label>
+                <p className="text-white">{format(courseData.EndDate, "MMMM d, yyyy")}</p>
+              </div>
+
             </div>
 
             <Separator className="bg-gray-700" />

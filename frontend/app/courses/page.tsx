@@ -4,7 +4,7 @@ import { useState } from "react"
 import { AddCourseDialog } from "@/components/courses/add-course-dialog"
 import { CourseDetailsModal } from "@/components/courses/course-details-modal"
 import { Loader2, Calendar, List } from "lucide-react"
-import { useCourses, useUpdateCourse } from "@/hooks/use-courses"
+import { useCourses, useCreateCourse, useUpdateCourse } from "@/hooks/use-courses"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter, useSearchParams } from "next/navigation"
 import CoursesSchedule from "@/components/courses/courses-schedule"
@@ -33,6 +33,7 @@ export default function CoursesPage() {
   const instructor = searchParams.get("instructor") || null
 
   const updateMutation = useUpdateCourse()
+  const createMutation = useCreateCourse()
 
   const handleEditCourse = async (courseData: course.LocalCourse, column: string, value: string) => {
     const message = "course " + courseData.Code + " " + column + " changed to " + value
@@ -44,6 +45,12 @@ export default function CoursesPage() {
       column,
       value
     })
+  }
+
+  const handleAddCourse = async (course: course.LocalCourse) => {
+    const message = "course " + course.Code + " added"
+    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
+    createMutation.mutate(course)
   }
 
   // Handle course selection
@@ -98,7 +105,7 @@ export default function CoursesPage() {
               Manage your enrolled courses ({courses.length} total)
             </p>
           </div>
-          <AddCourseDialog />
+          <AddCourseDialog onAdd={handleAddCourse} />
         </div>
 
         <Tabs value={activeView} onValueChange={handleTabChange} className="w-full">

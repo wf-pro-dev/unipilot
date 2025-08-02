@@ -58,9 +58,9 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
         schedule: course.Schedule || "",
         credits: course.Credits.toString() || "3",
         room_number: course.RoomNumber || "",
-        duration: course.Duration || "",
         instructor: course.Instructor || "",
         instructor_email: course.InstructorEmail || "",
+        location: course.RoomNumber || "",
     })
 
     const key_to_column = {
@@ -71,9 +71,9 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
         schedule: "Schedule",
         credits: "Credits",
         room_number: "RoomNumber",
-        duration: "Duration",
         instructor: "Instructor",
         instructor_email: "InstructorEmail",
+        location: "RoomNumber",
     }
 
     const validateDates = (startDate: Date, endDate: Date) => {
@@ -242,26 +242,18 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-
                         <div>
-                            <Label htmlFor="color" className="text-gray-300">
-                                Color
+                            <Label htmlFor="code" className="text-gray-300">
+                                Location
                             </Label>
-                            <Select value={formData.color} onValueChange={(value) => setFormData({ ...formData, color: value })}>
-                                <SelectTrigger className="bg-gray-800/50 border-gray-600">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="glass border-gray-600">
-                                    {colors.map((color) => (
-                                        <SelectItem key={color.value} value={color.value}>
-                                            <div className="flex items-center space-x-2">
-                                                <div className={`w-4 h-4 rounded-full ${color.value}`} />
-                                                <span>{color.name}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <Input
+                                id="location"
+                                value={formData.location}
+                                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                                placeholder="Building 1, Room 101 / Online"
+                                className="bg-gray-800/50 border-gray-600"
+                                required
+                            />
                         </div>
                         <div>
                             <Label htmlFor="credits" className="text-gray-300">
@@ -389,7 +381,7 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                             id="schedule"
                             value={formData.schedule}
                             onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-                            placeholder="MWF 10:00-11:00 AM"
+                            placeholder="M, T, W 9:00 AM - 10:30 AM"
                             className="bg-gray-800/50 border-gray-600"
                             required
                         />
@@ -399,18 +391,39 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
 
 
 
+                    <div className="flex justify-between items-center pt-4">
+                        <div>
+                            <Select value={formData.color} onValueChange={(value) => setFormData({ ...formData, color: value })}>
+                                <SelectTrigger className="bg-gray-800/50 border-gray-600">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="glass border-gray-600">
+                                    {colors.map((color) => (
+                                        <SelectItem key={color.value} value={color.value}>
+                                            <div className="flex items-center space-x-2">
+                                                <div className={`w-4 h-4 rounded-full ${color.value}`} />
+                                                <span>{color.name}</span>
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
 
 
-                    <div className="flex justify-end space-x-2 pt-4">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setOpen(false)}
-                            className="border-gray-600 bg-transparent"
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="submit">Edit Course</Button>
+
+                        <div className="flex space-x-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setOpen(false)}
+                                className="border-gray-600 bg-transparent"
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit">Edit Course</Button>
+                        </div>
+
                     </div>
 
                 </form>
