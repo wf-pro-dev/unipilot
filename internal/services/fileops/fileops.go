@@ -159,8 +159,7 @@ func UploadDocument(req FileUploadRequest, db *gorm.DB) (*FileUploadResponse, er
 	localDoc.HasLocalFile = true
 	db.Save(&localDoc)
 
-	// Update storage cache
-	document.UpdateLocalStorageCache(req.UserID, db)
+	// Storage info is now calculated on-demand, no need to update cache
 
 	return &FileUploadResponse{
 		LocalDocument: &localDoc,
@@ -245,8 +244,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 	newVersion.HasLocalFile = true
 	db.Save(&newVersion)
 
-	// Update storage cache
-	document.UpdateLocalStorageCache(req.UserID, db)
+	// Storage info is now calculated on-demand, no need to update cache
 
 	return &FileUploadResponse{
 		LocalDocument: &newVersion,

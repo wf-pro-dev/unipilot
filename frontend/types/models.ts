@@ -44,16 +44,11 @@ interface LocalDocument {
   Versions?: LocalDocument[]
 }
 
-// LocalDocumentCache type matching the Go struct
-interface LocalDocumentCache {
-  ID: number
-  UserID: number
-  TotalSize: number
-  DocumentCount: number
-  LastCalculatedAt: Date
-  LastSyncAt?: Date
-  CreatedAt: Date
-  UpdatedAt: Date
+// StorageInfo type matching the Go struct
+interface StorageInfo {
+  total_size: number
+  document_count: number
+  calculated_at: Date
 }
 
 // Course type matching the Go struct
@@ -132,5 +127,5 @@ export type {
   AssignmentStatus,
   LegacyAssignment,
   LocalDocument,
-  LocalDocumentCache
+  StorageInfo
 }

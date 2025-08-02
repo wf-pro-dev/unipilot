@@ -40,7 +40,7 @@ export function GetSupportDocuments(arg1:number):Promise<Array<document.LocalDoc
 
 export function GetUser(arg1:number):Promise<user.User>;
 
-export function GetUserStorageInfo():Promise<document.LocalDocumentCache>;
+export function GetUserStorageInfo():Promise<document.StorageInfo>;
 
 export function Greet(arg1:string):Promise<string>;
 

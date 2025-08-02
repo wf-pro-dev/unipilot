@@ -294,37 +294,20 @@ export namespace document {
 		    return a;
 		}
 	}
-	export class LocalDocumentCache {
-	    ID: number;
-	    // Go type: time
-	    CreatedAt: any;
-	    // Go type: time
-	    UpdatedAt: any;
-	    // Go type: gorm
-	    DeletedAt: any;
-	    UserID: number;
-	    TotalSize: number;
-	    DocumentCount: number;
-	    // Go type: time
-	    LastCalculatedAt: any;
-	    // Go type: time
-	    LastSyncAt?: any;
+	export class StorageInfo {
+	    total_size: number;
+	    document_count: number;
+	    calculated_at: any;
 	
 	    static createFrom(source: any = {}) {
-	        return new LocalDocumentCache(source);
+	        return new StorageInfo(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.ID = source["ID"];
-	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
-	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
-	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
-	        this.UserID = source["UserID"];
-	        this.TotalSize = source["TotalSize"];
-	        this.DocumentCount = source["DocumentCount"];
-	        this.LastCalculatedAt = this.convertValues(source["LastCalculatedAt"], null);
-	        this.LastSyncAt = this.convertValues(source["LastSyncAt"], null);
+	        this.total_size = source["total_size"];
+	        this.document_count = source["document_count"];
+	        this.calculated_at = this.convertValues(source["calculated_at"], null);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

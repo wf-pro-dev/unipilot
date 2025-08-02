@@ -86,7 +86,7 @@ export function useSubmissionDocuments(assignmentId: number) {
 export function useUserStorageInfo() {
   return useQuery({
     queryKey: documentKeys.storage(),
-    queryFn: async (): Promise<document.LocalDocumentCache> => {
+    queryFn: async (): Promise<document.StorageInfo> => {
       try {
         return await GetUserStorageInfo()
       } catch (error) {

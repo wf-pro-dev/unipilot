@@ -1,4 +1,4 @@
-import { course as Course } from "@/wailsjs/go/models"
+import { assignment, course as Course } from "@/wailsjs/go/models"
 import { useState, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -211,9 +211,13 @@ function CoursesSchedule({ courses, onCourseClick }: CoursesScheduleProps) {
                                                     >
                                                         <CardContent className="p-2">
                                                             <div className="flex flex-col space-y-2">
-                                                                <div className="font-semibold truncate">
-                                                                    {course.Code}
+                                                                <div className="flex flex-row items-center gap-2">
+                                                                    <div className={`h-2 w-2  rounded-full ${course.Color}`} />
+                                                                    <div className="font-semibold truncate">
+                                                                        {course.Code}
+                                                                    </div>
                                                                 </div>
+
                                                                 <div className="truncate">
                                                                     {course.Name}
                                                                 </div>

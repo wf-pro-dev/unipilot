@@ -28,14 +28,11 @@ type LocalDocument struct {
 	Versions  []LocalDocument `gorm:"foreignKey:ParentDocID;references:ID"`
 }
 
-// LocalDocumentCache represents cached document storage info
-type LocalDocumentCache struct {
-	gorm.Model
-	UserID           uint       `gorm:"not null;unique"`
-	TotalSize        int64      `gorm:"default:0"`
-	DocumentCount    int        `gorm:"default:0"`
-	LastCalculatedAt time.Time  `gorm:"default:CURRENT_TIMESTAMP"`
-	LastSyncAt       *time.Time // When we last synced from remote
+// StorageInfo represents current storage statistics for a user
+type StorageInfo struct {
+	TotalSize     int64     `json:"total_size"`
+	DocumentCount int       `json:"document_count"`
+	CalculatedAt  time.Time `json:"calculated_at"`
 }
 
 // ToRemoteDocument converts local document to remote document format
@@ -114,34 +111,31 @@ func SyncRemoteMetadata(assignmentID uint, remoteDocuments []Document, db *gorm.
 	return nil
 }
 
-// UpdateLocalStorageCache recalculates and updates the storage cache for a user
-func UpdateLocalStorageCache(userID uint, db *gorm.DB) error {
-	var cache LocalDocumentCache
-
-	// Get or create cache record
-	err := db.FirstOrCreate(&cache, LocalDocumentCache{UserID: userID}).Error
-	if err != nil {
-		return err
-	}
-
-	// Calculate current totals from local documents that have files
+// GetUserStorageInfo calculates and returns current storage statistics for a user
+func GetUserStorageInfo(userID uint, db *gorm.DB) (*StorageInfo, error) {
 	var totalSize int64
 	var count int64
 
-	db.Model(&LocalDocument{}).
+	// Calculate total size of local files
+	err := db.Model(&LocalDocument{}).
 		Where("user_id = ? AND has_local_file = ?", userID, true).
 		Select("COALESCE(SUM(file_size), 0)").
-		Scan(&totalSize)
+		Scan(&totalSize).Error
+	if err != nil {
+		return nil, err
+	}
 
-	db.Model(&LocalDocument{}).
+	// Count local files
+	err = db.Model(&LocalDocument{}).
 		Where("user_id = ? AND has_local_file = ?", userID, true).
-		Count(&count)
+		Count(&count).Error
+	if err != nil {
+		return nil, err
+	}
 
-	// Update cache
-	now := time.Now()
-	cache.TotalSize = totalSize
-	cache.DocumentCount = int(count)
-	cache.LastCalculatedAt = now
-
-	return db.Save(&cache).Error
+	return &StorageInfo{
+		TotalSize:     totalSize,
+		DocumentCount: int(count),
+		CalculatedAt:  time.Now(),
+	}, nil
 }

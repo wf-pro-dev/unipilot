@@ -532,8 +532,7 @@ func (a *App) DeleteDocument(documentID uint) error {
 		return fmt.Errorf("failed to delete document record: %w", err)
 	}
 
-	// Update local storage cache
-	document.UpdateLocalStorageCache(userID, db)
+	// Storage info is now calculated on-demand, no need to update cache
 
 	// Also store metadata remotely for sharing
 	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
@@ -991,7 +990,7 @@ func (a *App) SaveDocumentAs(documentID uint) error {
 }
 
 // GetUserStorageInfo returns storage statistics for the current user
-func (a *App) GetUserStorageInfo() (*document.LocalDocumentCache, error) {
+func (a *App) GetUserStorageInfo() (*document.StorageInfo, error) {
 	if a.DB == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -1002,21 +1001,13 @@ func (a *App) GetUserStorageInfo() (*document.LocalDocumentCache, error) {
 
 	userID := a.DB.GetCurrentUserID()
 
-	// Get or create local storage cache
-	var cache document.LocalDocumentCache
-	err := a.DB.GetDB().FirstOrCreate(&cache, document.LocalDocumentCache{UserID: userID}).Error
+	// Calculate storage info on-demand
+	storageInfo, err := document.GetUserStorageInfo(userID, a.DB.GetDB())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get storage info: %w", err)
 	}
 
-	// Update cache if it's stale (older than 1 hour)
-	if time.Since(cache.LastCalculatedAt) > time.Hour {
-		document.UpdateLocalStorageCache(userID, a.DB.GetDB())
-		// Reload updated cache
-		a.DB.GetDB().First(&cache, "user_id = ?", userID)
-	}
-
-	return &cache, nil
+	return storageInfo, nil
 }
 
 // GetRemoteDocumentMetadata retrieves document metadata from remote server (for shared assignments)
