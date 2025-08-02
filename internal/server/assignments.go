@@ -114,7 +114,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deadline, err := time.Parse(time.RFC3339, input.Deadline)
+	deadline, err := time.Parse(time.DateOnly, input.Deadline)
 	if err != nil {
 		PrintERROR(w, http.StatusBadRequest, "Invalid deadline format")
 		return
