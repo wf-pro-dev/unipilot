@@ -106,7 +106,6 @@ func InitializeSchema(db *gorm.DB) error {
 		&assignment.LocalAssignment{},
 		&models.LocalUpdate{},
 		&document.LocalDocument{},
-		&document.LocalDocumentCache{},
 	)
 
 	if err != nil {

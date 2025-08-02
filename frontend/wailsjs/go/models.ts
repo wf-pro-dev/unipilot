@@ -297,6 +297,7 @@ export namespace document {
 	export class StorageInfo {
 	    total_size: number;
 	    document_count: number;
+	    // Go type: time
 	    calculated_at: any;
 	
 	    static createFrom(source: any = {}) {
