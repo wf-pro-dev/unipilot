@@ -102,7 +102,7 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
   return (
     <Dialog open={open} onOpenChange={setOpen}>
 
-      <DialogContent className="glass border-0 text-white max-w-md">
+      <DialogContent className="glass border-0 text-white max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Assignment</DialogTitle>
         </DialogHeader>

@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -11,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format, isSameDay } from "date-fns"
-import {  CalendarIcon } from "lucide-react"
+import { CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { course as Course } from "@/wailsjs/go/models"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
+import { toast } from "sonner"
 
 const colors = [
     { name: "Blue", value: "bg-blue-500" },
@@ -58,9 +58,9 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
         schedule: course.Schedule || "",
         credits: course.Credits.toString() || "3",
         room_number: course.RoomNumber || "",
-        duration: course.Duration || "",
         instructor: course.Instructor || "",
         instructor_email: course.InstructorEmail || "",
+        location: course.RoomNumber || "",
     })
 
     const key_to_column = {
@@ -71,26 +71,118 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
         schedule: "Schedule",
         credits: "Credits",
         room_number: "RoomNumber",
-        duration: "Duration",
         instructor: "Instructor",
         instructor_email: "InstructorEmail",
+        location: "RoomNumber",
     }
-   
 
-    
+    const validateDates = (startDate: Date, endDate: Date) => {
+        if (startDate > endDate) {
+            toast.error("Start date must be before end date")
+            return false
+        }
+
+        return true
+    }
+
+    const validateSchedule = (schedule: string) => {
+        if (schedule.length === 0) {
+            toast.error("Schedule is required")
+            return false
+        }
+
+        if (schedule == "Async" || schedule == "Asynchronous") {
+            return true
+        }
+
+        // Validate format: "<day>, <day> <hour> - <hour>"
+        // Days: M, T, W, Th, F, S, Su (separated by ", ")
+        // Hours: HH:MM AM/PM (1-2 digits for hour, 00-59 for minutes)
+        const schedulePattern = /^((?:(?:M|T|W|Th|F|S|Su)(?:,\s(?:M|T|W|Th|F|S|Su))*)?)\s+(\d{1,2}:[0-5]\d\s(?:AM|PM))\s*-\s*(\d{1,2}:[0-5]\d\s(?:AM|PM))$/
+
+        const match = schedule.match(schedulePattern)
+
+        if (!match) {
+            toast.error("Invalid schedule format. Expected: 'M, T, W 9:00 AM - 10:30 AM'")
+            return false
+        }
+
+        const [, daysStr, startTime, endTime] = match
+
+        // Validate that at least one day is specified
+        if (!daysStr || daysStr.trim().length === 0) {
+            toast.error("At least one day must be specified")
+            return false
+        }
+
+        // Validate individual days
+        const days = daysStr.trim().split(', ')
+        const validDays = ['M', 'T', 'W', 'Th', 'F', 'S', 'Su']
+
+        for (const day of days) {
+            if (!validDays.includes(day)) {
+                toast.error(`Invalid day '${day}'. Valid days: M, T, W, Th, F, S, Su`)
+                return false
+            }
+        }
+
+        // Validate time format more strictly
+        const timePattern = /^(\d{1,2}):([0-5]\d)\s(AM|PM)$/
+
+        const startMatch = startTime.match(timePattern)
+        const endMatch = endTime.match(timePattern)
+
+        if (!startMatch || !endMatch) {
+            toast.error("Invalid time format. Use format like '9:00 AM' or '12:30 PM'")
+            return false
+        }
+
+        // Validate hour ranges (1-12 for 12-hour format)
+        const startHour = parseInt(startMatch[1])
+        const endHour = parseInt(endMatch[1])
+
+        if (startHour < 1 || startHour > 12 || endHour < 1 || endHour > 12) {
+            toast.error("Hour must be between 1 and 12")
+            return false
+        }
+
+        // Convert to 24-hour format for comparison
+        const convertTo24Hour = (hour: number, minute: number, period: string): number => {
+            if (period === 'AM') {
+                return hour === 12 ? 0 * 60 + minute : hour * 60 + minute
+            } else {
+                return hour === 12 ? 12 * 60 + minute : (hour + 12) * 60 + minute
+            }
+        }
+
+        const startMinutes = convertTo24Hour(startHour, parseInt(startMatch[2]), startMatch[3])
+        const endMinutes = convertTo24Hour(endHour, parseInt(endMatch[2]), endMatch[3])
+
+        if (startMinutes >= endMinutes) {
+            toast.error("Start time must be before end time")
+            return false
+        }
+
+        return true
+    }
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
+
+        var isChanged = false
+
+        if (!validateDates(startDate, endDate) || !validateSchedule(formData.schedule)) {
+            return
+        }
+
         setOpen(false)
 
         for (const [key, value] of Object.entries(formData)) {
 
             const column = key_to_column[key as keyof typeof key_to_column] as keyof Course.LocalCourse
-            if (value !== course[column]) {
-
-                const message = `Changes to ${column} value: ${value} course: ${course[column]}`
-                LogInfo(message)
+            if (value != course[column]) {
                 onEdit(course, key, value)
+                isChanged = true
             }
             else {
                 const message = `No changes to ${column} value: ${value} course: ${course[column]}`
@@ -98,19 +190,39 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
             }
         }
 
+        const formattedStartDate = format(startDate, "yyyy-MM-dd HH:mm:ssxxx")
+        const formattedEndDate = format(endDate, "yyyy-MM-dd HH:mm:ssxxx")
+
         if (!isSameDay(startDate, new Date(course.StartDate))) {
-            onEdit(course, "start_date", format(startDate, "yyyy-MM-dd HH:mm:ssxxx"))
+            onEdit(course, "start_date", formattedStartDate)
+            isChanged = true
+        } else {
+            const message = `No changes to start date value: ${formattedStartDate} course: ${course.StartDate}`
+            LogInfo(message)
         }
         if (!isSameDay(endDate, new Date(course.EndDate))) {
-            onEdit(course, "end_date", format(endDate, "yyyy-MM-dd HH:mm:ssxxx"))
+            onEdit(course, "end_date", formattedEndDate)
+            isChanged = true
+        } else {
+            const message = `No changes to end date value: ${formattedEndDate} course: ${course.EndDate}`
+            LogInfo(message)
         }
+
+        if (isChanged) {
+            toast.success("Course updated successfully")
+        } else {
+            toast.info("No changes to course")
+        }
+
         setStartDate(new Date())
         setEndDate(new Date())
     }
 
+
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="glass border-0 text-white max-w-md">
+            <DialogContent className="glass border-0 text-white max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle>Edit Course</DialogTitle>
                 </DialogHeader>
@@ -124,23 +236,22 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             placeholder="Data Structures"
-                            className="bg-gray-800/50 border-gray-600"
+                            className="border-gray-600 bg-gray-800/50"
                             required
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-
                         <div>
                             <Label htmlFor="code" className="text-gray-300">
-                                Course Code
+                                Location
                             </Label>
                             <Input
-                                id="code"
-                                value={formData.code}
-                                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                                placeholder="CS 201"
-                                className="bg-gray-800/50 border-gray-600"
+                                id="location"
+                                value={formData.location}
+                                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                                placeholder="Building 1, Room 101 / Online"
+                                className="border-gray-600 bg-gray-800/50"
                                 required
                             />
                         </div>
@@ -154,7 +265,7 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                                 value={formData.credits}
                                 onChange={(e) => setFormData({ ...formData, credits: e.target.value })}
                                 placeholder="3"
-                                className="bg-gray-800/50 border-gray-600"
+                                className="border-gray-600 bg-gray-800/50"
                                 min={1}
                                 max={4}
                                 required
@@ -164,6 +275,9 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
+                            <Label htmlFor="start_date" className="text-gray-300">
+                                Start Date
+                            </Label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
@@ -173,16 +287,19 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                                             !startDate && "text-muted-foreground",
                                         )}
                                     >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        <CalendarIcon className="mr-2 w-4 h-4" />
                                         {startDate ? format(startDate, "PPP") : <span>Pick a start date</span>}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0 glass border-gray-600">
+                                <PopoverContent className="p-0 w-auto border-gray-600 glass">
                                     <Calendar mode="single" selected={startDate} onSelect={setStartDate} required />
                                 </PopoverContent>
                             </Popover>
                         </div>
                         <div>
+                            <Label htmlFor="end_date" className="text-gray-300">
+                                End Date
+                            </Label>
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
@@ -192,11 +309,11 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                                             !endDate && "text-muted-foreground",
                                         )}
                                     >
-                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        <CalendarIcon className="mr-2 w-4 h-4" />
                                         {endDate ? format(endDate, "PPP") : <span>Pick a end date</span>}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0 glass border-gray-600">
+                                <PopoverContent className="p-0 w-auto border-gray-600 glass">
                                     <Calendar mode="single" selected={endDate} onSelect={setEndDate} required />
                                 </PopoverContent>
                             </Popover>
@@ -214,7 +331,7 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                                 value={formData.instructor}
                                 onChange={(e) => setFormData({ ...formData, instructor: e.target.value })}
                                 placeholder="Dr. Smith"
-                                className="bg-gray-800/50 border-gray-600"
+                                className="border-gray-600 bg-gray-800/50"
                                 required
                             />
                         </div>
@@ -224,10 +341,10 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                                 Semester
                             </Label>
                             <Select value={formData.semester} onValueChange={(value) => setFormData({ ...formData, semester: value })}>
-                                <SelectTrigger className="bg-gray-800/50 border-gray-600">
+                                <SelectTrigger className="border-gray-600 bg-gray-800/50">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="glass border-gray-600">
+                                <SelectContent className="border-gray-600 glass">
                                     {semesters.map((semester) => (
                                         <SelectItem key={semester.value} value={semester.value}>
                                             <span>{semester.name}</span>
@@ -249,7 +366,7 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                             value={formData.instructor_email}
                             onChange={(e) => setFormData({ ...formData, instructor_email: e.target.value })}
                             placeholder="smith@example.com"
-                            className="bg-gray-800/50 border-gray-600"
+                            className="border-gray-600 bg-gray-800/50"
                             required
                         />
                     </div>
@@ -264,8 +381,8 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                             id="schedule"
                             value={formData.schedule}
                             onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-                            placeholder="MWF 10:00-11:00 AM"
-                            className="bg-gray-800/50 border-gray-600"
+                            placeholder="M, T, W 9:00 AM - 10:30 AM / Async / Asynchronous"
+                            className="border-gray-600 bg-gray-800/50"
                             required
                         />
                     </div>
@@ -273,16 +390,14 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
 
 
 
-                    <div className="flex justify-between">
+
+                    <div className="flex justify-between items-center pt-4">
                         <div>
-                            <Label htmlFor="color" className="text-gray-300">
-                                Color
-                            </Label>
                             <Select value={formData.color} onValueChange={(value) => setFormData({ ...formData, color: value })}>
-                                <SelectTrigger className="bg-gray-800/50 border-gray-600">
+                                <SelectTrigger className="border-gray-600 bg-gray-800/50">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="glass border-gray-600">
+                                <SelectContent className="border-gray-600 glass">
                                     {colors.map((color) => (
                                         <SelectItem key={color.value} value={color.value}>
                                             <div className="flex items-center space-x-2">
@@ -295,18 +410,22 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                             </Select>
                         </div>
 
-                        <div className="flex justify-end space-x-2 pt-4">
+
+
+                        <div className="flex space-x-2">
                             <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() => setOpen(false)}
-                                className="border-gray-600 bg-transparent"
+                                className="bg-transparent border-gray-600"
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit">Add Course</Button>
+                            <Button type="submit">Edit Course</Button>
                         </div>
+
                     </div>
+
                 </form>
             </DialogContent>
         </Dialog >

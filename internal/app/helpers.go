@@ -100,21 +100,5 @@ func (h *DatabaseHelper) UpdateCourse(LocalCourse *course.LocalCourse, column, v
 
 // DeleteCourse deletes a course
 func (h *DatabaseHelper) DeleteCourse(course *course.LocalCourse) error {
-	// Get all assignment related to the course
-	assignments := []assignment.LocalAssignment{}
-	err := h.db.Where("course_code = ?", course.Code).Find(&assignments).Error
-	if err != nil {
-		return err
-	}
-
-	// Delete all assignment related to the course
-	for _, assignment := range assignments {
-		if err := h.DeleteAssignment(&assignment); err != nil {
-			return err
-		}
-	}
-
-	// Delete all notes related to the course
-
 	return h.db.Delete(course).Error
 }

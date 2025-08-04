@@ -35,21 +35,21 @@ export function Navbar() {
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass border-0 border-b border-white/10 backdrop-blur-xl">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <nav className="fixed top-0 right-0 left-0 z-50 border-0 border-b backdrop-blur-xl glass border-white/10">
+      <div className="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <BookOpen className="h-5 w-5 text-white" />
+              <div className="flex justify-center items-center w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
+                <BookOpen className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
                 StudyTracker
               </span>
             </Link>
           </div>
 
-          <div className="hidden md:flex items-center space-x-2">
+          <div className="hidden items-center space-x-2 md:flex">
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
@@ -58,10 +58,10 @@ export function Navbar() {
                   <Button
                     variant={isActive ? "secondary" : "ghost"}
                     className={`flex items-center space-x-1 ${
-                      isActive ? "bg-white/10 text-white" : "text-gray-300 hover:text-white hover:bg-white/5"
+                      isActive ? "text-white bg-white/10" : "text-gray-300 hover:text-white hover:bg-white/5"
                     }`}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="w-4 h-4" />
                     <span>{item.label}</span>
                   </Button>
                 </Link>
@@ -72,8 +72,8 @@ export function Navbar() {
           <div className="flex items-center">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
+                <Button variant="ghost" className="relative w-8 h-8 rounded-full">
+                  <Avatar className="w-8 h-8">
                     <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
                     <AvatarFallback>JD</AvatarFallback>
                   </Avatar>
@@ -92,21 +92,21 @@ export function Navbar() {
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-white/10" />
                 <Link href="/profile">
-                  <DropdownMenuItem className="text-gray-300 hover:text-white hover:bg-white/5 cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />
+                  <DropdownMenuItem className="text-gray-300 cursor-pointer hover:text-white hover:bg-white/5">
+                    <User className="mr-2 w-4 h-4" />
                     <span>Profile</span>
                   </DropdownMenuItem>
                 </Link>
                 <DropdownMenuItem className="text-gray-300 hover:text-white hover:bg-white/5">
-                  <Settings className="mr-2 h-4 w-4" />
+                  <Settings className="mr-2 w-4 h-4" />
                   <span>Settings</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="bg-white/10" />
                 <DropdownMenuItem 
-                  className="text-gray-300 hover:text-white hover:bg-white/5 cursor-pointer"
+                  className="text-gray-300 cursor-pointer hover:text-white hover:bg-white/5"
                   onClick={handleLogout}
                 >
-                  <LogOut className="mr-2 h-4 w-4" />
+                  <LogOut className="mr-2 w-4 h-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>

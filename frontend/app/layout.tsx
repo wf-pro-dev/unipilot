@@ -7,6 +7,7 @@ import { Navbar } from "@/components/navbar"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/components/provider/auth-provider"
 import { QueryProvider } from "@/components/provider/query-provider"
+import { Toaster } from "sonner"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -23,6 +24,7 @@ export default function RootLayout({
             <AuthProvider>
               <Navbar />
               <main>{children}</main>
+              <Toaster />
             </AuthProvider>
           </ThemeProvider>
         </QueryProvider>

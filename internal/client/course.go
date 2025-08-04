@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"unipilot/internal/models/course"
 	"unipilot/internal/network"
-	"unipilot/internal/storage"
 )
 
 func GetCourses() ([]map[string]string, error) {
@@ -61,91 +61,57 @@ func GetCourses() ([]map[string]string, error) {
 	return response.Courses, nil
 }
 
-func CreateCourse(courseData map[string]string) (map[string]string, error) {
+func CreateCourse(c *course.Course) (map[string]interface{}, error) {
 
-	db, _, err := storage.GetLocalDB()
+	courseData := c.ToMap()
+
+	new_client, err := NewClientWithCookies()
 	if err != nil {
 		return nil, err
 	}
 
-	tx := db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
+	jsonData, _ := json.Marshal(courseData)
 
-	// Create local assignment
-	c := course.LocalCourse{
-		Code:       courseData["code"],
-		Name:       courseData["name"],
-		Duration:   courseData["duration"],
-		RoomNumber: courseData["room_number"],
+	fmt.Println("Creating course:", courseData["code"])
+
+	resp, err := new_client.Post(
+		"https://newsroom.dedyn.io/acc-homework/course",
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+
+	if err != nil {
+		return nil, err
 	}
 
-	isOnline := network.IsOnline()
+	defer resp.Body.Close()
 
-	if isOnline {
+	log.Printf("Response status code: %d\n", resp.StatusCode)
 
-		new_client, err := NewClientWithCookies()
-		if err != nil {
-			return nil, err
-		}
-
-		jsonData, _ := json.Marshal(courseData)
-
-		resp, err := new_client.Post(
-			"https://newsroom.dedyn.io/acc-homework/course",
-			"application/json",
-			bytes.NewBuffer(jsonData),
-		)
-
-		if err != nil {
-			return nil, err
-		}
-
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return nil, fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
-		}
-
-		var response struct {
-			Message string            `json:"message"`
-			Course  map[string]string `json:"course"`
-			Error   string            `json:"error,omitempty"`
-		}
-
-		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-			return nil, fmt.Errorf("failed to decode response: %w", err)
-		}
-
-		if response.Error != "" {
-			return nil, errors.New(response.Error)
-		}
-
-		if response.Course == nil {
-			return nil, errors.New("no course data in response")
-		}
-
-		c.NotionID = response.Course["notion_id"]
-		c.SyncStatus = course.SyncStatusSynced
-
-	} else {
-		c.SyncStatus = course.SyncStatusPending
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
 	}
 
-	if err := tx.Create(&c).Error; err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("local create failed: %w", err)
+	var response struct {
+		Message string                 `json:"message"`
+		Course  map[string]interface{} `json:"course"`
+		Error   string                 `json:"error,omitempty"`
 	}
 
-	if err := tx.Commit().Error; err != nil {
-		return nil, fmt.Errorf("commit failed: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return c.ToMap(), nil
+	if response.Error != "" {
+		return nil, errors.New(response.Error)
+	}
+
+	if response.Course == nil {
+		return nil, fmt.Errorf("no course data in response")
+	}
+
+	return response.Course, nil
 }
 
 func SendCourseUpdate(id, column, value string) error {

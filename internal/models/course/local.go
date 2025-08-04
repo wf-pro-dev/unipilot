@@ -1,6 +1,7 @@
 package course
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -17,7 +18,7 @@ const (
 type LocalCourse struct {
 	gorm.Model
 	RemoteID        uint
-	Code            string `gorm:"unique"`
+	Code            string `gorm:"index:idx_course_code_active,unique,where:deleted_at IS NULL"`
 	Name            string `gorm:"not null"`
 	NotionID        string
 	Duration        string
@@ -31,6 +32,22 @@ type LocalCourse struct {
 	Instructor      string
 	InstructorEmail string
 	SyncStatus      SyncStatus `gorm:"not null;default:'pending'"`
+}
+
+// BeforeCreate is a GORM hook that runs before creating a record
+func (c *LocalCourse) BeforeCreate(tx *gorm.DB) error {
+	// Check if a course with the same code exists (including soft-deleted ones)
+	var existingCourse LocalCourse
+	if err := tx.Unscoped().Where("code = ?", c.Code).First(&existingCourse).Error; err == nil {
+		// A course with this code exists, check if it's soft-deleted
+		if existingCourse.DeletedAt.Valid {
+			// If it's soft-deleted, we can reuse the code
+			return nil
+		}
+		// If it's not soft-deleted, return an error
+		return fmt.Errorf("course with code '%s' already exists", c.Code)
+	}
+	return nil
 }
 
 func (c *LocalCourse) ToMap() map[string]string {

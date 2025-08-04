@@ -20,7 +20,7 @@ type Course struct {
 	LocalID         uint      `gorm:"not null"`
 	User            user.User `gorm:"foreignKey:UserID;references:ID"`
 	NotionID        string
-	Code            string `gorm:"unique;not null"`
+	Code            string `gorm:"index:idx_courses_user_code_active,unique,where:deleted_at IS NULL;not null"`
 	Name            string `gorm:"not null"`
 	Color           string `gorm:"default:bg-blue-500"`
 	Duration        string
@@ -32,6 +32,22 @@ type Course struct {
 	Semester        string
 	Instructor      string
 	InstructorEmail string
+}
+
+// BeforeCreate is a GORM hook that runs before creating a record
+func (c *Course) BeforeCreate(tx *gorm.DB) error {
+	// Check if a course with the same code exists for this user (including soft-deleted ones)
+	var existingCourse Course
+	if err := tx.Unscoped().Where("code = ? AND user_id = ?", c.Code, c.UserID).First(&existingCourse).Error; err == nil {
+		// A course with this code exists for this user, check if it's soft-deleted
+		if existingCourse.DeletedAt.Valid {
+			// If it's soft-deleted, we can reuse the code
+			return nil
+		}
+		// If it's not soft-deleted, return an error
+		return fmt.Errorf("course with code '%s' already exists for this user", c.Code)
+	}
+	return nil
 }
 
 func NewCourse() *Course {

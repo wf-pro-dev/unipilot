@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogError } from "@/wailsjs/runtime/runtime"
 import { addDays, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns'
-import { assignment } from '@/wailsjs/go/models'
+import { assignment, course } from '@/wailsjs/go/models'
 
 // Query keys for consistent cache management
 export const assignmentKeys = {
@@ -156,7 +156,24 @@ export function useDeleteAssignment() {
   })
 }
 
+export function useCourseAssignments(course: course.LocalCourse) {
+  return useQuery({
+    queryKey: assignmentKeys.list(course.ID.toString()),
+    queryFn: async (): Promise<assignment.LocalAssignment[]> => {
+      try {
+        return await window.go.main.App.GetCourseAssignments(course)
+      } catch (error) {
+        LogError("Failed to fetch course assignments: " + error)
+        throw new Error(error instanceof Error ? error.message : "Failed to fetch course assignments")
+      }
+    },
+    staleTime: 2 * 60 * 1000, // Consider fresh for 2 minutes
+    gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
+  })
+}
+
 // Derived data hooks for specific views (memoized automatically by React Query)
+
 export function useOverdueAssignments() {
   const { data: assignments, ...rest } = useAssignments()
   

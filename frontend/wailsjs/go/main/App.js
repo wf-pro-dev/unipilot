@@ -10,6 +10,10 @@ export function CreateCourse(arg1) {
   return window['go']['main']['App']['CreateCourse'](arg1);
 }
 
+export function CreateNote(arg1) {
+  return window['go']['main']['App']['CreateNote'](arg1);
+}
+
 export function DeleteAssignment(arg1) {
   return window['go']['main']['App']['DeleteAssignment'](arg1);
 }
