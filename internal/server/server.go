@@ -91,13 +91,17 @@ func StartServer() {
 	http.HandleFunc("/acc-homework/assignment/get", DBMiddleware(db, AuthMiddleware(GetAssignmentHandler)))
 	http.HandleFunc("/acc-homework/assignment/update", DBMiddleware(db, AuthMiddleware(UpdateAssignmentHandler)))
 
-	//http.HandleFunc("/acc-homework/course", DBMiddleware(db, AuthMiddleware(CreateCourseHandler)))
+	http.HandleFunc("/acc-homework/course", DBMiddleware(db, AuthMiddleware(CreateCourseHandler)))
 	http.HandleFunc("/acc-homework/course/get", DBMiddleware(db, AuthMiddleware(GetCourseHandler)))
 	http.HandleFunc("/acc-homework/course/update", DBMiddleware(db, AuthMiddleware(UpdateCourseHandler)))
-
+	
 	http.HandleFunc("/acc-homework/document/metadata", DBMiddleware(db, AuthMiddleware(CreateDocumentMetadataHandler)))
 	http.HandleFunc("/acc-homework/document/metadata/delete", DBMiddleware(db, AuthMiddleware(DeleteDocumentMetadataHandler)))
 
+	http.HandleFunc("/acc-homework/note", DBMiddleware(db, AuthMiddleware(CreateNoteHandler)))
+	http.HandleFunc("/acc-homework/note/get", DBMiddleware(db, AuthMiddleware(GetNoteHandler)))
+	http.HandleFunc("/acc-homework/note/update", DBMiddleware(db, AuthMiddleware(UpdateNoteHandler)))
+	
 	http.HandleFunc("/notion-webhooks/test", testHandler)
 	log.Println("Server listening on :3000...")
 	log.Fatal(http.ListenAndServe(":3000", nil))

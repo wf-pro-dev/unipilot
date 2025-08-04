@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Course } from "@/types/models"
+import { course } from "@/wailsjs/go/models"
 import { LogError } from "@/wailsjs/runtime/runtime"
 
 // Query keys for consistent cache management
@@ -17,7 +17,7 @@ export const courseKeys = {
 export function useCourses() {
   return useQuery({
     queryKey: courseKeys.lists(),
-    queryFn: async (): Promise<Course[]> => {
+    queryFn: async (): Promise<course.LocalCourse[]> => {
       try {
         return await window.go.main.App.GetCourses()
       } catch (error) {
@@ -35,7 +35,7 @@ export function useCreateCourse() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (newCourse: Course) => {
+    mutationFn: async (newCourse: course.LocalCourse) => {
       return await window.go.main.App.CreateCourse(newCourse)
     },
     
@@ -43,9 +43,9 @@ export function useCreateCourse() {
     onMutate: async (newCourse) => {
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
       
-      const previousCourses = queryClient.getQueryData<Course[]>(courseKeys.lists())
+      const previousCourses = queryClient.getQueryData<course.LocalCourse[]>(courseKeys.lists())
       
-      queryClient.setQueryData<Course[]>(courseKeys.lists(), (old) => {
+      queryClient.setQueryData<course.LocalCourse[]>(courseKeys.lists(), (old) => {
         if (!old) return [newCourse]
         return [newCourse, ...old]
       })
@@ -71,21 +71,21 @@ export function useUpdateCourse() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (course: Course) => {
-      return await window.go.main.App.UpdateCourse(course)
+    mutationFn: async (courseData: course.LocalCourse, column: string, value: string) => {
+      return await window.go.main.App.UpdateCourse(courseData, column, value)
     },
     
     // Optimistic update for instant UI feedback
     onMutate: async (course) => {
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
       
-      const previousCourses = queryClient.getQueryData<Course[]>(courseKeys.lists())
+      const previousCourses = queryClient.getQueryData<course.LocalCourse[]>(courseKeys.lists())
       
-      queryClient.setQueryData<Course[]>(courseKeys.lists(), (old) => {
+      queryClient.setQueryData<course.LocalCourse[]>(courseKeys.lists(), (old) => {
         if (!old) return []
         return old.map(c => 
           c.ID === course.ID 
-            ? { ...course, UpdatedAt: new Date() }
+            ? { ...course, UpdatedAt: new Date() } as course.LocalCourse
             : c
         )
       })
@@ -111,7 +111,7 @@ export function useDeleteCourse() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (course: Course) => {
+    mutationFn: async (course: course.LocalCourse) => {
       return await window.go.main.App.DeleteCourse(course)
     },
     
@@ -119,9 +119,9 @@ export function useDeleteCourse() {
     onMutate: async (course) => {
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
       
-      const previousCourses = queryClient.getQueryData<Course[]>(courseKeys.lists())
+      const previousCourses = queryClient.getQueryData<course.LocalCourse[]>(courseKeys.lists())
       
-      queryClient.setQueryData<Course[]>(courseKeys.lists(), (old) => {
+      queryClient.setQueryData<course.LocalCourse[]>(courseKeys.lists(), (old) => {
         if (!old) return []
         return old.filter(c => c.ID !== course.ID)
       })

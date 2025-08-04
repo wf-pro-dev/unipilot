@@ -12,7 +12,7 @@ import { useState } from "react"
 import { StatusTag } from "./utils/status-tag"
 import { CourseTag } from "./utils/course-tag"
 import { TypeTag } from "./utils/type-tag"
-import { EditAssignmentDialog } from "./edit-assignment-dialog"
+import { AssignmentEditDialog } from "./assignment-edit-dialog"
 
 interface AssignmentItemProps {
   assignment: assignment.LocalAssignment
@@ -159,7 +159,7 @@ export function AssignmentItem({
         </CardContent>
 
       </Card>
-      <EditAssignmentDialog
+      <AssignmentEditDialog
         open={open}
         setOpen={setOpen}
         assignment={assignment}
