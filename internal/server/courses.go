@@ -55,6 +55,158 @@ func GetCourseHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
+
+	userIDVal := r.Context().Value("user_id")
+	if userIDVal == nil {
+		PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
+		return
+	}
+
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
+		return
+	}
+	
+	dbVal := r.Context().Value("db")
+	if dbVal == nil {
+		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
+		return
+	}
+
+	db, ok := dbVal.(*gorm.DB)
+	if !ok {
+		PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
+		return
+	}
+
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	var input struct {
+		LocalID	   string `json:"local_id"`	
+		Name	   string `json:"name"`
+		Code	   string `json:"code"`
+		Color	   string `json:"color"`
+		Semester   string `json:"semester"`
+		Schedule   string `json:"schedule"`
+		Credits	   string `json:"credits"`
+		RoomNumber string `json:"room_number"`
+		StartDate  string `json:"start_date"`
+		EndDate	   string `json:"end_date"`
+		Instructor string `json:"instructor"`
+		InstructorEmail string `json:"instructor_email"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		return
+	}
+
+
+	PrintLog(fmt.Sprintf("course input data local ID : %s Title: %s : Course code: %s Type : %s Deadline : %s \n", input.LocalID, input.Instructor, input.EndDate, input.Semester, input.StartDate))
+	PrintLog(fmt.Sprintf("course input data local ID : %s \n", input.Code))
+
+	// Validate all required fields
+	if input.LocalID == "" || input.Code == "" || input.Semester == "" || input.Instructor == "" || input.StartDate == "" || input.EndDate == "" {
+		PrintERROR(w, http.StatusBadRequest, "Missing required fields")
+		return
+	}
+
+	start_date, err := time.Parse(time.DateOnly, input.StartDate)
+	if err != nil {
+		PrintERROR(w, http.StatusBadRequest, "Invalid start date format")
+		return
+	}
+	
+	end_date, err := time.Parse(time.DateOnly, input.EndDate)
+	if err != nil {
+		PrintERROR(w, http.StatusBadRequest, "Invalid start date format")
+		return
+	}
+	
+	credits, err := strconv.Atoi(input.Credits)
+	if err != nil {
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating credits : %s", err))
+
+		return 
+	}
+	local_id, err := strconv.Atoi(input.LocalID)
+	if err != nil {
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating local_id : %s", err))
+
+		return 
+	}
+	
+
+
+	cVal := course.Course{
+		UserID:			userID,
+		LocalID:		uint(local_id),
+		Name:			input.Name,
+		Code:			input.Code,
+		Color:			input.Color,
+		Semester:		input.Semester,
+		Schedule:		input.Schedule,
+		Credits:		credits,
+		RoomNumber:		input.RoomNumber,	
+		StartDate:		start_date,
+		EndDate:		end_date,
+		Instructor:		input.Instructor,
+		InstructorEmail:	input.InstructorEmail,
+	}
+
+	result := tx.Create(&cVal)
+	if result.Error != nil {
+		PrintERROR(w, http.StatusConflict, fmt.Sprintf("Error creating assignment in database", err))
+		return
+	}
+
+	cObj := &cVal
+
+	c, err := course.Get_Course_byId(cObj.ID, tx)
+	if err != nil {
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting course: %s", err))
+		return
+	}
+	/*notion_id, err := a.Add_Notion()
+	if err != nil {
+		tx.Rollback()
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error creating assignment in notion", err))
+		return
+	}
+
+	a.NotionID = notion_id
+	err = tx.Save(&a).Error
+	if err != nil {
+		tx.Rollback()
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error updating new assignment", err))
+		return
+	}*/
+
+	// Convert to map safely
+	courseMap := c.ToMap()
+	if courseMap == nil {
+		tx.Rollback()
+		PrintERROR(w, http.StatusInternalServerError, "Failed to process course data")
+		return
+	}
+
+	tx.Commit()
+
+	// Return response
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":    "Assignment created successfully",
+		"course": courseMap,
+	})
+
+}
 func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	dbVal := r.Context().Value("db")

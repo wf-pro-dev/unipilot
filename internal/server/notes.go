@@ -3,16 +3,17 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
 
-	"unipilot/internal/models/assignment"
-
-	"gorm.io/gorm"
+	"unipilot/internal/models/note"
+	"unipilot/internal/services/gemini"
 )
 
-func GetAssignmentHandler(w http.ResponseWriter, r *http.Request) {
+
+func GetNoteHandler(w http.ResponseWriter, r *http.Request) {
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
 		PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
@@ -37,25 +38,25 @@ func GetAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var assignments []assignment.Assignment
-	if err := db.Where("user_id = ?", userID).Find(&assignments).Error; err != nil {
+	var notes []note.Note
+	if err := db.Where("user_id = ?", userID).Find(&notes).Error; err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error getting assignment for user id = %d : %s", userID, err))
 		return
 	}
 
-	var assignmentsMap []map[string]string
-	for _, a := range assignments {
-		assignmentsMap = append(assignmentsMap, a.ToMap())
+	var notesMap []map[string]string
+	for _, n := range assignments {
+		notesMap = append(notesMap, n.ToMap())
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"message":     "User's Assignments retrieved successfully",
-		"assignments": assignmentsMap,
+		"message":     "User's notes retrieved successfully",
+		"notes": notesMap,
 	})
 
 }
-func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
+func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
@@ -90,13 +91,10 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	var input struct {
 		LocalID	   string `json:"local_id"`	
-		Title      string `json:"title"`
-		Todo       string `json:"todo"`
-		Deadline   string `json:"deadline"`
+		UserID     string `json:"user_id"`
 		CourseCode string `json:"course_code"`
-		TypeName   string `json:"type"`
-		StatusName string `json:"status"`
-		Priority   string `json:"priority"`
+		Title      string `json:"title"`
+		Subject    string `json:"subject"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -105,40 +103,32 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 
-	PrintLog(fmt.Sprintf("assignment input data local ID : %s Title: %s : Course code: %s Type : %s Deadline : %s \n", input.LocalID, input.Title, input.CourseCode, input.TypeName, input.Deadline))
-	PrintLog(fmt.Sprintf("assignment input : %v\n",input))
-
 	// Validate all required fields
-	if input.LocalID == "" || input.CourseCode == "" || input.Title == "" || input.TypeName == "" || input.Deadline == "" {
+	if input.LocalID == "" || input.CourseCode == "" || input.Title == "" || input.Subject == "" {
 		PrintERROR(w, http.StatusBadRequest, "Missing required fields")
 		return
 	}
 
-	deadline, err := time.Parse(time.DateOnly, input.Deadline)
-	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, "Invalid deadline format")
+	// Generate content and keywords
+	var request gemini.GeminiRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
-	
-	local_id, err := strconv.Atoi(input.LocalID)
-	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating local_id : %s", err))
 
-		return 
+	response, err := gemini.GenerateNote(request)
+	if err == nil {
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid gemini response: %v", err))
+		return
 	}
-	
 
-
-	aVal := assignment.Assignment{
-		Title:      input.Title,
-		UserID:     userID,
-		LocalID:    uint(local_id),
-		Todo:       input.Todo,
-		Deadline:   deadline,
-		CourseCode: input.CourseCode,
-		TypeName:   input.TypeName,
-		StatusName: input.StatusName,
-		Priority:   input.Priority,
+	nVal := note.Note{
+		UserID:		userID,
+		CourseCode:	input.CourseCode,
+		Title:		input.Title,
+		Subject:	input.Subject,
+		Keywords:	reponse["keywords"],
+		Content:	reponse["content"],
 	}
 
 	result := tx.Create(&aVal)
@@ -147,32 +137,17 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	aObj := &aVal
+	nObj := &nVal
 
-	a, err := assignment.Get_Assignment_byId(aObj.ID, userID, tx)
+	a, err := note.Get_Note_(nObj.ID, userID, tx)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
 		return
 	}
 
-	/*notion_id, err := a.Add_Notion()
-	if err != nil {
-		tx.Rollback()
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error creating assignment in notion", err))
-		return
-	}
-
-	a.NotionID = notion_id
-	err = tx.Save(&a).Error
-	if err != nil {
-		tx.Rollback()
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error updating new assignment", err))
-		return
-	}*/
-
 	// Convert to map safely
-	assignmentMap := a.ToMap()
-	if assignmentMap == nil {
+	noteMap := n.ToMap()
+	if noteMap == nil {
 		tx.Rollback()
 		PrintERROR(w, http.StatusInternalServerError, "Failed to process assignment data")
 		return
@@ -184,7 +159,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":    "Assignment created successfully",
-		"assignment": assignmentMap,
+		"assignment": noteMap,
 	})
 
 }
@@ -239,53 +214,20 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := assignment.Get_Assignment_byLocalID(uint(int_id), userID, tx)
+	n, err := note.Get_Note_byID(uint(int_id), tx)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
 		return
 	}
 
-	if err := tx.Exec(fmt.Sprintf("UPDATE assignments SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),	
-		updateData.Value, time.Now().Format(time.RFC3339), a.ID).Error; err != nil {
+	if err := tx.Exec(fmt.Sprintf("UPDATE notes SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),	
+		updateData.Value, time.Now().Format(time.RFC3339), n.ID).Error; err != nil {
 
 		PrintERROR(w, http.StatusInternalServerError,
 			fmt.Sprintf("Error updating assignment in database: %s", err))
 		return
 	}
 
-	/*value := updateData.Value
-
-	//PrintLog(fmt.Sprintf("column : %s, value :%s, user id:%s", updateData.Column, value, dbVal.(string) ))
-	if updateData.Column == "course_code" {
-		//PrintLog(fmt.Sprintf("column : %s, value :%s, user id:%s", updateData.Column, value, dbVal.(string) ))
-
-		c, err := course.Get_Course_byCode(value, strconv.Itoa(int(userID)), tx)
-		if err != nil {
-			PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting new course: %s", err))
-			return
-		}
-		PrintLog(fmt.Sprintf("Course %s", c.ToMap()))
-
-		value = c.NotionID
-		PrintLog(fmt.Sprintf("Course notion id: %s", value))
-	}
-
-	var obj map[string]string
-
-	if updateData.Column == "status_name" {
-		var status = models.Get_AssignmentStatus_byName(value, tx)
-		obj = status.ToMap()
-	} else if updateData.Column == "type_name" {
-		var t = models.Get_AssignmentType_byName(value, tx)
-		obj = t.ToMap()
-	}
-
-	err = a.Update_Notion(updateData.Column, value, obj)
-	if err != nil {
-		tx.Rollback()
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error updating assignment in notion", err))
-		return
-	}*/
 
 	PrintLog(fmt.Sprintf("user_id %s column %s value %s",
 		userIDVal, updateData.Column, updateData.Value))
@@ -293,3 +235,4 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	tx.Commit()
 
 }
+
