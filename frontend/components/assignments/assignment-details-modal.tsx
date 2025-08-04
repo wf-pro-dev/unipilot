@@ -10,7 +10,8 @@ import { Calendar, Clock, MoreVertical, Edit, Trash2, Flag, User, FileText, Awar
 import { format } from "date-fns"
 import { assignment } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
-import { StatusTag } from "../utils/status-tag"
+import { BrowserOpenURL } from "@/wailsjs/runtime/runtime"
+import { StatusTag } from "@/components/assignments/utils/status-tag"
 import { AssignmentDocuments } from "./assignment-documents"
 
 interface AssignmentDetailsModalProps {
@@ -47,7 +48,7 @@ export function AssignmentDetailsModal({
   onEdit,
   onDelete,
 }: AssignmentDetailsModalProps) {
-  const [notes, setNotes] = useState("")
+  const [showFullTodo, setShowFullTodo] = useState(false)
 
   if (!assignment) return null
 
@@ -56,11 +57,13 @@ export function AssignmentDetailsModal({
 
   const isOverdueStatus = isOverdue(deadline, assignment.StatusName)
   const daysUntilDue = calculateDaysDifference(deadline)
-
+  const handleOpenLink = () => {
+    BrowserOpenURL(assignment.Link)
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="glass-dark border-gray-600 max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="glass border-0 text-white max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex justify-between items-start">
             <DialogTitle className="text-xl font-semibold text-white">
@@ -79,6 +82,12 @@ export function AssignmentDetailsModal({
                   <Edit className="mr-2 w-4 h-4" />
                   Edit
                 </DropdownMenuItem>
+                
+                <DropdownMenuItem onClick={handleOpenLink}>
+                  <ExternalLink className="mr-2 w-4 h-4" />
+                  Open Link
+                </DropdownMenuItem>
+                
                 <DropdownMenuItem
                   onClick={() => onDelete(assignment)}
                   className="text-red-400 hover:text-red-300"
@@ -86,6 +95,7 @@ export function AssignmentDetailsModal({
                   <Trash2 className="mr-2 w-4 h-4" />
                   Delete
                 </DropdownMenuItem>
+
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -138,52 +148,25 @@ export function AssignmentDetailsModal({
 
           </div>
 
-          {/* Deadline */}
 
 
           {/* Description */}
           {assignment.Todo && (
             <div className="space-y-2">
-              <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <FileText className="w-4 h-4" />
-                <span>Description</span>
+              <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-2 text-sm text-gray-400">
+                  <FileText className="w-4 h-4" />
+                  <span>Description</span>
+                </div>
+                <Button variant="link" size="sm" className="text-sm text-blue-400 hover:text-blue-300" onClick={() => setShowFullTodo(!showFullTodo)}>
+                  {showFullTodo ? "Show less" : "Show more"}
+                </Button>
               </div>
-              <p className="leading-relaxed text-gray-300">{assignment.Todo}</p>
+              <div className="bg-gray-800/50 border border-gray-600 p-3 rounded-lg">
+                <p className={`whitespace-pre-wrap leading-relaxed text-sm text-white ${showFullTodo ? "block" : "line-clamp-4"}`}>{assignment.Todo}</p>
+              </div>
             </div>
           )}
-
-
-          {/* Link 
-          {assignment.Link && (
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2 text-sm text-gray-400">
-                <ExternalLink className="w-4 h-4" />
-                <span>Link</span>
-              </div>
-              <a
-                href={assignment.Link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-blue-400 underline break-all hover:text-blue-300"
-                onClick={() => {
-                  window.open(assignment.Link, "_self")
-                }}
-              >
-                {assignment.Link}
-              </a>
-            </div>
-          )}
-
-          {/* Notes *
-          <div className="space-y-2">
-            <label className="text-sm text-gray-400">Notes</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add your notes here..."
-              className="p-3 w-full h-24 placeholder-gray-400 text-white bg-gray-800 rounded-lg border border-gray-600 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div> */}
 
           {/* Documents Section */}
           <div className="pt-4 border-t border-gray-600">

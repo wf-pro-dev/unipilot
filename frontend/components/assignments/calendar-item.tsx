@@ -3,8 +3,8 @@
 import { useDrag } from "react-dnd"
 import { Card, CardContent } from "@/components/ui/card"
 import { assignment } from "@/wailsjs/go/models"
-import { parseDeadline, calculateDaysDifference } from "@/lib/date-utils"
-import { StatusTag } from "../utils/status-tag"
+import { parseDeadline } from "@/lib/date-utils"
+import { StatusTag } from "@/components/assignments/utils/status-tag"
 import { format } from "date-fns"
 
 interface CalendarItemProps {

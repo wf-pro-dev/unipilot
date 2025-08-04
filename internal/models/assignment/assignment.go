@@ -22,7 +22,8 @@ import (
 type Assignment struct {
 	gorm.Model
 	UserID     uint
-	NotionID   string `gorm:"unique"`
+	LocalID    uint `gorm:"unique"`
+	NotionID   string
 	Title      string `gorm:"not null"`
 	Todo       string
 	Deadline   time.Time `gorm:"not null"`
@@ -100,6 +101,21 @@ func Get_Assignment_byId(id, user_id uint, db *gorm.DB) (*Assignment, error) {
 	return assignment, nil
 }
 
+func Get_Assignment_byLocalID(id, user_id uint, db *gorm.DB) (*Assignment, error) {
+	assignment := &Assignment{}
+	err := db.Preload("User").
+		Preload("Course", "user_id = ?", user_id).
+		Preload("Type").
+		Preload("Status").
+		Where("local_id = ?", id).
+		First(assignment).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return assignment, nil
+}
+
 func Get_Assignment_byNotionID(notion_id string, db *gorm.DB) (*Assignment, error) {
 
 	assignment := &Assignment{}
@@ -120,6 +136,7 @@ func (a *Assignment) ToMap() map[string]string {
 	return map[string]string{
 		"id":          strconv.Itoa(int(a.ID)),
 		"user_id":     strconv.Itoa(int(a.UserID)),
+		"local_id":    strconv.Itoa(int(a.LocalID)),
 		"notion_id":   a.NotionID,
 		"type":        a.TypeName,
 		"deadline":    a.Deadline.Format(time.DateOnly),
@@ -130,8 +147,8 @@ func (a *Assignment) ToMap() map[string]string {
 		"link":        a.Link,
 		"priority":    a.Priority,
 		"completed":   strconv.FormatBool(a.Completed),
-		"created_at":  a.CreatedAt.Format(time.DateOnly),
-		"updated_at":  a.UpdatedAt.Format(time.DateOnly),
+		"created_at":  a.CreatedAt.Format(time.RFC3339),
+		"updated_at":  a.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

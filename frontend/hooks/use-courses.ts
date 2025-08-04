@@ -1,8 +1,11 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Course } from "@/types/models"
+import { course } from "@/wailsjs/go/models"
 import { LogError } from "@/wailsjs/runtime/runtime"
+import { assignmentKeys } from './use-assignments'
+import { assignment } from '@/wailsjs/go/models'
+import { documentKeys } from './use-documents'
 
 // Query keys for consistent cache management
 export const courseKeys = {
@@ -17,7 +20,7 @@ export const courseKeys = {
 export function useCourses() {
   return useQuery({
     queryKey: courseKeys.lists(),
-    queryFn: async (): Promise<Course[]> => {
+    queryFn: async (): Promise<course.LocalCourse[]> => {
       try {
         return await window.go.main.App.GetCourses()
       } catch (error) {
@@ -35,7 +38,7 @@ export function useCreateCourse() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (newCourse: Course) => {
+    mutationFn: async (newCourse: course.LocalCourse) => {
       return await window.go.main.App.CreateCourse(newCourse)
     },
     
@@ -43,9 +46,9 @@ export function useCreateCourse() {
     onMutate: async (newCourse) => {
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
       
-      const previousCourses = queryClient.getQueryData<Course[]>(courseKeys.lists())
+      const previousCourses = queryClient.getQueryData<course.LocalCourse[]>(courseKeys.lists())
       
-      queryClient.setQueryData<Course[]>(courseKeys.lists(), (old) => {
+      queryClient.setQueryData<course.LocalCourse[]>(courseKeys.lists(), (old) => {
         if (!old) return [newCourse]
         return [newCourse, ...old]
       })
@@ -71,21 +74,21 @@ export function useUpdateCourse() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (course: Course) => {
-      return await window.go.main.App.UpdateCourse(course)
+    mutationFn: async ({ course, column, value }: { course: course.LocalCourse, column: string, value: string }) => {
+      return await window.go.main.App.UpdateCourse(course, column, value)
     },
     
     // Optimistic update for instant UI feedback
-    onMutate: async (course) => {
+    onMutate: async ({ course, column, value }) => {
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
       
-      const previousCourses = queryClient.getQueryData<Course[]>(courseKeys.lists())
+      const previousCourses = queryClient.getQueryData<course.LocalCourse[]>(courseKeys.lists())
       
-      queryClient.setQueryData<Course[]>(courseKeys.lists(), (old) => {
+      queryClient.setQueryData<course.LocalCourse[]>(courseKeys.lists(), (old) => {
         if (!old) return []
         return old.map(c => 
           c.ID === course.ID 
-            ? { ...course, UpdatedAt: new Date() }
+            ? { ...course, [column]: value, UpdatedAt: new Date() } as course.LocalCourse
             : c
         )
       })
@@ -111,38 +114,68 @@ export function useDeleteCourse() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (course: Course) => {
+    mutationFn: async (course: course.LocalCourse) => {
       return await window.go.main.App.DeleteCourse(course)
     },
     
-    // Optimistically remove the course
+    // Optimistically remove the course, assignments, and documents
     onMutate: async (course) => {
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
+      await queryClient.cancelQueries({ queryKey: assignmentKeys.all })
+      await queryClient.cancelQueries({ queryKey: documentKeys.all })
       
-      const previousCourses = queryClient.getQueryData<Course[]>(courseKeys.lists())
+      const previousCourses = queryClient.getQueryData<course.LocalCourse[]>(courseKeys.lists())
+      const previousAssignments = queryClient.getQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists())
       
-      queryClient.setQueryData<Course[]>(courseKeys.lists(), (old) => {
+      // Remove course from cache
+      queryClient.setQueryData<course.LocalCourse[]>(courseKeys.lists(), (old) => {
         if (!old) return []
         return old.filter(c => c.ID !== course.ID)
       })
       
-      return { previousCourses }
+      // Remove assignments that belong to this course from cache
+      queryClient.setQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
+        if (!old) return []
+        return old.filter(a => a.Course?.ID !== course.ID)
+      })
+      
+      // Remove all document caches for assignments that belong to this course
+      const assignmentsToRemove = previousAssignments?.filter(a => a.Course?.ID === course.ID) || []
+      
+      assignmentsToRemove.forEach(assignment => {
+        // Remove assignment documents
+        queryClient.removeQueries({ queryKey: documentKeys.list(assignment.ID) })
+        queryClient.removeQueries({ queryKey: documentKeys.support(assignment.ID) })
+        queryClient.removeQueries({ queryKey: documentKeys.submissions(assignment.ID) })
+      })
+      
+      return { previousCourses, previousAssignments }
     },
     
     onError: (err, variables, context) => {
       if (context?.previousCourses) {
         queryClient.setQueryData(courseKeys.lists(), context.previousCourses)
       }
+      if (context?.previousAssignments) {
+        queryClient.setQueryData(assignmentKeys.lists(), context.previousAssignments)
+      }
       LogError("Failed to delete course: " + err)
     },
     
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: courseKeys.lists() })
+      // Invalidate all related caches to ensure consistency
+      queryClient.invalidateQueries({ queryKey: courseKeys.all })
+      queryClient.invalidateQueries({ queryKey: assignmentKeys.all })
+      queryClient.invalidateQueries({ queryKey: documentKeys.all })
+      
+      // Also invalidate storage info since documents were deleted
+      queryClient.invalidateQueries({ queryKey: documentKeys.storage() })
     },
   })
 }
 
 // Derived data hooks for specific views
+
 export function useActiveCourses() {
   const { data: courses, ...rest } = useCourses()
   

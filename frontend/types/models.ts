@@ -21,6 +21,31 @@ interface Assignment {
   Documents?: LocalDocument[] // Add documents relationship
 }
 
+// Note type for the new AI-generated notes feature
+interface Note {
+  ID: number
+  UserID: number
+  CourseID: number
+  Title: string
+  Subject: string
+  Content: string // Markdown content
+  Keywords: string[] // Array of 5 keywords
+  YouTubeVideos?: YouTubeVideo[]
+  CreatedAt: Date
+  UpdatedAt: Date
+  DeletedAt?: Date
+  User?: User
+  Course?: Course
+}
+
+// YouTube video interface
+interface YouTubeVideo {
+  ID: string // YouTube video ID
+  Title: string // Video title
+  ThumbnailURL?: string
+  Duration?: string
+}
+
 // LocalDocument type matching the Go struct
 interface LocalDocument {
   ID: number
@@ -44,16 +69,11 @@ interface LocalDocument {
   Versions?: LocalDocument[]
 }
 
-// LocalDocumentCache type matching the Go struct
-interface LocalDocumentCache {
-  ID: number
-  UserID: number
-  TotalSize: number
-  DocumentCount: number
-  LastCalculatedAt: Date
-  LastSyncAt?: Date
-  CreatedAt: Date
-  UpdatedAt: Date
+// StorageInfo type matching the Go struct
+interface StorageInfo {
+  total_size: number
+  document_count: number
+  calculated_at: Date
 }
 
 // Course type matching the Go struct
@@ -132,5 +152,7 @@ export type {
   AssignmentStatus,
   LegacyAssignment,
   LocalDocument,
-  LocalDocumentCache
+  StorageInfo,
+  Note,
+  YouTubeVideo
 }

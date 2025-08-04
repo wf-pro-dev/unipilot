@@ -78,6 +78,12 @@ func CreateDocumentMetadataHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Update remote storage info for the user
+	if err := document.UpdateStorageInfo(userID, db); err != nil {
+		// Log warning but don't fail the request
+		fmt.Printf("Warning: Failed to update remote storage info for user %d: %v\n", userID, err)
+	}
+
 	response := DocumentMetadata{
 		ID:           doc.ID,
 		LocalID:      doc.LocalID,
@@ -197,6 +203,12 @@ func DeleteDocumentMetadataHandler(w http.ResponseWriter, r *http.Request) {
 	if err := db.Delete(&doc).Error; err != nil {
 		PrintERROR(w, http.StatusInternalServerError, "Failed to delete document")
 		return
+	}
+
+	// Update remote storage info for the user
+	if err := document.UpdateStorageInfo(userID, db); err != nil {
+		// Log warning but don't fail the request
+		fmt.Printf("Warning: Failed to update remote storage info for user %d: %v\n", userID, err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

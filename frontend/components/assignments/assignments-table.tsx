@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AssignmentItem } from "./assignment-item"
-import { List, Loader2, X } from "lucide-react"
+import { List, X } from "lucide-react"
 import { assignment } from "@/wailsjs/go/models"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"

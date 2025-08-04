@@ -9,6 +9,7 @@ import (
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/document"
+	"unipilot/internal/models/note"
 
 	"github.com/spf13/viper"
 	"gorm.io/driver/sqlite"
@@ -93,11 +94,6 @@ func getDBPath(userID uint) (string, error) {
 }
 
 func InitializeSchema(db *gorm.DB) error {
-	// Enable foreign key support for SQLite
-	if err := db.Exec("PRAGMA foreign_keys = ON").Error; err != nil {
-		return fmt.Errorf("failed to enable foreign keys: %w", err)
-	}
-
 	// Run migrations
 	err := db.AutoMigrate(
 		&course.LocalCourse{},
@@ -106,7 +102,7 @@ func InitializeSchema(db *gorm.DB) error {
 		&assignment.LocalAssignment{},
 		&models.LocalUpdate{},
 		&document.LocalDocument{},
-		&document.LocalDocumentCache{},
+		&note.LocalNote{},
 	)
 
 	if err != nil {

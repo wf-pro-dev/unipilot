@@ -6,8 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Search, Filter, X } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { assignment } from "@/wailsjs/go/models"
 import { useAssignments } from "@/hooks/use-assignments"
+import { assignment } from "@/wailsjs/go/models"
+
 
 interface Filter {
   course: string | null
@@ -52,9 +53,9 @@ export function AssignmentFilters({
     router.push(`/assignments?view=list&${params.toString()}`, { scroll: false })
   }
 
-  const courses = Array.from(new Set(assignments.map((assignment: Assignment) => assignment.Course?.Code)))
-  const statuses = Array.from(new Set(assignments.map((assignment: Assignment) => assignment.StatusName)))
-  const priorities = Array.from(new Set(assignments.map((assignment: Assignment) => assignment.Priority)))
+  const courses = Array.from(new Set((assignments || []).map((assignment: assignment.LocalAssignment) => assignment.Course?.Code)))
+  const statuses = Array.from(new Set((assignments || []).map((assignment: assignment.LocalAssignment) => assignment.StatusName)))
+  const priorities = Array.from(new Set((assignments || []).map((assignment: assignment.LocalAssignment) => assignment.Priority)))
 
   return (
     <div className="space-y-4">
@@ -70,42 +71,42 @@ export function AssignmentFilters({
         </div>
 
         <div className="flex gap-2">
-          <Select value={filter.course} onValueChange={(value) => handleFilterChange({ ...filter, course: value })}>
+          <Select value={filter.course || "all"} onValueChange={(value) => handleFilterChange({ ...filter, course: value === "all" ? null : value })}>
             <SelectTrigger className="w-40 bg-gray-800/50 border-gray-600">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="glass border-gray-600">
             <SelectItem value="all">All Courses</SelectItem>
               {courses.map((course) => (
-                <SelectItem key={course} value={course}>
+                <SelectItem key={course} value={course || ""}>
                   {course}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-            <Select value={filter.status} onValueChange={(value) => handleFilterChange({ ...filter, status: value })}>
+            <Select value={filter.status || "all"} onValueChange={(value) => handleFilterChange({ ...filter, status: value === "all" ? null : value })}>
             <SelectTrigger className="w-36 bg-gray-800/50 border-gray-600">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="glass border-gray-600">
             <SelectItem value="all">All Statuses</SelectItem>
               {statuses.map((status) => (
-                <SelectItem key={status} value={status}>
+                <SelectItem key={status} value={status || ""}>
                   {status}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
 
-          <Select value={filter.priority} onValueChange={(value) => handleFilterChange({ ...filter, priority: value })}>
+          <Select value={filter.priority || "all"} onValueChange={(value) => handleFilterChange({ ...filter, priority: value === "all" ? null : value })}>
             <SelectTrigger className="w-36 bg-gray-800/50 border-gray-600">
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="glass border-gray-600">
-              <SelectItem value="all">All Priorities</SelectItem>
+            <SelectItem value="all">All Priorities</SelectItem>
               {priorities.map((priority) => (
-                <SelectItem key={priority} value={priority}>
+                <SelectItem key={priority} value={priority || ""}>
                   {priority}
                 </SelectItem>
               ))}

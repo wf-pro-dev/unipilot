@@ -20,10 +20,11 @@ import {
   useWeekAssignments,
   useOverdueAssignments,
   useExamAssignments,
-  useDeleteAssignment
+  useDeleteAssignment,
+  useCreateAssignment
 } from "@/hooks/use-assignments"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
-import { format } from "date-fns"
+import { format, isSameDay } from "date-fns"
 import { DayAssignmentsModal } from "@/components/assignments/day-assignments-modal"
 
 export default function AssignmentsPage() {
@@ -40,6 +41,7 @@ export default function AssignmentsPage() {
   // Mutation for updates with optimistic updates
   const updateMutation = useUpdateAssignment()
   const deleteMutation = useDeleteAssignment()
+  const createMutation = useCreateAssignment()
 
   const [selectedAssignment, setSelectedAssignment] = useState<assignment.LocalAssignment | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -77,12 +79,23 @@ export default function AssignmentsPage() {
   }
 
   const handleDeleteAssignment = async (assignment: assignment.LocalAssignment) => {
+    const message = "assignment " + assignment.Title + " deleted"
+    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     deleteMutation.mutate(assignment)
+  }
+
+
+  const handleAddAssignment = async (assignment: assignment.LocalAssignment) => {
+    const message = "assignment " + assignment.Title + " added"
+    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
+    createMutation.mutate(assignment)
   }
 
   const handleMoveAssignment = async (assignment: assignment.LocalAssignment, date: Date) => {
     const newDeadline = format(date, "yyyy-MM-dd HH:mm:ssxxx")
-    handleEditAssignment(assignment, "deadline", newDeadline)
+    if (!isSameDay(assignment.Deadline, date)) {
+      handleEditAssignment(assignment, "deadline", newDeadline)
+    }
   }
 
   // Handle tab change and update URL
@@ -131,7 +144,7 @@ export default function AssignmentsPage() {
             </h1>
             <p className="text-gray-400 mt-2">Track and manage your coursework deadlines</p>
           </div>
-          <AddAssignmentDialog />
+          <AddAssignmentDialog onAdd={handleAddAssignment} />
         </div>
 
         <Tabs value={activeView} onValueChange={handleTabChange} className="w-full">
@@ -167,6 +180,7 @@ export default function AssignmentsPage() {
               assignments={todayAssignments || []}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
+              onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               isLoading={updateMutation.isPending}
             />
@@ -177,6 +191,7 @@ export default function AssignmentsPage() {
               assignments={weekAssignments || []}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
+              onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               isLoading={updateMutation.isPending}
             />
@@ -187,6 +202,7 @@ export default function AssignmentsPage() {
               assignments={overdueAssignments || []}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
+              onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               isLoading={updateMutation.isPending}
             />
@@ -197,6 +213,7 @@ export default function AssignmentsPage() {
               assignments={examAssignments || []}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
+              onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               isLoading={updateMutation.isPending}
             />

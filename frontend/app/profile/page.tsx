@@ -108,7 +108,7 @@ const userData = {
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
   const [editedData, setEditedData] = useState(userData)
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null)
+  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
   
   const { user } = useAuth()
   const { data: assignments } = useAssignments()
@@ -126,6 +126,15 @@ export default function ProfilePage() {
   const handleCancel = () => {
     setEditedData(userData)
     setIsEditing(false)
+  }
+
+  const handleCourseClick = (courseId: number) => {
+    setSelectedCourseId(courseId)
+  }
+
+  const handleEditCourse = (course: Course, column: string, value: string) => {
+    // Handle course editing if needed
+    console.log("Editing course:", course, column, value)
   }
 
   return (
@@ -198,21 +207,17 @@ export default function ProfilePage() {
                   <div className="flex justify-center space-x-2 w-full">
                     {isEditing ? (
                       <>
-                        <Button onClick={handleSave} className="flex-1">
-                          <Save className="h-4 w-4 mr-2" />
+                        <Button onClick={handleSave} size="sm">
+                          <Save className="h-4 w-4 mr-1" />
                           Save
                         </Button>
-                        <Button
-                          variant="outline"
-                          onClick={handleCancel}
-                          className="flex-1 border-gray-600 bg-transparent"
-                        >
+                        <Button onClick={handleCancel} variant="outline" size="sm">
                           Cancel
                         </Button>
                       </>
                     ) : (
-                      <Button onClick={() => setIsEditing(true)} className="w-full">
-                        <Edit className="h-4 w-4 mr-2" />
+                      <Button onClick={() => setIsEditing(true)} size="sm">
+                        <Edit className="h-4 w-4 mr-1" />
                         Edit Profile
                       </Button>
                     )}
@@ -230,41 +235,48 @@ export default function ProfilePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-2xl font-bold text-blue-400">{userData.followers}</div>
-                    <div className="text-xs text-gray-400">Followers</div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm text-gray-400">Assignments Completed</span>
+                    <span className="text-sm text-white">{userData.stats.assignmentsCompleted}/{userData.stats.totalAssignments}</span>
                   </div>
-                  <div>
-                    <div className="text-2xl font-bold text-green-400">{userData.following}</div>
-                    <div className="text-xs text-gray-400">Following</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-purple-400">{userData.posts}</div>
-                    <div className="text-xs text-gray-400">Posts</div>
-                  </div>
+                  <Progress value={(userData.stats.assignmentsCompleted / userData.stats.totalAssignments) * 100} className="h-2" />
                 </div>
 
-                <Separator className="bg-gray-700" />
-
-                <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-4 text-center">
                   <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span className="text-gray-300">Assignment Progress</span>
-                      <span className="text-gray-400">{Math.round(completionPercentage)}%</span>
-                    </div>
-                    <Progress value={completionPercentage} className="h-2" />
+                    <div className="text-2xl font-bold text-white">{userData.stats.notesCreated}</div>
+                    <div className="text-sm text-gray-400">Notes Created</div>
                   </div>
+                  <div>
+                    <div className="text-2xl font-bold text-white">{userData.stats.studyHours}</div>
+                    <div className="text-sm text-gray-400">Study Hours</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center space-x-2">
-                      <FileText className="h-4 w-4 text-blue-400" />
-                      <span className="text-gray-300">{userData.stats.notesCreated} Notes</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-yellow-400" />
-                      <span className="text-gray-300">{userData.stats.studyHours}h Study</span>
-                    </div>
+            {/* Social Stats */}
+            <Card className="glass border-0">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2 text-white">
+                  <Users className="h-5 w-5 text-blue-400" />
+                  <span>Social</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-white">{userData.followers}</div>
+                    <div className="text-sm text-gray-400">Followers</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-white">{userData.following}</div>
+                    <div className="text-sm text-gray-400">Following</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-white">{userData.posts}</div>
+                    <div className="text-sm text-gray-400">Posts</div>
                   </div>
                 </div>
               </CardContent>
@@ -273,89 +285,97 @@ export default function ProfilePage() {
 
           {/* Right Column - Details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Contact Information */}
+            {/* Personal Information */}
             <Card className="glass border-0">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2 text-white">
                   <User className="h-5 w-5 text-blue-400" />
-                  <span>Contact Information</span>
+                  <span>Personal Information</span>
+                  {!isEditing && (
+                    <Button onClick={() => setIsEditing(true)} size="sm" className="ml-auto">
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                  )}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-400 block mb-2">Email</label>
-                    {isEditing ? (
-                      <Input
-                        value={editedData.email}
-                        onChange={(e) => setEditedData({ ...editedData, email: e.target.value })}
-                        className="bg-gray-800/50 border-gray-600"
-                      />
-                    ) : (
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-400 block mb-2">Email</label>
+                      {isEditing ? (
+                        <Input
+                          value={editedData.email}
+                          onChange={(e) => setEditedData({ ...editedData, email: e.target.value })}
+                          className="bg-gray-800/50 border-gray-600"
+                        />
+                      ) : (
+                        <div className="flex items-center space-x-2 text-white">
+                          <Mail className="h-4 w-4 text-blue-400" />
+                          <span>{userData.email}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-gray-400 block mb-2">Phone</label>
+                      {isEditing ? (
+                        <Input
+                          value={editedData.phone}
+                          onChange={(e) => setEditedData({ ...editedData, phone: e.target.value })}
+                          className="bg-gray-800/50 border-gray-600"
+                        />
+                      ) : (
+                        <div className="flex items-center space-x-2 text-white">
+                          <Phone className="h-4 w-4 text-green-400" />
+                          <span>{userData.phone}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-gray-400 block mb-2">Location</label>
+                      {isEditing ? (
+                        <Input
+                          value={editedData.location}
+                          onChange={(e) => setEditedData({ ...editedData, location: e.target.value })}
+                          className="bg-gray-800/50 border-gray-600"
+                        />
+                      ) : (
+                        <div className="flex items-center space-x-2 text-white">
+                          <MapPin className="h-4 w-4 text-red-400" />
+                          <span>{userData.location}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-400 block mb-2">University</label>
+                      <div className="text-white">{userData.university}</div>
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-gray-400 block mb-2">Major</label>
+                      {isEditing ? (
+                        <Input
+                          value={editedData.major}
+                          onChange={(e) => setEditedData({ ...editedData, major: e.target.value })}
+                          className="bg-gray-800/50 border-gray-600"
+                        />
+                      ) : (
+                        <div className="text-white">{userData.major}</div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-medium text-gray-400 block mb-2">Joined</label>
                       <div className="flex items-center space-x-2 text-white">
-                        <Mail className="h-4 w-4 text-blue-400" />
-                        <span>{userData.email}</span>
+                        <Calendar className="h-4 w-4 text-purple-400" />
+                        <span>{new Date(userData.joinedDate).toLocaleDateString()}</span>
                       </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-400 block mb-2">Phone</label>
-                    {isEditing ? (
-                      <Input
-                        value={editedData.phone}
-                        onChange={(e) => setEditedData({ ...editedData, phone: e.target.value })}
-                        className="bg-gray-800/50 border-gray-600"
-                      />
-                    ) : (
-                      <div className="flex items-center space-x-2 text-white">
-                        <Phone className="h-4 w-4 text-green-400" />
-                        <span>{userData.phone}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-400 block mb-2">Location</label>
-                    {isEditing ? (
-                      <Input
-                        value={editedData.location}
-                        onChange={(e) => setEditedData({ ...editedData, location: e.target.value })}
-                        className="bg-gray-800/50 border-gray-600"
-                      />
-                    ) : (
-                      <div className="flex items-center space-x-2 text-white">
-                        <MapPin className="h-4 w-4 text-red-400" />
-                        <span>{userData.location}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-400 block mb-2">University</label>
-                    <div className="text-white">{userData.university}</div>
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-400 block mb-2">Major</label>
-                    {isEditing ? (
-                      <Input
-                        value={editedData.major}
-                        onChange={(e) => setEditedData({ ...editedData, major: e.target.value })}
-                        className="bg-gray-800/50 border-gray-600"
-                      />
-                    ) : (
-                      <div className="text-white">{userData.major}</div>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-sm font-medium text-gray-400 block mb-2">Joined</label>
-                    <div className="flex items-center space-x-2 text-white">
-                      <Calendar className="h-4 w-4 text-purple-400" />
-                      <span>{new Date(userData.joinedDate).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </div>
@@ -379,7 +399,7 @@ export default function ProfilePage() {
                         onEdit={() => {}} 
                         onDelete={() => {}} 
                         onToggleComplete={() => {}} 
-                        onCourseClick={setSelectedCourse} 
+                        onCourseClick={handleCourseClick} 
                      />
                     )
                   })}
@@ -390,9 +410,10 @@ export default function ProfilePage() {
         </div>
       </div>
       <CourseDetailsModal
-          isOpen={!selectedCourse}
-          onClose={() => setSelectedCourse(null)}
-          course={selectedCourse}
+          isOpen={!!selectedCourseId}
+          courseId={selectedCourseId}
+          onClose={() => setSelectedCourseId(null)}
+          onEdit={handleEditCourse}
         />
     </div>
   )

@@ -7,11 +7,12 @@ interface OverdueAssignmentsProps {
   assignments: assignment.LocalAssignment[]
   onToggleComplete: (assignment: assignment.LocalAssignment) => void
   onAssignmentClick: (assignment: assignment.LocalAssignment) => void
+  onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
   onDelete: (assignment: assignment.LocalAssignment) => void
   isLoading?: boolean
 }
 
-export function OverdueAssignments({ assignments, onToggleComplete, onAssignmentClick, onDelete, isLoading }: OverdueAssignmentsProps) {
+export function OverdueAssignments({ assignments, onToggleComplete, onAssignmentClick, onEdit, onDelete, isLoading }: OverdueAssignmentsProps) {
   // No need to filter here - the hook already provides filtered data
   const overdueAssignments = assignments || []
 
@@ -21,6 +22,7 @@ export function OverdueAssignments({ assignments, onToggleComplete, onAssignment
       assignments={overdueAssignments} 
       onToggleComplete={onToggleComplete} 
       onAssignmentClick={onAssignmentClick}
+      onEdit={onEdit}
       onDelete={onDelete}
       isLoading={isLoading}
     />

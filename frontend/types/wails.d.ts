@@ -14,13 +14,14 @@ declare global {
           GetCourse: (id: number) => Promise<Course>
           GetUser: (id: number) => Promise<User>
           GetAssignments: () => Promise<assignment.LocalAssignment[]>
+          GetCourseAssignments: (course: course.LocalCourse) => Promise<assignment.LocalAssignment[]>
           GetCourses: () => Promise<Course[]>
           CreateAssignment: (assignment: assignment.LocalAssignment) => Promise<void>
           UpdateAssignment: (assignment: assignment.LocalAssignment, column: string, value: string) => Promise<void>
           DeleteAssignment: (assignment: assignment.LocalAssignment) => Promise<void>
-          CreateCourse: (course: Course) => Promise<void>
-          UpdateCourse: (course: Course) => Promise<void>
-          DeleteCourse: (course: Course) => Promise<void>
+          CreateCourse: (course: course.LocalCourse) => Promise<void>
+          UpdateCourse: (course: course.LocalCourse, column: string, value: string) => Promise<void>
+          DeleteCourse: (course: course.LocalCourse) => Promise<void>
         }
       }
     }

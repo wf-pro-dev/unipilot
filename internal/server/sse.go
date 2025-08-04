@@ -11,9 +11,9 @@ import (
 )
 
 type SSEClient struct {
-	UserID    uint
-	Messages  chan []byte
-	Connected bool
+	UserID     uint
+	Messages   chan []byte
+	Connected  bool
 	LastActive time.Time
 }
 
@@ -39,8 +39,8 @@ func (s *SSEServer) AddClient(userID uint) *SSEClient {
 		Messages:  make(chan []byte, 100),
 		Connected: true,
 	}
-	
-	PrintLog(fmt.Sprintf("New SSE user id : %d\n",userID))
+
+	PrintLog(fmt.Sprintf("New SSE user id : %d\n", userID))
 	s.clients[userID] = client
 	return client
 }
@@ -58,8 +58,8 @@ func (s *SSEServer) RemoveClient(userID uint) {
 func (s *SSEServer) SendToUser(userID uint, message []byte) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
-	s.logActiveClients()	
+
+	s.logActiveClients()
 	if client, ok := s.clients[userID]; ok {
 		select {
 		case client.Messages <- message:
@@ -87,31 +87,28 @@ func (s *SSEServer) Broadcast(message []byte) {
 }
 
 func (s *SSEServer) logActiveClients() {
-    s.mu.RLock()
-    defer s.mu.RUnlock()
-    PrintLog(fmt.Sprintf("Active Clients: %v", s.clients))
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	PrintLog(fmt.Sprintf("Active Clients: %v", s.clients))
 }
 
-
 type noTimeoutWriter struct {
-    http.ResponseWriter
+	http.ResponseWriter
 }
 
 func (w *noTimeoutWriter) Write(p []byte) (int, error) {
-    // Disable write timeout
-    if conn, _, err := w.ResponseWriter.(http.Hijacker).Hijack(); err == nil {
-        conn.SetWriteDeadline(time.Time{})
-        conn.Close()
-    }
-    return w.ResponseWriter.Write(p)
+	// Disable write timeout
+	if conn, _, err := w.ResponseWriter.(http.Hijacker).Hijack(); err == nil {
+		conn.SetWriteDeadline(time.Time{})
+		conn.Close()
+	}
+	return w.ResponseWriter.Write(p)
 }
 
 func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
-	
 
 	PrintLog(fmt.Sprintf("SSE connection attempt from %s", r.RemoteAddr))
 
-	
 	// Get user from context (set by AuthMiddleware)
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
@@ -132,7 +129,6 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("X-Accel-Buffering", "no")
 
-
 	// Create a flusher
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -142,13 +138,12 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Add client to server
 	client := s.AddClient(userID)
-   	s.logActiveClients()
-	
+	s.logActiveClients()
+
 	defer func() {
 		PrintLog(fmt.Sprintf("Removing client %d (reason: connection closing)", int(userID)))
 		s.RemoveClient(userID)
 	}()
-
 
 	// Send initial connection message
 	//fmt.Fprintf(w, "event: connected\ndata: %s\n\n", "SSE connection established")
@@ -157,7 +152,7 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 	// Keep connection alive and send messages
 	heartbeatTicker := time.NewTicker(15 * time.Second)
 	defer heartbeatTicker.Stop()
-	
+
 	for {
 		select {
 		case msg := <-client.Messages:

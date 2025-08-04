@@ -28,7 +28,6 @@ func MigrateLocalDocuments(db *gorm.DB) error {
 	// This is called automatically by InitializeSchema in storage/local.go
 	err := db.AutoMigrate(
 		&document.LocalDocument{},
-		&document.LocalDocumentCache{},
 	)
 
 	if err != nil {
