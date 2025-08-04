@@ -18,6 +18,7 @@ import (
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/document"
+	"unipilot/internal/models/note"
 	"unipilot/internal/models/user"
 	"unipilot/internal/network"
 	"unipilot/internal/services/fileops"
@@ -185,6 +186,59 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 	log.Printf("Response course: %v\n", responseCourse)
 
 	return nil
+}
+
+func (a *App) CreateNote(noteData *note.LocalNote) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	tx := a.DB.GetDB().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	localNote := &note.LocalNote{
+		Title:      noteData.Title,
+		Subject:    noteData.Subject,
+		CourseCode: noteData.CourseCode,
+	}
+
+	fmt.Println("Creating note:", localNote)
+
+	if !a.Auth.IsAuthenticated() {
+		return fmt.Errorf("user not authenticated")
+	}
+	fmt.Println("User ID:", a.DB.GetCurrentUserID())
+
+	// Create the note within the transaction
+	if err := tx.Create(localNote).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	fmt.Println(" local note success ")
+	remoteNote := &note.Note{
+		LocalID:    localNote.ID,
+		Title:      localNote.Title,
+		Subject:    localNote.Subject,
+		CourseCode: localNote.CourseCode,
+	}
+
+	responseNote, err := client.CreateNote(remoteNote)
+	if err != nil {
+		tx.Rollback()
+		fmt.Println("Error creating remote note:", err)
+		return err
+	}
+
+	tx.Commit()
+	log.Printf("Response note: %v\n", responseNote)
+
+	return nil
+
 }
 
 // UploadDocument opens a file dialog and uploads a document to an assignment

@@ -1,56 +1,47 @@
 "use client"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CreateNotesView } from "@/components/notes/create-notes-view"
 import { SavedNotesList } from "@/components/notes/saved-notes-list"
-import { AllTranscriptsView } from "@/components/notes/all-transcripts-view"
 import { AllNotesView } from "@/components/notes/all-notes-view"
-import { Plus, FileText, FileAudio, Library } from "lucide-react"
+import { NoteGenerationForm } from "@/components/notes/note-generation-form"
+import { Plus, FileText, Library, Sparkles } from "lucide-react"
 
 export default function NotesPage() {
   return (
     <div className="page">
       {/* Floating background elements */}
-      <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
-      <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float-delayed"></div>
+      <div className="absolute left-10 top-20 w-72 h-72 rounded-full blur-3xl bg-blue-500/10 animate-float"></div>
+      <div className="absolute right-10 bottom-20 w-96 h-96 rounded-full blur-3xl bg-purple-500/10 animate-float-delayed"></div>
 
       <div className="relative z-10">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
             Study Notes
           </h1>
-          <p className="text-gray-400 mt-2">Create, organize, and manage your study materials</p>
+          <p className="mt-2 text-gray-400">Generate AI-powered study notes for your courses</p>
         </div>
 
-        <Tabs defaultValue="create" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 glass border-0 mb-8">
-            <TabsTrigger value="create" className="flex items-center space-x-2">
-              <Plus className="h-4 w-4" />
-              <span>Create</span>
+        <Tabs defaultValue="generate" className="w-full">
+          <TabsList className="grid grid-cols-3 mb-8 w-full border-0 glass">
+            <TabsTrigger value="generate" className="flex items-center space-x-2">
+              <Sparkles className="w-4 h-4" />
+              <span>Generate</span>
             </TabsTrigger>
             <TabsTrigger value="notes" className="flex items-center space-x-2">
-              <FileText className="h-4 w-4" />
+              <FileText className="w-4 h-4" />
               <span>All Notes</span>
             </TabsTrigger>
-            <TabsTrigger value="transcripts" className="flex items-center space-x-2">
-              <FileAudio className="h-4 w-4" />
-              <span>Transcripts</span>
-            </TabsTrigger>
             <TabsTrigger value="library" className="flex items-center space-x-2">
-              <Library className="h-4 w-4" />
+              <Library className="w-4 h-4" />
               <span>Library</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="create">
-            <CreateNotesView />
+          <TabsContent value="generate">
+            <NoteGenerationForm />
           </TabsContent>
 
           <TabsContent value="notes">
             <AllNotesView />
-          </TabsContent>
-
-          <TabsContent value="transcripts">
-            <AllTranscriptsView />
           </TabsContent>
 
           <TabsContent value="library">
