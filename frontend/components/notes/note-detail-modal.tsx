@@ -191,6 +191,7 @@ export function NoteDetailModal({
             <TabsContent value="note">
               <div className="space-y-4">
                   <div className="space-y-2">
+                  {/* Check if we have HTML content from the server */}
                   {note.Content ? (
                     <StyledMarkdownRenderer
                       content={note.Content}
