@@ -19,6 +19,8 @@ export function DeleteCourse(arg1:course.LocalCourse):Promise<void>;
 
 export function DeleteDocument(arg1:number):Promise<void>;
 
+export function DeleteNote(arg1:note.LocalNote):Promise<void>;
+
 export function EnsureSSEConnection():Promise<void>;
 
 export function GetAssignment(arg1:number):Promise<assignment.LocalAssignment>;
@@ -32,6 +34,8 @@ export function GetCourse(arg1:number):Promise<course.Course>;
 export function GetCourseAssignments(arg1:course.LocalCourse):Promise<Array<assignment.LocalAssignment>>;
 
 export function GetCourses():Promise<Array<course.LocalCourse>>;
+
+export function GetNotes():Promise<Array<note.LocalNote>>;
 
 export function GetRemoteDocumentMetadata(arg1:number):Promise<Array<Record<string, any>>>;
 
@@ -62,6 +66,8 @@ export function SaveDocumentAs(arg1:number):Promise<void>;
 export function UpdateAssignment(arg1:assignment.LocalAssignment,arg2:string,arg3:string):Promise<void>;
 
 export function UpdateCourse(arg1:course.LocalCourse,arg2:string,arg3:string):Promise<void>;
+
+export function UpdateNote(arg1:note.LocalNote,arg2:string,arg3:string):Promise<void>;
 
 export function UploadDocument(arg1:number,arg2:string):Promise<document.LocalDocument>;
 

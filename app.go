@@ -234,8 +234,15 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 		return err
 	}
 
+	localNote.Keywords = responseNote["keywords"]
+	localNote.Content = responseNote["content"]
+
+	if err := tx.Save(&localNote).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
 	tx.Commit()
-	log.Printf("Response note: %v\n", responseNote)
 
 	return nil
 
@@ -384,6 +391,26 @@ func (a *App) UpdateCourse(course *course.LocalCourse, column, value string) err
 	course_id := strconv.Itoa(course_id_int)
 
 	if err := client.SendCourseUpdate(course_id, column, value); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *App) UpdateNote(LocalNote *note.LocalNote, column, value string) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	if err := a.DB.UpdateNote(LocalNote, column, value); err != nil {
+		return err
+	}
+
+	note_id_int := int(LocalNote.ID)
+
+	note_id := strconv.Itoa(note_id_int)
+
+	if err := client.SendNoteUpdate(note_id, column, value); err != nil {
 		return err
 	}
 
@@ -611,6 +638,24 @@ func (a *App) DeleteDocument(documentID uint) error {
 			return fmt.Errorf("failed to delete document metadata: %s", resp.Status)
 		}
 
+	}
+
+	return nil
+}
+
+func (a *App) DeleteNote(note *note.LocalNote) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	if err := a.DB.DeleteNote(note); err != nil {
+		return err
+	}
+
+	note_id_str := strconv.Itoa(int(note.ID))
+
+	if err := client.SendNoteUpdate(note_id_str, "deleted_at", time.Now().Format(time.RFC3339)); err != nil {
+		return err
 	}
 
 	return nil
@@ -885,6 +930,14 @@ func (a *App) GetCourses() ([]course.LocalCourse, error) {
 		return nil, fmt.Errorf("database not initialized")
 	}
 	return a.DB.GetCourses()
+}
+
+// GetNotes returns all notes for the current user
+func (a *App) GetNotes() ([]note.LocalNote, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	return a.DB.GetNotes()
 }
 
 // Document Management Methods

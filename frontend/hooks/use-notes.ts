@@ -2,7 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogError } from "@/wailsjs/runtime/runtime"
-import { Note, YouTubeVideo } from '@/types/models'
+import { note } from '@/wailsjs/go/models'
+import { useToast } from './use-toast'
 
 // Query keys for consistent cache management
 export const noteKeys = {
@@ -18,11 +19,9 @@ export const noteKeys = {
 export function useNotes() {
   return useQuery({
     queryKey: noteKeys.lists(),
-    queryFn: async (): Promise<Note[]> => {
+    queryFn: async (): Promise<note.LocalNote[]> => {
       try {
-        // TODO: Replace with actual API call
-        // For now, return empty array
-        return []
+        return await window.go.main.App.GetNotes()
       } catch (error) {
         LogError("Failed to fetch notes: " + error)
         throw new Error(error instanceof Error ? error.message : "Failed to fetch notes")
@@ -33,82 +32,37 @@ export function useNotes() {
   })
 }
 
-// Hook for creating new notes
-export function useCreateNote() {
-  const queryClient = useQueryClient()
-  
-  return useMutation({
-    mutationFn: async (newNote: Omit<Note, 'ID' | 'CreatedAt' | 'UpdatedAt' | 'DeletedAt'>) => {
-      // TODO: Replace with actual API call
-      const mockNote: Note = {
-        ...newNote,
-        ID: Date.now(), // Temporary ID generation
-        CreatedAt: new Date(),
-        UpdatedAt: new Date(),
-      }
-      return mockNote
-    },
-    
-    // Optimistically add the new note
-    onMutate: async (newNote) => {
-      await queryClient.cancelQueries({ queryKey: noteKeys.lists() })
-      
-      const previousNotes = queryClient.getQueryData<Note[]>(noteKeys.lists())
-      
-      const mockNote: Note = {
-        ...newNote,
-        ID: Date.now(),
-        CreatedAt: new Date(),
-        UpdatedAt: new Date(),
-      }
-      
-      queryClient.setQueryData<Note[]>(noteKeys.lists(), (old) => {
-        if (!old) return [mockNote]
-        return [mockNote, ...old]
-      })
-      
-      return { previousNotes }
-    },
-    
-    onError: (err, variables, context) => {
-      if (context?.previousNotes) {
-        queryClient.setQueryData(noteKeys.lists(), context.previousNotes)
-      }
-      LogError("Failed to create note: " + err)
-    },
-    
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: noteKeys.lists() })
-    },
-  })
-}
-
-// Hook for updating notes
+// Hook for updating notes with optimistic updates
 export function useUpdateNote() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async ({ note, updates }: { note: Note, updates: Partial<Note> }) => {
-      // TODO: Replace with actual API call
-      const updatedNote: Note = {
-        ...note,
-        ...updates,
-        UpdatedAt: new Date(),
-      }
-      return updatedNote
+    mutationFn: async ({ 
+      note, 
+      column, 
+      value 
+    }: { 
+      note: note.LocalNote
+      column: string
+      value: string 
+    }) => {
+      return await window.go.main.App.UpdateNote(note, column, value)
     },
     
     // Optimistic update for instant UI feedback
-    onMutate: async ({ note, updates }) => {
+    onMutate: async ({ note, column, value }) => {
+      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: noteKeys.lists() })
       
-      const previousNotes = queryClient.getQueryData<Note[]>(noteKeys.lists())
+      // Snapshot the previous value
+      const previousNotes = queryClient.getQueryData<note.LocalNote[]>(noteKeys.lists())
       
-      queryClient.setQueryData<Note[]>(noteKeys.lists(), (old) => {
+      // Optimistically update the cache
+      queryClient.setQueryData<note.LocalNote[]>(noteKeys.lists(), (old) => {
         if (!old) return []
         return old.map(n => 
           n.ID === note.ID 
-            ? { ...note, ...updates, UpdatedAt: new Date() } as Note
+            ? { ...n, [column]: value, UpdatedAt: new Date() } as note.LocalNote
             : n
         )
       })
@@ -116,6 +70,7 @@ export function useUpdateNote() {
       return { previousNotes }
     },
     
+    // If the mutation fails, rollback
     onError: (err, variables, context) => {
       if (context?.previousNotes) {
         queryClient.setQueryData(noteKeys.lists(), context.previousNotes)
@@ -123,9 +78,46 @@ export function useUpdateNote() {
       LogError("Failed to update note: " + err)
     },
     
+    // Always refetch after error or success to ensure consistency
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: noteKeys.lists() })
     },
+  })
+}
+
+// Hook for creating new notes
+export function useCreateNote() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async (newNote: note.LocalNote) => {
+      return await window.go.main.App.CreateNote(newNote)
+    },
+    // Optimistically add the new note
+   // Optimistically add the new note
+   onMutate: async (newNote) => {
+    await queryClient.cancelQueries({ queryKey: noteKeys.lists() })
+    
+    const previousNotes = queryClient.getQueryData<note.LocalNote[]>(noteKeys.lists())
+    
+    queryClient.setQueryData<note.LocalNote[]>(noteKeys.lists(), (old) => {
+      if (!old) return [newNote]
+      return [newNote, ...old]
+    })
+    
+    return { previousNotes }
+  },
+  
+  onError: (err, variables, context) => {
+    if (context?.previousNotes) {
+      queryClient.setQueryData(noteKeys.lists(), context.previousNotes)
+    }
+    LogError("Failed to create note: " + err)
+  },
+  
+  onSettled: () => {
+    queryClient.invalidateQueries({ queryKey: noteKeys.lists() })
+  },
   })
 }
 
@@ -134,20 +126,19 @@ export function useDeleteNote() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (noteId: number) => {
-      // TODO: Replace with actual API call
-      return noteId
+    mutationFn: async (noteToDelete: note.LocalNote) => {
+      return await window.go.main.App.DeleteNote(noteToDelete)
     },
     
     // Optimistically remove the note
-    onMutate: async (noteId) => {
+    onMutate: async (noteToDelete) => {
       await queryClient.cancelQueries({ queryKey: noteKeys.lists() })
       
-      const previousNotes = queryClient.getQueryData<Note[]>(noteKeys.lists())
+      const previousNotes = queryClient.getQueryData<note.LocalNote[]>(noteKeys.lists())
       
-      queryClient.setQueryData<Note[]>(noteKeys.lists(), (old) => {
+      queryClient.setQueryData<note.LocalNote[]>(noteKeys.lists(), (old) => {
         if (!old) return []
-        return old.filter(n => n.ID !== noteId)
+        return old.filter(n => n.ID !== noteToDelete.ID)
       })
       
       return { previousNotes }
@@ -166,103 +157,4 @@ export function useDeleteNote() {
   })
 }
 
-// Hook for searching notes
-export function useSearchNotes(query: string) {
-  return useQuery({
-    queryKey: noteKeys.search(query),
-    queryFn: async (): Promise<Note[]> => {
-      try {
-        // TODO: Replace with actual search API call
-        // For now, return empty array
-        return []
-      } catch (error) {
-        LogError("Failed to search notes: " + error)
-        throw new Error(error instanceof Error ? error.message : "Failed to search notes")
-      }
-    },
-    enabled: query.length > 0,
-    staleTime: 1 * 60 * 1000, // Search results change frequently
-    gcTime: 5 * 60 * 1000,
-  })
-}
 
-// Hook for adding YouTube videos to a note
-export function useAddYouTubeVideos() {
-  const queryClient = useQueryClient()
-  
-  return useMutation({
-    mutationFn: async ({ noteId, videos }: { noteId: number, videos: YouTubeVideo[] }) => {
-      // TODO: Replace with actual API call
-      return { noteId, videos }
-    },
-    
-    // Optimistically update the note
-    onMutate: async ({ noteId, videos }) => {
-      await queryClient.cancelQueries({ queryKey: noteKeys.lists() })
-      
-      const previousNotes = queryClient.getQueryData<Note[]>(noteKeys.lists())
-      
-      queryClient.setQueryData<Note[]>(noteKeys.lists(), (old) => {
-        if (!old) return []
-        return old.map(n => 
-          n.ID === noteId 
-            ? { 
-                ...n, 
-                YouTubeVideos: [...(n.YouTubeVideos || []), ...videos],
-                UpdatedAt: new Date() 
-              } as Note
-            : n
-        )
-      })
-      
-      return { previousNotes }
-    },
-    
-    onError: (err, variables, context) => {
-      if (context?.previousNotes) {
-        queryClient.setQueryData(noteKeys.lists(), context.previousNotes)
-      }
-      LogError("Failed to add YouTube videos: " + err)
-    },
-    
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: noteKeys.lists() })
-    },
-  })
-}
-
-// Hook for generating AI notes
-export function useGenerateNote() {
-  const queryClient = useQueryClient()
-  
-  return useMutation({
-    mutationFn: async ({ title, courseId, subject }: { title: string, courseId: string, subject: string }) => {
-      // TODO: Replace with actual API call to backend/Gemini
-      // For now, return mock data
-      const mockNote: Note = {
-        ID: Date.now(),
-        UserID: 1, // TODO: Get from auth
-        CourseID: parseInt(courseId),
-        Title: title,
-        Subject: subject,
-        Content: `# ${title}\n\nGenerated content for ${subject}...`,
-        Keywords: ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
-        CreatedAt: new Date(),
-        UpdatedAt: new Date(),
-      }
-      return mockNote
-    },
-    
-    onSuccess: (newNote) => {
-      // Add the generated note to the cache
-      queryClient.setQueryData<Note[]>(noteKeys.lists(), (old) => {
-        if (!old) return [newNote]
-        return [newNote, ...old]
-      })
-    },
-    
-    onError: (err) => {
-      LogError("Failed to generate note: " + err)
-    },
-  })
-} 

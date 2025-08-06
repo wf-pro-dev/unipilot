@@ -4,6 +4,7 @@ go 1.23
 
 require (
 	github.com/gen2brain/malgo v0.11.23
+	github.com/gomarkdown/markdown v0.0.0-20250731182530-5d03d1963446
 	github.com/gorilla/sessions v1.4.0
 	github.com/spf13/viper v1.20.1
 	github.com/wailsapp/wails/v2 v2.10.2

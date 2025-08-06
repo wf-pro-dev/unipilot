@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
+	"unipilot/internal/models/note"
 	"unipilot/internal/models/user"
 	"unipilot/internal/storage"
 
@@ -71,7 +72,6 @@ func (h *DatabaseHelper) GetCurrentUserID() uint {
 
 // CreateAssignment creates a new assignment
 func (h *DatabaseHelper) CreateAssignment(assignment *assignment.LocalAssignment) error {
-	h.db = h.db.Debug()
 	return h.db.Create(assignment).Error
 }
 
@@ -101,4 +101,26 @@ func (h *DatabaseHelper) UpdateCourse(LocalCourse *course.LocalCourse, column, v
 // DeleteCourse deletes a course
 func (h *DatabaseHelper) DeleteCourse(course *course.LocalCourse) error {
 	return h.db.Delete(course).Error
+}
+
+// GetNotes returns all notes for the current user
+func (h *DatabaseHelper) GetNotes() ([]note.LocalNote, error) {
+	var LocalNote []note.LocalNote
+	err := h.db.Find(&LocalNote).Error
+	return LocalNote, err
+}
+
+// CreateNote creates a new note
+func (h *DatabaseHelper) CreateNote(note *note.LocalNote) error {
+	return h.db.Create(note).Error
+}
+
+// UpdateNote updates an existing note
+func (h *DatabaseHelper) UpdateNote(LocalNote *note.LocalNote, column, value string) error {
+	return h.db.Exec(fmt.Sprintf("UPDATE local_notes SET %s = '%s' WHERE id = '%d'", column, value, LocalNote.ID)).Error
+}
+
+// DeleteNote deletes a note
+func (h *DatabaseHelper) DeleteNote(note *note.LocalNote) error {
+	return h.db.Delete(note).Error
 }
