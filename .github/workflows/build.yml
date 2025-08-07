@@ -21,17 +21,23 @@ jobs:
         with:
           submodules: recursive
 
+      # Install Wails CLI globally
+      - name: Install Wails
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.9.0
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
 
-      - name: Verify Node.js setup
+      - name: Verify installations
         run: |
-          echo "Node.js $(node --version)"
-          echo "npm $(npm --version)"
-          command -v npm || (echo "❌ npm not found!" && exit 1)
+          wails version
+          node --version
+          npm --version
 
       # Install root dependencies (Wails) without triggering prepare script
       - name: Install root dependencies
@@ -42,7 +48,7 @@ jobs:
         run: |
           cd frontend
           npm install
-          npm ls || true  # Verify dependencies (continue on warning)
+          npm ls || true
 
       # Build frontend
       - name: Build frontend
@@ -50,18 +56,15 @@ jobs:
         working-directory: frontend
 
       # Special handling for Windows
-      - name: Windows setup (if needed)
+      - name: Windows setup
         if: matrix.build.os == 'windows-latest'
         run: npm config set script-shell pwsh --global
 
       # Run Wails build
-      - uses: dAppServer/wails-build-action@main
-        with:
-          build-name: ${{ matrix.build.name }}
-          build-platform: ${{ matrix.build.platform }}
-          wails-version: "v2.9.0"
+      - name: Build with Wails
+        run: wails build -platform ${{ matrix.build.platform }}
 
-      # Upload artifacts (using current v4 version)
+      # Upload artifacts
       - name: Upload artifact
         if: success()
         uses: actions/upload-artifact@v4
