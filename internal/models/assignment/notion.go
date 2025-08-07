@@ -1,6 +1,7 @@
 package assignment
 
 import (
+
 	"unipilot/internal/types"
 )
 
@@ -25,6 +26,7 @@ func NewRichText(content string) types.RichText {
 }
 
 // AddAssignmentToNotion adds an assignment to Notion efficiently
+
 // func (a *Assignment) Add_Notion() (string, error) {
 
 // 	assign := a.ToMap()
@@ -278,6 +280,7 @@ func NewRichText(content string) types.RichText {
 
 // 	return err
 // }
+
 
 // func GetPage(page_id, sender_id string) (respBody []byte, err error) {
 

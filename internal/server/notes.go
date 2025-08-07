@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"unipilot/internal/models/note"
+	"unipilot/internal/models/course"
 	"unipilot/internal/services/gemini"
 	"unipilot/internal/services/markdown"
 
@@ -96,11 +97,13 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		Title      string `json:"title"`
 		Subject    string `json:"subject"`
 	}
+	
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
+	
 
 	// Validate all required fields
 	if input.LocalID == "" || input.CourseCode == "" || input.Title == "" || input.Subject == "" {
@@ -129,6 +132,17 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
+	PrintLog(response.Content)
+	
+	local_id, err := strconv.Atoi(input.LocalID)
+	if err != nil {
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating local_id : %s", err))
+
+		return 
+	}
+	
+
 	nVal := note.Note{
 		UserID:     userID,
 		CourseCode: input.CourseCode,
@@ -142,6 +156,16 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	if result.Error != nil {
 		tx.Rollback()
 		PrintERROR(w, http.StatusConflict, fmt.Sprintf("Error creating note in database: %v", result.Error))
+
+		PrintERROR(w, http.StatusConflict, fmt.Sprintf("Error creating assignment in database", err))
+		return
+	}
+
+	nObj := &nVal
+
+	n, err := note.Get_Note_byID(nObj.ID, userID, tx)
+	if err != nil {
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
 		return
 	}
 
@@ -213,6 +237,7 @@ func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to convert note ID to int: %s", err))
 		return
 	}
+
 
 	var n note.Note
 	if err := tx.Where("id = ? AND user_id = ?", uint(int_id), userID).First(&n).Error; err != nil {

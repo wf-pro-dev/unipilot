@@ -53,3 +53,4 @@ func Get_User_by_NotionID(notion_id string, db *gorm.DB) (*User, error) {
 	}
 	return u, nil
 }
+

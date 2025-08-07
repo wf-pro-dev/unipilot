@@ -1,7 +1,9 @@
 package course
 
 import (
+
 	"os"
+
 )
 
 var NOTION_API_KEY = os.Getenv("NOTION_API_KEY")

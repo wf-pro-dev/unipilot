@@ -36,3 +36,30 @@ func (n *Note) ToMap() map[string]string {
 		"course_code": n.CourseCode,
 	}
 }
+func Get_Note_byID(id, user_id uint, db *gorm.DB) (*Note, error) {
+	note := &Note{}
+	err := db.Preload("User").
+		Preload("Course", "user_id = ?", user_id).
+		Where("id = ?", id).
+		First(note).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return note, nil
+}
+
+func Get_Note_byLocalID(id, user_id uint, db *gorm.DB) (*Note, error) {
+	
+	note:= &Note{}
+	err := db.Preload("User").
+		Preload("Course", "user_id = ?", user_id).
+		Where("local_id = ?", id).
+		First(note).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return note, nil
+}
+
