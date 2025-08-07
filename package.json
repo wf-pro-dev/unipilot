@@ -1,4 +1,7 @@
 {
+  "scripts" : {
+    "build": "next build"
+  },
   "dependencies": {
     "@tanstack/react-query": "^5.83.0",
     "react-dnd": "^16.0.1",
