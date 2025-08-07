@@ -1,4 +1,4 @@
-name: Build Cross-Platform
+name: Wails build
 
 on:
   push:
@@ -8,68 +8,20 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
-        platform:
-          - os: ubuntu-latest
-            arch: amd64
-            target: linux/amd64
-            name: linux
-          - os: windows-latest
-            arch: amd64
-            target: windows/amd64
-            name: windows
-          - os: macos-latest
-            arch: amd64
-            target: darwin/amd64
-            name: macos-intel
-          - os: macos-latest
-            arch: arm64
-            target: darwin/arm64
-            name: macos-arm
-    runs-on: ${{ matrix.platform.os }}
-    
+        build: [
+          {name: unipilot, platform: linux/amd64, os: ubuntu-latest},
+          {name: unipilot, platform: windows/amd64, os: windows-latest},
+          {name: unipilot, platform: darwin/universal, os: macos-latest}
+        ]
+    runs-on: ${{ matrix.build.os }}
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21'
-        
-    - name: Setup Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-
-    # Linux-specific dependencies
-    - name: Install Linux dependencies
-      if: matrix.platform.name == 'linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential libgtk-3-dev libwebkit2gtk-4.0-dev
-        
-    # Windows-specific dependencies  
-    - name: Install Windows dependencies
-      if: matrix.platform.name == 'windows'
-      run: |
-        # Windows usually has what it needs, but you can add specific deps here if needed
-        echo "Setting up Windows build environment"
-
-    # macOS-specific dependencies
-    - name: Install macOS dependencies
-      if: matrix.platform.name == 'macos-intel' || matrix.platform.name == 'macos-arm'
-      run: |
-        # macOS usually has what it needs for Wails
-        echo "Setting up macOS build environment"
-        
-    - name: Install Wails
-      run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
-      
-    - name: Build for ${{ matrix.platform.name }}
-      run: wails build -platform ${{ matrix.platform.target }}
-      
-    - name: Upload ${{ matrix.platform.name }} Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-${{ matrix.platform.name }}-${{ matrix.platform.arch }}
-        path: build/bin/
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dAppServer/wails-build-action@v3
+        with:
+          build-name: ${{ matrix.build.name }}
+          build-platform: ${{ matrix.build.platform }}
+          wails-version: "v2.9.0"
