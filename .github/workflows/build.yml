@@ -1,4 +1,4 @@
-name: Wails Build and Deploy
+name: Wails build
 
 on:
   push:
@@ -17,58 +17,11 @@ jobs:
         ]
     runs-on: ${{ matrix.build.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v2
         with:
           submodules: recursive
-
-      # Install Wails CLI globally
-      - name: Install Wails
-        run: |
-          go install github.com/wailsapp/wails/v2/cmd/wails@v2.9.0
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: dAppServer/wails-build-action@v3
         with:
-          node-version: '18'
-          cache: 'npm'
-
-      - name: Verify installations
-        run: |
-          wails version
-          node --version
-          npm --version
-
-      # Install root dependencies (Wails) without triggering prepare script
-      - name: Install root dependencies
-        run: npm install --ignore-scripts
-
-      # Install frontend dependencies
-      - name: Install frontend dependencies
-        run: |
-          cd frontend
-          npm install
-          npm ls || true
-
-      # Build frontend
-      - name: Build frontend
-        run: npm run build
-        working-directory: frontend
-
-      # Special handling for Windows
-      - name: Windows setup
-        if: matrix.build.os == 'windows-latest'
-        run: npm config set script-shell pwsh --global
-
-      # Run Wails build
-      - name: Build with Wails
-        run: wails build -platform ${{ matrix.build.platform }}
-
-      # Upload artifacts
-      - name: Upload artifact
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.build.name }}-${{ matrix.build.platform }}
-          path: build/bin/*
-          retention-days: 3
+          build-name: ${{ matrix.build.name }}
+          build-platform: ${{ matrix.build.platform }}
+          build-obfuscate: true
