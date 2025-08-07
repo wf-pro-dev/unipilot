@@ -3,13 +3,15 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
 
 	"unipilot/internal/models/note"
+	"unipilot/internal/models/course"
 	"unipilot/internal/services/gemini"
+	
+	"gorm.io/gorm"
 )
 
 
@@ -45,7 +47,7 @@ func GetNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var notesMap []map[string]string
-	for _, n := range assignments {
+	for _, n := range notes {
 		notesMap = append(notesMap, n.ToMap())
 	}
 
@@ -96,11 +98,13 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		Title      string `json:"title"`
 		Subject    string `json:"subject"`
 	}
+	
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
+	
 
 
 	// Validate all required fields
@@ -111,27 +115,47 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Generate content and keywords
 	var request gemini.GeminiRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+	
+	var c course.Course
+	if err := db.Where("code = ?",input.CourseCode).Find(&c).Error ; err != nil {
+	
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Found no related course: %v", err))
 		return
 	}
 
-	response, err := gemini.GenerateNote(request)
-	if err == nil {
+	request.Title = input.Title
+	request.Subject = input.Subject
+	request.CourseName = c.Name
+	
+
+	response, err := gemini.GenerateNote(&request)
+	if err != nil {
 		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid gemini response: %v", err))
 		return
 	}
 
+
+	PrintLog(response.Content)
+	
+	local_id, err := strconv.Atoi(input.LocalID)
+	if err != nil {
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating local_id : %s", err))
+
+		return 
+	}
+	
+
 	nVal := note.Note{
-		UserID:		userID,
-		CourseCode:	input.CourseCode,
-		Title:		input.Title,
-		Subject:	input.Subject,
-		Keywords:	reponse["keywords"],
-		Content:	reponse["content"],
+		UserID:     userID,
+		LocalID:    uint(local_id),
+		CourseCode: input.CourseCode,
+		Title:      input.Title,
+		Subject:    input.Subject,
+		Keywords:   response.Keywords,
+		Content:    response.Content,
 	}
 
-	result := tx.Create(&aVal)
+	result := tx.Create(&nVal)
 	if result.Error != nil {
 		PrintERROR(w, http.StatusConflict, fmt.Sprintf("Error creating assignment in database", err))
 		return
@@ -139,7 +163,7 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	nObj := &nVal
 
-	a, err := note.Get_Note_(nObj.ID, userID, tx)
+	n, err := note.Get_Note_byID(nObj.ID, userID, tx)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
 		return
@@ -159,11 +183,11 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":    "Assignment created successfully",
-		"assignment": noteMap,
+		"note": noteMap,
 	})
 
 }
-func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
+func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
@@ -214,7 +238,7 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, err := note.Get_Note_byID(uint(int_id), tx)
+	n, err := note.Get_Note_byLocalID(uint(int_id), userID, tx)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
 		return

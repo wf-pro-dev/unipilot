@@ -1,12 +1,12 @@
 package course
 
 import (
-	"encoding/json"
-	"fmt"
+//	"encoding/json"
+//	"fmt"
 	"os"
 
-	"unipilot/internal/services/notion"
-	"unipilot/internal/types"
+//	"unipilot/internal/services/notion"
+//	"unipilot/internal/types"
 )
 
 var NOTION_API_KEY = os.Getenv("NOTION_API_KEY")
@@ -14,7 +14,7 @@ var NOTION_API_KEY = os.Getenv("NOTION_API_KEY")
 const BASE_URL = "https://api.notion.com/v1"
 
 // AddAssignmentToNotion adds an assignment to Notion efficiently
-func (c *Course) Add_Notion() (string, error) {
+/*func (c *Course) Add_Notion() (string, error) {
 
 	// Create a single rich text object for reuse
 	createRichTextObj := func() types.RichText {
@@ -116,4 +116,4 @@ func (c *Course) Add_Notion() (string, error) {
 	}
 
 	return notionResp.ID, nil
-}
+}*/

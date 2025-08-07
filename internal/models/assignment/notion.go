@@ -1,10 +1,10 @@
 package assignment
 
 import (
-	"encoding/json"
-	"fmt"
+//	"encoding/json"
+//	"fmt"
 
-	"unipilot/internal/services/notion"
+//	"unipilot/internal/services/notion"
 	"unipilot/internal/types"
 )
 
@@ -29,7 +29,7 @@ func NewRichText(content string) types.RichText {
 }
 
 // AddAssignmentToNotion adds an assignment to Notion efficiently
-func (a *Assignment) Add_Notion() (string, error) {
+/*func (a *Assignment) Add_Notion() (string, error) {
 
 	assign := a.ToMap()
 
@@ -303,4 +303,4 @@ func GetPageProperties(page_id, property_id, sender_id string) (respBody []byte,
 	}
 
 	return respBody, nil
-}
+}*/
