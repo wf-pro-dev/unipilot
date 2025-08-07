@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "wails dev",
-    "build": "wails build",
+    "build": "echo Build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {}
