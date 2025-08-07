@@ -7,6 +7,7 @@ declare global {
     go: {
       main: {
         App: {
+          Register: (username: string, email: string, password: string, university: string, language: string) => Promise<void>
           Login: (username: string, password: string) => Promise<void>
           Logout: () => Promise<void>
           Greet: (name: string) => Promise<string>

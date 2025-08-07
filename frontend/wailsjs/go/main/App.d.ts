@@ -61,6 +61,8 @@ export function OpenDocument(arg1:number):Promise<void>;
 
 export function ReconnectSSE():Promise<void>;
 
+export function Register(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<void>;
+
 export function SaveDocumentAs(arg1:number):Promise<void>;
 
 export function UpdateAssignment(arg1:assignment.LocalAssignment,arg2:string,arg3:string):Promise<void>;

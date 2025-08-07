@@ -776,6 +776,29 @@ func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)
 }
 
+// Register handles user registration
+func (a *App) Register(username, email, password, university, language string) error {
+	if err := a.Auth.Register(username, email, password, university, language); err != nil {
+		fmt.Println("Register error: ", err)
+		return err
+	}
+
+	// Start SSE connection after successful registration
+	if network.IsOnline() {
+		a.startSSEConnection()
+	}
+
+	// Reinitialize database helper after registration
+	dbHelper, err := app.NewDatabaseHelper()
+	if err != nil {
+		fmt.Printf("Warning: Could not initialize database helper after registration: %v\n", err)
+	} else {
+		a.DB = dbHelper
+	}
+
+	return nil
+}
+
 // Login handles user authentication
 func (a *App) Login(username, password string) error {
 	if err := a.Auth.Login(username, password); err != nil {

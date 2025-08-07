@@ -110,6 +110,10 @@ export function ReconnectSSE() {
   return window['go']['main']['App']['ReconnectSSE']();
 }
 
+export function Register(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['Register'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function SaveDocumentAs(arg1) {
   return window['go']['main']['App']['SaveDocumentAs'](arg1);
 }
