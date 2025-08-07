@@ -26,17 +26,18 @@ const colors = [
 ]
 
 const semesters = [
-    { name: "FALL 2024", value: "FALL 2024" },
-    { name: "SPRING 2025", value: "SPRING 2025" },
-    { name: "SUMMER 2025", value: "SUMMER 2025" },
-    { name: "FALL 2025", value: "FALL 2025" },
-    { name: "SPRING 2026", value: "SPRING 2026" },
-    { name: "SUMMER 2026", value: "SUMMER 2026" },
-    { name: "SPRING 2027", value: "SPRING 2027" },
-    { name: "SUMMER 2027", value: "SUMMER 2027" },
-    { name: "FALL 2027", value: "FALL 2027" },
-    { name: "SPRING 2028", value: "SPRING 2028" },
     { name: "SUMMER 2028", value: "SUMMER 2028" },
+    { name: "SPRING 2028", value: "SPRING 2028" },
+    { name: "FALL 2027", value: "FALL 2027" },
+    { name: "SUMMER 2027", value: "SUMMER 2027" },
+    { name: "SPRING 2027", value: "SPRING 2027" },
+    { name: "FALL 2026", value: "FALL 2026" },
+    { name: "SUMMER 2026", value: "SUMMER 2026" },  
+    { name: "SPRING 2026", value: "SPRING 2026" },
+    { name: "FALL 2025", value: "FALL 2025" },
+    { name: "SUMMER 2025", value: "SUMMER 2025" },
+    { name: "SPRING 2025", value: "SPRING 2025" },
+    { name: "FALL 2024", value: "FALL 2024" },
 ]
 
 interface CourseEditDialogProps {

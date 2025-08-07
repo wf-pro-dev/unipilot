@@ -152,42 +152,42 @@ func (a *Assignment) ToMap() map[string]string {
 	}
 }
 
-func (a *Assignment) Add(db *gorm.DB) (err error) {
+/*func (a *Assignment) Add(db *gorm.DB) (err error) {
 
-	assignment := a.ToMap()
+// 	assignment := a.ToMap()
 
-	delete(assignment, "id")
+// 	delete(assignment, "id")
 
-	err = db.Create(a).Error
+// 	err = db.Create(a).Error
 
-	if err != nil {
-		log.Fatalln("Error adding assignment to database: ", err)
-		return err
-	}
+// 	if err != nil {
+// 		log.Fatalln("Error adding assignment to database: ", err)
+// 		return err
+// 	}
 
-	notion_id, err_notion := a.Add_Notion()
+// 	notion_id, err_notion := a.Add_Notion()
 
-	if err_notion != nil {
-		log.Fatalln("Error adding assignment to Notion: ", err_notion)
-		return err_notion
-	}
+// 	if err_notion != nil {
+// 		log.Fatalln("Error adding assignment to Notion: ", err_notion)
+// 		return err_notion
+// 	}
 
-	var lastVal int
-	err = db.Raw("SELECT MAX(id) FROM assignements").Scan(&lastVal).Error
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = db.Model(&Assignment{}).Where("id = ?", lastVal).Update("notion_id", notion_id).Error
+// 	var lastVal int
+// 	err = db.Raw("SELECT MAX(id) FROM assignements").Scan(&lastVal).Error
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	err = db.Model(&Assignment{}).Where("id = ?", lastVal).Update("notion_id", notion_id).Error
 
-	if err != nil {
-		log.Fatalln("Error updating assignment: ", err)
-		return err
-	}
+// 	if err != nil {
+// 		log.Fatalln("Error updating assignment: ", err)
+// 		return err
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-/*
+
 func (a *Assignment) Update(col, value string, db *gorm.DB) (err error) {
 
 		err = db.Model(&Assignment{}).Where("id = ?", a.ID).Update(col, value).Error
@@ -222,22 +222,24 @@ func (a *Assignment) Update(col, value string, db *gorm.DB) (err error) {
 
 		return nil
 	}
-*/
-func (a *Assignment) Delete(db *gorm.DB) (err error) {
 
-	err = db.Delete(a).Error
 
-	if err != nil {
-		log.Fatalln(err)
-	}
+// func (a *Assignment) Delete(db *gorm.DB) (err error) {
 
-	err = a.Delete_Notion()
-	if err != nil {
-		log.Fatalln(err)
-	}
 
-	return nil
-}
+// 	err = db.Delete(a).Error
+
+// 	if err != nil {
+// 		log.Fatalln(err)
+// 	}
+
+// 	err = a.Delete_Notion()
+// 	if err != nil {
+// 		log.Fatalln(err)
+// 	}
+
+// 	return nil
+// }*/
 
 // Document-related methods
 

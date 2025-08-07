@@ -1,9 +1,9 @@
 "use client"
 
-import { createContext, useContext, ReactNode, useEffect } from "react"
+import { createContext, useContext, ReactNode } from "react"
 import { useAuth } from "@/hooks/use-auth"
-import { LoginForm } from "../login/login-form"
-import { LogInfo } from "@/wailsjs/runtime/runtime"
+import AuthPage from "../auth/page"
+
 
 interface AuthContextType {
   isAuthenticated: boolean
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Show login form if not authenticated
   if (!auth.isAuthenticated) {
-    return <LoginForm onLoginSuccess={() => window.location.reload()} />
+    return <AuthPage />
   }
 
   // Show the app if authenticated

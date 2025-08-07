@@ -26,6 +26,10 @@ export function DeleteDocument(arg1) {
   return window['go']['main']['App']['DeleteDocument'](arg1);
 }
 
+export function DeleteNote(arg1) {
+  return window['go']['main']['App']['DeleteNote'](arg1);
+}
+
 export function EnsureSSEConnection() {
   return window['go']['main']['App']['EnsureSSEConnection']();
 }
@@ -52,6 +56,10 @@ export function GetCourseAssignments(arg1) {
 
 export function GetCourses() {
   return window['go']['main']['App']['GetCourses']();
+}
+
+export function GetNotes() {
+  return window['go']['main']['App']['GetNotes']();
 }
 
 export function GetRemoteDocumentMetadata(arg1) {
@@ -102,6 +110,10 @@ export function ReconnectSSE() {
   return window['go']['main']['App']['ReconnectSSE']();
 }
 
+export function Register(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['Register'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function SaveDocumentAs(arg1) {
   return window['go']['main']['App']['SaveDocumentAs'](arg1);
 }
@@ -112,6 +124,10 @@ export function UpdateAssignment(arg1, arg2, arg3) {
 
 export function UpdateCourse(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateCourse'](arg1, arg2, arg3);
+}
+
+export function UpdateNote(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UpdateNote'](arg1, arg2, arg3);
 }
 
 export function UploadDocument(arg1, arg2) {

@@ -1,10 +1,7 @@
 package assignment
 
 import (
-	"encoding/json"
-	"fmt"
 
-	"unipilot/internal/services/notion"
 	"unipilot/internal/types"
 )
 
@@ -29,278 +26,280 @@ func NewRichText(content string) types.RichText {
 }
 
 // AddAssignmentToNotion adds an assignment to Notion efficiently
-func (a *Assignment) Add_Notion() (string, error) {
 
-	assign := a.ToMap()
+// func (a *Assignment) Add_Notion() (string, error) {
 
-	// Create the request with strongly typed fields
-	req := types.PageRequest{}
-	req.Parent.Type = "database_id"
-	req.Parent.DatabaseID = a.User.AssignmentsDbId
-	// Set deadline
-	req.Properties = &types.Properties{
-		Deadline: types.Deadline{
-			ID:   "_UjC",
-			Type: "date",
-			Date: &types.DateObject{
-				Start: assign["deadline"], // 2025-06-05T00:00:00.000Z
-			},
-		},
-		Courses: types.Courses{
-			ID:   "w%3FC%3B",
-			Type: "relation",
-			Relation: []types.Relation{
-				{
-					ID: a.Course.NotionID,
-				},
-			},
-		},
-		Type: types.Type{
-			ID:     "S~Ce",
-			Type:   "select",
-			Select: a.Type.ToMap(),
-		},
-		Status: types.Status{
-			ID:   "%5Bm%5Cs",
-			Type: "status",
-			Status: &types.StatusObject{
-				ID:    "3aa77cf8-c39e-4c7b-b7d2-ab15ae43ff23",
-				Name:  "Not started",
-				Color: "default",
-			},
-		},
-		TODO: types.TODO{
-			ID:   "%5DJfC",
-			Type: "rich_text",
-		},
-		AssignmentName: types.AssignmentName{
-			ID:   "title",
-			Type: "title",
-		},
+// 	assign := a.ToMap()
 
-		Link: types.Link{
-			ID:   "jgPD",
-			Type: "url",
-			URL:  a.Link,
-		},
-	}
-	// Set TODO
-	todo_obj := types.TODO{
-		ID:   "%5DJfC",
-		Type: "rich_text",
-	}
-	todoText := NewRichText(assign["todo"])
-	todo_obj.RichText = []types.RichText{todoText}
-	req.Properties.TODO = todo_obj
+// 	// Create the request with strongly typed fields
+// 	req := types.PageRequest{}
+// 	req.Parent.Type = "database_id"
+// 	req.Parent.DatabaseID = a.User.AssignmentsDbId
+// 	// Set deadline
+// 	req.Properties = &types.Properties{
+// 		Deadline: types.Deadline{
+// 			ID:   "_UjC",
+// 			Type: "date",
+// 			Date: &types.DateObject{
+// 				Start: assign["deadline"], // 2025-06-05T00:00:00.000Z
+// 			},
+// 		},
+// 		Courses: types.Courses{
+// 			ID:   "w%3FC%3B",
+// 			Type: "relation",
+// 			Relation: []types.Relation{
+// 				{
+// 					ID: a.Course.NotionID,
+// 				},
+// 			},
+// 		},
+// 		Type: types.Type{
+// 			ID:     "S~Ce",
+// 			Type:   "select",
+// 			Select: a.Type.ToMap(),
+// 		},
+// 		Status: types.Status{
+// 			ID:   "%5Bm%5Cs",
+// 			Type: "status",
+// 			Status: &types.StatusObject{
+// 				ID:    "3aa77cf8-c39e-4c7b-b7d2-ab15ae43ff23",
+// 				Name:  "Not started",
+// 				Color: "default",
+// 			},
+// 		},
+// 		TODO: types.TODO{
+// 			ID:   "%5DJfC",
+// 			Type: "rich_text",
+// 		},
+// 		AssignmentName: types.AssignmentName{
+// 			ID:   "title",
+// 			Type: "title",
+// 		},
 
-	// Set title
-	assignment_name_obj := types.AssignmentName{
-		ID:   "title",
-		Type: "title",
-	}
-	titleText := NewRichText(assign["title"])
-	assignment_name_obj.Title = []types.RichText{titleText}
-	req.Properties.AssignmentName = assignment_name_obj
+// 		Link: types.Link{
+// 			ID:   "jgPD",
+// 			Type: "url",
+// 			URL:  a.Link,
+// 		},
+// 	}
+// 	// Set TODO
+// 	todo_obj := types.TODO{
+// 		ID:   "%5DJfC",
+// 		Type: "rich_text",
+// 	}
+// 	todoText := NewRichText(assign["todo"])
+// 	todo_obj.RichText = []types.RichText{todoText}
+// 	req.Properties.TODO = todo_obj
 
-	resp, err := notion.SendNotionRequest(req, "POST", "pages", a.User.NotionAPIKey)
-	if err != nil {
-		return "", err
-	}
+// 	// Set title
+// 	assignment_name_obj := types.AssignmentName{
+// 		ID:   "title",
+// 		Type: "title",
+// 	}
+// 	titleText := NewRichText(assign["title"])
+// 	assignment_name_obj.Title = []types.RichText{titleText}
+// 	req.Properties.AssignmentName = assignment_name_obj
 
-	// Parse response
-	type NotionResponse struct {
-		ID string `json:"id"`
-	}
+// 	resp, err := notion.SendNotionRequest(req, "POST", "pages", a.User.NotionAPIKey)
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	var notionResp NotionResponse
-	if err := json.Unmarshal(resp, &notionResp); err != nil {
-		return "", fmt.Errorf("failed to parse response: %w", err)
-	}
+// 	// Parse response
+// 	type NotionResponse struct {
+// 		ID string `json:"id"`
+// 	}
 
-	return notionResp.ID, nil
-}
+// 	var notionResp NotionResponse
+// 	if err := json.Unmarshal(resp, &notionResp); err != nil {
+// 		return "", fmt.Errorf("failed to parse response: %w", err)
+// 	}
 
-func (a *Assignment) Update_Notion(col string, value string, obj map[string]string) (err error) {
+// 	return notionResp.ID, nil
+// }
 
-	assign := a.ToMap()
+// func (a *Assignment) Update_Notion(col string, value string, obj map[string]string) (err error) {
 
-	var req interface{}
+// 	assign := a.ToMap()
 
-	switch col {
+// 	var req interface{}
 
-	case "course_code":
-		courseReq := types.UpdateCourseCodeRequest{}
-		courseReq.Properties = types.PropertiesWithRequiredCourseCode{}
-		courseReq.Properties.Courses = types.Courses{
-			ID:   "w%3FC%3B",
-			Type: "relation",
-			Relation: []types.Relation{
-				{
-					ID: value,
-				},
-			},
-		}
-		req = courseReq
+// 	switch col {
 
-	case "deadline":
-		deadlineReq := types.UpdateDeadlineRequest{}
-		deadlineReq.Properties = types.PropertiesWithRequiredDeadline{}
+// 	case "course_code":
+// 		courseReq := types.UpdateCourseCodeRequest{}
+// 		courseReq.Properties = types.PropertiesWithRequiredCourseCode{}
+// 		courseReq.Properties.Courses = types.Courses{
+// 			ID:   "w%3FC%3B",
+// 			Type: "relation",
+// 			Relation: []types.Relation{
+// 				{
+// 					ID: value,
+// 				},
+// 			},
+// 		}
+// 		req = courseReq
 
-		dateObj := types.DateObject{
-			Start: value,
-		}
+// 	case "deadline":
+// 		deadlineReq := types.UpdateDeadlineRequest{}
+// 		deadlineReq.Properties = types.PropertiesWithRequiredDeadline{}
 
-		deadlineReq.Properties.Deadline = types.Deadline{
-			ID:   "_UjC",
-			Type: "date",
-			Date: &dateObj,
-		}
+// 		dateObj := types.DateObject{
+// 			Start: value,
+// 		}
 
-		req = deadlineReq
+// 		deadlineReq.Properties.Deadline = types.Deadline{
+// 			ID:   "_UjC",
+// 			Type: "date",
+// 			Date: &dateObj,
+// 		}
 
-	case "link":
-		linkReq := types.UpdateLinkRequest{}
-		linkReq.Properties = types.PropertiesWithRequiredLink{}
+// 		req = deadlineReq
 
-		linkReq.Properties.Link = types.Link{
-			ID:   "jgPD",
-			Type: "url",
-			URL:  value,
-		}
+// 	case "link":
+// 		linkReq := types.UpdateLinkRequest{}
+// 		linkReq.Properties = types.PropertiesWithRequiredLink{}
 
-		req = linkReq
+// 		linkReq.Properties.Link = types.Link{
+// 			ID:   "jgPD",
+// 			Type: "url",
+// 			URL:  value,
+// 		}
 
-	case "title":
-		titleReq := types.UpdateTitleRequest{}
-		titleReq.Properties = types.PropertiesWithRequiredName{}
+// 		req = linkReq
 
-		richTextObj := types.RichText{
-			Type: "text",
-			Text: &types.TextContent{
-				Content: value,
-				Link:    nil,
-			},
-			Annotations: &types.TextAnnotation{
-				Bold:          false,
-				Italic:        false,
-				Strikethrough: false,
-				Underline:     false,
-				Code:          false,
-				Color:         "default",
-			},
-			PlainText: value,
-			Href:      nil,
-		}
+// 	case "title":
+// 		titleReq := types.UpdateTitleRequest{}
+// 		titleReq.Properties = types.PropertiesWithRequiredName{}
 
-		titleReq.Properties.AssignmentName = types.AssignmentName{
-			Title: []types.RichText{richTextObj},
-		}
+// 		richTextObj := types.RichText{
+// 			Type: "text",
+// 			Text: &types.TextContent{
+// 				Content: value,
+// 				Link:    nil,
+// 			},
+// 			Annotations: &types.TextAnnotation{
+// 				Bold:          false,
+// 				Italic:        false,
+// 				Strikethrough: false,
+// 				Underline:     false,
+// 				Code:          false,
+// 				Color:         "default",
+// 			},
+// 			PlainText: value,
+// 			Href:      nil,
+// 		}
 
-		req = titleReq
+// 		titleReq.Properties.AssignmentName = types.AssignmentName{
+// 			Title: []types.RichText{richTextObj},
+// 		}
 
-	case "todo":
-		todoReq := types.UpdateTODORequest{}
-		todoReq.Properties = types.PropertiesWithRequiredTODO{}
+// 		req = titleReq
 
-		richTextObj := types.RichText{
-			Type: "text",
-			Text: &types.TextContent{
-				Content: value,
-				Link:    nil,
-			},
-			Annotations: &types.TextAnnotation{
-				Bold:          false,
-				Italic:        false,
-				Strikethrough: false,
-				Underline:     false,
-				Code:          false,
-				Color:         "default",
-			},
-			PlainText: value,
-			Href:      nil,
-		}
+// 	case "todo":
+// 		todoReq := types.UpdateTODORequest{}
+// 		todoReq.Properties = types.PropertiesWithRequiredTODO{}
 
-		todoReq.Properties.TODO = types.TODO{
-			ID:       "%5DJfC",
-			Type:     "rich_text",
-			RichText: []types.RichText{richTextObj},
-		}
+// 		richTextObj := types.RichText{
+// 			Type: "text",
+// 			Text: &types.TextContent{
+// 				Content: value,
+// 				Link:    nil,
+// 			},
+// 			Annotations: &types.TextAnnotation{
+// 				Bold:          false,
+// 				Italic:        false,
+// 				Strikethrough: false,
+// 				Underline:     false,
+// 				Code:          false,
+// 				Color:         "default",
+// 			},
+// 			PlainText: value,
+// 			Href:      nil,
+// 		}
 
-		req = todoReq
+// 		todoReq.Properties.TODO = types.TODO{
+// 			ID:       "%5DJfC",
+// 			Type:     "rich_text",
+// 			RichText: []types.RichText{richTextObj},
+// 		}
 
-	case "type_name":
+// 		req = todoReq
 
-		typeReq := types.UpdateTypeRequest{}
-		typeReq.Properties = types.PropertiesWithRequiredType{}
+// 	case "type_name":
 
-		typeReq.Properties.Type = types.Type{
-			ID:     "S~Ce",
-			Type:   "select",
-			Select: obj,
-		}
+// 		typeReq := types.UpdateTypeRequest{}
+// 		typeReq.Properties = types.PropertiesWithRequiredType{}
 
-		req = typeReq
+// 		typeReq.Properties.Type = types.Type{
+// 			ID:     "S~Ce",
+// 			Type:   "select",
+// 			Select: obj,
+// 		}
 
-	case "status_name":
+// 		req = typeReq
 
-		var statusObj types.StatusObject
-		statusObj.ID = obj["id"]
-		statusObj.Name = obj["name"]
-		statusObj.Color = obj["color"]
+// 	case "status_name":
 
-		statusReq := types.UpdateStatusRequest{}
-		statusReq.Properties = types.PropertiesWithRequiredStatus{}
-		statusReq.Properties.Status = types.Status{
-			ID:     "%5Bm%5Cs",
-			Type:   "status",
-			Status: &statusObj,
-		}
+// 		var statusObj types.StatusObject
+// 		statusObj.ID = obj["id"]
+// 		statusObj.Name = obj["name"]
+// 		statusObj.Color = obj["color"]
 
-		req = statusReq
+// 		statusReq := types.UpdateStatusRequest{}
+// 		statusReq.Properties = types.PropertiesWithRequiredStatus{}
+// 		statusReq.Properties.Status = types.Status{
+// 			ID:     "%5Bm%5Cs",
+// 			Type:   "status",
+// 			Status: &statusObj,
+// 		}
 
-	}
+// 		req = statusReq
 
-	if req == nil {
-		return fmt.Errorf("invalid column type: %s", col)
-	}
+// 	}
 
-	url := fmt.Sprintf("pages/%s", assign["notion_id"])
+// 	if req == nil {
+// 		return fmt.Errorf("invalid column type: %s", col)
+// 	}
 
-	_, err = notion.SendNotionRequest(req, "PATCH", url, a.User.NotionAPIKey)
+// 	url := fmt.Sprintf("pages/%s", assign["notion_id"])
 
-	return err
-}
+// 	_, err = notion.SendNotionRequest(req, "PATCH", url, a.User.NotionAPIKey)
 
-func (a *Assignment) Delete_Notion() (err error) {
+// 	return err
+// }
 
-	assign := a.ToMap()
+// func (a *Assignment) Delete_Notion() (err error) {
 
-	req := types.DeletionRequest{}
-	req.Archived = true
+// 	assign := a.ToMap()
 
-	_, err = notion.SendNotionRequest(req, "PATCH", assign["notion_id"], a.User.NotionAPIKey)
+// 	req := types.DeletionRequest{}
+// 	req.Archived = true
 
-	return err
-}
+// 	_, err = notion.SendNotionRequest(req, "PATCH", assign["notion_id"], a.User.NotionAPIKey)
 
-func GetPage(page_id, sender_id string) (respBody []byte, err error) {
+// 	return err
+// }
 
-	url := fmt.Sprintf("pages/%s", page_id)
-	respBody, err = notion.SendNotionRequest(nil, "GET", url, sender_id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
 
-	return respBody, nil
-}
+// func GetPage(page_id, sender_id string) (respBody []byte, err error) {
 
-func GetPageProperties(page_id, property_id, sender_id string) (respBody []byte, err error) {
+// 	url := fmt.Sprintf("pages/%s", page_id)
+// 	respBody, err = notion.SendNotionRequest(nil, "GET", url, sender_id)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to send request: %w", err)
+// 	}
 
-	url := fmt.Sprintf("pages/%s/properties/%s", page_id, property_id)
-	respBody, err = notion.SendNotionRequest(nil, "GET", url, sender_id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
+// 	return respBody, nil
+// }
 
-	return respBody, nil
-}
+// func GetPageProperties(page_id, property_id, sender_id string) (respBody []byte, err error) {
+
+// 	url := fmt.Sprintf("pages/%s/properties/%s", page_id, property_id)
+// 	respBody, err = notion.SendNotionRequest(nil, "GET", url, sender_id)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to send request: %w", err)
+// 	}
+
+// 	return respBody, nil
+// }

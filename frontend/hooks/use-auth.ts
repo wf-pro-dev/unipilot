@@ -18,6 +18,21 @@ export function useAuth() {
     user: null,
   })
 
+  const register = async (username: string, email: string, password: string, university: string, language: string) => {
+    try {
+      await window.go.main.App.Register(username, email, password, university, language)
+      setAuthState({
+        isAuthenticated: true,
+        isLoading: false,
+        user: { username },
+      })
+      return { success: true }
+    } catch (error) {
+      console.log("Register error: ", error)
+      return { success: false, error: error instanceof Error ? error.message : "Register failed" }
+    }
+  }
+
   const login = async (username: string, password: string) => {
     try {
       await window.go.main.App.Login(username, password)
@@ -82,5 +97,6 @@ export function useAuth() {
     ...authState,
     login,
     logout,
+    register,
   }
-} 
+}

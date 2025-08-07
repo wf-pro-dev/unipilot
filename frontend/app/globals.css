@@ -130,3 +130,223 @@
 .animate-float-delayed {
   animation: float-delayed 8s ease-in-out infinite;
 }
+
+/* Note dialog specific protection styles */
+.note-dialog-title {
+  text-decoration: none !important;
+  border-bottom: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-weight: bold !important;
+  color: white !important;
+}
+
+.note-dialog-subtitle {
+  text-decoration: none !important;
+  border-bottom: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: rgb(209 213 219) !important;
+}
+
+/* Dialog protection styles - ensure dialog elements are not affected by markdown styles */
+[role="dialog"] [data-radix-dialog-content] h1,
+[role="dialog"] [data-radix-dialog-content] h2,
+[role="dialog"] [data-radix-dialog-content] h3,
+[role="dialog"] [data-radix-dialog-content] h4,
+[role="dialog"] [data-radix-dialog-content] h5,
+[role="dialog"] [data-radix-dialog-content] h6 {
+  text-decoration: none !important;
+  border-bottom: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+[role="dialog"] [data-radix-dialog-title] {
+  text-decoration: none !important;
+  border-bottom: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Ensure dialog content doesn't inherit unwanted markdown styles */
+[role="dialog"] [data-radix-dialog-content] {
+  isolation: isolate;
+}
+
+/* Markdown Content Styles - Scoped to note components */
+.note-markdown-content {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.6;
+  color: hsl(var(--foreground));
+  max-width: none;
+  isolation: isolate;
+  contain: style;
+}
+
+.note-markdown-content h1,
+.note-markdown-content h2,
+.note-markdown-content h3,
+.note-markdown-content h4,
+.note-markdown-content h5,
+.note-markdown-content h6 {
+  color: hsl(var(--foreground));
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.note-markdown-content h1 {
+  font-size: 2em;
+  border-bottom: 1px solid hsl(var(--border));
+  padding-bottom: 0.3em;
+}
+
+.note-markdown-content h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid hsl(var(--border));
+  padding-bottom: 0.3em;
+}
+
+.note-markdown-content h3 {
+  font-size: 1.25em;
+}
+
+.note-markdown-content h4 {
+  font-size: 1em;
+}
+
+.note-markdown-content h5 {
+  font-size: 0.875em;
+}
+
+.note-markdown-content h6 {
+  font-size: 0.85em;
+  color: hsl(var(--muted-foreground));
+}
+
+.note-markdown-content p {
+  margin-bottom: 1rem;
+}
+
+.note-markdown-content blockquote {
+  padding: 0 1em;
+  color: hsl(var(--muted-foreground));
+  border-left: 0.25em solid hsl(var(--border));
+  margin: 0 0 1rem 0;
+}
+
+.note-markdown-content code {
+  background-color: hsl(var(--muted));
+  border-radius: 0.25rem;
+  font-size: 85%;
+  margin: 0;
+  padding: 0.2em 0.4em;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.note-markdown-content pre {
+  background-color: hsl(var(--muted));
+  border-radius: 0.25rem;
+  font-size: 85%;
+  line-height: 1.45;
+  overflow: auto;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.note-markdown-content pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+.note-markdown-content table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.note-markdown-content table th,
+.note-markdown-content table td {
+  border: 1px solid hsl(var(--border));
+  padding: 0.5rem 0.75rem;
+}
+
+.note-markdown-content table th {
+  background-color: hsl(var(--muted));
+  font-weight: 600;
+}
+
+.note-markdown-content ul,
+.note-markdown-content ol {
+  padding-left: 2em;
+  margin-bottom: 1rem;
+}
+
+.note-markdown-content li {
+  margin-bottom: 0.25em;
+}
+
+.note-markdown-content hr {
+  height: 0.25em;
+  padding: 0;
+  margin: 1.5rem 0;
+  background-color: hsl(var(--border));
+  border: 0;
+}
+
+.note-markdown-content a {
+  color: hsl(var(--primary));
+  text-decoration: none;
+}
+
+.note-markdown-content a:hover {
+  text-decoration: underline;
+}
+
+.note-markdown-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.note-markdown-content .highlight {
+  background-color: hsl(var(--warning));
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+}
+
+/* Inline markdown styles */
+.note-markdown-inline {
+  @apply text-sm;
+}
+
+.note-markdown-inline .note-markdown-content {
+  @apply text-sm;
+}
+
+.note-markdown-inline .note-markdown-content h1,
+.note-markdown-inline .note-markdown-content h2,
+.note-markdown-inline .note-markdown-content h3,
+.note-markdown-inline .note-markdown-content h4,
+.note-markdown-inline .note-markdown-content h5,
+.note-markdown-inline .note-markdown-content h6 {
+  @apply text-base font-semibold mb-2;
+}
+
+.note-markdown-inline .note-markdown-content p {
+  @apply mb-1;
+}
+
+.note-markdown-inline .note-markdown-content blockquote {
+  @apply text-xs;
+}
+
+.note-markdown-inline .note-markdown-content code {
+  @apply text-xs;
+}
+
+.note-markdown-inline .note-markdown-content pre {
+  @apply text-xs p-2;
+}

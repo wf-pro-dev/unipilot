@@ -145,7 +145,7 @@ export function ExploreView() {
                   placeholder="Search students by name or username..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-gray-800/50 border-gray-600 focus:border-blue-400"
+                  className="pl-10 bg-gray-800/50 border-gray-600"
                 />
               </div>
             </div>
