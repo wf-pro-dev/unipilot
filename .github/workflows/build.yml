@@ -1,30 +1,69 @@
-steps:
-  - uses: actions/checkout@v4
-    with:
-      submodules: recursive
+name: Wails Build and Deploy
 
-  - name: Set up Node.js
-    uses: actions/setup-node@v4
-    with:
-      node-version: '18'
-      cache: 'npm'
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
 
-  # Install root deps (Wails) - SKIPS prepare script due to --ignore-scripts
-  - name: Install root dependencies
-    run: npm install --ignore-scripts
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [
+          {name: unipilot, platform: linux/amd64, os: ubuntu-latest},
+          {name: unipilot, platform: windows/amd64, os: windows-latest},
+          {name: unipilot, platform: darwin/universal, os: macos-latest}
+        ]
+    runs-on: ${{ matrix.build.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-  # Install frontend deps (Next.js)
-  - name: Install frontend dependencies
-    run: npm install
-    working-directory: frontend
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-  # Build frontend
-  - name: Build frontend
-    run: npm run build
-    working-directory: frontend
+      - name: Verify Node.js setup
+        run: |
+          echo "Node.js $(node --version)"
+          echo "npm $(npm --version)"
+          command -v npm || (echo "❌ npm not found!" && exit 1)
 
-  - uses: dAppServer/wails-build-action@main
-    with:
-      build-name: ${{ matrix.build.name }}
-      build-platform: ${{ matrix.build.platform }}
-      wails-version: "v2.9.0"
+      # Install root dependencies (Wails) without triggering prepare script
+      - name: Install root dependencies
+        run: npm install --ignore-scripts
+
+      # Install frontend dependencies
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm install
+          npm ls || true  # Verify dependencies (continue on warning)
+
+      # Build frontend
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      # Special handling for Windows
+      - name: Windows setup (if needed)
+        if: matrix.build.os == 'windows-latest'
+        run: npm config set script-shell pwsh --global
+
+      # Run Wails build
+      - uses: dAppServer/wails-build-action@main
+        with:
+          build-name: ${{ matrix.build.name }}
+          build-platform: ${{ matrix.build.platform }}
+          wails-version: "v2.9.0"
+
+      # Optional: Upload artifacts
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.build.name }}-${{ matrix.build.platform }}
+          path: build/bin/*
