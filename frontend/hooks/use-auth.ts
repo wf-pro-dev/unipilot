@@ -10,6 +10,14 @@ interface AuthState {
   user: any | null
 }
 
+// Helper function to check if Wails bindings are available
+const isWailsAvailable = (): boolean => {
+  return typeof window !== 'undefined' && 
+         !!window.go && 
+         !!window.go.main && 
+         !!window.go.main.App
+}
+
 export function useAuth() {
 
   const [authState, setAuthState] = useState<AuthState>({
@@ -20,6 +28,9 @@ export function useAuth() {
 
   const register = async (username: string, email: string, password: string, university: string, language: string) => {
     try {
+      if (!isWailsAvailable()) {
+        throw new Error("Wails bindings not available")
+      }
       await window.go.main.App.Register(username, email, password, university, language)
       setAuthState({
         isAuthenticated: true,
@@ -28,13 +39,16 @@ export function useAuth() {
       })
       return { success: true }
     } catch (error) {
-      console.log("Register error: ", error)
+
       return { success: false, error: error instanceof Error ? error.message : "Register failed" }
     }
   }
 
   const login = async (username: string, password: string) => {
     try {
+      if (!isWailsAvailable()) {
+        throw new Error("Wails bindings not available")
+      }
       await window.go.main.App.Login(username, password)
       setAuthState({
         isAuthenticated: true,
@@ -52,6 +66,9 @@ export function useAuth() {
 
   const logout = async () => {
     try {
+      if (!isWailsAvailable()) {
+        throw new Error("Wails bindings not available")
+      }
       await window.go.main.App.Logout()
       setAuthState({
         isAuthenticated: false,
@@ -71,6 +88,12 @@ export function useAuth() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        if (!isWailsAvailable()) {
+          // If Wails is not available, wait a bit and try again
+          setTimeout(checkAuth, 100)
+          return
+        }
+        
         if (!authState.isAuthenticated) {
           const creds: storage.LocalCredentials = await window.go.main.App.IsAuthenticated()
           setAuthState({
