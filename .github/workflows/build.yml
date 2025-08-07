@@ -27,13 +27,6 @@ jobs:
           node-version: '18'
           cache: 'npm'
           
-      - name: Verify Node.js and npm
-        run: |
-          node --version
-          npm --version
-          which npm  # For Linux/macOS
-          where npm  # For Windows
-
       - name: Install dependencies
         run: npm install
         working-directory: frontend

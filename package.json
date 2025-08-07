@@ -1,10 +1,20 @@
 {
-  "scripts" : {
-    "build": "cd frontend && npm run build"
+  "name": "unipilot",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wails dev",
+    "build": "wails build",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepare": "cd frontend && npm install"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.83.0",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1"
+  },
+  "devDependencies": {
+    // Wails development dependencies
+    "@wailsapp/cli": "^2.9.0"
   }
 }
