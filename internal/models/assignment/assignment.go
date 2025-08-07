@@ -152,8 +152,7 @@ func (a *Assignment) ToMap() map[string]string {
 	}
 }
 
-
-// func (a *Assignment) Add(db *gorm.DB) (err error) {
+/*func (a *Assignment) Add(db *gorm.DB) (err error) {
 
 // 	assignment := a.ToMap()
 
@@ -224,7 +223,7 @@ func (a *Assignment) Update(col, value string, db *gorm.DB) (err error) {
 		return nil
 	}
 
-*/
+
 // func (a *Assignment) Delete(db *gorm.DB) (err error) {
 
 
@@ -240,8 +239,7 @@ func (a *Assignment) Update(col, value string, db *gorm.DB) (err error) {
 // 	}
 
 // 	return nil
-// }
-
+// }*/
 
 // Document-related methods
 
