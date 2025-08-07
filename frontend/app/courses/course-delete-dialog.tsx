@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useCourseAssignments } from "@/hooks/use-assignments"
-import { useAssignmentDocuments } from "@/hooks/use-documents"
 import { course } from "@/wailsjs/go/models"
 import { toast } from "sonner"
 

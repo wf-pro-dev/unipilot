@@ -4,10 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AssignmentItem } from "./assignment-item"
 import { List, X } from "lucide-react"
 import { assignment } from "@/wailsjs/go/models"
-import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { Search } from "lucide-react"
+import { Filter, Search } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 
 interface Filter {
@@ -59,13 +58,13 @@ export function AssignmentsTable({
     return matchesSearch && matchesCourse && matchesStatus && matchesPriority
   }), [assignments, searchTerm, selectedCourse, selectedStatus, selectedPriority])
 
- 
+
 
   useEffect(() => {
     setSelectedCourse(filter.course || "all")
     setSelectedStatus(filter.status || "all")
     setSelectedPriority(filter.priority || "all")
-  }, [filter])  
+  }, [filter])
 
   const clearFilters = () => {
     setSearchTerm("")
@@ -77,22 +76,27 @@ export function AssignmentsTable({
   return (
     <div className="space-y-6">
       <Card className="glass border-0">
-        <CardHeader>
-          <CardTitle className="flex flex-row  gap-3 mb-6 items-center">
-             
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+        <CardContent className="p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-6">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search assignments..."
+                  placeholder="Search assignments by title or course..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 glass border-gray-600 bg-white/5"
+                  className="pl-10 bg-gray-800/50 border-gray-600"
                 />
               </div>
+            </div>
 
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <Filter className="h-4 w-4 text-gray-400" />
+                <span className="text-sm text-gray-400">Course:</span>
                 <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                  <SelectTrigger className="w-[180px] glass border-gray-600 bg-white/5">
-                    <SelectValue placeholder="All Courses" />
+                  <SelectTrigger className="w-48 bg-gray-800/50 border-gray-600">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="glass border-gray-600">
                     <SelectItem value="all">All Courses</SelectItem>
@@ -103,10 +107,13 @@ export function AssignmentsTable({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
 
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-400">Status:</span>
                 <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                  <SelectTrigger className="w-[180px] glass border-gray-600 bg-white/5">
-                    <SelectValue placeholder="All Statuses" />
+                  <SelectTrigger className="w-32 bg-gray-800/50 border-gray-600">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="glass border-gray-600">
                     <SelectItem value="all">All Statuses</SelectItem>
@@ -117,10 +124,13 @@ export function AssignmentsTable({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
 
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-400">Priority:</span>
                 <Select value={selectedPriority} onValueChange={setSelectedPriority}>
-                  <SelectTrigger className="w-[180px] glass border-gray-600 bg-white/5">
-                    <SelectValue placeholder="All Priorities" />
+                  <SelectTrigger className="w-32 bg-gray-800/50 border-gray-600">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="glass border-gray-600">
                     <SelectItem value="all">All Priorities</SelectItem>
@@ -131,21 +141,13 @@ export function AssignmentsTable({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card className="glass border-0 p-0 pt-4">
 
-                {hasActiveFilters && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={clearFilters}
-                    className="glass border-gray-600"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Clear
-                  </Button>
-                )}
-       
-          </CardTitle>
-        </CardHeader>
         <CardContent>
           {filteredAssignments.length === 0 ? (
             <div className="flex items-center justify-center h-32 text-gray-400">

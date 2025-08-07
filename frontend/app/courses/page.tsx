@@ -13,7 +13,7 @@ import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
 import { course } from "@/wailsjs/go/models"
 import { CourseDeleteDialog } from "./course-delete-dialog"
-
+  
 export default function CoursesPage() {
   const { data: courses = [], isLoading, error } = useCourses()
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
@@ -23,13 +23,13 @@ export default function CoursesPage() {
   const router = useRouter()
 
   // Get the current view from URL parameters, default to "today"
-  const currentView = searchParams.get("view") || "calendar"
+  const currentView = searchParams.get("view") || "schedule"
 
   // Valid view values
-  const validViews = ["calendar", "list"]
+  const validViews = ["schedule", "list"]
 
   // Ensure the current view is valid, otherwise default to "today"
-  const activeView = validViews.includes(currentView) ? currentView : "calendar"
+  const activeView = validViews.includes(currentView) ? currentView : "schedule"
 
   const semester = searchParams.get("semester") || null
   const instructor = searchParams.get("instructor") || null
@@ -123,10 +123,10 @@ export default function CoursesPage() {
         </div>
 
         <Tabs value={activeView} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid grid-cols-6 mb-8 w-full border-0 glass">
-            <TabsTrigger value="calendar" className="flex items-center space-x-2">
+          <TabsList className="glass mb-6 border-0">
+            <TabsTrigger value="schedule" className="flex items-center space-x-2">
               <Calendar className="w-4 h-4" />
-              <span>Calendar</span>
+              <span>Schedule</span>
             </TabsTrigger>
             <TabsTrigger value="list" className="flex items-center space-x-2">
               <List className="w-4 h-4" />
@@ -135,8 +135,10 @@ export default function CoursesPage() {
           </TabsList>
 
 
-          <TabsContent value="calendar">
+          <TabsContent value="schedule">
             <CoursesSchedule
+              onEdit={handleEditCourse}
+              onDelete={handleDeleteCourseClick}
               courses={courses || []}
               onCourseClick={handleCourseClick}
             />

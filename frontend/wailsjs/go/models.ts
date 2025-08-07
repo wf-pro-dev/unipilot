@@ -482,10 +482,11 @@ export namespace user {
 	    Username: string;
 	    Email: string;
 	    PasswordHash: string;
-	    NotionAPIKey: string;
-	    AssignmentsDbId: string;
-	    NotionID: string;
-	    CoursesDbId: string;
+	    Avatar: string;
+	    University: string;
+	    FollowCount: number;
+	    IsVerified: boolean;
+	    Language: string;
 	    // Go type: time
 	    LastSync?: any;
 	
@@ -502,10 +503,11 @@ export namespace user {
 	        this.Username = source["Username"];
 	        this.Email = source["Email"];
 	        this.PasswordHash = source["PasswordHash"];
-	        this.NotionAPIKey = source["NotionAPIKey"];
-	        this.AssignmentsDbId = source["AssignmentsDbId"];
-	        this.NotionID = source["NotionID"];
-	        this.CoursesDbId = source["CoursesDbId"];
+	        this.Avatar = source["Avatar"];
+	        this.University = source["University"];
+	        this.FollowCount = source["FollowCount"];
+	        this.IsVerified = source["IsVerified"];
+	        this.Language = source["Language"];
 	        this.LastSync = this.convertValues(source["LastSync"], null);
 	    }
 	

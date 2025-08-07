@@ -26,6 +26,7 @@ import {
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format, isSameDay } from "date-fns"
 import { DayAssignmentsModal } from "@/components/assignments/day-assignments-modal"
+import { toast } from "sonner"
 
 export default function AssignmentsPage() {
   const searchParams = useSearchParams()
@@ -70,6 +71,13 @@ export default function AssignmentsPage() {
       assignment,
       column,
       value
+    }, {
+      onSuccess: () => {
+        toast.success("Assignment updated successfully")
+      },
+      onError: () => {
+        toast.error("Assignment update failed")
+      }
     })
   }
 
@@ -81,14 +89,28 @@ export default function AssignmentsPage() {
   const handleDeleteAssignment = async (assignment: assignment.LocalAssignment) => {
     const message = "assignment " + assignment.Title + " deleted"
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-    deleteMutation.mutate(assignment)
+    deleteMutation.mutate(assignment, {
+      onSuccess: () => {
+        toast.success("Assignment deleted successfully")
+      },
+      onError: () => {
+        toast.error("Assignment deletion failed")
+      }
+    })
   }
 
 
   const handleAddAssignment = async (assignment: assignment.LocalAssignment) => {
     const message = "assignment " + assignment.Title + " added"
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-    createMutation.mutate(assignment)
+    createMutation.mutate(assignment, {
+      onSuccess: () => {
+        toast.success("Assignment added successfully")
+      },
+      onError: () => {
+        toast.error("Assignment addition failed")
+      }
+    })
   }
 
   const handleMoveAssignment = async (assignment: assignment.LocalAssignment, date: Date) => {

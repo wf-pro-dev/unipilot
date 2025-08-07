@@ -8,6 +8,8 @@ import { CourseItem } from "./course-item"
 interface CoursesScheduleProps {
     courses: Course.LocalCourse[]
     onCourseClick: (course: Course.LocalCourse) => void
+    onEdit: (course: Course.LocalCourse, column: string, value: string) => void
+    onDelete: (course: Course.LocalCourse) => void
 }
 
 // Day abbreviations mapping
@@ -87,14 +89,50 @@ function formatTime(hour: number): string {
     return `${hour - 12}:00 PM`
 }
 
-function CoursesSchedule({ courses, onCourseClick }: CoursesScheduleProps) {
+function CoursesSchedule({ courses, onCourseClick, onEdit, onDelete }: CoursesScheduleProps) {
     const [selectedSemester, setSelectedSemester] = useState<string>("SUMMER 2025")
 
     // Get unique semesters
     const semesters = useMemo(() => {
         if (!courses) return []
         const uniqueSemesters = [...new Set(courses.map(course => course.Semester).filter(Boolean))]
-        return uniqueSemesters.sort()
+        
+        // Custom sorting function for semester format: "<season> <year>"
+        const sortSemesters = (a: string, b: string) => {
+            const parseSemester = (semester: string) => {
+                const parts = semester.split(' ')
+                if (parts.length !== 2) return { season: '', year: 0, seasonPriority: 0 }
+                
+                const season = parts[0].toUpperCase()
+                const year = parseInt(parts[1])
+                
+                // Season priority: SPRING = 1, SUMMER = 2, FALL = 3
+                const seasonPriority: Record<string, number> = {
+                    'FALL': 1,
+                    'SUMMER': 2,
+                    'SPRING': 3
+                }
+                
+                return {
+                    season,
+                    year,
+                    seasonPriority: seasonPriority[season] || 0
+                }
+            }
+            
+            const semesterA = parseSemester(a)
+            const semesterB = parseSemester(b)
+            
+            // First sort by year (descending)
+            if (semesterA.year !== semesterB.year) {
+                return semesterB.year - semesterA.year
+            }
+            
+            // Then sort by season (SPRING -> SUMMER -> FALL)
+            return semesterA.seasonPriority - semesterB.seasonPriority
+        }
+        
+        return uniqueSemesters.sort(sortSemesters)
     }, [courses])
 
     // Filter courses by semester and parse schedules
@@ -254,7 +292,7 @@ function CoursesSchedule({ courses, onCourseClick }: CoursesScheduleProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {asyncCourses.map((course) => (
-                    <CourseItem key={course.ID} course={course} onCourseClick={onCourseClick} />
+                    <CourseItem key={course.ID} course={course} onCourseClick={onCourseClick} onEdit={onEdit} onDelete={onDelete} />
                 ))}
             </div>
 

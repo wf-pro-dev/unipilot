@@ -339,4 +339,3 @@ func (m *MarkdownService) ParseWithTemplate(markdownText, templateStr string) (s
 
 	return buf.String(), nil
 }
-
