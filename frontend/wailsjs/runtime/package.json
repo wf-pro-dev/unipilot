@@ -5,6 +5,7 @@
   "main": "runtime.js",
   "types": "runtime.d.ts",
   "scripts": {
+	"build" : "next build"
   },
   "repository": {
     "type": "git",
