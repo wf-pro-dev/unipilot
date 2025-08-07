@@ -61,9 +61,11 @@ jobs:
           build-platform: ${{ matrix.build.platform }}
           wails-version: "v2.9.0"
 
-      # Optional: Upload artifacts
+      # Upload artifacts (using current v4 version)
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        if: success()
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.build.name }}-${{ matrix.build.platform }}
           path: build/bin/*
+          retention-days: 3
