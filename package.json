@@ -1,6 +1,6 @@
 {
   "scripts" : {
-    "build": "npm run build"
+    "build": "cd frontend && npm run build"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.83.0",
