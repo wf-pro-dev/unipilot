@@ -151,7 +151,7 @@ func (a *Assignment) ToMap() map[string]string {
 		"updated_at":  a.UpdatedAt.Format(time.RFC3339),
 	}
 }
-
+/*
 func (a *Assignment) Add(db *gorm.DB) (err error) {
 
 	assignment := a.ToMap()
@@ -187,7 +187,7 @@ func (a *Assignment) Add(db *gorm.DB) (err error) {
 	return nil
 }
 
-/*
+
 func (a *Assignment) Update(col, value string, db *gorm.DB) (err error) {
 
 		err = db.Model(&Assignment{}).Where("id = ?", a.ID).Update(col, value).Error
@@ -222,7 +222,6 @@ func (a *Assignment) Update(col, value string, db *gorm.DB) (err error) {
 
 		return nil
 	}
-*/
 func (a *Assignment) Delete(db *gorm.DB) (err error) {
 
 	err = db.Delete(a).Error
@@ -238,6 +237,7 @@ func (a *Assignment) Delete(db *gorm.DB) (err error) {
 
 	return nil
 }
+*/
 
 // Document-related methods
 
