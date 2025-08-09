@@ -2,6 +2,7 @@ package models
 
 import (
 	"unipilot/internal/models/document"
+	"unipilot/internal/models/user"
 
 	"gorm.io/gorm"
 )
@@ -47,4 +48,25 @@ func CheckDocumentMigrationNeeded(db *gorm.DB) bool {
 func CheckLocalDocumentMigrationNeeded(db *gorm.DB) bool {
 	// Check if the local_documents table exists on local database
 	return !db.Migrator().HasTable(&document.LocalDocument{})
+}
+
+// MigrateFollows runs the database migrations for follow models
+func MigrateFollows(db *gorm.DB) error {
+	// Auto-migrate the follow models
+	err := db.AutoMigrate(
+		&user.Follow{},
+		&user.FollowStats{},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CheckFollowMigrationNeeded checks if follow migration is needed
+func CheckFollowMigrationNeeded(db *gorm.DB) bool {
+	// Check if the follows table exists
+	return !db.Migrator().HasTable(&user.Follow{})
 }

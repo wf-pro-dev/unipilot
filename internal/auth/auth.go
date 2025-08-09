@@ -2,6 +2,7 @@ package auth
 
 import (
 	"net/http"
+	"unipilot/internal/models/user"
 	"unipilot/internal/sse"
 	"unipilot/internal/storage"
 
@@ -19,10 +20,10 @@ func NewAuth() *Auth {
 	return &Auth{}
 }
 
-func (a *Auth) IsAuthenticated() bool {
-	creds, err := storage.GetCurrentUser()
+func (a *Auth) IsAuthenticated() (*user.User, error) {
+	user, err := storage.GetCurrentUser()
 	if err != nil {
-		return false
+		return nil, err
 	}
-	return creds != nil
+	return user, nil
 }

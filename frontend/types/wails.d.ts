@@ -1,5 +1,5 @@
 import { User } from './models'
-import { assignment, course, note } from '@/wailsjs/go/models'
+import { assignment, course, note, user, main } from '@/wailsjs/go/models'
 
 
 declare global {
@@ -28,6 +28,10 @@ declare global {
           CreateNote: (note: note.LocalNote) => Promise<void>
           UpdateNote: (note: note.LocalNote, column: string, value: string) => Promise<void>
           DeleteNote: (note: note.LocalNote) => Promise<void>
+          GetRemoteUsers: () => Promise<user.User[]>
+          GetFollowers: (userID: number) => Promise<main.FollowResponse>
+          GetFollowing: (userID: number) => Promise<main.FollowResponse>
+          Follow: (followedID: number) => Promise<boolean>
         }
       }
     }

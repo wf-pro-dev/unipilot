@@ -17,12 +17,15 @@ type User struct {
 	Avatar     string
 	University string
 
-	FollowCount int `gorm:"default:0"`
-
 	IsVerified bool   `gorm:"default:false"`
 	Language   string `gorm:"default:'en'"`
 
-	LastSync *time.Time
+	CoursesCode []string `gorm:"-"`
+	LastSync    *time.Time
+
+	// Follow relationships
+	Followers []User `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowerID;References:ID;joinReferences:FollowedID"`
+	Following []User `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowedID;References:ID;joinReferences:FollowerID"`
 }
 
 func (u *User) ToMap() map[string]interface{} {
@@ -31,17 +34,17 @@ func (u *User) ToMap() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"id":           u.ID,
-		"username":     u.Username,
-		"email":        u.Email,
-		"avatar":       u.Avatar,
-		"university":   u.University,
-		"follow_count": u.FollowCount,
-		"is_verified":  u.IsVerified,
-		"language":     u.Language,
-		"last_sync":    u.LastSync,
-		"created_at":   u.CreatedAt,
-		"updated_at":   u.UpdatedAt,
+		"id":            u.ID,
+		"username":      u.Username,
+		"email":         u.Email,
+		"avatar":        u.Avatar,
+		"university":    u.University,
+		"is_verified":   u.IsVerified,
+		"language":      u.Language,
+		"courses_codes": u.CoursesCode,
+		"last_sync":     u.LastSync,
+		"created_at":    u.CreatedAt,
+		"updated_at":    u.UpdatedAt,
 	}
 }
 
@@ -53,4 +56,3 @@ func Get_User_by_NotionID(notion_id string, db *gorm.DB) (*User, error) {
 	}
 	return u, nil
 }
-

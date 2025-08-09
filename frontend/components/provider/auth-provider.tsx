@@ -3,12 +3,12 @@
 import { createContext, useContext, ReactNode } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import AuthPage from "../auth/page"
+import { user } from "@/wailsjs/go/models"
+import { LogInfo } from "@/wailsjs/runtime/runtime"
 
 
 interface AuthContextType {
-  isAuthenticated: boolean
-  isLoading: boolean
-  user: any | null
+  user: user.User | null
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<{ success: boolean; error?: string }>
 }
@@ -31,17 +31,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const auth = useAuth()
 
-  // Show loading spinner while checking authentication
-  if (auth.isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="w-32 h-32 rounded-full border-b-2 border-blue-500 animate-spin"></div>
-      </div>
-    )
-  }
-
-  // Show login form if not authenticated
-  if (!auth.isAuthenticated) {
+  if (auth.user === null) {
     return <AuthPage />
   }
 

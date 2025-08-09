@@ -73,7 +73,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 
 	fmt.Println("Creating assignment:", localAssignment)
 
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return fmt.Errorf("user not authenticated")
 	}
 	fmt.Println("User ID:", a.DB.GetCurrentUserID())
@@ -138,7 +138,7 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 
 	fmt.Println("Creating course:", localCourse)
 
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return fmt.Errorf("user not authenticated")
 	}
 	fmt.Println("User ID:", a.DB.GetCurrentUserID())
@@ -208,7 +208,7 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 
 	fmt.Println("Creating note:", localNote)
 
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return fmt.Errorf("user not authenticated")
 	}
 	fmt.Println("User ID:", a.DB.GetCurrentUserID())
@@ -254,7 +254,7 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -329,7 +329,7 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 	}
 
 	// Also store metadata remotely for sharing
-	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
+	if _, err := a.Auth.IsAuthenticated(); err == nil && a.Auth.Client != nil {
 		metadataReq := map[string]interface{}{
 			"assignment_id": assignmentID,
 			"local_id":      response.LocalDocument.ID,
@@ -423,7 +423,7 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -498,7 +498,7 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 	}
 
 	// Also update metadata remotely for sharing (async)
-	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
+	if _, err := a.Auth.IsAuthenticated(); err == nil && a.Auth.Client != nil {
 		metadataReq := map[string]interface{}{
 			"assignment_id": existingDoc.AssignmentID,
 			"local_id":      existingDoc.ID,
@@ -597,7 +597,7 @@ func (a *App) DeleteDocument(documentID uint) error {
 		return fmt.Errorf("database not initialized")
 	}
 
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -626,7 +626,7 @@ func (a *App) DeleteDocument(documentID uint) error {
 	// Storage info is now calculated on-demand, no need to update cache
 
 	// Also store metadata remotely for sharing
-	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
+	if _, err := a.Auth.IsAuthenticated(); err == nil && a.Auth.Client != nil {
 
 		resp, _ := a.Auth.Client.Post(fmt.Sprintf("https://newsroom.dedyn.io/acc-homework/document/metadata/delete?document_id=%d", documentID),
 			"application/json", nil)
@@ -679,7 +679,7 @@ func (a *App) Startup(ctx context.Context) {
 	}
 
 	// Check if user is already authenticated and initialize HTTP client + SSE if needed
-	if a.Auth.IsAuthenticated() && network.IsOnline() {
+	if _, err := a.Auth.IsAuthenticated(); err == nil && network.IsOnline() {
 		log.Println("[App] User already authenticated, initializing HTTP client and SSE connection...")
 		if err := a.initializeAuthenticatedClient(); err != nil {
 			log.Printf("[App] Failed to initialize authenticated client: %v", err)
@@ -743,7 +743,7 @@ func (a *App) stopSSEConnection() {
 
 // ensureSSEConnection ensures SSE is running if user is authenticated and online
 func (a *App) ensureSSEConnection() {
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		log.Println("[App] User not authenticated, stopping SSE if running")
 		a.stopSSEConnection()
 		return
@@ -777,10 +777,11 @@ func (a *App) Greet(name string) string {
 }
 
 // Register handles user registration
-func (a *App) Register(username, email, password, university, language string) error {
-	if err := a.Auth.Register(username, email, password, university, language); err != nil {
+func (a *App) Register(username, email, password, university, language string) (*user.User, error) {
+	user, err := a.Auth.Register(username, email, password, university, language)
+	if err != nil {
 		fmt.Println("Register error: ", err)
-		return err
+		return nil, err
 	}
 
 	// Start SSE connection after successful registration
@@ -796,13 +797,14 @@ func (a *App) Register(username, email, password, university, language string) e
 		a.DB = dbHelper
 	}
 
-	return nil
+	return user, nil
 }
 
 // Login handles user authentication
-func (a *App) Login(username, password string) error {
-	if err := a.Auth.Login(username, password); err != nil {
-		return err
+func (a *App) Login(username, password string) (*user.User, error) {
+	user, err := a.Auth.Login(username, password)
+	if err != nil {
+		return nil, err
 	}
 
 	// Start SSE connection after successful login
@@ -818,7 +820,7 @@ func (a *App) Login(username, password string) error {
 		a.DB = dbHelper
 	}
 
-	return nil
+	return user, nil
 }
 
 // Logout handles user logout
@@ -836,37 +838,16 @@ func (a *App) Logout() error {
 }
 
 // IsAuthenticated checks if the user is currently authenticated
-func (a *App) IsAuthenticated() (*storage.LocalCredentials, error) {
-	creds, err := storage.GetCurrentUser()
+func (a *App) IsAuthenticated() (*user.User, error) {
+	user, err := storage.GetCurrentUser()
 	if err != nil {
 		// When no credentials exist, return a LocalCredentials object with IsAuthenticated = false
 		// instead of an error, so frontend can properly handle the unauthenticated state
 		log.Printf("[App] No credentials found: %v", err)
-		return &storage.LocalCredentials{
-			IsAuthenticated: false,
-			User: struct {
-				UserID   uint   `json:"user_id"`
-				Username string `json:"username"`
-			}{
-				UserID:   0,
-				Username: "",
-			},
-		}, nil
+		return nil, nil
 	}
-	if creds == nil {
-		// Same handling for nil credentials
-		return &storage.LocalCredentials{
-			IsAuthenticated: false,
-			User: struct {
-				UserID   uint   `json:"user_id"`
-				Username string `json:"username"`
-			}{
-				UserID:   0,
-				Username: "",
-			},
-		}, nil
-	}
-	return creds, nil
+
+	return user, nil
 }
 
 // EnsureSSEConnection manually checks and ensures SSE connection is in correct state
@@ -878,9 +859,18 @@ func (a *App) EnsureSSEConnection() error {
 
 // GetSSEConnectionStatus returns the current status of the SSE connection
 func (a *App) GetSSEConnectionStatus() map[string]interface{} {
+	user, err := a.Auth.IsAuthenticated()
+	if err != nil {
+		return map[string]interface{}{
+			"connected":     false,
+			"authenticated": false,
+			"online":        network.IsOnline(),
+			"client_ready":  a.Auth.Client != nil,
+		}
+	}
 	status := map[string]interface{}{
 		"connected":     false,
-		"authenticated": a.Auth.IsAuthenticated(),
+		"authenticated": user != nil,
 		"online":        network.IsOnline(),
 		"client_ready":  a.Auth.Client != nil,
 	}
@@ -897,7 +887,7 @@ func (a *App) GetSSEConnectionStatus() map[string]interface{} {
 
 // ReconnectSSE manually triggers an SSE reconnection (useful for network recovery)
 func (a *App) ReconnectSSE() error {
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -971,7 +961,7 @@ func (a *App) GetAssignmentDocuments(assignmentID uint) ([]document.LocalDocumen
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 	// Use LocalDocument and only return documents we have locally
@@ -990,7 +980,7 @@ func (a *App) GetSupportDocuments(assignmentID uint) ([]document.LocalDocument, 
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -1009,7 +999,7 @@ func (a *App) GetSubmissionDocuments(assignmentID uint) ([]document.LocalDocumen
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -1028,7 +1018,7 @@ func (a *App) OpenDocument(documentID uint) error {
 		return fmt.Errorf("database not initialized")
 	}
 
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -1061,7 +1051,7 @@ func (a *App) SaveDocumentAs(documentID uint) error {
 		return fmt.Errorf("database not initialized")
 	}
 
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -1124,7 +1114,7 @@ func (a *App) GetUserStorageInfo() (*document.StorageInfo, error) {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -1145,7 +1135,7 @@ func (a *App) GetRemoteDocumentMetadata(assignmentID uint) ([]map[string]interfa
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -1186,11 +1176,51 @@ func (a *App) GetCourseAssignments(course *course.LocalCourse) ([]assignment.Loc
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if !a.Auth.IsAuthenticated() {
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
 	var assignments []assignment.LocalAssignment
 	err := a.DB.GetDB().Where("course_code = ?", course.Code).Find(&assignments).Order("created_at ASC").Error
 	return assignments, err
+}
+
+// GetRemoteUsers returns all users from the remote server
+func (a *App) GetRemoteUsers() ([]user.User, error) {
+	return client.GetRemoteUsers()
+}
+
+// Follow a user
+func (a *App) Follow(followedID uint) (bool, error) {
+	return client.Follow(followedID)
+}
+
+// FollowResponse represents the response for follow-related queries
+type FollowResponse struct {
+	Users []user.User `json:"users"`
+	Count int         `json:"count"`
+}
+
+// GetFollowers returns all followers for the current user
+func (a *App) GetFollowers(userID uint) (*FollowResponse, error) {
+	followers, count, err := client.GetFollowers(userID)
+	if err != nil {
+		return nil, err
+	}
+	return &FollowResponse{
+		Users: followers,
+		Count: count,
+	}, nil
+}
+
+// GetFollowing returns all following for the current user
+func (a *App) GetFollowing(userID uint) (*FollowResponse, error) {
+	following, count, err := client.GetFollowing(userID)
+	if err != nil {
+		return nil, err
+	}
+	return &FollowResponse{
+		Users: following,
+		Count: count,
+	}, nil
 }
