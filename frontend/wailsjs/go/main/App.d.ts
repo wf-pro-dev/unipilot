@@ -41,6 +41,8 @@ export function GetFollowers(arg1:number):Promise<main.FollowResponse>;
 
 export function GetFollowing(arg1:number):Promise<main.FollowResponse>;
 
+export function GetNetworkStatus():Promise<Record<string, any>>;
+
 export function GetNotes():Promise<Array<note.LocalNote>>;
 
 export function GetRemoteDocumentMetadata(arg1:number):Promise<Array<Record<string, any>>>;
@@ -72,6 +74,8 @@ export function ReconnectSSE():Promise<void>;
 export function Register(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<user.User>;
 
 export function SaveDocumentAs(arg1:number):Promise<void>;
+
+export function Sync():Promise<void>;
 
 export function UpdateAssignment(arg1:assignment.LocalAssignment,arg2:string,arg3:string):Promise<void>;
 

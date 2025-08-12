@@ -70,6 +70,10 @@ export function GetFollowing(arg1) {
   return window['go']['main']['App']['GetFollowing'](arg1);
 }
 
+export function GetNetworkStatus() {
+  return window['go']['main']['App']['GetNetworkStatus']();
+}
+
 export function GetNotes() {
   return window['go']['main']['App']['GetNotes']();
 }
@@ -132,6 +136,10 @@ export function Register(arg1, arg2, arg3, arg4, arg5) {
 
 export function SaveDocumentAs(arg1) {
   return window['go']['main']['App']['SaveDocumentAs'](arg1);
+}
+
+export function Sync() {
+  return window['go']['main']['App']['Sync']();
 }
 
 export function UpdateAssignment(arg1, arg2, arg3) {

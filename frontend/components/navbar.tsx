@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Home, BookOpen, ClipboardList, FileText, Users, Settings, LogOut, User } from "lucide-react"
 import { useAuthContext } from "./provider/auth-provider"
+import { OfflineIndicator } from "./ui/offline-indicator"
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
@@ -69,7 +70,8 @@ export function Navbar() {
             })}
           </div>
 
-          <div className="flex items-center">
+          <div className="flex items-center space-x-2">
+            <OfflineIndicator variant="icon" />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative w-8 h-8 rounded-full">
@@ -83,10 +85,10 @@ export function Navbar() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none text-white">
-                      {user?.email || "User"}
+                      {user?.Email || "User"}
                     </p>
                     <p className="text-xs leading-none text-gray-400">
-                      {user?.email || "user@student.acc.edu"}
+                      {user?.Email || "user@student.acc.edu"}
                     </p>
                   </div>
                 </DropdownMenuLabel>
