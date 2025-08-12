@@ -78,7 +78,7 @@ func (h *DatabaseHelper) CreateAssignment(assignment *assignment.LocalAssignment
 // UpdateAssignment updates an existing assignment
 func (h *DatabaseHelper) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, column, value string) error {
 	// Only update the assignment fields, not the related course data
-	return h.db.Exec(fmt.Sprintf("UPDATE local_assignments SET %s = '%s' WHERE id = '%d'", column, value, LocalAssignment.ID)).Error
+	return h.db.Exec(fmt.Sprintf("UPDATE local_assignments SET %s = '%s', updated_at = CURRENT_TIMESTAMP WHERE id = '%d'", column, value, LocalAssignment.ID)).Error
 }
 
 // DeleteAssignment deletes an assignment
@@ -95,7 +95,7 @@ func (h *DatabaseHelper) CreateCourse(course *course.Course) error {
 // UpdateCourse updates an existing course
 func (h *DatabaseHelper) UpdateCourse(LocalCourse *course.LocalCourse, column, value string) error {
 	// Only update the assignment fields, not the related course data
-	return h.db.Exec(fmt.Sprintf("UPDATE local_courses SET %s = '%s' WHERE id = '%d'", column, value, LocalCourse.ID)).Error
+	return h.db.Exec(fmt.Sprintf("UPDATE local_courses SET %s = '%s', updated_at = CURRENT_TIMESTAMP WHERE id = '%d'", column, value, LocalCourse.ID)).Error
 }
 
 // DeleteCourse deletes a course
@@ -117,7 +117,7 @@ func (h *DatabaseHelper) CreateNote(note *note.LocalNote) error {
 
 // UpdateNote updates an existing note
 func (h *DatabaseHelper) UpdateNote(LocalNote *note.LocalNote, column, value string) error {
-	return h.db.Exec(fmt.Sprintf("UPDATE local_notes SET %s = '%s' WHERE id = '%d'", column, value, LocalNote.ID)).Error
+	return h.db.Exec(fmt.Sprintf("UPDATE local_notes SET %s = '%s', updated_at = CURRENT_TIMESTAMP WHERE id = '%d'", column, value, LocalNote.ID)).Error
 }
 
 // DeleteNote deletes a note

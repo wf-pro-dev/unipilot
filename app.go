@@ -15,6 +15,7 @@ import (
 	"unipilot/internal/auth"
 	"unipilot/internal/client"
 	"unipilot/internal/events"
+	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/document"
@@ -24,6 +25,7 @@ import (
 	"unipilot/internal/services/fileops"
 	"unipilot/internal/sse"
 	"unipilot/internal/storage"
+	"unipilot/internal/sync"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -71,12 +73,9 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 		Priority:   assignmentData.Priority,
 	}
 
-	fmt.Println("Creating assignment:", localAssignment)
-
 	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return fmt.Errorf("user not authenticated")
 	}
-	fmt.Println("User ID:", a.DB.GetCurrentUserID())
 
 	// Create the assignment within the transaction
 	if err := tx.Create(localAssignment).Error; err != nil {
@@ -84,27 +83,49 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 		return err
 	}
 
-	fmt.Println(" local assignment success ")
-	remoteAssignment := &assignment.Assignment{
-		LocalID:    localAssignment.ID,
-		Title:      localAssignment.Title,
-		Todo:       localAssignment.Todo,
-		Deadline:   localAssignment.Deadline,
-		CourseCode: localAssignment.CourseCode,
-		TypeName:   localAssignment.TypeName,
-		StatusName: localAssignment.StatusName,
-		Priority:   localAssignment.Priority,
-	}
+	if network.IsOnline() {
 
-	responseAssignment, err := client.CreateAssignment(remoteAssignment)
-	if err != nil {
-		tx.Rollback()
-		fmt.Println("Error creating remote assignment:", err)
-		return err
+		remoteAssignment := &assignment.Assignment{
+			LocalID:    localAssignment.ID,
+			Title:      localAssignment.Title,
+			Todo:       localAssignment.Todo,
+			Deadline:   localAssignment.Deadline,
+			CourseCode: localAssignment.CourseCode,
+			TypeName:   localAssignment.TypeName,
+			StatusName: localAssignment.StatusName,
+			Priority:   localAssignment.Priority,
+		}
+
+		responseAssignment, err := client.CreateAssignment(remoteAssignment)
+		if err != nil {
+			tx.Rollback()
+			fmt.Println("Error creating remote assignment:", err)
+			return err
+		}
+
+		localAssignment.RemoteID = uint(responseAssignment["id"].(float64))
+
+		if err := tx.Save(localAssignment).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+
+	} else {
+		// If no network connection, create a sync log entry
+		updateSyncLog := &models.LocalUpdate{
+			Entity:   models.EntityAssignment,
+			EntityID: localAssignment.ID,
+			Action:   "create",
+			Synced:   false,
+		}
+
+		if err := tx.Create(updateSyncLog).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
 	}
 
 	tx.Commit()
-	log.Printf("Response assignment: %v\n", responseAssignment)
 
 	return nil
 }
@@ -136,12 +157,9 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 		EndDate:         courseData.EndDate,
 	}
 
-	fmt.Println("Creating course:", localCourse)
-
 	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return fmt.Errorf("user not authenticated")
 	}
-	fmt.Println("User ID:", a.DB.GetCurrentUserID())
 
 	// Check if a soft-deleted course with the same code exists
 	var existingCourse course.LocalCourse
@@ -159,36 +177,64 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 		return err
 	}
 
-	fmt.Println(" local assignment success ")
-	remoteCourse := &course.Course{
-		LocalID:         localCourse.ID,
-		Name:            localCourse.Name,
-		Code:            localCourse.Code,
-		Color:           localCourse.Color,
-		Semester:        localCourse.Semester,
-		Schedule:        localCourse.Schedule,
-		Credits:         localCourse.Credits,
-		RoomNumber:      localCourse.RoomNumber,
-		Instructor:      localCourse.Instructor,
-		InstructorEmail: localCourse.InstructorEmail,
-		StartDate:       localCourse.StartDate,
-		EndDate:         localCourse.EndDate,
-	}
+	if network.IsOnline() {
 
-	responseCourse, err := client.CreateCourse(remoteCourse)
-	if err != nil {
-		tx.Rollback()
-		fmt.Println("Error creating remote course:", err)
-		return err
+		remoteCourse := &course.Course{
+			LocalID:         localCourse.ID,
+			Name:            localCourse.Name,
+			Code:            localCourse.Code,
+			Color:           localCourse.Color,
+			Semester:        localCourse.Semester,
+			Schedule:        localCourse.Schedule,
+			Credits:         localCourse.Credits,
+			RoomNumber:      localCourse.RoomNumber,
+			Instructor:      localCourse.Instructor,
+			InstructorEmail: localCourse.InstructorEmail,
+			StartDate:       localCourse.StartDate,
+			EndDate:         localCourse.EndDate,
+		}
+
+		responseCourse, err := client.CreateCourse(remoteCourse)
+		if err != nil {
+			tx.Rollback()
+			fmt.Println("Error creating remote course:", err)
+			return err
+		}
+
+		localCourse.RemoteID = uint(responseCourse["id"].(float64))
+
+		if err := tx.Save(localCourse).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+
+	} else {
+
+		updateSyncLog := &models.LocalUpdate{
+			Entity:   models.EntityCourse,
+			EntityID: localCourse.ID,
+			Action:   "create",
+			Synced:   false,
+		}
+
+		if err := tx.Create(updateSyncLog).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+
 	}
 
 	tx.Commit()
-	log.Printf("Response course: %v\n", responseCourse)
 
 	return nil
 }
 
 func (a *App) CreateNote(noteData *note.LocalNote) error {
+
+	if !network.IsOnline() {
+		return fmt.Errorf("no network connection")
+	}
+
 	if a.DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
@@ -206,12 +252,9 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 		CourseCode: noteData.CourseCode,
 	}
 
-	fmt.Println("Creating note:", localNote)
-
 	if _, err := a.Auth.IsAuthenticated(); err != nil {
 		return fmt.Errorf("user not authenticated")
 	}
-	fmt.Println("User ID:", a.DB.GetCurrentUserID())
 
 	// Create the note within the transaction
 	if err := tx.Create(localNote).Error; err != nil {
@@ -219,7 +262,6 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 		return err
 	}
 
-	fmt.Println(" local note success ")
 	remoteNote := &note.Note{
 		LocalID:    localNote.ID,
 		Title:      localNote.Title,
@@ -370,8 +412,38 @@ func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, colu
 
 	assignment_id := strconv.Itoa(assignment_id_int)
 
-	if err := client.SendAssignmentUpdate(assignment_id, column, value); err != nil {
-		return err
+	if network.IsOnline() {
+
+		if err := client.SendAssignmentUpdate(assignment_id, column, value); err != nil {
+			return err
+		}
+
+	} else {
+
+		updateSyncLog := &models.LocalUpdate{
+			Entity:   models.EntityAssignment,
+			EntityID: LocalAssignment.ID,
+			Action:   "update",
+			Column:   column,
+			Value:    value,
+		}
+
+		// Look for a sync log entry with the same entity, entity ID, action and column
+		var existingSyncLog models.LocalUpdate
+		if err := a.DB.GetDB().Where("entity = ? AND entity_id = ? AND action = ? AND column = ? AND synced IS FALSE",
+			models.EntityAssignment, LocalAssignment.ID, "update", column).First(&existingSyncLog).Error; err == nil {
+			// Update the existing sync log entry
+			existingSyncLog.Value = value
+			if err := a.DB.GetDB().Save(&existingSyncLog).Error; err != nil {
+				return err
+			}
+		} else {
+			// Create a new sync log entry
+			if err := a.DB.GetDB().Create(updateSyncLog).Error; err != nil {
+				return err
+			}
+		}
+
 	}
 
 	return nil
@@ -390,8 +462,34 @@ func (a *App) UpdateCourse(course *course.LocalCourse, column, value string) err
 
 	course_id := strconv.Itoa(course_id_int)
 
-	if err := client.SendCourseUpdate(course_id, column, value); err != nil {
-		return err
+	if network.IsOnline() {
+		if err := client.SendCourseUpdate(course_id, column, value); err != nil {
+			return err
+		}
+	} else {
+		updateSyncLog := &models.LocalUpdate{
+			Entity:   models.EntityCourse,
+			EntityID: course.ID,
+			Action:   "update",
+			Column:   column,
+			Value:    value,
+		}
+
+		// Look for a sync log entry with the same entity, entity ID, action and column
+		var existingSyncLog models.LocalUpdate
+		if err := a.DB.GetDB().Where("entity = ? AND entity_id = ? AND action = ? AND column = ? AND synced IS FALSE",
+			models.EntityCourse, course.ID, "update", column).First(&existingSyncLog).Error; err == nil {
+			// Update the existing sync log entry
+			existingSyncLog.Value = value
+			if err := a.DB.GetDB().Save(&existingSyncLog).Error; err != nil {
+				return err
+			}
+		} else {
+			// Create a new sync log entry
+			if err := a.DB.GetDB().Create(updateSyncLog).Error; err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -905,6 +1003,28 @@ func (a *App) ReconnectSSE() error {
 	return nil
 }
 
+// Sync performs synchronization of local changes with the remote server
+func (a *App) Sync() error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	// Check if user is authenticated
+	if _, err := a.Auth.IsAuthenticated(); err != nil {
+		return fmt.Errorf("user not authenticated")
+	}
+
+	// Check if we're online
+	if !network.IsOnline() {
+		return fmt.Errorf("not online, cannot sync")
+	}
+
+	log.Println("[App] Syncing local changes with the remote server")
+
+	// Perform the sync
+	return sync.Sync(a.DB.GetDB())
+}
+
 // GetAssignment returns an assignment by ID
 func (a *App) GetAssignment(id uint) (*assignment.LocalAssignment, error) {
 	if a.DB == nil {
@@ -1223,4 +1343,13 @@ func (a *App) GetFollowing(userID uint) (*FollowResponse, error) {
 		Users: following,
 		Count: count,
 	}, nil
+}
+
+// GetNetworkStatus returns the current network connectivity status
+func (a *App) GetNetworkStatus() map[string]interface{} {
+	isOnline := network.IsOnline()
+	return map[string]interface{}{
+		"online":    isOnline,
+		"timestamp": time.Now().Unix(),
+	}
 }

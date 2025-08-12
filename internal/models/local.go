@@ -2,6 +2,7 @@ package models
 
 import (
 	"strconv"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -41,23 +42,29 @@ func (a *LocalAssignmentStatus) ToMap() map[string]string {
 type Entity string
 
 const (
-	Assignment   Entity = "assignment"
-	EntityCourse Entity = "course"
+	EntityAssignment Entity = "assignment"
+	EntityCourse     Entity = "course"
+	EntityDocument   Entity = "document"
 )
 
 type LocalUpdate struct {
 	gorm.Model
 	Entity   Entity
-	EntityID uint
+	EntityID uint   `gorm:"not null"`
+	Action   string `gorm:"not null"` // create, update, delete
 	Column   string
 	Value    string
+	SyncedAt time.Time `gorm:"default:CURRENT_TIMESTAMP"`
+	Synced   bool      `gorm:"default:false"`
 }
 
 func (u *LocalUpdate) ToMap() map[string]string {
 	return map[string]string{
 		"entity":    string(u.Entity),
 		"entity_id": strconv.Itoa(int(u.EntityID)),
+		"action":    u.Action,
 		"column":    u.Column,
 		"value":     u.Value,
+		"synced":    strconv.FormatBool(u.Synced),
 	}
 }

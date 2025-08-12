@@ -31,7 +31,7 @@ export function NoteDetailModal({
   onDelete
 }: NoteDetailModalProps) {
 
-  const [activeView, setActiveView] = useState("videos")
+  const [activeView, setActiveView] = useState("note")
   const { data: courses } = useCourses()
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
 
