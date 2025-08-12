@@ -1,7 +1,11 @@
 {
-  "dependencies": {
-    "@tanstack/react-query": "^5.83.0",
-    "react-dnd": "^16.0.1",
-    "react-dnd-html5-backend": "^16.0.1"
-  }
+  "name": "unipilot",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wails dev",
+    "build": "echo Build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {}
 }

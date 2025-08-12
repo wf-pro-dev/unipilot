@@ -8,6 +8,14 @@ interface AuthState {
   user: user.User | null
 }
 
+// Helper function to check if Wails bindings are available
+const isWailsAvailable = (): boolean => {
+  return typeof window !== 'undefined' && 
+         !!window.go && 
+         !!window.go.main && 
+         !!window.go.main.App
+}
+
 export function useAuth() {
 
   const [authState, setAuthState] = useState<AuthState>({
@@ -22,7 +30,7 @@ export function useAuth() {
       })
       return { success: true }
     } catch (error) {
-      console.log("Register error: ", error)
+
       return { success: false, error: error instanceof Error ? error.message : "Register failed" }
     }
   }
@@ -44,6 +52,9 @@ export function useAuth() {
 
   const logout = async () => {
     try {
+      if (!isWailsAvailable()) {
+        throw new Error("Wails bindings not available")
+      }
       await window.go.main.App.Logout()
       setAuthState({
         user: null,

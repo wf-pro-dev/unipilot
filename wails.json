@@ -6,6 +6,8 @@
   "frontend:build": "npm run build",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "http://localhost:3000",
+  "frontend:dir": "./frontend",
+  "frontend:dist": "./frontend/dist",
   "author": {
     "name": "William Fotso",
     "email": "will.fotso.pro@gmail.com"

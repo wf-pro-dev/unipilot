@@ -31,14 +31,11 @@ go.work.sum
 # .idea/
 # .vscode/
 
-build
-
 # Wails (frontend)
 node_module
 package*
 
 frontend/node_module
 frontend/package*
-frontend/dist
 
 
