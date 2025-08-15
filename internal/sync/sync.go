@@ -190,3 +190,27 @@ func SyncCourse(syncLog models.LocalUpdate, remoteCourse map[string]string, db *
 
 	return nil
 }
+
+func SyncNote(syncLog models.LocalUpdate, remoteNote map[string]string, db *gorm.DB) error {
+
+	if remoteNote == nil {
+		return fmt.Errorf("remote note not found")
+	}
+
+	log.Println("[Sync] Syncing note", remoteNote["updated_at"], syncLog.UpdatedAt.Format(time.RFC3339))
+	// Check if the remote course has been updated
+	if remoteNote["updated_at"] < syncLog.UpdatedAt.Format(time.RFC3339) {
+
+		sync_id_int := int(syncLog.EntityID)
+		sync_id := strconv.Itoa(sync_id_int)
+		if err := client.SendNoteUpdate(sync_id, syncLog.Column, syncLog.Value); err != nil {
+			return err
+		}
+
+	} else {
+		log.Println("Remote note has been updated", remoteNote["updated_at"], syncLog.UpdatedAt.Format(time.RFC3339))
+	}
+
+	return nil
+
+}
