@@ -64,11 +64,11 @@ func NewCourse() *Course {
 
 	fmt.Printf("The Room Number: ")
 	scanner.Scan()
-	course.RoomNumber = scanner.Text()
+	course.Location = scanner.Text()
 
 	fmt.Printf("The Duration: ")
 	scanner.Scan()
-	course.Duration = scanner.Text()
+	course.Schedule = scanner.Text()
 
 	return course
 }

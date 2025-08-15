@@ -140,7 +140,7 @@ func SyncCourse(syncLog models.LocalUpdate, remoteCourse map[string]string, db *
 			Semester:        localCourse.Semester,
 			Schedule:        localCourse.Schedule,
 			Credits:         localCourse.Credits,
-			RoomNumber:      localCourse.RoomNumber,
+			Location:        localCourse.Location,
 			Instructor:      localCourse.Instructor,
 			InstructorEmail: localCourse.InstructorEmail,
 			StartDate:       localCourse.StartDate,

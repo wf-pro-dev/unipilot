@@ -67,8 +67,6 @@ func (h *Events) HandleAssignmentCreate(data json.RawMessage, message string) {
 		CourseCode: ar.CourseCode,
 		TypeName:   ar.TypeName,
 		StatusName: ar.StatusName,
-		NotionID:   ar.NotionID,
-		SyncStatus: assignment.SyncStatusSynced,
 	}
 	if err := tx.Create(&a).Error; err != nil {
 		tx.Rollback()

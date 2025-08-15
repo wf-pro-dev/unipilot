@@ -131,7 +131,7 @@ func (sm *SyncManager) ProcessPendingSyncs() error {
 	// }
 
 	for _, syncLog := range pendingSyncs {
-		if err := sm.ProcessSync(syncLog, remoteAssignments, remoteCourses, remoteNotes); err != nil {
+		if err := sm.ProcessSync(syncLog, remoteAssignments, remoteCourses); err != nil {
 			log.Printf("[SyncManager] Failed to process sync %d: %v", syncLog.ID, err)
 			// Continue with other syncs instead of failing completely
 		}
@@ -141,7 +141,7 @@ func (sm *SyncManager) ProcessPendingSyncs() error {
 }
 
 // ProcessSync processes a single sync operation
-func (sm *SyncManager) ProcessSync(syncLog models.LocalUpdate, remoteAssignments, remoteCourses, remoteNotes []map[string]string) error {
+func (sm *SyncManager) ProcessSync(syncLog models.LocalUpdate, remoteAssignments, remoteCourses []map[string]string) error {
 
 	switch syncLog.Entity {
 	case models.EntityAssignment:
@@ -154,11 +154,12 @@ func (sm *SyncManager) ProcessSync(syncLog models.LocalUpdate, remoteAssignments
 			sm.MarkSyncAttempted(&syncLog, err)
 			return err
 		}
-	case models.EntityNote:
-		if err := SyncNote(syncLog, findRemoteEntity(remoteNotes, syncLog.EntityID), sm.db); err != nil {
-			sm.MarkSyncAttempted(&syncLog, err)
-			return err
-		}
+
+		// case models.EntityNote:
+		// 	if err := SyncNote(syncLog, findRemoteEntity(remoteNotes, syncLog.EntityID), sm.db); err != nil {
+		// 		sm.MarkSyncAttempted(&syncLog, err)
+		// 		return err
+		// 	}
 	}
 
 	return sm.MarkSyncCompleted(&syncLog)
