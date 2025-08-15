@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/viper"
 
 	"unipilot/internal/storage"
-	
+
 	"github.com/gorilla/sessions"
 
 	"gorm.io/gorm"
@@ -91,7 +91,7 @@ func StartServer() {
 	http.HandleFunc("/acc-homework/course", DBMiddleware(db, AuthMiddleware(CreateCourseHandler)))
 	http.HandleFunc("/acc-homework/course/get", DBMiddleware(db, AuthMiddleware(GetCourseHandler)))
 	http.HandleFunc("/acc-homework/course/update", DBMiddleware(db, AuthMiddleware(UpdateCourseHandler)))
-	
+
 	http.HandleFunc("/acc-homework/document/metadata", DBMiddleware(db, AuthMiddleware(CreateDocumentMetadataHandler)))
 	http.HandleFunc("/acc-homework/document/metadata/delete", DBMiddleware(db, AuthMiddleware(DeleteDocumentMetadataHandler)))
 
@@ -108,7 +108,6 @@ func StartServer() {
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }
 
-
 func PrintLog(message string) {
 	log.Printf("[INFO] %s", message)
 }
@@ -117,4 +116,3 @@ func PrintERROR(w http.ResponseWriter, code int, message string) {
 	log.Printf("[ERROR] [%d] %s", code, message)
 	http.Error(w, message, code)
 }
-

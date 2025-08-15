@@ -62,8 +62,7 @@ export default function AssignmentsPage() {
   const priorityFilter = searchParams.get("priority") || null
 
   const handleEditAssignment = async (assignment: assignment.LocalAssignment, column: string, value: string) => {
-    console.log("Editing assignment:", assignment)
-    const message = "assignment " + assignment.ID + " " + column + " changed to " + value
+    const message = "Frontend: assignment " + assignment.ID + " " + column + " changed to " + value
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
 
     // Use the optimistic update mutation

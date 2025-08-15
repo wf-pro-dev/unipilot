@@ -5,22 +5,15 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"unipilot/internal/models/user"
 )
-
-type LocalCredentials struct {
-	IsAuthenticated bool `json:"is_authenticated"`
-	User            struct {
-		UserID   uint   `json:"user_id"`
-		Username string `json:"username"`
-	} `json:"user"`
-}
 
 var (
 	credLock    sync.Mutex
-	credentials *LocalCredentials
+	credentials *user.User
 )
 
-func GetCurrentUser() (*LocalCredentials, error) {
+func GetCurrentUser() (*user.User, error) {
 	credLock.Lock()
 	defer credLock.Unlock()
 
@@ -38,21 +31,20 @@ func GetCurrentUser() (*LocalCredentials, error) {
 		return nil, err
 	}
 
-	var creds LocalCredentials
-	if err := json.Unmarshal(data, &creds); err != nil {
+	var user user.User
+	if err := json.Unmarshal(data, &user); err != nil {
 		return nil, err
 	}
 
-	credentials = &creds
-	return credentials, nil
+	return &user, nil
 }
 
 func GetCurrentUserID() (uint, error) {
-	creds, err := GetCurrentUser()
+	user, err := GetCurrentUser()
 	if err != nil {
 		return 0, err
 	}
-	return creds.User.UserID, nil
+	return user.ID, nil
 }
 
 func getCredsPath() (string, error) {
@@ -63,20 +55,11 @@ func getCredsPath() (string, error) {
 	return filepath.Join(configDir, "acc-homework", "credentials.json"), nil
 }
 
-func StoreCredentials(userID uint, username string) error {
+func StoreCredentials(user user.User) error {
 	credLock.Lock()
 	defer credLock.Unlock()
 
-	creds := LocalCredentials{
-		IsAuthenticated: true,
-		User: struct {
-			UserID   uint   `json:"user_id"`
-			Username string `json:"username"`
-		}{
-			UserID:   userID,
-			Username: username,
-		},
-	}
+	userData := user
 
 	path, err := getCredsPath()
 	if err != nil {
@@ -87,7 +70,7 @@ func StoreCredentials(userID uint, username string) error {
 		return err
 	}
 
-	data, err := json.Marshal(creds)
+	data, err := json.Marshal(userData)
 	if err != nil {
 		return err
 	}

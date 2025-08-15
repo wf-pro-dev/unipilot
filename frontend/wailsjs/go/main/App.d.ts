@@ -4,8 +4,8 @@ import {assignment} from '../models';
 import {course} from '../models';
 import {note} from '../models';
 import {document} from '../models';
+import {main} from '../models';
 import {user} from '../models';
-import {storage} from '../models';
 
 export function CreateAssignment(arg1:assignment.LocalAssignment):Promise<void>;
 
@@ -23,6 +23,8 @@ export function DeleteNote(arg1:note.LocalNote):Promise<void>;
 
 export function EnsureSSEConnection():Promise<void>;
 
+export function Follow(arg1:number):Promise<boolean>;
+
 export function GetAssignment(arg1:number):Promise<assignment.LocalAssignment>;
 
 export function GetAssignmentDocuments(arg1:number):Promise<Array<document.LocalDocument>>;
@@ -35,9 +37,17 @@ export function GetCourseAssignments(arg1:course.LocalCourse):Promise<Array<assi
 
 export function GetCourses():Promise<Array<course.LocalCourse>>;
 
+export function GetFollowers(arg1:number):Promise<main.FollowResponse>;
+
+export function GetFollowing(arg1:number):Promise<main.FollowResponse>;
+
+export function GetNetworkStatus():Promise<Record<string, any>>;
+
 export function GetNotes():Promise<Array<note.LocalNote>>;
 
 export function GetRemoteDocumentMetadata(arg1:number):Promise<Array<Record<string, any>>>;
+
+export function GetRemoteUsers():Promise<Array<user.User>>;
 
 export function GetSSEConnectionStatus():Promise<Record<string, any>>;
 
@@ -51,9 +61,9 @@ export function GetUserStorageInfo():Promise<document.StorageInfo>;
 
 export function Greet(arg1:string):Promise<string>;
 
-export function IsAuthenticated():Promise<storage.LocalCredentials>;
+export function IsAuthenticated():Promise<user.User>;
 
-export function Login(arg1:string,arg2:string):Promise<void>;
+export function Login(arg1:string,arg2:string):Promise<user.User>;
 
 export function Logout():Promise<void>;
 
@@ -61,9 +71,11 @@ export function OpenDocument(arg1:number):Promise<void>;
 
 export function ReconnectSSE():Promise<void>;
 
-export function Register(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<void>;
+export function Register(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<user.User>;
 
 export function SaveDocumentAs(arg1:number):Promise<void>;
+
+export function Sync():Promise<void>;
 
 export function UpdateAssignment(arg1:assignment.LocalAssignment,arg2:string,arg3:string):Promise<void>;
 

@@ -34,6 +34,10 @@ export function EnsureSSEConnection() {
   return window['go']['main']['App']['EnsureSSEConnection']();
 }
 
+export function Follow(arg1) {
+  return window['go']['main']['App']['Follow'](arg1);
+}
+
 export function GetAssignment(arg1) {
   return window['go']['main']['App']['GetAssignment'](arg1);
 }
@@ -58,12 +62,28 @@ export function GetCourses() {
   return window['go']['main']['App']['GetCourses']();
 }
 
+export function GetFollowers(arg1) {
+  return window['go']['main']['App']['GetFollowers'](arg1);
+}
+
+export function GetFollowing(arg1) {
+  return window['go']['main']['App']['GetFollowing'](arg1);
+}
+
+export function GetNetworkStatus() {
+  return window['go']['main']['App']['GetNetworkStatus']();
+}
+
 export function GetNotes() {
   return window['go']['main']['App']['GetNotes']();
 }
 
 export function GetRemoteDocumentMetadata(arg1) {
   return window['go']['main']['App']['GetRemoteDocumentMetadata'](arg1);
+}
+
+export function GetRemoteUsers() {
+  return window['go']['main']['App']['GetRemoteUsers']();
 }
 
 export function GetSSEConnectionStatus() {
@@ -116,6 +136,10 @@ export function Register(arg1, arg2, arg3, arg4, arg5) {
 
 export function SaveDocumentAs(arg1) {
   return window['go']['main']['App']['SaveDocumentAs'](arg1);
+}
+
+export function Sync() {
+  return window['go']['main']['App']['Sync']();
 }
 
 export function UpdateAssignment(arg1, arg2, arg3) {

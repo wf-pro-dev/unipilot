@@ -25,4 +25,3 @@ jobs:
           build-name: ${{ matrix.build.name }}
           build-platform: ${{ matrix.build.platform }}
           build-obfuscate: true
-          wails-version: "v2.9.0"

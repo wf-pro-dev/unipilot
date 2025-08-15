@@ -8,21 +8,12 @@ import (
 	"gorm.io/gorm"
 )
 
-type SyncStatus string
-
-const (
-	SyncStatusPending SyncStatus = "pending" // Needs to be synced
-	SyncStatusSynced  SyncStatus = "synced"  // Already synced
-)
-
 type LocalCourse struct {
 	gorm.Model
 	RemoteID        uint
 	Code            string `gorm:"index:idx_course_code_active,unique,where:deleted_at IS NULL"`
 	Name            string `gorm:"not null"`
-	NotionID        string
-	Duration        string
-	RoomNumber      string
+	Location        string
 	Color           string
 	StartDate       time.Time
 	EndDate         time.Time
@@ -31,7 +22,6 @@ type LocalCourse struct {
 	Semester        string
 	Instructor      string
 	InstructorEmail string
-	SyncStatus      SyncStatus `gorm:"not null;default:'pending'"`
 }
 
 // BeforeCreate is a GORM hook that runs before creating a record
@@ -55,9 +45,7 @@ func (c *LocalCourse) ToMap() map[string]string {
 		"remote_id":        strconv.Itoa(int(c.RemoteID)),
 		"code":             c.Code,
 		"name":             c.Name,
-		"notion_id":        c.NotionID,
-		"duration":         c.Duration,
-		"room_number":      c.RoomNumber,
+		"location":         c.Location,
 		"color":            c.Color,
 		"start_date":       c.StartDate.Format(time.DateOnly),
 		"end_date":         c.EndDate.Format(time.DateOnly),
@@ -66,6 +54,5 @@ func (c *LocalCourse) ToMap() map[string]string {
 		"semester":         c.Semester,
 		"instructor":       c.Instructor,
 		"instructor_email": c.InstructorEmail,
-		"sync_status":      string(c.SyncStatus),
 	}
 }
