@@ -68,7 +68,7 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
 		return
 	}
-	
+
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
 		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
@@ -89,17 +89,17 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	var input struct {
-		LocalID	   string `json:"local_id"`	
-		Name	   string `json:"name"`
-		Code	   string `json:"code"`
-		Color	   string `json:"color"`
-		Semester   string `json:"semester"`
-		Schedule   string `json:"schedule"`
-		Credits	   string `json:"credits"`
-		RoomNumber string `json:"room_number"`
-		StartDate  string `json:"start_date"`
-		EndDate	   string `json:"end_date"`
-		Instructor string `json:"instructor"`
+		LocalID         string `json:"local_id"`
+		Name            string `json:"name"`
+		Code            string `json:"code"`
+		Color           string `json:"color"`
+		Semester        string `json:"semester"`
+		Schedule        string `json:"schedule"`
+		Credits         string `json:"credits"`
+		Location        string `json:"location"`
+		StartDate       string `json:"start_date"`
+		EndDate         string `json:"end_date"`
+		Instructor      string `json:"instructor"`
 		InstructorEmail string `json:"instructor_email"`
 	}
 
@@ -107,7 +107,6 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
-
 
 	PrintLog(fmt.Sprintf("course input data local ID : %s Title: %s : Course code: %s Type : %s Deadline : %s \n", input.LocalID, input.Instructor, input.EndDate, input.Semester, input.StartDate))
 	PrintLog(fmt.Sprintf("course input data local ID : %s \n", input.Code))
@@ -123,42 +122,40 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 		PrintERROR(w, http.StatusBadRequest, "Invalid start date format")
 		return
 	}
-	
+
 	end_date, err := time.Parse(time.DateOnly, input.EndDate)
 	if err != nil {
 		PrintERROR(w, http.StatusBadRequest, "Invalid start date format")
 		return
 	}
-	
+
 	credits, err := strconv.Atoi(input.Credits)
 	if err != nil {
 		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating credits : %s", err))
 
-		return 
+		return
 	}
 	local_id, err := strconv.Atoi(input.LocalID)
 	if err != nil {
 		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating local_id : %s", err))
 
-		return 
+		return
 	}
-	
-
 
 	cVal := course.Course{
-		UserID:			userID,
-		LocalID:		uint(local_id),
-		Name:			input.Name,
-		Code:			input.Code,
-		Color:			input.Color,
-		Semester:		input.Semester,
-		Schedule:		input.Schedule,
-		Credits:		credits,
-		RoomNumber:		input.RoomNumber,	
-		StartDate:		start_date,
-		EndDate:		end_date,
-		Instructor:		input.Instructor,
-		InstructorEmail:	input.InstructorEmail,
+		UserID:          userID,
+		LocalID:         uint(local_id),
+		Name:            input.Name,
+		Code:            input.Code,
+		Color:           input.Color,
+		Semester:        input.Semester,
+		Schedule:        input.Schedule,
+		Credits:         credits,
+		Location:        input.Location,
+		StartDate:       start_date,
+		EndDate:         end_date,
+		Instructor:      input.Instructor,
+		InstructorEmail: input.InstructorEmail,
 	}
 
 	result := tx.Create(&cVal)
@@ -202,8 +199,8 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 	// Return response
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"message":    "Assignment created successfully",
-		"course": courseMap,
+		"message": "Assignment created successfully",
+		"course":  courseMap,
 	})
 
 }

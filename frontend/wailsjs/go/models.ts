@@ -9,7 +9,6 @@ export namespace assignment {
 	    // Go type: gorm
 	    DeletedAt: any;
 	    RemoteID: number;
-	    NotionID: string;
 	    Title: string;
 	    Todo: string;
 	    // Go type: time
@@ -20,7 +19,6 @@ export namespace assignment {
 	    StatusName: string;
 	    Priority: string;
 	    Completed: boolean;
-	    SyncStatus: string;
 	    Course: course.LocalCourse;
 	    Type: models.LocalAssignmentType;
 	    Status: models.LocalAssignmentStatus;
@@ -37,7 +35,6 @@ export namespace assignment {
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
 	        this.RemoteID = source["RemoteID"];
-	        this.NotionID = source["NotionID"];
 	        this.Title = source["Title"];
 	        this.Todo = source["Todo"];
 	        this.Deadline = this.convertValues(source["Deadline"], null);
@@ -47,7 +44,6 @@ export namespace assignment {
 	        this.StatusName = source["StatusName"];
 	        this.Priority = source["Priority"];
 	        this.Completed = source["Completed"];
-	        this.SyncStatus = source["SyncStatus"];
 	        this.Course = this.convertValues(source["Course"], course.LocalCourse);
 	        this.Type = this.convertValues(source["Type"], models.LocalAssignmentType);
 	        this.Status = this.convertValues(source["Status"], models.LocalAssignmentStatus);
@@ -88,12 +84,10 @@ export namespace course {
 	    UserID: number;
 	    LocalID: number;
 	    User: user.User;
-	    NotionID: string;
 	    Code: string;
 	    Name: string;
 	    Color: string;
-	    Duration: string;
-	    RoomNumber: string;
+	    Location: string;
 	    // Go type: time
 	    StartDate: any;
 	    // Go type: time
@@ -117,12 +111,10 @@ export namespace course {
 	        this.UserID = source["UserID"];
 	        this.LocalID = source["LocalID"];
 	        this.User = this.convertValues(source["User"], user.User);
-	        this.NotionID = source["NotionID"];
 	        this.Code = source["Code"];
 	        this.Name = source["Name"];
 	        this.Color = source["Color"];
-	        this.Duration = source["Duration"];
-	        this.RoomNumber = source["RoomNumber"];
+	        this.Location = source["Location"];
 	        this.StartDate = this.convertValues(source["StartDate"], null);
 	        this.EndDate = this.convertValues(source["EndDate"], null);
 	        this.Schedule = source["Schedule"];
@@ -161,9 +153,7 @@ export namespace course {
 	    RemoteID: number;
 	    Code: string;
 	    Name: string;
-	    NotionID: string;
-	    Duration: string;
-	    RoomNumber: string;
+	    Location: string;
 	    Color: string;
 	    // Go type: time
 	    StartDate: any;
@@ -174,7 +164,6 @@ export namespace course {
 	    Semester: string;
 	    Instructor: string;
 	    InstructorEmail: string;
-	    SyncStatus: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new LocalCourse(source);
@@ -189,9 +178,7 @@ export namespace course {
 	        this.RemoteID = source["RemoteID"];
 	        this.Code = source["Code"];
 	        this.Name = source["Name"];
-	        this.NotionID = source["NotionID"];
-	        this.Duration = source["Duration"];
-	        this.RoomNumber = source["RoomNumber"];
+	        this.Location = source["Location"];
 	        this.Color = source["Color"];
 	        this.StartDate = this.convertValues(source["StartDate"], null);
 	        this.EndDate = this.convertValues(source["EndDate"], null);
@@ -200,7 +187,6 @@ export namespace course {
 	        this.Semester = source["Semester"];
 	        this.Instructor = source["Instructor"];
 	        this.InstructorEmail = source["InstructorEmail"];
-	        this.SyncStatus = source["SyncStatus"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
