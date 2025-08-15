@@ -43,8 +43,6 @@ func MigrateAssignments(db *gorm.DB) error {
 			CourseCode: ra["course_code"],
 			TypeName:   ra["type"],
 			StatusName: ra["status"],
-			NotionID:   ra["notion_id"],
-			SyncStatus: assignment.SyncStatusSynced,
 		}
 
 		if err := db.First(&localAssignment, "remote_id = ?", remote_id).Error; err == nil {
@@ -76,14 +74,35 @@ func MigrateCourses(db *gorm.DB) error {
 		if err != nil {
 			return fmt.Errorf("Error formating remote_id : %s", err)
 		}
+
+		start_date, err := time.Parse(time.DateOnly, rc["start_date"])
+		if err != nil {
+			return fmt.Errorf("Error formating start_date : %s", err)
+		}
+
+		end_date, err := time.Parse(time.DateOnly, rc["end_date"])
+		if err != nil {
+			return fmt.Errorf("Error formating end_date : %s", err)
+		}
+
+		credits, err := strconv.Atoi(rc["credits"])
+		if err != nil {
+			return fmt.Errorf("Error formating credits : %s", err)
+		}
+
 		localCourse := course.LocalCourse{
-			RemoteID:   uint(remote_id),
-			Code:       rc["code"],
-			Name:       rc["name"],
-			NotionID:   rc["notion_id"],
-			Duration:   rc["duration"],
-			RoomNumber: rc["room_number"],
-			SyncStatus: course.SyncStatusSynced,
+			RemoteID:        uint(remote_id),
+			Code:            rc["code"],
+			Name:            rc["name"],
+			Color:           rc["color"],
+			Location:        rc["location"],
+			StartDate:       start_date,
+			EndDate:         end_date,
+			Schedule:        rc["schedule"],
+			Credits:         credits,
+			Semester:        rc["semester"],
+			Instructor:      rc["instructor"],
+			InstructorEmail: rc["instructor_email"],
 		}
 
 		if err := db.First(&localCourse, "remote_id = ?", remote_id).Error; err == nil {

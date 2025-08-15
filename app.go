@@ -77,56 +77,69 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 		return fmt.Errorf("user not authenticated")
 	}
 
-	// Create the assignment within the transaction
+	// Create the assignment locally first
 	if err := tx.Create(localAssignment).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	if network.IsOnline() {
+	// Always try to sync with server
+	remoteAssignment := &assignment.Assignment{
+		LocalID:    localAssignment.ID,
+		Title:      localAssignment.Title,
+		Todo:       localAssignment.Todo,
+		Deadline:   localAssignment.Deadline,
+		CourseCode: localAssignment.CourseCode,
+		TypeName:   localAssignment.TypeName,
+		StatusName: localAssignment.StatusName,
+		Priority:   localAssignment.Priority,
+	}
 
-		remoteAssignment := &assignment.Assignment{
-			LocalID:    localAssignment.ID,
-			Title:      localAssignment.Title,
-			Todo:       localAssignment.Todo,
-			Deadline:   localAssignment.Deadline,
-			CourseCode: localAssignment.CourseCode,
-			TypeName:   localAssignment.TypeName,
-			StatusName: localAssignment.StatusName,
-			Priority:   localAssignment.Priority,
-		}
-
-		responseAssignment, err := client.CreateAssignment(remoteAssignment)
-		if err != nil {
+	responseAssignment, err := client.CreateAssignment(remoteAssignment)
+	if err != nil {
+		// Server operation failed, create sync log
+		syncManager := sync.NewSyncManager(tx)
+		if syncErr := syncManager.CreateSyncLog(
+			models.EntityAssignment,
+			localAssignment.ID,
+			"create",
+			"",
+			"",
+			err,
+		); syncErr != nil {
 			tx.Rollback()
-			fmt.Println("Error creating remote assignment:", err)
-			return err
+			return fmt.Errorf("failed to create sync log: %w", syncErr)
 		}
 
-		localAssignment.RemoteID = uint(responseAssignment["id"].(float64))
+		// Commit the transaction with the sync log
+		tx.Commit()
 
-		if err := tx.Save(localAssignment).Error; err != nil {
-			tx.Rollback()
-			return err
-		}
+		// Return success to user (operation is queued for retry)
+		log.Printf("[App] Assignment created locally, queued for sync: %v", err)
+		return nil
+	}
 
-	} else {
-		// If no network connection, create a sync log entry
-		updateSyncLog := &models.LocalUpdate{
-			Entity:   models.EntityAssignment,
-			EntityID: localAssignment.ID,
-			Action:   "create",
-			Synced:   false,
-		}
+	// Server operation succeeded
+	str_remote_id, ok := responseAssignment["id"].(string)
+	if !ok {
+		tx.Rollback()
+		return fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"])
+	}
 
-		if err := tx.Create(updateSyncLog).Error; err != nil {
-			tx.Rollback()
-			return err
-		}
+	remote_id, err := strconv.Atoi(str_remote_id)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"])
+	}
+
+	localAssignment.RemoteID = uint(remote_id)
+
+	if err := tx.Save(localAssignment).Error; err != nil {
+		tx.Rollback()
+		return err
 	}
 
 	tx.Commit()
-
 	return nil
 }
 
@@ -177,51 +190,58 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 		return err
 	}
 
-	if network.IsOnline() {
+	remoteCourse := &course.Course{
+		LocalID:         localCourse.ID,
+		Name:            localCourse.Name,
+		Code:            localCourse.Code,
+		Color:           localCourse.Color,
+		Semester:        localCourse.Semester,
+		Schedule:        localCourse.Schedule,
+		Credits:         localCourse.Credits,
+		RoomNumber:      localCourse.RoomNumber,
+		Instructor:      localCourse.Instructor,
+		InstructorEmail: localCourse.InstructorEmail,
+		StartDate:       localCourse.StartDate,
+		EndDate:         localCourse.EndDate,
+	}
 
-		remoteCourse := &course.Course{
-			LocalID:         localCourse.ID,
-			Name:            localCourse.Name,
-			Code:            localCourse.Code,
-			Color:           localCourse.Color,
-			Semester:        localCourse.Semester,
-			Schedule:        localCourse.Schedule,
-			Credits:         localCourse.Credits,
-			RoomNumber:      localCourse.RoomNumber,
-			Instructor:      localCourse.Instructor,
-			InstructorEmail: localCourse.InstructorEmail,
-			StartDate:       localCourse.StartDate,
-			EndDate:         localCourse.EndDate,
-		}
-
-		responseCourse, err := client.CreateCourse(remoteCourse)
-		if err != nil {
+	responseCourse, err := client.CreateCourse(remoteCourse)
+	if err != nil {
+		syncManager := sync.NewSyncManager(tx)
+		if syncErr := syncManager.CreateSyncLog(
+			models.EntityCourse,
+			localCourse.ID,
+			"create",
+			"",
+			"",
+			err,
+		); syncErr != nil {
 			tx.Rollback()
-			fmt.Println("Error creating remote course:", err)
-			return err
+			return fmt.Errorf("failed to create sync log: %w", syncErr)
 		}
+		tx.Commit()
+		return nil
+	}
 
-		localCourse.RemoteID = uint(responseCourse["id"].(float64))
+	str_remote_id, ok := responseCourse["id"].(string)
+	if !ok {
+		tx.Rollback()
+		return fmt.Errorf("invalid remote course ID %v", responseCourse["id"])
+	}
 
-		if err := tx.Save(localCourse).Error; err != nil {
-			tx.Rollback()
-			return err
-		}
+	remote_id, err := strconv.Atoi(str_remote_id)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("invalid remote course ID %v", responseCourse["id"])
+	}
 
-	} else {
+	log.Println("[App] Remote course ID:", remote_id)
 
-		updateSyncLog := &models.LocalUpdate{
-			Entity:   models.EntityCourse,
-			EntityID: localCourse.ID,
-			Action:   "create",
-			Synced:   false,
-		}
+	localCourse.RemoteID = uint(remote_id)
 
-		if err := tx.Create(updateSyncLog).Error; err != nil {
-			tx.Rollback()
-			return err
-		}
-
+	if err := tx.Save(localCourse).Error; err != nil {
+		tx.Rollback()
+		return err
 	}
 
 	tx.Commit()
@@ -404,6 +424,10 @@ func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, colu
 		return fmt.Errorf("database not initialized")
 	}
 
+	db := a.DB.GetDB()
+
+	runtime.LogInfof(a.ctx, "Backend: assignment %v, column %v, value %v", LocalAssignment.ID, column, value)
+
 	if err := a.DB.UpdateAssignment(LocalAssignment, column, value); err != nil {
 		return err
 	}
@@ -412,39 +436,41 @@ func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, colu
 
 	assignment_id := strconv.Itoa(assignment_id_int)
 
-	if network.IsOnline() {
+	if clientErr := client.SendAssignmentUpdate(assignment_id, column, value); clientErr != nil {
 
-		if err := client.SendAssignmentUpdate(assignment_id, column, value); err != nil {
-			return err
-		}
+		runtime.LogErrorf(a.ctx, "[Backend] failed to send assignment update: %v", clientErr)
 
-	} else {
+		sm := sync.NewSyncManager(db)
+		syncLog, err := sm.GetSyncLog(models.EntityAssignment, LocalAssignment.ID, "update", column)
 
-		updateSyncLog := &models.LocalUpdate{
-			Entity:   models.EntityAssignment,
-			EntityID: LocalAssignment.ID,
-			Action:   "update",
-			Column:   column,
-			Value:    value,
-		}
+		runtime.LogInfof(a.ctx, "[Backend] sync log: %v", syncLog)
 
-		// Look for a sync log entry with the same entity, entity ID, action and column
-		var existingSyncLog models.LocalUpdate
-		if err := a.DB.GetDB().Where("entity = ? AND entity_id = ? AND action = ? AND column = ? AND synced IS FALSE",
-			models.EntityAssignment, LocalAssignment.ID, "update", column).First(&existingSyncLog).Error; err == nil {
-			// Update the existing sync log entry
-			existingSyncLog.Value = value
-			if err := a.DB.GetDB().Save(&existingSyncLog).Error; err != nil {
-				return err
+		// If no sync log is found, create a new one
+		if err != nil {
+			runtime.LogErrorf(a.ctx, "[Backend] failed to get sync log: %v", err)
+			if syncErr := sm.CreateSyncLog(
+				models.EntityAssignment,
+				LocalAssignment.ID,
+				"update",
+				column,
+				value,
+				clientErr,
+			); syncErr != nil {
+				runtime.LogErrorf(a.ctx, "[Backend] failed to create sync log: %v", syncErr)
+				return fmt.Errorf("failed to create sync log: %w", syncErr)
 			}
-		} else {
-			// Create a new sync log entry
-			if err := a.DB.GetDB().Create(updateSyncLog).Error; err != nil {
-				return err
-			}
+			return nil
 		}
-
+		// If a sync log is found, update it
+		syncLog.Value = value
+		if err := db.Save(&syncLog).Error; err != nil {
+			runtime.LogErrorf(a.ctx, "[Backend] failed to save sync log: %v", err)
+			return fmt.Errorf("failed to save sync log: %w", err)
+		}
+		return nil
 	}
+
+	runtime.LogInfof(a.ctx, "[Backend] assignment update sent successfully")
 
 	return nil
 }
@@ -454,6 +480,9 @@ func (a *App) UpdateCourse(course *course.LocalCourse, column, value string) err
 	if a.DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
+
+	db := a.DB.GetDB()
+
 	if err := a.DB.UpdateCourse(course, column, value); err != nil {
 		return err
 	}
@@ -462,34 +491,27 @@ func (a *App) UpdateCourse(course *course.LocalCourse, column, value string) err
 
 	course_id := strconv.Itoa(course_id_int)
 
-	if network.IsOnline() {
-		if err := client.SendCourseUpdate(course_id, column, value); err != nil {
-			return err
-		}
-	} else {
-		updateSyncLog := &models.LocalUpdate{
-			Entity:   models.EntityCourse,
-			EntityID: course.ID,
-			Action:   "update",
-			Column:   column,
-			Value:    value,
-		}
-
-		// Look for a sync log entry with the same entity, entity ID, action and column
-		var existingSyncLog models.LocalUpdate
-		if err := a.DB.GetDB().Where("entity = ? AND entity_id = ? AND action = ? AND column = ? AND synced IS FALSE",
-			models.EntityCourse, course.ID, "update", column).First(&existingSyncLog).Error; err == nil {
-			// Update the existing sync log entry
-			existingSyncLog.Value = value
-			if err := a.DB.GetDB().Save(&existingSyncLog).Error; err != nil {
-				return err
+	if clientErr := client.SendCourseUpdate(course_id, column, value); clientErr != nil {
+		sm := sync.NewSyncManager(db)
+		syncLog, err := sm.GetSyncLog(models.EntityCourse, course.ID, "update", column)
+		if err != nil {
+			if syncErr := sm.CreateSyncLog(
+				models.EntityCourse,
+				course.ID,
+				"update",
+				column,
+				value,
+				clientErr,
+			); syncErr != nil {
+				return fmt.Errorf("failed to create sync log: %w", syncErr)
 			}
-		} else {
-			// Create a new sync log entry
-			if err := a.DB.GetDB().Create(updateSyncLog).Error; err != nil {
-				return err
-			}
+			return nil
 		}
+		syncLog.Value = value
+		if err := db.Save(&syncLog).Error; err != nil {
+			return fmt.Errorf("failed to save sync log: %w", err)
+		}
+		return nil
 	}
 
 	return nil
@@ -500,6 +522,8 @@ func (a *App) UpdateNote(LocalNote *note.LocalNote, column, value string) error 
 		return fmt.Errorf("database not initialized")
 	}
 
+	db := a.DB.GetDB()
+
 	if err := a.DB.UpdateNote(LocalNote, column, value); err != nil {
 		return err
 	}
@@ -508,8 +532,27 @@ func (a *App) UpdateNote(LocalNote *note.LocalNote, column, value string) error 
 
 	note_id := strconv.Itoa(note_id_int)
 
-	if err := client.SendNoteUpdate(note_id, column, value); err != nil {
-		return err
+	if clientErr := client.SendNoteUpdate(note_id, column, value); clientErr != nil {
+		sm := sync.NewSyncManager(db)
+		syncLog, err := sm.GetSyncLog(models.EntityNote, LocalNote.ID, "update", column)
+		if err != nil {
+			if syncErr := sm.CreateSyncLog(
+				models.EntityNote,
+				LocalNote.ID,
+				"update",
+				column,
+				value,
+				clientErr,
+			); syncErr != nil {
+				return fmt.Errorf("failed to create sync log: %w", syncErr)
+			}
+			return nil
+		}
+		syncLog.Value = value
+		if err := db.Save(&syncLog).Error; err != nil {
+			return fmt.Errorf("failed to save sync log: %w", err)
+		}
+		return nil
 	}
 
 	return nil
@@ -630,6 +673,8 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 		return fmt.Errorf("database not initialized")
 	}
 
+	db := a.DB.GetDB()
+
 	//Get all documents related to the assignment
 	var documents []document.LocalDocument
 	documents, err := a.GetAssignmentDocuments(assignment.ID)
@@ -650,8 +695,32 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 
 	assignment_id_str := strconv.Itoa(int(assignment.ID))
 
-	if err := client.SendAssignmentUpdate(assignment_id_str, "deleted_at", time.Now().Format(time.RFC3339)); err != nil {
-		return err
+	deleted_at := time.Now().Format(time.RFC3339)
+
+	if clientErr := client.SendAssignmentUpdate(assignment_id_str, "deleted_at", deleted_at); clientErr != nil {
+
+		sm := sync.NewSyncManager(db)
+		syncLog, err := sm.GetSyncLog(models.EntityAssignment, assignment.ID, "delete", "deleted_at")
+		if err != nil {
+			if syncErr := sm.CreateSyncLog(
+				models.EntityAssignment,
+				assignment.ID,
+				"delete",
+				"deleted_at",
+				deleted_at,
+				clientErr,
+			); syncErr != nil {
+				return fmt.Errorf("failed to create sync log: %w", syncErr)
+			}
+			return nil
+		}
+
+		syncLog.Value = deleted_at
+		if err := db.Save(&syncLog).Error; err != nil {
+			return fmt.Errorf("failed to save sync log: %w", err)
+		}
+
+		return nil
 	}
 
 	return nil
@@ -662,6 +731,8 @@ func (a *App) DeleteCourse(course *course.LocalCourse) error {
 	if a.DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
+
+	db := a.DB.GetDB()
 
 	// Get all assignments related to the course
 	assignments, err := a.GetCourseAssignments(course)
@@ -682,8 +753,32 @@ func (a *App) DeleteCourse(course *course.LocalCourse) error {
 
 	course_id_str := strconv.Itoa(int(course.ID))
 
-	if err := client.SendCourseUpdate(course_id_str, "deleted_at", time.Now().Format(time.RFC3339)); err != nil {
-		return err
+	deleted_at := time.Now().Format(time.RFC3339)
+
+	if clientErr := client.SendCourseUpdate(course_id_str, "deleted_at", deleted_at); clientErr != nil {
+
+		sm := sync.NewSyncManager(db)
+		syncLog, err := sm.GetSyncLog(models.EntityCourse, course.ID, "delete", "deleted_at")
+		if err != nil {
+			if syncErr := sm.CreateSyncLog(
+				models.EntityCourse,
+				course.ID,
+				"delete",
+				"deleted_at",
+				deleted_at,
+				clientErr,
+			); syncErr != nil {
+				return fmt.Errorf("failed to create sync log: %w", syncErr)
+			}
+			return nil
+		}
+
+		syncLog.Value = deleted_at
+		if err := db.Save(&syncLog).Error; err != nil {
+			return fmt.Errorf("failed to save sync log: %w", err)
+		}
+
+		return nil
 	}
 
 	return nil
@@ -715,7 +810,6 @@ func (a *App) DeleteDocument(documentID uint) error {
 	}
 
 	db := a.DB.GetDB()
-	db = db.Debug()
 	// Delete database record
 	if err := db.Delete(&doc).Error; err != nil {
 		return fmt.Errorf("failed to delete document record: %w", err)
@@ -746,14 +840,41 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 		return fmt.Errorf("database not initialized")
 	}
 
+	db := a.DB.GetDB()
+
 	if err := a.DB.DeleteNote(note); err != nil {
 		return err
 	}
 
 	note_id_str := strconv.Itoa(int(note.ID))
 
-	if err := client.SendNoteUpdate(note_id_str, "deleted_at", time.Now().Format(time.RFC3339)); err != nil {
-		return err
+	deleted_at := time.Now().Format(time.RFC3339)
+
+	if clientErr := client.SendNoteUpdate(note_id_str, "deleted_at", deleted_at); clientErr != nil {
+
+		sm := sync.NewSyncManager(db)
+		syncLog, err := sm.GetSyncLog(models.EntityNote, note.ID, "delete", "deleted_at")
+
+		if err != nil {
+			if syncErr := sm.CreateSyncLog(
+				models.EntityNote,
+				note.ID,
+				"delete",
+				"deleted_at",
+				deleted_at,
+				clientErr,
+			); syncErr != nil {
+				return fmt.Errorf("failed to create sync log: %w", syncErr)
+			}
+			return nil
+		}
+
+		syncLog.Value = deleted_at
+		if err := db.Save(&syncLog).Error; err != nil {
+			return fmt.Errorf("failed to save sync log: %w", err)
+		}
+
+		return nil
 	}
 
 	return nil
@@ -783,6 +904,17 @@ func (a *App) Startup(ctx context.Context) {
 			log.Printf("[App] Failed to initialize authenticated client: %v", err)
 		} else {
 			a.startSSEConnection()
+
+			// Start background sync manager
+			syncManager := sync.NewSyncManager(a.DB.GetDB())
+			go syncManager.BackgroundSync()
+
+			// Process any pending syncs on startup
+			go func() {
+				if err := syncManager.ProcessPendingSyncs(); err != nil {
+					log.Printf("[App] Startup sync error: %v", err)
+				}
+			}()
 		}
 	}
 }
