@@ -93,7 +93,7 @@ func RemoveFollow(followerID, followedID uint, db *gorm.DB) error {
 func GetFollowers(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
 	var followers []User
 	err := db.Joins("JOIN follows ON users.id = follows.follower_id").
-		Where("follows.followed_id = ?", userID).
+		Where("follows.followed_id = ? AND follows.deleted_at is NULL", userID).
 		Limit(limit).Offset(offset).
 		Find(&followers).Error
 	return followers, err
@@ -103,7 +103,7 @@ func GetFollowers(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
 func GetFollowing(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
 	var following []User
 	err := db.Joins("JOIN follows ON users.id = follows.followed_id").
-		Where("follows.follower_id = ?", userID).
+		Where("follows.follower_id = ? AND follows.deleted_at is NULL", userID).
 		Limit(limit).Offset(offset).
 		Find(&following).Error
 	return following, err
@@ -140,3 +140,4 @@ func UpdateFollowStats(userID uint, db *gorm.DB) error {
 	stats.FollowingCount = followingCount
 	return db.Save(&stats).Error
 }
+

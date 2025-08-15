@@ -1,0 +1,588 @@
+2025-08-11T19:39:33: 
+2025-08-11T19:39:33: 2025/08/11 19:39:33 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-11T19:39:33: [0m[33m[5.417ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-08-11T19:39:33: 
+2025-08-11T19:39:33: 2025/08/11 19:39:33 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-11T19:39:33: [0m[33m[2.240ms] [34;1m[rows:3][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-08-11T19:39:33: 
+2025-08-11T19:39:33: 2025/08/11 19:39:33 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-11T19:39:33: [0m[33m[2.278ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-11T19:39:34: 
+2025-08-11T19:39:34: 2025/08/11 19:39:34 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-11T19:39:34: [0m[33m[3.720ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 3 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-11T19:39:34: 
+2025-08-11T19:39:34: 2025/08/11 19:39:34 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-11T19:39:34: [0m[33m[2.754ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 3 AND "follows"."deleted_at" IS NULL
+2025-08-11T19:39:34: 
+2025-08-11T19:39:34: 2025/08/11 19:39:34 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-11T19:39:34: [0m[33m[2.767ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 3 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-11T19:39:34: 
+2025-08-11T19:39:34: 2025/08/11 19:39:34 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-11T19:39:34: [0m[33m[1.297ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 3 AND "follows"."deleted_at" IS NULL
+2025-08-11T19:39:34: 
+2025-08-11T19:39:34: 2025/08/11 19:39:34 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-11T19:39:34: [0m[33m[37.045ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-11T19:39:34: 
+2025-08-11T19:39:34: 2025/08/11 19:39:34 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-11T19:39:34: [0m[33m[34.565ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-11T19:39:34: 
+2025-08-11T19:39:34: 2025/08/11 19:39:34 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-11T19:39:34: [0m[33m[3.806ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-11T19:39:34: 
+2025-08-11T19:39:34: 2025/08/11 19:39:34 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-11T19:39:34: [0m[33m[4.367ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-11T22:16:54: 
+2025-08-11T22:16:54: 2025/08/11 22:16:54 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-11T22:16:54: [0m[33m[2.308ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-08-11T22:16:54: 
+2025-08-11T22:16:54: 2025/08/11 22:16:54 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-11T22:16:54: [0m[33m[4.043ms] [34;1m[rows:3][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-08-11T22:16:54: 
+2025-08-11T22:16:54: 2025/08/11 22:16:54 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-11T22:16:54: [0m[33m[0.581ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-11T22:16:54: 
+2025-08-11T22:16:54: 2025/08/11 22:16:54 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-11T22:16:54: [0m[33m[1.042ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-11T22:16:54: 
+2025-08-11T22:16:54: 2025/08/11 22:16:54 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-11T22:16:54: [0m[33m[2.971ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-11T22:16:54: 
+2025-08-11T22:16:54: 2025/08/11 22:16:54 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-11T22:16:54: [0m[33m[3.617ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-11T22:16:54: 
+2025-08-11T22:16:54: 2025/08/11 22:16:54 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-11T22:16:54: [0m[33m[2.551ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-11T22:16:54: 
+2025-08-11T22:16:54: 2025/08/11 22:16:54 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-11T22:16:54: [0m[33m[1.002ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 3 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-11T22:16:54: 
+2025-08-11T22:16:54: 2025/08/11 22:16:54 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-11T22:16:54: [0m[33m[2.578ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 3 AND "follows"."deleted_at" IS NULL
+2025-08-11T22:16:54: 
+2025-08-11T22:16:54: 2025/08/11 22:16:54 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-11T22:16:54: [0m[33m[33.435ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 3 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-11T22:16:54: 
+2025-08-11T22:16:54: 2025/08/11 22:16:54 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-11T22:16:54: [0m[33m[1.581ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 3 AND "follows"."deleted_at" IS NULL
+2025-08-11T22:44:59: 
+2025-08-11T22:44:59: 2025/08/11 22:44:59 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-11T22:44:59: [0m[33m[10.403ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-08-11T22:44:59: 
+2025-08-11T22:44:59: 2025/08/11 22:44:59 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-11T22:44:59: [0m[33m[2.163ms] [34;1m[rows:3][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-08-11T22:44:59: 
+2025-08-11T22:44:59: 2025/08/11 22:44:59 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-11T22:44:59: [0m[33m[0.616ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-11T22:45:29: 
+2025-08-11T22:45:29: 2025/08/11 22:45:29 [31;1m/home/ubuntu/unipilot/internal/server/login.go:35 [35;1mrecord not found
+2025-08-11T22:45:29: [0m[33m[4.340ms] [34;1m[rows:0][0m SELECT * FROM "public"."users" WHERE username = 'Testuser' AND "users"."deleted_at" IS NULL ORDER BY "users"."id" LIMIT 1
+2025-08-11T22:46:51: 
+2025-08-11T22:46:51: 2025/08/11 22:46:51 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-11T22:46:51: [0m[33m[1.515ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 3 AND "users"."deleted_at" IS NULL
+2025-08-11T22:46:51: 
+2025-08-11T22:46:51: 2025/08/11 22:46:51 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-11T22:46:51: [0m[33m[1.065ms] [34;1m[rows:10][0m SELECT "code" FROM "public"."courses" WHERE user_id = 1  AND "courses"."deleted_at" IS NULL
+2025-08-11T22:46:51: 
+2025-08-11T22:46:51: 2025/08/11 22:46:51 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-11T22:46:51: [0m[33m[1.144ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-11T22:46:51: 
+2025-08-11T22:46:51: 2025/08/11 22:46:51 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-11T22:46:51: [0m[33m[1.218ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-11T22:46:51: 
+2025-08-11T22:46:51: 2025/08/11 22:46:51 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-11T22:46:51: [0m[33m[2.285ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-11T22:46:51: 
+2025-08-11T22:46:51: 2025/08/11 22:46:51 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-11T22:46:51: [0m[33m[1.825ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-11T22:46:51: 
+2025-08-11T22:46:51: 2025/08/11 22:46:51 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-11T22:46:51: [0m[33m[0.769ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-11T22:46:51: 
+2025-08-11T22:46:51: 2025/08/11 22:46:51 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-11T22:46:51: [0m[33m[2.887ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-11T22:46:51: 
+2025-08-11T22:46:51: 2025/08/11 22:46:51 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-11T22:46:51: [0m[33m[2.005ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-11T22:46:51: 
+2025-08-11T22:46:51: 2025/08/11 22:46:51 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-11T22:46:51: [0m[33m[32.047ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-11T22:46:51: 
+2025-08-11T22:46:51: 2025/08/11 22:46:51 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-11T22:46:51: [0m[33m[0.700ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-12T12:58:29: 
+2025-08-12T12:58:29: 2025/08/12 12:58:29 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-12T12:58:29: [0m[33m[27.577ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-08-12T12:58:29: 
+2025-08-12T12:58:29: 2025/08/12 12:58:29 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-12T12:58:29: [0m[33m[0.548ms] [34;1m[rows:3][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-08-12T12:58:29: 
+2025-08-12T12:58:29: 2025/08/12 12:58:29 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-12T12:58:29: [0m[33m[0.451ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-12T16:03:36: 
+2025-08-12T16:03:36: 2025/08/12 16:03:36 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-12T16:03:36: [0m[33m[10.078ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-08-12T16:03:36: 
+2025-08-12T16:03:36: 2025/08/12 16:03:36 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-12T16:03:36: [0m[33m[0.647ms] [34;1m[rows:3][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-08-12T16:03:36: 
+2025-08-12T16:03:36: 2025/08/12 16:03:36 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-12T16:03:36: [0m[33m[0.934ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-12T16:03:36: 
+2025-08-12T16:03:36: 2025/08/12 16:03:36 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-12T16:03:36: [0m[33m[1.118ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 3 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-12T16:03:36: 
+2025-08-12T16:03:36: 2025/08/12 16:03:36 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-12T16:03:36: [0m[33m[1.946ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-12T16:03:36: 
+2025-08-12T16:03:36: 2025/08/12 16:03:36 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-12T16:03:36: [0m[33m[1.153ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 3 AND "follows"."deleted_at" IS NULL
+2025-08-12T16:03:36: 
+2025-08-12T16:03:36: 2025/08/12 16:03:36 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-12T16:03:36: [0m[33m[0.662ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-12T16:03:36: 
+2025-08-12T16:03:36: 2025/08/12 16:03:36 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-12T16:03:36: [0m[33m[0.752ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-12T16:03:36: 
+2025-08-12T16:03:36: 2025/08/12 16:03:36 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-12T16:03:36: [0m[33m[0.787ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-12T16:03:37: 
+2025-08-12T16:03:37: 2025/08/12 16:03:37 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-12T16:03:37: [0m[33m[1.462ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 3 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-12T16:03:37: 
+2025-08-12T16:03:37: 2025/08/12 16:03:37 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-12T16:03:37: [0m[33m[0.661ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 3 AND "follows"."deleted_at" IS NULL
+2025-08-12T21:09:11: 
+2025-08-12T21:09:11: 2025/08/12 21:09:11 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-12T21:09:11: [0m[33m[2.168ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-08-12T21:09:11: 
+2025-08-12T21:09:11: 2025/08/12 21:09:11 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-12T21:09:11: [0m[33m[0.870ms] [34;1m[rows:3][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-08-12T21:09:11: 
+2025-08-12T21:09:11: 2025/08/12 21:09:11 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-12T21:09:11: [0m[33m[0.835ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-12T21:09:12: 
+2025-08-12T21:09:12: 2025/08/12 21:09:12 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-12T21:09:12: [0m[33m[1.213ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-12T21:09:12: 
+2025-08-12T21:09:12: 2025/08/12 21:09:12 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-12T21:09:12: [0m[33m[1.834ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-12T21:09:12: 
+2025-08-12T21:09:12: 2025/08/12 21:09:12 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-12T21:09:12: [0m[33m[2.803ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-12T21:09:12: 
+2025-08-12T21:09:12: 2025/08/12 21:09:12 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-12T21:09:12: [0m[33m[3.027ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-12T21:09:12: 
+2025-08-12T21:09:12: 2025/08/12 21:09:12 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-12T21:09:12: [0m[33m[1.613ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 3 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-12T21:09:12: 
+2025-08-12T21:09:12: 2025/08/12 21:09:12 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-12T21:09:12: [0m[33m[4.030ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 3 AND "follows"."deleted_at" IS NULL
+2025-08-12T21:09:12: 
+2025-08-12T21:09:12: 2025/08/12 21:09:12 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-12T21:09:12: [0m[33m[34.611ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 3 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-12T21:09:12: 
+2025-08-12T21:09:12: 2025/08/12 21:09:12 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-12T21:09:12: [0m[33m[0.581ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 3 AND "follows"."deleted_at" IS NULL
+2025-08-12T21:12:49: 
+2025-08-12T21:12:49: 2025/08/12 21:12:49 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-12T21:12:49: [0m[33m[1.811ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-08-12T21:12:49: 
+2025-08-12T21:12:49: 2025/08/12 21:12:49 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-12T21:12:49: [0m[33m[0.920ms] [34;1m[rows:3][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-08-12T21:12:49: 
+2025-08-12T21:12:49: 2025/08/12 21:12:49 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-12T21:12:49: [0m[33m[0.552ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-12T21:20:39: 
+2025-08-12T21:20:39: 2025/08/12 21:20:39 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-12T21:20:39: [0m[33m[1.718ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 3 AND "users"."deleted_at" IS NULL
+2025-08-12T21:20:39: 
+2025-08-12T21:20:39: 2025/08/12 21:20:39 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-12T21:20:39: [0m[33m[1.144ms] [34;1m[rows:10][0m SELECT "code" FROM "public"."courses" WHERE user_id = 1  AND "courses"."deleted_at" IS NULL
+2025-08-12T21:20:39: 
+2025-08-12T21:20:39: 2025/08/12 21:20:39 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-12T21:20:39: [0m[33m[0.507ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-12T21:20:39: 
+2025-08-12T21:20:39: 2025/08/12 21:20:39 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-12T21:20:39: [0m[33m[1.439ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-12T21:20:39: 
+2025-08-12T21:20:39: 2025/08/12 21:20:39 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-12T21:20:39: [0m[33m[4.074ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-12T21:20:39: 
+2025-08-12T21:20:39: 2025/08/12 21:20:39 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-12T21:20:39: [0m[33m[2.108ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-12T21:20:39: 
+2025-08-12T21:20:39: 2025/08/12 21:20:39 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-12T21:20:39: [0m[33m[0.684ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-12T21:20:39: 
+2025-08-12T21:20:39: 2025/08/12 21:20:39 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-12T21:20:39: [0m[33m[2.635ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-12T21:20:39: 
+2025-08-12T21:20:39: 2025/08/12 21:20:39 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-12T21:20:39: [0m[33m[1.951ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-12T21:20:40: 
+2025-08-12T21:20:40: 2025/08/12 21:20:40 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-12T21:20:40: [0m[33m[0.997ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-12T21:20:40: 
+2025-08-12T21:20:40: 2025/08/12 21:20:40 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-12T21:20:40: [0m[33m[1.549ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-13T00:25:58: 
+2025-08-13T00:25:58: 2025/08/13 00:25:58 [31;1m/home/ubuntu/unipilot/internal/models/assignment/assignment.go:111 [35;1mrecord not found
+2025-08-13T00:25:58: [0m[33m[2.695ms] [34;1m[rows:0][0m SELECT * FROM "public"."assignments" WHERE local_id = 7 AND "assignments"."deleted_at" IS NULL ORDER BY "assignments"."id" LIMIT 1
+2025-08-13T00:25:59: 
+2025-08-13T00:25:59: 2025/08/13 00:25:59 [31;1m/home/ubuntu/unipilot/internal/models/assignment/assignment.go:111 [35;1mrecord not found
+2025-08-13T00:25:59: [0m[33m[2.034ms] [34;1m[rows:0][0m SELECT * FROM "public"."assignments" WHERE local_id = 7 AND "assignments"."deleted_at" IS NULL ORDER BY "assignments"."id" LIMIT 1
+2025-08-13T00:26:48: 
+2025-08-13T00:26:48: 2025/08/13 00:26:48 [31;1m/home/ubuntu/unipilot/internal/models/assignment/assignment.go:111 [35;1mrecord not found
+2025-08-13T00:26:48: [0m[33m[3.049ms] [34;1m[rows:0][0m SELECT * FROM "public"."assignments" WHERE local_id = 7 AND "assignments"."deleted_at" IS NULL ORDER BY "assignments"."id" LIMIT 1
+2025-08-13T00:26:50: 
+2025-08-13T00:26:50: 2025/08/13 00:26:50 [31;1m/home/ubuntu/unipilot/internal/models/assignment/assignment.go:111 [35;1mrecord not found
+2025-08-13T00:26:50: [0m[33m[3.234ms] [34;1m[rows:0][0m SELECT * FROM "public"."assignments" WHERE local_id = 7 AND "assignments"."deleted_at" IS NULL ORDER BY "assignments"."id" LIMIT 1
+2025-08-13T09:00:44: 
+2025-08-13T09:00:44: 2025/08/13 09:00:44 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-13T09:00:44: [0m[33m[13.765ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 3 AND "users"."deleted_at" IS NULL
+2025-08-13T09:00:44: 
+2025-08-13T09:00:44: 2025/08/13 09:00:44 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-13T09:00:44: [0m[33m[2.621ms] [34;1m[rows:10][0m SELECT "code" FROM "public"."courses" WHERE user_id = 1  AND "courses"."deleted_at" IS NULL
+2025-08-13T09:00:44: 
+2025-08-13T09:00:44: 2025/08/13 09:00:44 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-13T09:00:44: [0m[33m[0.627ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-13T09:00:45: 
+2025-08-13T09:00:45: 2025/08/13 09:00:45 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-13T09:00:45: [0m[33m[5.215ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-13T09:00:45: 
+2025-08-13T09:00:45: 2025/08/13 09:00:45 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-13T09:00:45: [0m[33m[2.397ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-13T09:00:45: 
+2025-08-13T09:00:45: 2025/08/13 09:00:45 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-13T09:00:45: [0m[33m[3.920ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-13T09:00:45: 
+2025-08-13T09:00:45: 2025/08/13 09:00:45 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-13T09:00:45: [0m[33m[2.934ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-13T09:00:45: 
+2025-08-13T09:00:45: 2025/08/13 09:00:45 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-13T09:00:45: [0m[33m[42.143ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-13T09:00:45: 
+2025-08-13T09:00:45: 2025/08/13 09:00:45 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-13T09:00:45: [0m[33m[2.647ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-13T09:00:45: 
+2025-08-13T09:00:45: 2025/08/13 09:00:45 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-13T09:00:45: [0m[33m[3.353ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-13T09:00:45: 
+2025-08-13T09:00:45: 2025/08/13 09:00:45 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-13T09:00:45: [0m[33m[1.754ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-13T09:05:24: 
+2025-08-13T09:05:24: 2025/08/13 09:05:24 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-13T09:05:24: [0m[33m[2.298ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 3 AND "users"."deleted_at" IS NULL
+2025-08-13T09:05:24: 
+2025-08-13T09:05:24: 2025/08/13 09:05:24 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-13T09:05:24: [0m[33m[2.821ms] [34;1m[rows:10][0m SELECT "code" FROM "public"."courses" WHERE user_id = 1  AND "courses"."deleted_at" IS NULL
+2025-08-13T09:05:24: 
+2025-08-13T09:05:24: 2025/08/13 09:05:24 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-13T09:05:24: [0m[33m[0.574ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-13T09:31:01: 
+2025-08-13T09:31:01: 2025/08/13 09:31:01 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-13T09:31:01: [0m[33m[5.114ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 3 AND "users"."deleted_at" IS NULL
+2025-08-13T09:31:01: 
+2025-08-13T09:31:01: 2025/08/13 09:31:01 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-13T09:31:01: [0m[33m[4.529ms] [34;1m[rows:10][0m SELECT "code" FROM "public"."courses" WHERE user_id = 1  AND "courses"."deleted_at" IS NULL
+2025-08-13T09:31:01: 
+2025-08-13T09:31:01: 2025/08/13 09:31:01 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-13T09:31:01: [0m[33m[0.606ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-13T09:31:01: 
+2025-08-13T09:31:01: 2025/08/13 09:31:01 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-13T09:31:01: [0m[33m[3.048ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-13T09:31:01: 
+2025-08-13T09:31:01: 2025/08/13 09:31:01 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-13T09:31:01: [0m[33m[3.843ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-13T09:31:01: 
+2025-08-13T09:31:01: 2025/08/13 09:31:01 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-13T09:31:01: [0m[33m[1.078ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-13T09:31:01: 
+2025-08-13T09:31:01: 2025/08/13 09:31:01 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-13T09:31:01: [0m[33m[1.122ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-13T09:31:01: 
+2025-08-13T09:31:01: 2025/08/13 09:31:01 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-13T09:31:01: [0m[33m[33.930ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-13T09:31:01: 
+2025-08-13T09:31:01: 2025/08/13 09:31:01 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-13T09:31:01: [0m[33m[34.764ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-13T09:31:01: 
+2025-08-13T09:31:01: 2025/08/13 09:31:01 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-13T09:31:01: [0m[33m[1.992ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-13T09:31:01: 
+2025-08-13T09:31:01: 2025/08/13 09:31:01 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-13T09:31:01: [0m[33m[2.225ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-13T09:58:03: 
+2025-08-13T09:58:03: 2025/08/13 09:58:03 [31;1m/home/ubuntu/unipilot/internal/server/assignments.go:144 [35;1mERROR: insert or update on table "assignments" violates foreign key constraint "fk_public_assignments_status" (SQLSTATE 23503)
+2025-08-13T09:58:03: [0m[33m[3.714ms] [34;1m[rows:0][0m INSERT INTO "public"."assignments" ("created_at","updated_at","deleted_at","user_id","local_id","notion_id","title","todo","deadline","link","course_code","type_name","status_name","priority","completed") VALUES ('2025-08-13 09:58:03.927','2025-08-13 09:58:03.927',NULL,3,9,'','Sync','Trying to make sync work','2025-08-13 00:00:00','https://acconline.austincc.edu/ultra/stream','COSC-1301','Lab','','low',false) RETURNING "id"
+2025-08-13T09:58:05: 
+2025-08-13T09:58:05: 2025/08/13 09:58:05 [31;1m/home/ubuntu/unipilot/internal/server/assignments.go:144 [35;1mERROR: insert or update on table "assignments" violates foreign key constraint "fk_public_assignments_status" (SQLSTATE 23503)
+2025-08-13T09:58:05: [0m[33m[4.112ms] [34;1m[rows:0][0m INSERT INTO "public"."assignments" ("created_at","updated_at","deleted_at","user_id","local_id","notion_id","title","todo","deadline","link","course_code","type_name","status_name","priority","completed") VALUES ('2025-08-13 09:58:05.118','2025-08-13 09:58:05.118',NULL,3,9,'','Sync','Trying to make sync work','2025-08-13 00:00:00','https://acconline.austincc.edu/ultra/stream','COSC-1301','Lab','','low',false) RETURNING "id"
+2025-08-13T22:20:20: 
+2025-08-13T22:20:20: 2025/08/13 22:20:20 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-13T22:20:20: [0m[33m[3.441ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 3 AND "users"."deleted_at" IS NULL
+2025-08-13T22:20:20: 
+2025-08-13T22:20:20: 2025/08/13 22:20:20 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-13T22:20:20: [0m[33m[1.218ms] [34;1m[rows:10][0m SELECT "code" FROM "public"."courses" WHERE user_id = 1  AND "courses"."deleted_at" IS NULL
+2025-08-13T22:20:20: 
+2025-08-13T22:20:20: 2025/08/13 22:20:20 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-13T22:20:20: [0m[33m[0.657ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-13T22:20:20: 
+2025-08-13T22:20:20: 2025/08/13 22:20:20 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-13T22:20:20: [0m[33m[2.973ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-13T22:20:20: 
+2025-08-13T22:20:20: 2025/08/13 22:20:20 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-13T22:20:20: [0m[33m[3.598ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-13T22:20:20: 
+2025-08-13T22:20:20: 2025/08/13 22:20:20 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-13T22:20:20: [0m[33m[0.990ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-13T22:20:20: 
+2025-08-13T22:20:20: 2025/08/13 22:20:20 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-13T22:20:20: [0m[33m[1.853ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-13T22:20:20: 
+2025-08-13T22:20:20: 2025/08/13 22:20:20 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-13T22:20:20: [0m[33m[6.448ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-13T22:20:20: 
+2025-08-13T22:20:20: 2025/08/13 22:20:20 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-13T22:20:20: [0m[33m[2.146ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-13T22:20:20: 
+2025-08-13T22:20:20: 2025/08/13 22:20:20 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-13T22:20:20: [0m[33m[31.145ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-13T22:20:20: 
+2025-08-13T22:20:20: 2025/08/13 22:20:20 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-13T22:20:20: [0m[33m[0.639ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-14T00:18:53: 
+2025-08-14T00:18:53: 2025/08/14 00:18:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-14T00:18:53: [0m[33m[8.757ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T00:18:53: 
+2025-08-14T00:18:53: 2025/08/14 00:18:53 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-14T00:18:53: [0m[33m[12.085ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 3 AND "users"."deleted_at" IS NULL
+2025-08-14T00:18:53: 
+2025-08-14T00:18:53: 2025/08/14 00:18:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-14T00:18:53: [0m[33m[1.663ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-14T00:18:53: 
+2025-08-14T00:18:53: 2025/08/14 00:18:53 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-14T00:18:53: [0m[33m[2.153ms] [34;1m[rows:10][0m SELECT "code" FROM "public"."courses" WHERE user_id = 1  AND "courses"."deleted_at" IS NULL
+2025-08-14T00:18:53: 
+2025-08-14T00:18:53: 2025/08/14 00:18:53 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-14T00:18:53: [0m[33m[3.540ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-14T00:18:53: 
+2025-08-14T00:18:53: 2025/08/14 00:18:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-14T00:18:53: [0m[33m[37.873ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T00:18:53: 
+2025-08-14T00:18:53: 2025/08/14 00:18:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-14T00:18:53: [0m[33m[2.822ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-14T00:18:53: 
+2025-08-14T00:18:53: 2025/08/14 00:18:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-14T00:18:53: [0m[33m[36.774ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T00:18:53: 
+2025-08-14T00:18:53: 2025/08/14 00:18:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-14T00:18:53: [0m[33m[42.580ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T00:18:53: 
+2025-08-14T00:18:53: 2025/08/14 00:18:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-14T00:18:53: [0m[33m[2.416ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-14T00:18:53: 
+2025-08-14T00:18:53: 2025/08/14 00:18:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-14T00:18:53: [0m[33m[2.362ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-14T08:22:13: 
+2025-08-14T08:22:13: 2025/08/14 08:22:13 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-14T08:22:13: [0m[33m[1.706ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 3 AND "users"."deleted_at" IS NULL
+2025-08-14T08:22:13: 
+2025-08-14T08:22:13: 2025/08/14 08:22:13 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-14T08:22:13: [0m[33m[9.475ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T08:22:13: 
+2025-08-14T08:22:13: 2025/08/14 08:22:13 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-14T08:22:13: [0m[33m[0.660ms] [34;1m[rows:10][0m SELECT "code" FROM "public"."courses" WHERE user_id = 1  AND "courses"."deleted_at" IS NULL
+2025-08-14T08:22:13: 
+2025-08-14T08:22:13: 2025/08/14 08:22:13 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-14T08:22:13: [0m[33m[0.584ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-14T08:22:13: 
+2025-08-14T08:22:13: 2025/08/14 08:22:13 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-14T08:22:13: [0m[33m[0.740ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-14T08:22:14: 
+2025-08-14T08:22:14: 2025/08/14 08:22:14 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-14T08:22:14: [0m[33m[1.006ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T08:22:14: 
+2025-08-14T08:22:14: 2025/08/14 08:22:14 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-14T08:22:14: [0m[33m[0.835ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-14T08:22:14: 
+2025-08-14T08:22:14: 2025/08/14 08:22:14 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-14T08:22:14: [0m[33m[1.559ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T08:22:14: 
+2025-08-14T08:22:14: 2025/08/14 08:22:14 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-14T08:22:14: [0m[33m[1.127ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-14T08:22:14: 
+2025-08-14T08:22:14: 2025/08/14 08:22:14 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-14T08:22:14: [0m[33m[0.856ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T08:22:14: 
+2025-08-14T08:22:14: 2025/08/14 08:22:14 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-14T08:22:14: [0m[33m[0.782ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-14T09:06:36: 
+2025-08-14T09:06:36: 2025/08/14 09:06:36 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-14T09:06:36: [0m[33m[12.452ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-08-14T09:06:36: 
+2025-08-14T09:06:36: 2025/08/14 09:06:36 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-14T09:06:36: [0m[33m[0.647ms] [34;1m[rows:3][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-08-14T09:06:36: 
+2025-08-14T09:06:36: 2025/08/14 09:06:36 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-14T09:06:36: [0m[33m[0.697ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-14T09:06:36: 
+2025-08-14T09:06:36: 2025/08/14 09:06:36 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-14T09:06:36: [0m[33m[1.389ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T09:06:36: 
+2025-08-14T09:06:36: 2025/08/14 09:06:36 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-14T09:06:36: [0m[33m[0.612ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-14T09:06:36: 
+2025-08-14T09:06:36: 2025/08/14 09:06:36 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-14T09:06:36: [0m[33m[1.033ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 3 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T09:06:36: 
+2025-08-14T09:06:36: 2025/08/14 09:06:36 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-14T09:06:36: [0m[33m[1.480ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 3 AND "follows"."deleted_at" IS NULL
+2025-08-14T09:06:36: 
+2025-08-14T09:06:36: 2025/08/14 09:06:36 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-14T09:06:36: [0m[33m[1.169ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T09:06:36: 
+2025-08-14T09:06:36: 2025/08/14 09:06:36 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-14T09:06:36: [0m[33m[0.575ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-14T09:06:36: 
+2025-08-14T09:06:36: 2025/08/14 09:06:36 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-14T09:06:36: [0m[33m[1.298ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 3 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T09:06:36: 
+2025-08-14T09:06:36: 2025/08/14 09:06:36 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-14T09:06:36: [0m[33m[0.765ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 3 AND "follows"."deleted_at" IS NULL
+2025-08-14T09:11:19: 
+2025-08-14T09:11:19: 2025/08/14 09:11:19 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-14T09:11:19: [0m[33m[1.978ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-08-14T09:11:19: 
+2025-08-14T09:11:19: 2025/08/14 09:11:19 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-14T09:11:19: [0m[33m[1.002ms] [34;1m[rows:3][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-08-14T09:11:19: 
+2025-08-14T09:11:19: 2025/08/14 09:11:19 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-14T09:11:19: [0m[33m[0.717ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-14T09:29:29: 
+2025-08-14T09:29:29: 2025/08/14 09:29:29 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-14T09:29:29: [0m[33m[10.008ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-08-14T09:29:29: 
+2025-08-14T09:29:29: 2025/08/14 09:29:29 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-14T09:29:29: [0m[33m[0.667ms] [34;1m[rows:3][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-08-14T09:29:29: 
+2025-08-14T09:29:29: 2025/08/14 09:29:29 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-14T09:29:29: [0m[33m[0.732ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-14T17:54:53: 
+2025-08-14T17:54:53: 2025/08/14 17:54:53 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-14T17:54:53: [0m[33m[2.421ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 3 AND "users"."deleted_at" IS NULL
+2025-08-14T17:54:53: 
+2025-08-14T17:54:53: 2025/08/14 17:54:53 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-14T17:54:53: [0m[33m[1.696ms] [34;1m[rows:10][0m SELECT "code" FROM "public"."courses" WHERE user_id = 1  AND "courses"."deleted_at" IS NULL
+2025-08-14T17:54:53: 
+2025-08-14T17:54:53: 2025/08/14 17:54:53 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-14T17:54:53: [0m[33m[0.966ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-14T17:54:53: 
+2025-08-14T17:54:53: 2025/08/14 17:54:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-14T17:54:53: [0m[33m[2.390ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T17:54:53: 
+2025-08-14T17:54:53: 2025/08/14 17:54:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-14T17:54:53: [0m[33m[2.395ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-14T17:54:53: 
+2025-08-14T17:54:53: 2025/08/14 17:54:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-14T17:54:53: [0m[33m[2.835ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T17:54:53: 
+2025-08-14T17:54:53: 2025/08/14 17:54:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-14T17:54:53: [0m[33m[3.588ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-14T17:54:53: 
+2025-08-14T17:54:53: 2025/08/14 17:54:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-14T17:54:53: [0m[33m[34.517ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T17:54:53: 
+2025-08-14T17:54:53: 2025/08/14 17:54:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-14T17:54:53: [0m[33m[36.810ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T17:54:53: 
+2025-08-14T17:54:53: 2025/08/14 17:54:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-14T17:54:53: [0m[33m[3.087ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-14T17:54:53: 
+2025-08-14T17:54:53: 2025/08/14 17:54:53 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-14T17:54:53: [0m[33m[2.627ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:50
+2025-08-14T17:54:56: [0m[33m[2.173ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE (follower_id = 3 AND followed_id = 1) AND "follows"."deleted_at" IS NULL
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:50
+2025-08-14T17:54:56: [0m[33m[0.724ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE (follower_id = 3 AND followed_id = 1) AND "follows"."deleted_at" IS NULL
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:84
+2025-08-14T17:54:56: [0m[33m[5.671ms] [34;1m[rows:1][0m INSERT INTO "public"."follows" ("created_at","updated_at","deleted_at","follower_id","followed_id","unique_follow") VALUES ('2025-08-14 17:54:56.352','2025-08-14 17:54:56.352',NULL,3,1,'') RETURNING "id"
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-14T17:54:56: [0m[33m[3.993ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 3 AND "follows"."deleted_at" IS NULL
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-14T17:54:56: [0m[33m[0.641ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 3 AND "follows"."deleted_at" IS NULL
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [31;1m/home/ubuntu/unipilot/internal/models/user/follow.go:126 [35;1mrecord not found
+2025-08-14T17:54:56: [0m[33m[5.287ms] [34;1m[rows:0][0m SELECT * FROM "public"."follow_stats" WHERE user_id = 3 AND "follow_stats"."deleted_at" IS NULL ORDER BY "follow_stats"."id" LIMIT 1
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:134
+2025-08-14T17:54:56: [0m[33m[7.421ms] [34;1m[rows:1][0m INSERT INTO "public"."follow_stats" ("created_at","updated_at","deleted_at","user_id","followers_count","following_count") VALUES ('2025-08-14 17:54:56.368','2025-08-14 17:54:56.368',NULL,3,0,1) RETURNING "id"
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-14T17:54:56: [0m[33m[0.600ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-14T17:54:56: [0m[33m[0.905ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:126
+2025-08-14T17:54:56: [0m[33m[0.753ms] [34;1m[rows:1][0m SELECT * FROM "public"."follow_stats" WHERE user_id = 1 AND "follow_stats"."deleted_at" IS NULL ORDER BY "follow_stats"."id" LIMIT 1
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:141
+2025-08-14T17:54:56: [0m[33m[4.205ms] [34;1m[rows:1][0m UPDATE "public"."follow_stats" SET "created_at"='2025-08-08 13:42:29.299',"updated_at"='2025-08-14 17:54:56.378',"deleted_at"=NULL,"user_id"=1,"followers_count"=1,"following_count"=0 WHERE "follow_stats"."deleted_at" IS NULL AND "id" = 1
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-14T17:54:56: [0m[33m[1.842ms] [34;1m[rows:1][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-14T17:54:56: [0m[33m[2.559ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-14T17:54:56: [0m[33m[1.497ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T17:54:56: 
+2025-08-14T17:54:56: 2025/08/14 17:54:56 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-14T17:54:56: [0m[33m[0.684ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-14T19:44:09: 
+2025-08-14T19:44:09: 2025/08/14 19:44:09 [31;1m/home/ubuntu/unipilot/internal/models/course/course.go:41 [35;1mrecord not found
+2025-08-14T19:44:09: [0m[33m[2.062ms] [34;1m[rows:0][0m SELECT * FROM "public"."courses" WHERE code = 'SPCH-1311' AND user_id = 3 ORDER BY "courses"."id" LIMIT 1
+2025-08-14T19:55:49: 
+2025-08-14T19:55:49: 2025/08/14 19:55:49 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-08-14T19:55:49: [0m[33m[2.851ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 3 AND "users"."deleted_at" IS NULL
+2025-08-14T19:55:49: 
+2025-08-14T19:55:49: 2025/08/14 19:55:49 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-14T19:55:49: [0m[33m[2.593ms] [34;1m[rows:10][0m SELECT "code" FROM "public"."courses" WHERE user_id = 1  AND "courses"."deleted_at" IS NULL
+2025-08-14T19:55:49: 
+2025-08-14T19:55:49: 2025/08/14 19:55:49 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-08-14T19:55:49: [0m[33m[2.255ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-08-14T19:55:50: 
+2025-08-14T19:55:50: 2025/08/14 19:55:50 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-14T19:55:50: [0m[33m[1.484ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T19:55:50: 
+2025-08-14T19:55:50: 2025/08/14 19:55:50 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-14T19:55:50: [0m[33m[1.378ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-14T19:55:50: 
+2025-08-14T19:55:50: 2025/08/14 19:55:50 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-08-14T19:55:50: [0m[33m[1.542ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T19:55:50: 
+2025-08-14T19:55:50: 2025/08/14 19:55:50 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-14T19:55:50: [0m[33m[2.904ms] [34;1m[rows:1][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T19:55:50: 
+2025-08-14T19:55:50: 2025/08/14 19:55:50 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-08-14T19:55:50: [0m[33m[2.288ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-14T19:55:50: 
+2025-08-14T19:55:50: 2025/08/14 19:55:50 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-14T19:55:50: [0m[33m[2.334ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 1 AND "follows"."deleted_at" IS NULL
+2025-08-14T19:55:50: 
+2025-08-14T19:55:50: 2025/08/14 19:55:50 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-08-14T19:55:50: [0m[33m[37.528ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-08-14T19:55:50: 
+2025-08-14T19:55:50: 2025/08/14 19:55:50 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-08-14T19:55:50: [0m[33m[0.983ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-08-14T20:19:46: 
+2025-08-14T20:19:46: 2025/08/14 20:19:46 [31;1m/home/ubuntu/unipilot/internal/server/courses.go:41 [35;1mERROR: cached plan must not change result type (SQLSTATE 0A000)
+2025-08-14T20:19:46: [0m[33m[1.392ms] [34;1m[rows:0][0m SELECT * FROM "public"."courses" WHERE user_id = 3 AND "courses"."deleted_at" IS NULL

@@ -82,6 +82,8 @@ func StartServer() {
 	http.HandleFunc("/acc-homework/logout", AuthMiddleware(LogoutHandler))
 	http.HandleFunc("/acc-homework/user", DBMiddleware(db, AuthMiddleware(GetUserHandler)))
 
+	http.HandleFunc("/acc-homework/users", DBMiddleware(db, AuthMiddleware(GetUsersHandler)))
+	
 	http.HandleFunc("/acc-homework/assignment", DBMiddleware(db, AuthMiddleware(CreateAssignmentHandler)))
 	http.HandleFunc("/acc-homework/assignment/get", DBMiddleware(db, AuthMiddleware(GetAssignmentHandler)))
 	http.HandleFunc("/acc-homework/assignment/update", DBMiddleware(db, AuthMiddleware(UpdateAssignmentHandler)))
@@ -97,6 +99,11 @@ func StartServer() {
 	http.HandleFunc("/acc-homework/note/get", DBMiddleware(db, AuthMiddleware(GetNoteHandler)))
 	http.HandleFunc("/acc-homework/note/update", DBMiddleware(db, AuthMiddleware(UpdateNoteHandler)))
 
+	http.HandleFunc("/acc-homework/follow", DBMiddleware(db, AuthMiddleware(HandleFollow)))
+	http.HandleFunc("/acc-homework/followers", DBMiddleware(db, AuthMiddleware(HandleGetFollowers)))
+	http.HandleFunc("/acc-homework/following", DBMiddleware(db, AuthMiddleware(HandleGetFollowing)))
+	http.HandleFunc("/acc-homework/follow-status", DBMiddleware(db, AuthMiddleware(HandleGetFollowStatus)))
+	
 	log.Println("Server listening on :3000...")
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }

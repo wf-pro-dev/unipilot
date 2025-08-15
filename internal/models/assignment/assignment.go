@@ -107,7 +107,7 @@ func Get_Assignment_byLocalID(id, user_id uint, db *gorm.DB) (*Assignment, error
 		Preload("Course", "user_id = ?", user_id).
 		Preload("Type").
 		Preload("Status").
-		Where("local_id = ?", id).
+		Where("local_id = ? AND user_id = ?", id, user_id).
 		First(assignment).Error
 
 	if err != nil {
