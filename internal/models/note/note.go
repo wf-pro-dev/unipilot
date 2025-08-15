@@ -54,7 +54,7 @@ func Get_Note_byLocalID(id, user_id uint, db *gorm.DB) (*Note, error) {
 	note:= &Note{}
 	err := db.Preload("User").
 		Preload("Course", "user_id = ?", user_id).
-		Where("local_id = ?", id).
+		Where("local_id = ? AND user_id = ?", id, user_id).
 		First(note).Error
 
 	if err != nil {
