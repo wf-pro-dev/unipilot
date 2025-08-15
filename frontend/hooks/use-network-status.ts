@@ -49,6 +49,7 @@ export function useNetworkStatus() {
       console.log('Sync completed successfully')
     } catch (error) {
       console.error('Failed to sync after coming back online:', error)
+      // Don't throw error - sync will be retried in background
     }
   }, [])
 
@@ -71,7 +72,7 @@ export function useNetworkStatus() {
       setTimeout(async () => {
         await checkNetworkStatus()
         
-        // If we're confirmed online, perform sync
+        // If we're confirmed online, perform sync immediately
         const currentStatus = await window.go.main.App.GetNetworkStatus()
         console.log("[Network Status] Current status:", currentStatus.online)
         if (currentStatus.online) {

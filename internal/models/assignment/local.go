@@ -15,27 +15,18 @@ import (
 	"gorm.io/gorm"
 )
 
-type SyncStatus string
-
-const (
-	SyncStatusPending SyncStatus = "pending" // Needs to be synced
-	SyncStatusSynced  SyncStatus = "synced"  // Already synced
-)
-
 type LocalAssignment struct {
 	gorm.Model
 	RemoteID   uint
-	NotionID   string
 	Title      string `gorm:"not null"`
 	Todo       string
-	Deadline   time.Time  `gorm:"not null;index"`
-	Link       string     `gorm:"default:https://acconline.austincc.edu/ultra/stream"`
-	CourseCode string     `gorm:"not null;index"`
-	TypeName   string     `gorm:"not null"`
-	StatusName string     `gorm:"not null"`
-	Priority   string     `gorm:"default:medium"`
-	Completed  bool       `gorm:"default:false"`
-	SyncStatus SyncStatus `gorm:"not null;default:'pending'"`
+	Deadline   time.Time `gorm:"not null;index"`
+	Link       string    `gorm:"default:https://acconline.austincc.edu/ultra/stream"`
+	CourseCode string    `gorm:"not null;index"`
+	TypeName   string    `gorm:"not null"`
+	StatusName string    `gorm:"not null"`
+	Priority   string    `gorm:"default:medium"`
+	Completed  bool      `gorm:"default:false"`
 
 	Course    course.LocalCourse           `gorm:"foreignKey:CourseCode;references:Code"`
 	Type      models.LocalAssignmentType   `gorm:"foreignKey:TypeName;references:Name"`
@@ -54,10 +45,8 @@ func (a *LocalAssignment) ToMap() map[string]string {
 		"todo":        a.Todo,
 		"status_name": a.StatusName,
 		"link":        a.Link,
-		"notion_id":   a.NotionID,
 		"priority":    a.Priority,
 		"completed":   strconv.FormatBool(a.Completed),
-		"sync_status": string(a.SyncStatus),
 	}
 }
 

@@ -45,26 +45,30 @@ const (
 	EntityAssignment Entity = "assignment"
 	EntityCourse     Entity = "course"
 	EntityDocument   Entity = "document"
+	EntityNote       Entity = "note"
 )
 
 type LocalUpdate struct {
 	gorm.Model
-	Entity   Entity
-	EntityID uint   `gorm:"not null"`
-	Action   string `gorm:"not null"` // create, update, delete
-	Column   string
-	Value    string
-	SyncedAt time.Time `gorm:"default:CURRENT_TIMESTAMP"`
-	Synced   bool      `gorm:"default:false"`
+	Entity      Entity
+	EntityID    uint   `gorm:"not null"`
+	Action      string `gorm:"not null"` // create, update, delete
+	Column      string
+	Value       string
+	RetryCount  int `gorm:"default:0"`
+	NextRetryAt time.Time
+	LastError   string
 }
 
 func (u *LocalUpdate) ToMap() map[string]string {
 	return map[string]string{
-		"entity":    string(u.Entity),
-		"entity_id": strconv.Itoa(int(u.EntityID)),
-		"action":    u.Action,
-		"column":    u.Column,
-		"value":     u.Value,
-		"synced":    strconv.FormatBool(u.Synced),
+		"entity":        string(u.Entity),
+		"entity_id":     strconv.Itoa(int(u.EntityID)),
+		"action":        u.Action,
+		"column":        u.Column,
+		"value":         u.Value,
+		"retry_count":   strconv.Itoa(u.RetryCount),
+		"next_retry_at": u.NextRetryAt.Format(time.RFC3339),
+		"last_error":    u.LastError,
 	}
 }
