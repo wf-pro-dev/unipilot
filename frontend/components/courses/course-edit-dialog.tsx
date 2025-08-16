@@ -58,10 +58,10 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
         semester: course.Semester || "",
         schedule: course.Schedule || "",
         credits: course.Credits.toString() || "3",
-        room_number: course.RoomNumber || "",
+
         instructor: course.Instructor || "",
         instructor_email: course.InstructorEmail || "",
-        location: course.RoomNumber || "",
+        location: course.Location || "",
     })
 
     const key_to_column = {
@@ -71,10 +71,9 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
         semester: "Semester",
         schedule: "Schedule",
         credits: "Credits",
-        room_number: "RoomNumber",
         instructor: "Instructor",
         instructor_email: "InstructorEmail",
-        location: "RoomNumber",
+        location: "Location",
     }
 
     const validateDates = (startDate: Date, endDate: Date) => {

@@ -21,11 +21,16 @@ export function QueryProvider({ children }: QueryProviderProps) {
         // Refetch on window focus for important data
         refetchOnWindowFocus: true,
         // Don't refetch on reconnect by default (can be overridden per query)
-        refetchOnReconnect: true,
+        refetchOnReconnect: false,
+        // Allow offline mutations
+        networkMode: 'always',
       },
       mutations: {
         // Retry mutations once on failure
         retry: 1,
+        // Allow offline mutations
+        networkMode: 'always',
+
       },
     },
   }))

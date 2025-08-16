@@ -406,6 +406,7 @@ export namespace note {
 	    UpdatedAt: any;
 	    // Go type: gorm
 	    DeletedAt: any;
+	    RemoteID: string;
 	    CourseCode: string;
 	    Title: string;
 	    Subject: string;
@@ -424,6 +425,7 @@ export namespace note {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.RemoteID = source["RemoteID"];
 	        this.CourseCode = source["CourseCode"];
 	        this.Title = source["Title"];
 	        this.Subject = source["Subject"];

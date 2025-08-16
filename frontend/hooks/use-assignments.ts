@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { LogError } from "@/wailsjs/runtime/runtime"
+import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { addDays, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns'
 import { assignment, course } from '@/wailsjs/go/models'
 
@@ -45,6 +45,7 @@ export function useUpdateAssignment() {
       column: string
       value: string 
     }) => {
+      LogInfo("[Frontend] update mutation is called")
       return await window.go.main.App.UpdateAssignment(assignment, column, value)
     },
     

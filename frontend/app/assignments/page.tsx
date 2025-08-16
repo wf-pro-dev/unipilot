@@ -62,8 +62,8 @@ export default function AssignmentsPage() {
   const priorityFilter = searchParams.get("priority") || null
 
   const handleEditAssignment = async (assignment: assignment.LocalAssignment, column: string, value: string) => {
-    const message = "Frontend: assignment " + assignment.ID + " " + column + " changed to " + value
-    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
+    const message = "[Frontend] assignment " + assignment.ID + " remote_id " + assignment.RemoteID + " " + column + " changed to " + value
+    LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
 
     // Use the optimistic update mutation
     updateMutation.mutate({
@@ -86,8 +86,8 @@ export default function AssignmentsPage() {
   }
 
   const handleDeleteAssignment = async (assignment: assignment.LocalAssignment) => {
-    const message = "assignment " + assignment.Title + " deleted"
-    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
+    const message = "[Frontend] assignment " + assignment.Title + " deleted"
+    LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
     deleteMutation.mutate(assignment, {
       onSuccess: () => {
         toast.success("Assignment deleted successfully")
@@ -100,8 +100,8 @@ export default function AssignmentsPage() {
 
 
   const handleAddAssignment = async (assignment: assignment.LocalAssignment) => {
-    const message = "assignment " + assignment.Title + " added"
-    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
+    const message = "[Frontend] assignment " + assignment.Title + " added"
+    LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
     createMutation.mutate(assignment, {
       onSuccess: () => {
         toast.success("Assignment added successfully")

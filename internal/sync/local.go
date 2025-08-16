@@ -43,6 +43,7 @@ func MigrateAssignments(db *gorm.DB) error {
 			CourseCode: ra["course_code"],
 			TypeName:   ra["type"],
 			StatusName: ra["status"],
+			Priority:   ra["priority"],
 		}
 
 		if err := db.First(&localAssignment, "remote_id = ?", remote_id).Error; err == nil {
