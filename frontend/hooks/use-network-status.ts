@@ -8,7 +8,7 @@ interface NetworkStatus {
 
 export function useNetworkStatus() {
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>({
-    online: true,
+    online: navigator.onLine,
     timestamp: Date.now(),
     lastChecked: Date.now()
   })
@@ -19,19 +19,17 @@ export function useNetworkStatus() {
 
     setIsChecking(true)
     try {
-      // First check browser's online status
+      // Only check browser's online status
       const browserOnline = navigator.onLine
-      // Then check our backend network status
-      const backendStatus = await window.go.main.App.GetNetworkStatus()
       
       setNetworkStatus({
-        online: browserOnline && backendStatus.online,
-        timestamp: backendStatus.timestamp * 1000, // Convert to milliseconds
+        online: browserOnline,
+        timestamp: Date.now(),
         lastChecked: Date.now()
       })
     } catch (error) {
       console.error('Failed to check network status:', error)
-      // If backend check fails, fall back to browser status
+      // Fall back to browser status
       setNetworkStatus(prev => ({
         ...prev,
         online: navigator.onLine,
@@ -42,43 +40,24 @@ export function useNetworkStatus() {
     }
   }, [isChecking])
 
-  const performSync = useCallback(async () => {
-    try {
-      console.log('Performing sync after coming back online...')
-      await window.go.main.App.Sync()
-      console.log('Sync completed successfully')
-    } catch (error) {
-      console.error('Failed to sync after coming back online:', error)
-      // Don't throw error - sync will be retried in background
-    }
-  }, [])
+  
 
   useEffect(() => {
     // Initial check
     checkNetworkStatus()
 
-    // Set up periodic checks every 30 seconds
-    const interval = setInterval(checkNetworkStatus, 30000)
+    // Set up periodic checks every 5 seconds for better responsiveness
+    const interval = setInterval(checkNetworkStatus, 5000)
 
     // Listen to browser online/offline events
     const handleOnline = async () => {
+      console.log("[Network Status] Browser came online")
       setNetworkStatus(prev => ({
         ...prev,
         online: true,
         lastChecked: Date.now()
       }))
       
-      // Re-check with backend after browser comes online
-      setTimeout(async () => {
-        await checkNetworkStatus()
-        
-        // If we're confirmed online, perform sync immediately
-        const currentStatus = await window.go.main.App.GetNetworkStatus()
-        console.log("[Network Status] Current status:", currentStatus.online)
-        if (currentStatus.online) {
-          await performSync()
-        }
-      }, 1000)
     }
 
     const handleOffline = () => {
@@ -98,13 +77,12 @@ export function useNetworkStatus() {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
-  }, [checkNetworkStatus, performSync])
+  }, [checkNetworkStatus])
 
   return {
     isOnline: networkStatus.online,
     lastChecked: networkStatus.lastChecked,
     isChecking,
     checkNetworkStatus,
-    performSync
   }
 }

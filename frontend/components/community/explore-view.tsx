@@ -9,22 +9,19 @@ import { useUsers } from "@/hooks/use-users"
 import { UserItem } from "./user-item"
 import { user } from "@/wailsjs/go/models"
 import { Input } from "../ui/input"
+import { useNetworkStatus } from "@/hooks/use-network-status"
+import { OfflineBanner } from "../ui/offline-banner"
 
 
 
 export function ExploreView() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedUniversity, setSelectedUniversity] = useState("All Universities")
-  const [followingUsers, setFollowingUsers] = useState<number[]>([2, 5])
-  const [selectedUser, setSelectedUser] = useState<user.User | null>(null)
-  const [showUserModal, setShowUserModal] = useState(false)
+
+
+  const {isOnline} = useNetworkStatus()
 
   const { data: users } = useUsers()
-
-  const handleFollow = (userId: number) => {
-    // This is now handled by the UserItem component
-    console.log("Follow handled by UserItem")
-  }
 
 
   const universities = Array.from(new Set(users?.map((user) => user.University) || [])).filter((university) => university !== "")
@@ -39,8 +36,8 @@ export function ExploreView() {
     return matchesSearch && matchesUniversity
   })
 
-  const handleFollowToggle = (userId: number) => {
-    setFollowingUsers((prev) => (prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]))
+  if (!isOnline) {
+    return <OfflineBanner />
   }
 
   return (
@@ -70,6 +67,7 @@ export function ExploreView() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-gray-800 border-gray-600">
+                    <SelectItem value="All Universities">All Universities</SelectItem>
                     {universities?.map((university) => (
                       <SelectItem key={university} value={university}>
                         {university}
@@ -90,9 +88,7 @@ export function ExploreView() {
         {filteredUsers.map((user) => (
           <UserItem
             key={user.ID}
-            user={user as any}
-            setSelectedUser={setSelectedUser}
-            setShowUserModal={setShowUserModal}
+            userID={user.ID}
           />
         ))}
       </div>
@@ -106,7 +102,6 @@ export function ExploreView() {
           </div>
         )
       }
-      <UserDetailsModal isOpen={showUserModal} onClose={() => setShowUserModal(false)} user={selectedUser} />
     </div >
   )
 }

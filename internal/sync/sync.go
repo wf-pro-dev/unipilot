@@ -30,7 +30,7 @@ func Sync(db *gorm.DB) error {
 	}
 
 	var syncLogs []models.LocalUpdate
-	if err := db.Where("synced = ?", false).Find(&syncLogs).Error; err != nil {
+	if err := db.Find(&syncLogs).Error; err != nil {
 		log.Println("[Sync] Error getting local updates", err)
 		return err
 	}
@@ -38,13 +38,13 @@ func Sync(db *gorm.DB) error {
 	for _, syncLog := range syncLogs {
 		switch syncLog.Entity {
 		case models.EntityAssignment:
-			err := SyncAssignment(syncLog, findRemoteEntity(remoteAssignments, syncLog.EntityID), db)
+			err := SyncAssignment(syncLog, remoteAssignments, db)
 			if err != nil {
 				log.Println("[Sync] Error syncing assignment:", err)
 				return err
 			}
 		case models.EntityCourse:
-			err := SyncCourse(syncLog, findRemoteEntity(remoteCourses, syncLog.EntityID), db)
+			err := SyncCourse(syncLog, remoteCourses, db)
 			if err != nil {
 				log.Println("[Sync] Error syncing course:", err)
 				return err
@@ -55,7 +55,7 @@ func Sync(db *gorm.DB) error {
 	return nil
 }
 
-func SyncAssignment(syncLog models.LocalUpdate, remoteAssignment map[string]string, db *gorm.DB) error {
+func SyncAssignment(syncLog models.LocalUpdate, remoteAssignments []map[string]string, db *gorm.DB) error {
 
 	switch syncLog.Action {
 	case "create":
@@ -98,6 +98,14 @@ func SyncAssignment(syncLog models.LocalUpdate, remoteAssignment map[string]stri
 			return err
 		}
 	case "update", "delete":
+
+		var localAssignment assignment.LocalAssignment
+		if err := db.Unscoped().Where("id = ?", syncLog.EntityID).First(&localAssignment).Error; err != nil {
+			return err
+		}
+
+		remoteAssignment := findRemoteEntity(remoteAssignments, localAssignment.RemoteID)
+
 		// If the remote assignment is not found, return an error
 		if remoteAssignment == nil {
 			return fmt.Errorf("remote assignment not found")
@@ -108,13 +116,18 @@ func SyncAssignment(syncLog models.LocalUpdate, remoteAssignment map[string]stri
 		// Check if the remote assignment has been updated
 		if remoteAssignment["updated_at"] < syncLog.UpdatedAt.Format(time.RFC3339) {
 
-			sync_id_int := int(syncLog.EntityID)
+			remote_id_int := int(localAssignment.RemoteID)
 
-			sync_id := strconv.Itoa(sync_id_int)
+			remote_id := strconv.Itoa(remote_id_int)
 
-			if err := client.SendAssignmentUpdate(sync_id, syncLog.Column, syncLog.Value); err != nil {
+			if remote_id == "0" {
+				return fmt.Errorf("remote assignment ID is 0")
+			}
+
+			if err := client.SendAssignmentUpdate(remote_id, syncLog.Column, syncLog.Value); err != nil {
 				return err
 			}
+
 		} else {
 			log.Println("Remote assignment has been updated", remoteAssignment["updated_at"], syncLog.UpdatedAt.Format(time.RFC3339))
 		}
@@ -124,7 +137,7 @@ func SyncAssignment(syncLog models.LocalUpdate, remoteAssignment map[string]stri
 
 }
 
-func SyncCourse(syncLog models.LocalUpdate, remoteCourse map[string]string, db *gorm.DB) error {
+func SyncCourse(syncLog models.LocalUpdate, remoteCourses []map[string]string, db *gorm.DB) error {
 
 	switch syncLog.Action {
 	case "create":
@@ -169,6 +182,12 @@ func SyncCourse(syncLog models.LocalUpdate, remoteCourse map[string]string, db *
 
 	case "update", "delete":
 
+		var localCourse course.LocalCourse
+		if err := db.Unscoped().Where("id = ?", syncLog.EntityID).First(&localCourse).Error; err != nil {
+			return err
+		}
+		remoteCourse := findRemoteEntity(remoteCourses, localCourse.RemoteID)
+
 		// If the remote course is not found, return an error
 		if remoteCourse == nil {
 			return fmt.Errorf("remote course not found")
@@ -177,9 +196,14 @@ func SyncCourse(syncLog models.LocalUpdate, remoteCourse map[string]string, db *
 		// Check if the remote course has been updated
 		if remoteCourse["updated_at"] < syncLog.UpdatedAt.Format(time.RFC3339) {
 
-			sync_id_int := int(syncLog.EntityID)
-			sync_id := strconv.Itoa(sync_id_int)
-			if err := client.SendCourseUpdate(sync_id, syncLog.Column, syncLog.Value); err != nil {
+			remote_id_int := int(localCourse.RemoteID)
+			remote_id := strconv.Itoa(remote_id_int)
+
+			if remote_id == "0" {
+				return fmt.Errorf("remote course ID is 0")
+			}
+
+			if err := client.SendCourseUpdate(remote_id, syncLog.Column, syncLog.Value); err != nil {
 				return err
 			}
 
@@ -213,4 +237,18 @@ func SyncNote(syncLog models.LocalUpdate, remoteNote map[string]string, db *gorm
 
 	return nil
 
+}
+
+func SyncUser(syncLog models.LocalUpdate) error {
+
+	return client.SendUserUpdate(syncLog.Column, syncLog.Value)
+}
+
+func findRemoteEntity(remoteEntities []map[string]string, localEntityID uint) map[string]string {
+	for _, remoteEntity := range remoteEntities {
+		if remoteEntity["id"] == strconv.Itoa(int(localEntityID)) {
+			return remoteEntity
+		}
+	}
+	return nil
 }

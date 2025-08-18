@@ -2,7 +2,6 @@ package sync
 
 import (
 	"log"
-	"strconv"
 	"time"
 	"unipilot/internal/client"
 	"unipilot/internal/models"
@@ -88,7 +87,7 @@ func (sm *SyncManager) MarkSyncCompleted(update *models.LocalUpdate) error {
 
 // BackgroundSync runs periodic sync in the background
 func (sm *SyncManager) BackgroundSync() {
-	ticker := time.NewTicker(5 * time.Minute)
+	ticker := time.NewTicker(2 * time.Minute)
 	defer ticker.Stop()
 
 	for range ticker.C {
@@ -145,12 +144,18 @@ func (sm *SyncManager) ProcessSync(syncLog models.LocalUpdate, remoteAssignments
 
 	switch syncLog.Entity {
 	case models.EntityAssignment:
-		if err := SyncAssignment(syncLog, findRemoteEntity(remoteAssignments, syncLog.EntityID), sm.db); err != nil {
+		if err := SyncAssignment(syncLog, remoteAssignments, sm.db); err != nil {
 			sm.MarkSyncAttempted(&syncLog, err)
 			return err
 		}
 	case models.EntityCourse:
-		if err := SyncCourse(syncLog, findRemoteEntity(remoteCourses, syncLog.EntityID), sm.db); err != nil {
+		if err := SyncCourse(syncLog, remoteCourses, sm.db); err != nil {
+			sm.MarkSyncAttempted(&syncLog, err)
+			return err
+		}
+
+	case models.EntityUser:
+		if err := SyncUser(syncLog); err != nil {
 			sm.MarkSyncAttempted(&syncLog, err)
 			return err
 		}
@@ -165,11 +170,8 @@ func (sm *SyncManager) ProcessSync(syncLog models.LocalUpdate, remoteAssignments
 	return sm.MarkSyncCompleted(&syncLog)
 }
 
-func findRemoteEntity(remoteEntities []map[string]string, localEntityID uint) map[string]string {
-	for _, remoteEntity := range remoteEntities {
-		if remoteEntity["local_id"] == strconv.Itoa(int(localEntityID)) {
-			return remoteEntity
-		}
-	}
-	return nil
+// Undo sync log entry for an entity
+func (sm *SyncManager) Undo(entity models.Entity, entityID uint) error {
+
+	return sm.db.Delete(&models.LocalUpdate{Entity: entity, EntityID: entityID}).Error
 }

@@ -46,6 +46,53 @@ func NewApp() *App {
 	}
 }
 
+// startup is called when the app starts. The context is saved
+// so we can call the runtime methods
+func (a *App) Startup(ctx context.Context) {
+	a.ctx = ctx
+
+	// Initialize database helper
+	dbHelper, err := app.NewDatabaseHelper()
+	if err != nil {
+		fmt.Printf("Warning: Could not initialize database helper: %v\n", err)
+	} else {
+		a.DB = dbHelper
+	}
+
+	// Check if user is already authenticated and initialize HTTP client + SSE if needed
+	if _, err := a.Auth.IsAuthenticated(); err == nil && network.IsOnline() {
+		log.Println("[App] User already authenticated, initializing HTTP client and SSE connection...")
+		if err := a.initializeAuthenticatedClient(); err != nil {
+			log.Printf("[App] Failed to initialize authenticated client: %v", err)
+		} else {
+			a.startSSEConnection()
+
+			// Start background sync manager
+			syncManager := sync.NewSyncManager(a.DB.GetDB())
+			go syncManager.BackgroundSync()
+
+			// Process any pending syncs on startup
+			go func() {
+				if err := syncManager.ProcessPendingSyncs(); err != nil {
+					log.Printf("[App] Startup sync error: %v", err)
+				}
+			}()
+		}
+	}
+}
+
+// initializeAuthenticatedClient creates HTTP client from stored cookies when user is already authenticated
+func (a *App) initializeAuthenticatedClient() error {
+	httpClient, err := client.NewClientWithCookies()
+	if err != nil {
+		return fmt.Errorf("could not create http client from stored cookies: %w", err)
+	}
+
+	a.Auth.Client = httpClient
+	log.Println("[App] HTTP client initialized from stored cookies")
+	return nil
+}
+
 // ========================================
 // CREATE OPERATIONS
 // ========================================
@@ -95,8 +142,17 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 		Priority:   localAssignment.Priority,
 	}
 
-	responseAssignment, err := client.CreateAssignment(remoteAssignment)
-	if err != nil {
+	isOnline := network.IsOnline()
+	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
+	var responseAssignment map[string]interface{}
+	var clientErr error
+	if isOnline {
+		responseAssignment, clientErr = client.CreateAssignment(remoteAssignment)
+	} else {
+		clientErr = fmt.Errorf("user is offline")
+	}
+
+	if clientErr != nil {
 		// Server operation failed, create sync log
 		syncManager := sync.NewSyncManager(tx)
 		if syncErr := syncManager.CreateSyncLog(
@@ -105,7 +161,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 			"create",
 			"",
 			"",
-			err,
+			clientErr,
 		); syncErr != nil {
 			tx.Rollback()
 			return fmt.Errorf("failed to create sync log: %w", syncErr)
@@ -114,8 +170,6 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 		// Commit the transaction with the sync log
 		tx.Commit()
 
-		// Return success to user (operation is queued for retry)
-		log.Printf("[App] Assignment created locally, queued for sync: %v", err)
 		return nil
 	}
 
@@ -205,8 +259,17 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 		EndDate:         localCourse.EndDate,
 	}
 
-	responseCourse, err := client.CreateCourse(remoteCourse)
-	if err != nil {
+	isOnline := network.IsOnline()
+	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
+	var responseCourse map[string]interface{}
+	var clientErr error
+	if isOnline {
+		responseCourse, clientErr = client.CreateCourse(remoteCourse)
+	} else {
+		clientErr = fmt.Errorf("user is offline")
+	}
+
+	if clientErr != nil {
 		syncManager := sync.NewSyncManager(tx)
 		if syncErr := syncManager.CreateSyncLog(
 			models.EntityCourse,
@@ -214,7 +277,7 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 			"create",
 			"",
 			"",
-			err,
+			clientErr,
 		); syncErr != nil {
 			tx.Rollback()
 			return fmt.Errorf("failed to create sync log: %w", syncErr)
@@ -420,30 +483,38 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 
 // UpdateAssignment updates an existing assignment
 func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, column, value string) error {
+
+	runtime.LogInfof(a.ctx, "[Backend] assignment %v, remote_id %v %v changed to %v", LocalAssignment.ID, LocalAssignment.RemoteID, column, value)
+
 	if a.DB == nil {
 		return fmt.Errorf("database not initialized")
 	}
 
 	db := a.DB.GetDB()
 
-	runtime.LogInfof(a.ctx, "Backend: assignment %v, column %v, value %v", LocalAssignment.ID, column, value)
-
 	if err := a.DB.UpdateAssignment(LocalAssignment, column, value); err != nil {
 		return err
 	}
 
-	assignment_id_int := int(LocalAssignment.ID)
+	assignment_id_int := int(LocalAssignment.RemoteID)
 
 	assignment_id := strconv.Itoa(assignment_id_int)
 
-	if clientErr := client.SendAssignmentUpdate(assignment_id, column, value); clientErr != nil {
+	isOnline := network.IsOnline()
+	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
+	var clientErr error
+	if isOnline {
+		clientErr = client.SendAssignmentUpdate(assignment_id, column, value)
+	} else {
+		clientErr = fmt.Errorf("user is offline")
+	}
+
+	if clientErr != nil {
 
 		runtime.LogErrorf(a.ctx, "[Backend] failed to send assignment update: %v", clientErr)
 
 		sm := sync.NewSyncManager(db)
 		syncLog, err := sm.GetSyncLog(models.EntityAssignment, LocalAssignment.ID, "update", column)
-
-		runtime.LogInfof(a.ctx, "[Backend] sync log: %v", syncLog)
 
 		// If no sync log is found, create a new one
 		if err != nil {
@@ -461,6 +532,7 @@ func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, colu
 			}
 			return nil
 		}
+		runtime.LogInfof(a.ctx, "[Backend] sync log: %v", syncLog)
 		// If a sync log is found, update it
 		syncLog.Value = value
 		if err := db.Save(&syncLog).Error; err != nil {
@@ -487,11 +559,20 @@ func (a *App) UpdateCourse(course *course.LocalCourse, column, value string) err
 		return err
 	}
 
-	course_id_int := int(course.ID)
+	course_id_int := int(course.RemoteID)
 
 	course_id := strconv.Itoa(course_id_int)
 
-	if clientErr := client.SendCourseUpdate(course_id, column, value); clientErr != nil {
+	isOnline := network.IsOnline()
+	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
+	var clientErr error
+	if isOnline {
+		clientErr = client.SendCourseUpdate(course_id, column, value)
+	} else {
+		clientErr = fmt.Errorf("user is offline")
+	}
+
+	if clientErr != nil {
 		sm := sync.NewSyncManager(db)
 		syncLog, err := sm.GetSyncLog(models.EntityCourse, course.ID, "update", column)
 		if err != nil {
@@ -532,7 +613,16 @@ func (a *App) UpdateNote(LocalNote *note.LocalNote, column, value string) error 
 
 	note_id := strconv.Itoa(note_id_int)
 
-	if clientErr := client.SendNoteUpdate(note_id, column, value); clientErr != nil {
+	isOnline := network.IsOnline()
+	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
+	var clientErr error
+	if isOnline {
+		clientErr = client.SendNoteUpdate(note_id, column, value)
+	} else {
+		clientErr = fmt.Errorf("user is offline")
+	}
+
+	if clientErr != nil {
 		sm := sync.NewSyncManager(db)
 		syncLog, err := sm.GetSyncLog(models.EntityNote, LocalNote.ID, "update", column)
 		if err != nil {
@@ -663,6 +753,80 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 	return response.LocalDocument, nil
 }
 
+func (a *App) UpdateUser(column, value string) (*user.User, error) {
+	// Get the current user from storage
+	u, err := storage.GetCurrentUser()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	// Update the specific field
+	switch column {
+	case "email":
+		u.Email = value
+	case "username":
+		u.Username = value
+	case "university":
+		u.University = value
+	case "semester":
+		u.Semester = value
+	case "year":
+		u.Year = value
+	case "language":
+		u.Language = value
+	case "avatar":
+		u.Avatar = value
+	default:
+		return nil, fmt.Errorf("unknown column: %s", column)
+	}
+
+	// Update the timestamp
+	u.UpdatedAt = time.Now()
+
+	runtime.LogInfof(a.ctx, "Updated user: %v", u.ToMap())
+
+	// Store the updated user in the credentials file
+	if err := storage.StoreCredentials(*u); err != nil {
+		return nil, fmt.Errorf("failed to store credentials: %w", err)
+	}
+
+	isOnline := network.IsOnline()
+	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
+	var clientErr error
+	if isOnline {
+		clientErr = client.SendUserUpdate(column, value)
+	} else {
+		clientErr = fmt.Errorf("user is offline")
+	}
+
+	if clientErr != nil {
+		db := a.DB.GetDB()
+		sm := sync.NewSyncManager(db)
+		syncLog, err := sm.GetSyncLog(models.EntityUser, u.ID, "update", column)
+		if err != nil {
+			if syncErr := sm.CreateSyncLog(
+				models.EntityUser,
+				u.ID,
+				"update",
+				column,
+				value,
+				clientErr,
+			); syncErr != nil {
+				return nil, fmt.Errorf("failed to create sync log: %w", syncErr)
+			}
+			return u, nil
+		}
+		syncLog.Value = value
+
+		if err := db.Save(&syncLog).Error; err != nil {
+			return nil, fmt.Errorf("failed to save sync log: %w", err)
+		}
+		return u, nil
+	}
+
+	return u, nil
+}
+
 // ========================================
 // DELETE OPERATIONS
 // ========================================
@@ -697,10 +861,18 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 
 	deleted_at := time.Now().Format(time.RFC3339)
 
-	if clientErr := client.SendAssignmentUpdate(assignment_id_str, "deleted_at", deleted_at); clientErr != nil {
+	isOnline := network.IsOnline()
+	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
+	var clientErr error
+	if isOnline {
+		clientErr = client.SendAssignmentUpdate(assignment_id_str, "deleted_at", deleted_at)
+	} else {
+		clientErr = fmt.Errorf("user is offline")
+	}
 
+	if clientErr != nil {
 		sm := sync.NewSyncManager(db)
-		syncLog, err := sm.GetSyncLog(models.EntityAssignment, assignment.ID, "delete", "deleted_at")
+		_, err := sm.GetSyncLog(models.EntityAssignment, assignment.ID, "create", "")
 		if err != nil {
 			if syncErr := sm.CreateSyncLog(
 				models.EntityAssignment,
@@ -715,9 +887,8 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 			return nil
 		}
 
-		syncLog.Value = deleted_at
-		if err := db.Save(&syncLog).Error; err != nil {
-			return fmt.Errorf("failed to save sync log: %w", err)
+		if err := sm.Undo(models.EntityAssignment, assignment.ID); err != nil {
+			return fmt.Errorf("failed to delete sync log: %w", err)
 		}
 
 		return nil
@@ -755,10 +926,19 @@ func (a *App) DeleteCourse(course *course.LocalCourse) error {
 
 	deleted_at := time.Now().Format(time.RFC3339)
 
-	if clientErr := client.SendCourseUpdate(course_id_str, "deleted_at", deleted_at); clientErr != nil {
+	isOnline := network.IsOnline()
+	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
+	var clientErr error
+	if isOnline {
+		clientErr = client.SendCourseUpdate(course_id_str, "deleted_at", deleted_at)
+	} else {
+		clientErr = fmt.Errorf("user is offline")
+	}
+
+	if clientErr != nil {
 
 		sm := sync.NewSyncManager(db)
-		syncLog, err := sm.GetSyncLog(models.EntityCourse, course.ID, "delete", "deleted_at")
+		_, err := sm.GetSyncLog(models.EntityCourse, course.ID, "create", "")
 		if err != nil {
 			if syncErr := sm.CreateSyncLog(
 				models.EntityCourse,
@@ -773,8 +953,7 @@ func (a *App) DeleteCourse(course *course.LocalCourse) error {
 			return nil
 		}
 
-		syncLog.Value = deleted_at
-		if err := db.Save(&syncLog).Error; err != nil {
+		if err := sm.Undo(models.EntityCourse, course.ID); err != nil {
 			return fmt.Errorf("failed to save sync log: %w", err)
 		}
 
@@ -850,10 +1029,17 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 
 	deleted_at := time.Now().Format(time.RFC3339)
 
-	if clientErr := client.SendNoteUpdate(note_id_str, "deleted_at", deleted_at); clientErr != nil {
-
+	isOnline := network.IsOnline()
+	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
+	var clientErr error
+	if isOnline {
+		clientErr = client.SendNoteUpdate(note_id_str, "deleted_at", deleted_at)
+	} else {
+		clientErr = fmt.Errorf("user is offline")
+	}
+	if clientErr != nil {
 		sm := sync.NewSyncManager(db)
-		syncLog, err := sm.GetSyncLog(models.EntityNote, note.ID, "delete", "deleted_at")
+		_, err := sm.GetSyncLog(models.EntityNote, note.ID, "create", "")
 
 		if err != nil {
 			if syncErr := sm.CreateSyncLog(
@@ -869,8 +1055,7 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 			return nil
 		}
 
-		syncLog.Value = deleted_at
-		if err := db.Save(&syncLog).Error; err != nil {
+		if err := sm.Undo(models.EntityNote, note.ID); err != nil {
 			return fmt.Errorf("failed to save sync log: %w", err)
 		}
 
@@ -883,53 +1068,6 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 // ========================================
 // OTHER OPERATIONS
 // ========================================
-
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
-func (a *App) Startup(ctx context.Context) {
-	a.ctx = ctx
-
-	// Initialize database helper
-	dbHelper, err := app.NewDatabaseHelper()
-	if err != nil {
-		fmt.Printf("Warning: Could not initialize database helper: %v\n", err)
-	} else {
-		a.DB = dbHelper
-	}
-
-	// Check if user is already authenticated and initialize HTTP client + SSE if needed
-	if _, err := a.Auth.IsAuthenticated(); err == nil && network.IsOnline() {
-		log.Println("[App] User already authenticated, initializing HTTP client and SSE connection...")
-		if err := a.initializeAuthenticatedClient(); err != nil {
-			log.Printf("[App] Failed to initialize authenticated client: %v", err)
-		} else {
-			a.startSSEConnection()
-
-			// Start background sync manager
-			syncManager := sync.NewSyncManager(a.DB.GetDB())
-			go syncManager.BackgroundSync()
-
-			// Process any pending syncs on startup
-			go func() {
-				if err := syncManager.ProcessPendingSyncs(); err != nil {
-					log.Printf("[App] Startup sync error: %v", err)
-				}
-			}()
-		}
-	}
-}
-
-// initializeAuthenticatedClient creates HTTP client from stored cookies when user is already authenticated
-func (a *App) initializeAuthenticatedClient() error {
-	httpClient, err := client.NewClientWithCookies()
-	if err != nil {
-		return fmt.Errorf("could not create http client from stored cookies: %w", err)
-	}
-
-	a.Auth.Client = httpClient
-	log.Println("[App] HTTP client initialized from stored cookies")
-	return nil
-}
 
 // startSSEConnection initializes and starts the SSE connection with proper authentication check
 func (a *App) startSSEConnection() {
@@ -1153,8 +1291,10 @@ func (a *App) Sync() error {
 
 	log.Println("[App] Syncing local changes with the remote server")
 
+	sm := sync.NewSyncManager(a.DB.GetDB())
+
 	// Perform the sync
-	return sync.Sync(a.DB.GetDB())
+	return sm.ProcessPendingSyncs()
 }
 
 // GetAssignment returns an assignment by ID

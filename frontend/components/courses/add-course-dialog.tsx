@@ -55,14 +55,93 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
     semester: "",
     schedule: "",
     credits: "3",
-    room_number: "",
+    location: "",
     instructor: "",
     instructor_email: "",
-    location: "",
   })
   const validateDates = (startDate: Date, endDate: Date) => {
     if (startDate > endDate) {
         toast.error("Start date must be before end date")
+        return false
+    }
+
+    return true
+  }
+  const validateSchedule = (schedule: string) => {
+    if (schedule.length === 0) {
+        toast.error("Schedule is required")
+        return false
+    }
+
+    if (schedule == "Async" || schedule == "Asynchronous") {
+        return true
+    }
+
+    // Validate format: "<day>, <day> <hour> - <hour>"
+    // Days: M, T, W, Th, F, S, Su (separated by ", ")
+    // Hours: HH:MM AM/PM (1-2 digits for hour, 00-59 for minutes)
+    const schedulePattern = /^((?:(?:M|T|W|Th|F|S|Su)(?:,\s(?:M|T|W|Th|F|S|Su))*)?)\s+(\d{1,2}:[0-5]\d\s(?:AM|PM))\s*-\s*(\d{1,2}:[0-5]\d\s(?:AM|PM))$/
+
+    const match = schedule.match(schedulePattern)
+
+    if (!match) {
+        toast.error("Invalid schedule format. Expected: 'M, T, W 9:00 AM - 10:30 AM'")
+        return false
+    }
+
+    const [, daysStr, startTime, endTime] = match
+
+    // Validate that at least one day is specified
+    if (!daysStr || daysStr.trim().length === 0) {
+        toast.error("At least one day must be specified")
+        return false
+    }
+
+    // Validate individual days
+    const days = daysStr.trim().split(', ')
+    const validDays = ['M', 'T', 'W', 'Th', 'F', 'Sa', 'Su']
+
+    for (const day of days) {
+        if (!validDays.includes(day)) {
+            toast.error(`Invalid day '${day}'. Valid days: M, T, W, Th, F, Sa, Su`)
+            return false
+        }
+    }
+
+    // Validate time format more strictly
+    const timePattern = /^(\d{1,2}):([0-5]\d)\s(AM|PM)$/
+
+    const startMatch = startTime.match(timePattern)
+    const endMatch = endTime.match(timePattern)
+
+    if (!startMatch || !endMatch) {
+        toast.error("Invalid time format. Use format like '9:00 AM' or '12:30 PM'")
+        return false
+    }
+
+    // Validate hour ranges (1-12 for 12-hour format)
+    const startHour = parseInt(startMatch[1])
+    const endHour = parseInt(endMatch[1])
+
+    if (startHour < 1 || startHour > 12 || endHour < 1 || endHour > 12) {
+        toast.error("Hour must be between 1 and 12")
+        return false
+    }
+
+    // Convert to 24-hour format for comparison
+    const convertTo24Hour = (hour: number, minute: number, period: string): number => {
+        if (period === 'AM') {
+            return hour === 12 ? 0 * 60 + minute : hour * 60 + minute
+        } else {
+            return hour === 12 ? 12 * 60 + minute : (hour + 12) * 60 + minute
+        }
+    }
+
+    const startMinutes = convertTo24Hour(startHour, parseInt(startMatch[2]), startMatch[3])
+    const endMinutes = convertTo24Hour(endHour, parseInt(endMatch[2]), endMatch[3])
+
+    if (startMinutes >= endMinutes) {
+        toast.error("Start time must be before end time")
         return false
     }
 
@@ -81,7 +160,7 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
       Semester: formData.semester,
       Schedule: formData.schedule,
       Credits: parseInt(formData.credits),
-      RoomNumber: formData.room_number,
+      Location: formData.location,
       Instructor: formData.instructor,
       InstructorEmail: formData.instructor_email,
       StartDate: startDate,
@@ -100,10 +179,9 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
       semester: "",
       schedule: "",
       credits: "3",
-      room_number: "",
-      instructor: "",
-      instructor_email: "",
       location: "",
+      instructor: "",
+      instructor_email: "", 
     })
   }
 

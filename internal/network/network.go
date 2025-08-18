@@ -1,24 +1,23 @@
 package network
 
 import (
-        "time"
-        "net/http"
+	"net/http"
+	"time"
 )
 
 var onlineStatus bool
 var lastChecked time.Time
 
 func IsOnline() bool {
-    // Cache status for 30 seconds to avoid repeated checks
-    if time.Since(lastChecked) < 30*time.Second {
-        return onlineStatus
-    }
+	// Cache status for 30 seconds to avoid repeated checks
+	if time.Since(lastChecked) < 5*time.Second {
+		return onlineStatus
+	}
+	// Simple check - adjust as needed
+	client := http.Client{Timeout: 3 * time.Second}
+	_, err := client.Get("https://newsroom.dedyn.io")
 
-    // Simple check - adjust as needed
-    client := http.Client{Timeout: 3 * time.Second}
-    _, err := client.Get("https://newsroom.dedyn.io")
-    
-    onlineStatus = err == nil
-    lastChecked = time.Now()
-    return onlineStatus
-} 
+	onlineStatus = err == nil
+	lastChecked = time.Now()
+	return onlineStatus
+}

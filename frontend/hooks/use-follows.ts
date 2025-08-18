@@ -45,7 +45,7 @@ export function useFollowers(userID: number) {
   })
 }
 
-export function useFollow() {
+export function useFollow(currentUser: user.User, isFollow: boolean) {
   const queryClient = useQueryClient()
   
   return useMutation({
@@ -55,24 +55,48 @@ export function useFollow() {
    
     onMutate: async (followed: user.User) => {
       // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({ queryKey: followingKeys.lists() })
+      await queryClient.cancelQueries({ queryKey: followersKeys.lists() })
       
       // Snapshot the previous value
-      const previousFollowing = queryClient.getQueryData<user.User[]>(followingKeys.list(followed.ID))
+      const previousCurrentUserFollowing = queryClient.getQueryData<user.User[]>(followingKeys.list(currentUser.ID))
+      const previousFollowers = queryClient.getQueryData<user.User[]>(followersKeys.list(currentUser.ID))
       
       // Optimistically update to the new value
-      queryClient.setQueryData<user.User[]>(followingKeys.list(followed.ID), (old) => {
-        if (!old) return [followed]
-        return [...old, followed]
-      })
-      
-      return { previousFollowing }
+      if (isFollow) {
+       
+        queryClient.setQueryData<user.User[]>(followingKeys.list(currentUser.ID), (old) => {
+          if (!old) return [followed]
+          return old.filter((user) => user.ID !== followed.ID)
+        })
+
+        queryClient.setQueryData<user.User[]>(followersKeys.list(followed.ID), (old) => {
+          if (!old) return [currentUser]
+          return old.filter((user) => user.ID !== currentUser.ID)
+        })
+      } else {
+
+        queryClient.setQueryData<user.User[]>(followingKeys.list(currentUser.ID), (old) => {
+          if (!old) return [followed]
+          return [...old, followed]
+        })
+
+        queryClient.setQueryData<user.User[]>(followersKeys.list(followed.ID), (old) => {
+          if (!old) return [currentUser]
+          return [...old, currentUser]
+        })
+      }
+
+  
+      return { previousCurrentUserFollowing, previousFollowers }
     },
 
     onError: (err, variables, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousFollowing) {
-        queryClient.setQueryData(followingKeys.list(variables.ID), context.previousFollowing)
+      if (context?.previousCurrentUserFollowing) {
+        queryClient.setQueryData(followingKeys.list(variables.ID), context.previousCurrentUserFollowing)
+      }
+      if (context?.previousFollowers) {
+        queryClient.setQueryData(followersKeys.list(variables.ID), context.previousFollowers)
       }
       LogError("Failed to follow user: " + err)
     },
@@ -82,25 +106,5 @@ export function useFollow() {
       queryClient.invalidateQueries({ queryKey: followingKeys.list(variables.ID) })
       queryClient.invalidateQueries({ queryKey: followersKeys.list(variables.ID) })
     },
-  })
-}
-
-// Add a hook to get follow counts
-export function useFollowCounts(userID: number) {
-  return useQuery({
-    queryKey: ['follow-counts', userID],
-    queryFn: async (): Promise<{ followers: number; following: number }> => {
-      const [followersResponse, followingResponse] = await Promise.all([
-        window.go.main.App.GetFollowers(userID),
-        window.go.main.App.GetFollowing(userID)
-      ])
-      return { 
-        followers: followersResponse.Count, 
-        following: followingResponse.Count 
-      }
-    },
-    staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
-    gcTime: 30 * 60 * 1000,   // Keep in cache for 30 minutes
-    enabled: !!userID,
   })
 }

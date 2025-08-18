@@ -10,7 +10,7 @@ import { AssignmentsDueToday } from "@/components/dashboard/assignments-due-toda
 import { AssignmentsThisWeek } from "@/components/dashboard/assignments-this-week"
 import { AssignmentDetailsModal } from "@/components/assignments/assignment-details-modal"
 import { OfflineBanner } from "@/components/ui/offline-banner"
-import { assignment } from "@/wailsjs/go/models"
+import { assignment, user } from "@/wailsjs/go/models"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
 import { useUpdateAssignment } from "@/hooks/use-assignments"
@@ -33,11 +33,6 @@ export default function DashboardPage() {
     })
   }
 
-  const handleToggleComplete = async (assignment: assignment.LocalAssignment) => {
-    const newStatus = assignment.StatusName === "Done" ? "Not started" : "Done"
-    handleEditAssignment(assignment, "status_name", newStatus)
-  }
-
   const handleDeleteAssignment = (assignment: assignment.LocalAssignment) => {
     console.log("Deleting assignment:", assignment.ID)
   }
@@ -46,7 +41,7 @@ export default function DashboardPage() {
     <div className="page">
       {/* Offline Banner */}
       <OfflineBanner />
-      
+
       {/* Floating background elements */}
       <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
       <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float-delayed"></div>
@@ -73,14 +68,14 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-      
+
       <AssignmentDetailsModal
         isOpen={!!selectedAssignment}
         onClose={() => setSelectedAssignment(null)}
         assignment={selectedAssignment}
         onEdit={handleEditAssignment}
         onDelete={handleDeleteAssignment}
-        //onToggleComplete={handleToggleComplete}
+      //onToggleComplete={handleToggleComplete}
       />
     </div>
   )

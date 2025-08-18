@@ -154,7 +154,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                   <label className="block mb-2 text-sm font-medium text-gray-400">Location</label>
                   <div className="flex items-center space-x-2 text-white">
                     <MapPin className="w-4 h-4 text-orange-400" />
-                    <span>{courseData.RoomNumber}</span>
+                    <span>{courseData.Location}</span>
                   </div>
                 </div>
 

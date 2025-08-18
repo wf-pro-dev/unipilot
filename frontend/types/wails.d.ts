@@ -11,7 +11,7 @@ declare global {
           Login: (username: string, password: string) => Promise<void>
           Logout: () => Promise<void>
           Greet: (name: string) => Promise<string>
-          IsAuthenticated: () => Promise<storage.LocalCredentials>
+          IsAuthenticated: () => Promise<user.User>
           GetNetworkStatus: () => Promise<{ online: boolean; timestamp: number }>
           Sync: () => Promise<void>
           GetAssignment: (id: number) => Promise<assignment.LocalAssignment>
@@ -34,6 +34,7 @@ declare global {
           GetFollowers: (userID: number) => Promise<main.FollowResponse>
           GetFollowing: (userID: number) => Promise<main.FollowResponse>
           Follow: (followedID: number) => Promise<boolean>
+          UpdateUser: (column: string, value: string) => Promise<user.User>
         }
       }
     }

@@ -406,6 +406,7 @@ export namespace note {
 	    UpdatedAt: any;
 	    // Go type: gorm
 	    DeletedAt: any;
+	    RemoteID: string;
 	    CourseCode: string;
 	    Title: string;
 	    Subject: string;
@@ -424,6 +425,7 @@ export namespace note {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.RemoteID = source["RemoteID"];
 	        this.CourseCode = source["CourseCode"];
 	        this.Title = source["Title"];
 	        this.Subject = source["Subject"];
@@ -469,6 +471,8 @@ export namespace user {
 	    PasswordHash: string;
 	    Avatar: string;
 	    University: string;
+	    Semester: string;
+	    Year: string;
 	    IsVerified: boolean;
 	    Language: string;
 	    CoursesCode: string[];
@@ -492,6 +496,8 @@ export namespace user {
 	        this.PasswordHash = source["PasswordHash"];
 	        this.Avatar = source["Avatar"];
 	        this.University = source["University"];
+	        this.Semester = source["Semester"];
+	        this.Year = source["Year"];
 	        this.IsVerified = source["IsVerified"];
 	        this.Language = source["Language"];
 	        this.CoursesCode = source["CoursesCode"];

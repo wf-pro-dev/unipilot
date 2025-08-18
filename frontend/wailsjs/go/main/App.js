@@ -154,6 +154,10 @@ export function UpdateNote(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateNote'](arg1, arg2, arg3);
 }
 
+export function UpdateUser(arg1, arg2) {
+  return window['go']['main']['App']['UpdateUser'](arg1, arg2);
+}
+
 export function UploadDocument(arg1, arg2) {
   return window['go']['main']['App']['UploadDocument'](arg1, arg2);
 }
