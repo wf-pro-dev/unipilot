@@ -46,6 +46,7 @@ const (
 	EntityCourse     Entity = "course"
 	EntityDocument   Entity = "document"
 	EntityNote       Entity = "note"
+	EntityUser       Entity = "user"
 )
 
 type LocalUpdate struct {
@@ -72,3 +73,4 @@ func (u *LocalUpdate) ToMap() map[string]string {
 		"last_error":    u.LastError,
 	}
 }
+

@@ -86,7 +86,7 @@ func NewAssignment() *Assignment {
 	return assignment
 }
 
-func Get_Assignment_byId(id, user_id uint, db *gorm.DB) (*Assignment, error) {
+func Get_Assignment_byID(id, user_id uint, db *gorm.DB) (*Assignment, error) {
 	assignment := &Assignment{}
 	err := db.Preload("User").
 		Preload("Course", "user_id = ?", user_id).

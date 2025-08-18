@@ -16,6 +16,8 @@ type User struct {
 
 	Avatar     string
 	University string
+	Semester   string
+	Year       string
 
 	IsVerified bool   `gorm:"default:false"`
 	Language   string `gorm:"default:'en'"`
@@ -39,6 +41,8 @@ func (u *User) ToMap() map[string]interface{} {
 		"email":         u.Email,
 		"avatar":        u.Avatar,
 		"university":    u.University,
+		"semester":      u.Semester,
+		"year":          u.Year,
 		"is_verified":   u.IsVerified,
 		"language":      u.Language,
 		"courses_codes": u.CoursesCode,
@@ -56,3 +60,4 @@ func Get_User_by_NotionID(notion_id string, db *gorm.DB) (*User, error) {
 	}
 	return u, nil
 }
+
