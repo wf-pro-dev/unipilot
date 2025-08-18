@@ -80,7 +80,9 @@ func StartServer() {
 	http.HandleFunc("/acc-homework/register", DBMiddleware(db, RegisterHandler))
 	http.HandleFunc("/acc-homework/login", DBMiddleware(db, LoginHandler))
 	http.HandleFunc("/acc-homework/logout", AuthMiddleware(LogoutHandler))
+	
 	http.HandleFunc("/acc-homework/user", DBMiddleware(db, AuthMiddleware(GetUserHandler)))
+	http.HandleFunc("/acc-homework/user/update", DBMiddleware(db, AuthMiddleware(UpdateUserHandler)))
 
 	http.HandleFunc("/acc-homework/users", DBMiddleware(db, AuthMiddleware(GetUsersHandler)))
 	

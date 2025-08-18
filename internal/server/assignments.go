@@ -149,7 +149,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	aObj := &aVal
 
-	a, err := assignment.Get_Assignment_byId(aObj.ID, userID, tx)
+	a, err := assignment.Get_Assignment_byID(aObj.ID, userID, tx)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
 		return
@@ -239,7 +239,7 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := assignment.Get_Assignment_byLocalID(uint(int_id), userID, tx)
+	a, err := assignment.Get_Assignment_byID(uint(int_id), userID, tx)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
 		return
@@ -287,8 +287,8 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}*/
 
-	PrintLog(fmt.Sprintf("user_id %s column %s value %s",
-		userIDVal, updateData.Column, updateData.Value))
+	PrintLog(fmt.Sprintf("user_id %d assignment %d column %s value %s",
+		userIDVal, a.ID, updateData.Column, updateData.Value))
 
 	tx.Commit()
 
