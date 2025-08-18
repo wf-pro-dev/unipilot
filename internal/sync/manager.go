@@ -154,6 +154,12 @@ func (sm *SyncManager) ProcessSync(syncLog models.LocalUpdate, remoteAssignments
 			return err
 		}
 
+	case models.EntityUser:
+		if err := SyncUser(syncLog); err != nil {
+			sm.MarkSyncAttempted(&syncLog, err)
+			return err
+		}
+
 		// case models.EntityNote:
 		// 	if err := SyncNote(syncLog, findRemoteEntity(remoteNotes, syncLog.EntityID), sm.db); err != nil {
 		// 		sm.MarkSyncAttempted(&syncLog, err)

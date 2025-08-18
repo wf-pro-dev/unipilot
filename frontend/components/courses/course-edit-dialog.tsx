@@ -117,11 +117,11 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
 
         // Validate individual days
         const days = daysStr.trim().split(', ')
-        const validDays = ['M', 'T', 'W', 'Th', 'F', 'S', 'Su']
+        const validDays = ['M', 'T', 'W', 'Th', 'F', 'Sa', 'Su']
 
         for (const day of days) {
             if (!validDays.includes(day)) {
-                toast.error(`Invalid day '${day}'. Valid days: M, T, W, Th, F, S, Su`)
+                toast.error(`Invalid day '${day}'. Valid days: M, T, W, Th, F, Sa, Su`)
                 return false
             }
         }

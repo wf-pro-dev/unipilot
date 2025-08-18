@@ -753,6 +753,80 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 	return response.LocalDocument, nil
 }
 
+func (a *App) UpdateUser(column, value string) (*user.User, error) {
+	// Get the current user from storage
+	u, err := storage.GetCurrentUser()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current user: %w", err)
+	}
+
+	// Update the specific field
+	switch column {
+	case "email":
+		u.Email = value
+	case "username":
+		u.Username = value
+	case "university":
+		u.University = value
+	case "semester":
+		u.Semester = value
+	case "year":
+		u.Year = value
+	case "language":
+		u.Language = value
+	case "avatar":
+		u.Avatar = value
+	default:
+		return nil, fmt.Errorf("unknown column: %s", column)
+	}
+
+	// Update the timestamp
+	u.UpdatedAt = time.Now()
+
+	runtime.LogInfof(a.ctx, "Updated user: %v", u.ToMap())
+
+	// Store the updated user in the credentials file
+	if err := storage.StoreCredentials(*u); err != nil {
+		return nil, fmt.Errorf("failed to store credentials: %w", err)
+	}
+
+	isOnline := network.IsOnline()
+	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
+	var clientErr error
+	if isOnline {
+		clientErr = client.SendUserUpdate(column, value)
+	} else {
+		clientErr = fmt.Errorf("user is offline")
+	}
+
+	if clientErr != nil {
+		db := a.DB.GetDB()
+		sm := sync.NewSyncManager(db)
+		syncLog, err := sm.GetSyncLog(models.EntityUser, u.ID, "update", column)
+		if err != nil {
+			if syncErr := sm.CreateSyncLog(
+				models.EntityUser,
+				u.ID,
+				"update",
+				column,
+				value,
+				clientErr,
+			); syncErr != nil {
+				return nil, fmt.Errorf("failed to create sync log: %w", syncErr)
+			}
+			return u, nil
+		}
+		syncLog.Value = value
+
+		if err := db.Save(&syncLog).Error; err != nil {
+			return nil, fmt.Errorf("failed to save sync log: %w", err)
+		}
+		return u, nil
+	}
+
+	return u, nil
+}
+
 // ========================================
 // DELETE OPERATIONS
 // ========================================

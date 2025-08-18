@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 	"unipilot/internal/client"
 	"unipilot/internal/models/user"
 	"unipilot/internal/sse"
@@ -43,6 +44,7 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 	}
 
 	// Parse the response to get user ID
+	// Parse the response to get user ID
 	var response struct {
 		User map[string]interface{} `json:"user"`
 	}
@@ -55,8 +57,13 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 		Email:      response.User["email"].(string),
 		Avatar:     response.User["avatar"].(string),
 		University: response.User["university"].(string),
+		Semester:   response.User["semester"].(string),
+		Year:       response.User["year"].(string),
 		Language:   response.User["language"].(string),
 	}
+
+	response_user.CreatedAt, _ = time.Parse(time.RFC3339, response.User["created_at"].(string))
+	response_user.UpdatedAt, _ = time.Parse(time.RFC3339, response.User["updated_at"].(string))
 
 	response_user.ID = uint(response.User["id"].(float64))
 	// Store credentials first

@@ -3,8 +3,10 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ExploreView } from "@/components/community/explore-view"
 import { FollowersView } from "@/components/community/followers-view"
+import { FollowingView } from "@/components/community/following-view"
 import { RecommendationsView } from "@/components/community/recommendations-view"
 import { Search, Users, UserPlus } from "lucide-react"
+
 
 export default function CommunityPage() {
   return (
@@ -27,13 +29,13 @@ export default function CommunityPage() {
               <Search className="h-4 w-4" />
               <span>Explore</span>
             </TabsTrigger>
-            <TabsTrigger value="recommendations" className="flex items-center space-x-2">
-              <UserPlus className="h-4 w-4" />
-              <span>Recommendations</span>
-            </TabsTrigger>
             <TabsTrigger value="followers" className="flex items-center space-x-2">
               <Users className="h-4 w-4" />
               <span>Followers</span>
+            </TabsTrigger>
+            <TabsTrigger value="following" className="flex items-center space-x-2">
+              <Users className="h-4 w-4" />
+              <span>Following</span>
             </TabsTrigger>
           </TabsList>
 
@@ -41,13 +43,14 @@ export default function CommunityPage() {
             <ExploreView />
           </TabsContent>
 
-          <TabsContent value="recommendations">
-            <RecommendationsView />
-          </TabsContent>
-
           <TabsContent value="followers">
             <FollowersView />
           </TabsContent>
+
+          <TabsContent value="following">
+            <FollowingView />
+          </TabsContent>
+
         </Tabs>
       </div>
     </div>

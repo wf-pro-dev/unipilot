@@ -471,6 +471,8 @@ export namespace user {
 	    PasswordHash: string;
 	    Avatar: string;
 	    University: string;
+	    Semester: string;
+	    Year: string;
 	    IsVerified: boolean;
 	    Language: string;
 	    CoursesCode: string[];
@@ -494,6 +496,8 @@ export namespace user {
 	        this.PasswordHash = source["PasswordHash"];
 	        this.Avatar = source["Avatar"];
 	        this.University = source["University"];
+	        this.Semester = source["Semester"];
+	        this.Year = source["Year"];
 	        this.IsVerified = source["IsVerified"];
 	        this.Language = source["Language"];
 	        this.CoursesCode = source["CoursesCode"];

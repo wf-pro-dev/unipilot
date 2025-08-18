@@ -83,6 +83,8 @@ export function UpdateCourse(arg1:course.LocalCourse,arg2:string,arg3:string):Pr
 
 export function UpdateNote(arg1:note.LocalNote,arg2:string,arg3:string):Promise<void>;
 
+export function UpdateUser(arg1:string,arg2:string):Promise<user.User>;
+
 export function UploadDocument(arg1:number,arg2:string):Promise<document.LocalDocument>;
 
 export function UploadNewDocumentVersion(arg1:number):Promise<document.LocalDocument>;

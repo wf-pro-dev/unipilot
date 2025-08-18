@@ -239,6 +239,11 @@ func SyncNote(syncLog models.LocalUpdate, remoteNote map[string]string, db *gorm
 
 }
 
+func SyncUser(syncLog models.LocalUpdate) error {
+
+	return client.SendUserUpdate(syncLog.Column, syncLog.Value)
+}
+
 func findRemoteEntity(remoteEntities []map[string]string, localEntityID uint) map[string]string {
 	for _, remoteEntity := range remoteEntities {
 		if remoteEntity["id"] == strconv.Itoa(int(localEntityID)) {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 	"unipilot/internal/client"
 	"unipilot/internal/models/user"
 	"unipilot/internal/sse"
@@ -44,24 +45,30 @@ func (a *Auth) Register(username, email, password, university, language string) 
 	}
 
 	// Parse the response to get user ID
-	var response map[string]interface{}
+	var response struct {
+		User map[string]interface{} `json:"user"`
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	user := user.User{
-		Username:   response["username"].(string),
-		Email:      response["email"].(string),
-		Avatar:     response["avatar"].(string),
-		University: response["university"].(string),
-		Language:   response["language"].(string),
+	response_user := user.User{
+		Username:   response.User["username"].(string),
+		Email:      response.User["email"].(string),
+		Avatar:     response.User["avatar"].(string),
+		University: response.User["university"].(string),
+		Semester:   response.User["semester"].(string),
+		Year:       response.User["year"].(string),
+		Language:   response.User["language"].(string),
 	}
-	user.ID = uint(response["id"].(float64))
 
-	fmt.Printf("Response: %v\n", response)
+	response_user.CreatedAt, _ = time.Parse(time.RFC3339, response.User["created_at"].(string))
+	response_user.UpdatedAt, _ = time.Parse(time.RFC3339, response.User["updated_at"].(string))
+
+	response_user.ID = uint(response.User["id"].(float64))
 
 	// Store credentials first
-	if err := storage.StoreCredentials(user); err != nil {
+	if err := storage.StoreCredentials(response_user); err != nil {
 		return nil, fmt.Errorf("failed to store credentials: %w", err)
 	}
 
@@ -76,7 +83,7 @@ func (a *Auth) Register(username, email, password, university, language string) 
 		// This might happen if the database directory doesn't exist yet
 		fmt.Printf("Warning: Could not get local database: %v\n", err)
 		fmt.Printf("Login successful, but database operations failed\n")
-		return &user, nil // Don't fail the login, just return success
+		return &response_user, nil // Don't fail the login, just return success
 	}
 
 	a.LocalDB = localDB
@@ -87,5 +94,5 @@ func (a *Auth) Register(username, email, password, university, language string) 
 		// Don't fail the login, just continue
 	}
 
-	return &user, nil
+	return &response_user, nil
 }
