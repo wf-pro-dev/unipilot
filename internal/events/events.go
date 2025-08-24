@@ -79,7 +79,9 @@ func (h *Events) HandleEvent(event sse.Event) {
 		case "delete":
 			h.HandleAssignmentDelete(notification.Data, notification.Message)
 		}
-	case "course":
+
+	case "follow":
+		h.HandleFollow(notification.Data, notification.Message)
 		// Placeholder for future course event handling.
 	}
 }

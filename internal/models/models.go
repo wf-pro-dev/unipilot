@@ -71,16 +71,3 @@ type Device struct {
 	LastSync   *time.Time
 	SyncToken  string
 }
-
-// SyncLog tracks changes for synchronization
-type SyncLog struct {
-	gorm.Model
-	UserID        uint      `gorm:"not null"`
-	User          user.User `gorm:"foreignKey:UserID;references:ID"`
-	DeviceID      uint      `gorm:"not null"`
-	Action        string    `gorm:"not null"` // create, update, delete
-	TableName     string    `gorm:"not null"`
-	RecordID      uint      `gorm:"not null"`
-	SyncTimestamp time.Time `gorm:"default:CURRENT_TIMESTAMP"`
-	Synced        bool      `gorm:"default:false"`
-}

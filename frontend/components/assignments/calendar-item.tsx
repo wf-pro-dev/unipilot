@@ -4,7 +4,7 @@ import { useDrag } from "react-dnd"
 import { Card, CardContent } from "@/components/ui/card"
 import { assignment } from "@/wailsjs/go/models"
 import { parseDeadline } from "@/lib/date-utils"
-import { StatusTag } from "@/components/assignments/utils/status-tag"
+import { StatusTag } from "@/components/assignments/tags/status-tag"
 import { format } from "date-fns"
 
 interface CalendarItemProps {
@@ -29,7 +29,7 @@ export function CalendarItem({ assignment, onEdit, onAssignmentClick }: Calendar
 
   return (
     <div ref={drag} className={`cursor-move ${isDragging ? "opacity-50" : ""}`} onClick={() => onAssignmentClick(assignment)}>
-      <Card className="glass-dark border-0 hover:glass-hover transition-all duration-300 mb-2">
+      <Card className="glass-dark border-0 hover:glass-hover transition-all duration-300">
         <CardContent className="p-3">
           <div className="flex flex-col space-y-2">
 
@@ -46,7 +46,9 @@ export function CalendarItem({ assignment, onEdit, onAssignmentClick }: Calendar
               {format(deadline, "h:mm a")}
             </span>
 
-            <StatusTag assignment={assignment} onEdit={onEdit} />
+            <div className="mx-auto">
+              <StatusTag assignment={assignment} onEdit={onEdit} />
+            </div>
 
           </div>
         </CardContent>

@@ -176,22 +176,6 @@ export function useDeleteCourse() {
 
 // Derived data hooks for specific views
 
-export function useActiveCourses() {
-  const { data: courses, ...rest } = useCourses()
-  
-  const activeCourses = courses?.filter(course => {
-    const now = new Date()
-    const startDate = new Date(course.StartDate)
-    const endDate = new Date(course.EndDate)
-    return startDate <= now && endDate >= now
-  }) || []
-  
-  return {
-    data: activeCourses,
-    ...rest
-  }
-}
-
 export function useUpcomingCourses() {
   const { data: courses, ...rest } = useCourses()
   

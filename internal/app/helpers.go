@@ -104,7 +104,7 @@ func (h *DatabaseHelper) DeleteCourse(course *course.LocalCourse) error {
 // GetNotes returns all notes for the current user
 func (h *DatabaseHelper) GetNotes() ([]note.LocalNote, error) {
 	var LocalNote []note.LocalNote
-	err := h.db.Find(&LocalNote).Error
+	err := h.db.Find(&LocalNote).Order("created_at DESC").Error
 	return LocalNote, err
 }
 

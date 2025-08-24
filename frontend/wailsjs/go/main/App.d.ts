@@ -45,6 +45,8 @@ export function GetNetworkStatus():Promise<Record<string, any>>;
 
 export function GetNotes():Promise<Array<note.LocalNote>>;
 
+export function GetNotificationDaemonStatus():Promise<Record<string, any>>;
+
 export function GetRemoteDocumentMetadata(arg1:number):Promise<Array<Record<string, any>>>;
 
 export function GetRemoteUsers():Promise<Array<user.User>>;
@@ -61,7 +63,13 @@ export function GetUserStorageInfo():Promise<document.StorageInfo>;
 
 export function Greet(arg1:string):Promise<string>;
 
+export function InstallNotificationDaemon():Promise<void>;
+
 export function IsAuthenticated():Promise<user.User>;
+
+export function IsNotificationDaemonInstalled():Promise<boolean>;
+
+export function IsNotificationDaemonRunning():Promise<boolean>;
 
 export function Login(arg1:string,arg2:string):Promise<user.User>;
 
@@ -69,13 +77,21 @@ export function Logout():Promise<void>;
 
 export function OpenDocument(arg1:number):Promise<void>;
 
+export function RebuildNotificationDaemon():Promise<void>;
+
 export function ReconnectSSE():Promise<void>;
 
 export function Register(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<user.User>;
 
 export function SaveDocumentAs(arg1:number):Promise<void>;
 
+export function StartNotificationDaemon():Promise<void>;
+
+export function StopNotificationDaemon():Promise<void>;
+
 export function Sync():Promise<void>;
+
+export function UninstallNotificationDaemon():Promise<void>;
 
 export function UpdateAssignment(arg1:assignment.LocalAssignment,arg2:string,arg3:string):Promise<void>;
 

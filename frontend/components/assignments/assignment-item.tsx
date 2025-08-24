@@ -1,18 +1,16 @@
 "use client"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Card, CardContent } from "@/components/ui/card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { Clock, MoreVertical, Edit, Trash2, Flag, BookOpen } from "lucide-react"
+import { Clock, MoreVertical, Edit, Trash2, Flag } from "lucide-react"
 import { assignment } from "@/wailsjs/go/models"
-import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
+import { parseDeadline, isOverdue, getDueDescription } from "@/lib/date-utils"
 import { useState } from "react"
-import { StatusTag } from "./utils/status-tag"
-import { CourseTag } from "./utils/course-tag"
-import { TypeTag } from "./utils/type-tag"
-import { AssignmentEditDialog } from "./assignment-edit-dialog"
+import { StatusTag } from "./tags/status-tag"
+import { CourseTag } from "./tags/course-tag"
+import { TypeTag } from "./tags/type-tag"
 
 interface AssignmentItemProps {
   assignment: assignment.LocalAssignment
@@ -20,6 +18,7 @@ interface AssignmentItemProps {
   onToggleComplete: (assignment: assignment.LocalAssignment) => void
   onAssignmentClick?: (assignment: assignment.LocalAssignment) => void
   onDelete: (assignment: assignment.LocalAssignment) => void
+  onOpenEdit: (assignment: assignment.LocalAssignment) => void
   disabled?: boolean
 }
 
@@ -40,14 +39,13 @@ export function AssignmentItem({
   onDelete,
   onToggleComplete,
   onAssignmentClick,
+  onOpenEdit,
   disabled = false
 }: AssignmentItemProps) {
   const [checked, setChecked] = useState(assignment.StatusName === "Done")
-  const [open, setOpen] = useState(false)
 
   // Parse deadline with timezone awareness
   const deadline = parseDeadline(assignment.Deadline)
-  const daysUntilDue = calculateDaysDifference(deadline)
   const isOverdueStatus = isOverdue(deadline, assignment.StatusName)
 
   function handleToggleComplete() {
@@ -64,7 +62,7 @@ export function AssignmentItem({
 
   const handleEditOpen = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation()
-    setOpen(true)
+    onOpenEdit(assignment)
   }
 
   return (
@@ -159,12 +157,7 @@ export function AssignmentItem({
         </CardContent>
 
       </Card>
-      <AssignmentEditDialog
-        open={open}
-        setOpen={setOpen}
-        assignment={assignment}
-        onEdit={onEdit}
-      />
+      
     </div>
   )
 }

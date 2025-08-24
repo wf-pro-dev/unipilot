@@ -4,11 +4,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, BookOpen, ClipboardList } from "lucide-react"
 import Link from "next/link"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuthContext } from "../provider/auth-provider"
 import { useMemo } from "react"
 
 export function WelcomeSection() {
-  const { user } = useAuth()
+  const { user } = useAuthContext()
   const currentTime = useMemo(() => new Date(), [])
   const hour = currentTime.getHours()
 
@@ -21,12 +21,7 @@ export function WelcomeSection() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-          {greeting}, {user?.Username} 👋
-        </h1>
-        <p className="text-gray-400 mt-2">Ready to tackle your assignments today?</p>
-      </div>
+      
 
       <Card className="glass border-0">
         <CardContent className="p-6">

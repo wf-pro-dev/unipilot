@@ -26,6 +26,7 @@ type Note struct {
 
 func (n *Note) ToMap() map[string]string {
 	return map[string]string{
+		"id":          strconv.Itoa(int(n.ID)),
 		"local_id":    strconv.Itoa(int(n.LocalID)),
 		"user_id":     strconv.Itoa(int(n.UserID)),
 		"title":       n.Title,
@@ -50,8 +51,8 @@ func Get_Note_byID(id, user_id uint, db *gorm.DB) (*Note, error) {
 }
 
 func Get_Note_byLocalID(id, user_id uint, db *gorm.DB) (*Note, error) {
-	
-	note:= &Note{}
+
+	note := &Note{}
 	err := db.Preload("User").
 		Preload("Course", "user_id = ?", user_id).
 		Where("local_id = ? AND user_id = ?", id, user_id).
@@ -62,4 +63,3 @@ func Get_Note_byLocalID(id, user_id uint, db *gorm.DB) (*Note, error) {
 	}
 	return note, nil
 }
-

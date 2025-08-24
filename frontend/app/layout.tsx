@@ -26,8 +26,9 @@ export default function RootLayout({
               <AuthProvider>
                 <Navbar />
                 <main>{children}</main>
-                <Toaster />
+
               </AuthProvider>
+              <Toaster position="top-center" />
             </NetworkProvider>
           </ThemeProvider>
         </QueryProvider>

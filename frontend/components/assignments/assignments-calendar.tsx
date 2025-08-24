@@ -130,15 +130,7 @@ export function AssignmentsCalendar({
                   className="text-gray-400 hover:text-white"
                 >
                   <ChevronRight className="h-4 w-4" />
-                </Button>
-                <Button
-                  onClick={onAddAssignment}
-                  className="bg-blue-600 hover:bg-blue-700"
-                  disabled={isLoading}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add
-                </Button>
+                </Button>                
               </div>
             </div>
           </CardHeader>

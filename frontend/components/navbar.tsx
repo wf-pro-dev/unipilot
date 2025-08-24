@@ -15,6 +15,7 @@ import {
 import { Home, BookOpen, ClipboardList, FileText, Users, Settings, LogOut, User } from "lucide-react"
 import { useAuthContext } from "./provider/auth-provider"
 import { OfflineIndicator } from "./ui/offline-indicator"
+import { useLogout } from "@/hooks/use-auth"
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
@@ -26,14 +27,14 @@ const navItems = [
 
 export function Navbar() {
   const pathname = usePathname()
-  const { logout, user } = useAuthContext()
+  const { user } = useAuthContext()
+  const { mutate: logout } = useLogout()
 
-  const handleLogout = async () => {
-    const result = await logout()
-    if (result.success) {
-      window.location.reload()
-    }
+  const handleLogout = () => {
+    logout()
+    window.location.reload()
   }
+
 
   return (
     <nav className="fixed top-0 right-0 left-0 z-50 border-0 border-b backdrop-blur-xl glass border-white/10">

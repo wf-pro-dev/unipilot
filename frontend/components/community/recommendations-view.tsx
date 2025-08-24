@@ -2,17 +2,15 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { UserDetailsModal } from "./user-details-modal"
-import { BookOpen, MapPin, Calendar, UserPlus, MessageCircle, GraduationCap } from "lucide-react"
+import { BookOpen, UserPlus } from "lucide-react"
 import { useState } from "react"
 import { useNetworkStatus } from "@/hooks/use-network-status"
 import { UserItem } from "./user-item"
 import { OfflineBanner } from "../ui/offline-banner"
 import { user } from "@/wailsjs/go/models"
 import { useFollowRecommendations, useUsers } from "@/hooks/use-users"
-import { useAuth } from "@/hooks/use-auth"
+import { useAuthContext } from "../provider/auth-provider"
 
 
 export function RecommendationsView() {
@@ -22,7 +20,7 @@ export function RecommendationsView() {
   const {isOnline} = useNetworkStatus()
   
   const {data: users} = useUsers()
-  const {user} = useAuth()
+  const {user} = useAuthContext()
   const currentUser = users?.find(u => u.ID === user?.ID)
   const currentUserCourses = currentUser?.CoursesCode || []
   const {data: recommendedUsers} = useFollowRecommendations()
@@ -64,7 +62,7 @@ export function RecommendationsView() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {recommendedUsers?.map((user) => (
-              <UserItem key={user.ID} userID={user.ID} setSelectedUser={setSelectedUser} setShowUserModal={setIsModalOpen} />
+              <UserItem key={user.ID} userID={user.ID} />
             ))}
           </div>
         </CardContent>

@@ -1,16 +1,24 @@
 "use client"
 
-import { createContext, useContext, ReactNode } from "react"
-import { useAuth } from "@/hooks/use-auth"
+import { createContext, useContext, ReactNode, useEffect } from "react"
+import { useCurrentUser } from "@/hooks/use-auth"
 import AuthPage from "../auth/page"
-import { user } from "@/wailsjs/go/models"
-import { LogInfo } from "@/wailsjs/runtime/runtime"
+import { assignment, course, note, user } from "@/wailsjs/go/models"
+import { useFollowers, useFollowing } from "@/hooks/use-follows"
+import { useUsers } from "@/hooks/use-users"
+import { useCourses } from "@/hooks/use-courses"
+import { useAssignments } from "@/hooks/use-assignments"
+import { useNotes } from "@/hooks/use-notes"
 
 
 interface AuthContextType {
-  user: user.User | null
-  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>
-  logout: () => Promise<{ success: boolean; error?: string }>
+  user: user.User | undefined
+  followers: user.User[] | undefined
+  following: user.User[] | undefined
+  users: user.User[] | undefined
+  courses: course.LocalCourse[] | undefined
+  assignments: assignment.LocalAssignment[] | undefined
+  notes: note.LocalNote[] | undefined
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -28,16 +36,35 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
+  const { data: user, isLoading } = useCurrentUser()
+  const { data: followers, refetch: refetchFollowers } = useFollowers(user?.ID as number)
+  const { data: following, refetch: refetchFollowing } = useFollowing(user?.ID as number)
+  const { data: users, refetch: refetchUsers } = useUsers()
+  const { data: courses, refetch: refetchCourses } = useCourses()
+  const { data: assignments, refetch: refetchAssignments } = useAssignments()
+  const { data: notes, refetch: refetchNotes } = useNotes()
 
-  const auth = useAuth()
+  useEffect(() => {
+    if (user) {
+        refetchFollowers()
+        refetchFollowing()
+        refetchUsers()
+        refetchCourses()
+        refetchAssignments()
+        refetchNotes()
+    }
+  }, [user])
+  
+  if (isLoading) {
+    return <div>Loading...</div> // Or a proper loading component
+  }
 
-  if (auth.user === null) {
+  if (!user) {
     return <AuthPage />
   }
 
-  // Show the app if authenticated
   return (
-    <AuthContext.Provider value={auth}>
+    <AuthContext.Provider value={{ user, followers, following, users, courses, assignments, notes }}>
       {children}
     </AuthContext.Provider>
   )

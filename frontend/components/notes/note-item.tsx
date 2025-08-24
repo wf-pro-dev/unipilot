@@ -129,7 +129,7 @@ export function NoteItem({
 
                 {/* Keywords */}
 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 line-clamp-1 ">
                   <Tag className="w-3 h-3 text-gray-400" />
                   {keywords.length > 0 ? (
                     <div className="flex flex-wrap gap-1">

@@ -42,11 +42,13 @@ const statuses = [
 interface AssignmentEditDialogProps {
   open: boolean
   setOpen: (open: boolean) => void
-  assignment: assignment.LocalAssignment
+  assignment: assignment.LocalAssignment | null
   onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
 }
 
 export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: AssignmentEditDialogProps) {
+  if (!assignment) { return null }
+
   const [deadline, setDeadline] = useState<Date>(new Date(assignment.Deadline) || new Date())
   const [formData, setFormData] = useState({
     title: assignment.Title || "",
@@ -56,6 +58,7 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
     status_name: assignment.StatusName || "",
     priority: assignment.Priority || "",
     todo: assignment.Todo || "",
+    link: assignment.Link || "",
   })
 
   const key_to_column = {
@@ -66,6 +69,7 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
     status_name: "StatusName",
     priority: "Priority",
     todo: "Todo",
+    link: "Link",
   }
 
 
@@ -218,6 +222,19 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="link" className="text-gray-300">
+              Link
+            </Label>
+            <Input
+              id="link"
+              value={formData.link}
+              onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+              placeholder={assignment.Link || "https://www.google.com"}
+              className="bg-gray-800/50 border-gray-600"
+            />
           </div>
 
           <div>

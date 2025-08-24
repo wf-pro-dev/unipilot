@@ -56,54 +56,56 @@ function CourseItem({ course,
             >
                 <CardContent className="p-4">
                     <div className="flex justify-between items-start mb-3">
-                        <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-3 w-full">
+
                             <div className={`w-4 h-4 rounded-full ${course.Color}`} />
-                            <div>
-                                <h3 className="font-semibold text-white">{course.Code}</h3>
+                           
+                            <div className="flex flex-col w-full">
+                                <div className="flex items-center justify-between">
+                                    <h3 className="font-semibold text-white">{course.Code}</h3>
+                                    <div className="flex items-center">
+                                        <Badge variant="outline" className="text-xs border-gray-600">
+                                            {course.Credits} credits
+                                        </Badge>
+
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="p-0 w-8 h-8 text-gray-400 hover:text-white"
+                                                    disabled={disabled}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    <MoreVertical className="w-4 h-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="border-gray-700 glass">
+                                                <DropdownMenuItem
+                                                    onClick={handleEditOpen}
+                                                    disabled={disabled}
+                                                >
+                                                    <Edit className="mr-2 w-4 h-4" />
+                                                    Edit
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        onDelete(course)
+                                                    }}
+                                                    disabled={disabled}
+                                                    className="text-red-400"
+                                                >
+                                                    <Trash2 className="mr-2 w-4 h-4" />
+                                                    Delete
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                </div>
+
                                 <p className="text-sm text-gray-400 line-clamp-1">{course.Name}</p>
                             </div>
-                        </div>
-                        <div className="flex items-center">
-                            <Badge variant="outline" className="text-xs border-gray-600">
-                                {course.Credits} credits
-                            </Badge>
-
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="p-0 w-8 h-8 text-gray-400 hover:text-white"
-                                        disabled={disabled}
-                                        onClick={(e) => e.stopPropagation()}
-                                    >
-                                        <MoreVertical className="w-4 h-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="border-gray-700 glass">
-                                    <DropdownMenuItem
-                                        onClick={handleEditOpen}
-                                        disabled={disabled}
-                                    >
-                                        <Edit className="mr-2 w-4 h-4" />
-                                        Edit
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            onDelete(course)
-                                        }}
-                                        disabled={disabled}
-                                        className="text-red-400"
-                                    >
-                                        <Trash2 className="mr-2 w-4 h-4" />
-                                        Delete
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-
-
-
                         </div>
 
                     </div>

@@ -24,12 +24,11 @@ import {
   X,
 } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
-import { useAuth } from "@/hooks/use-auth"
+import { useCurrentUser, useUpdateUser } from "@/hooks/use-auth"
 import { useAssignments, useCompletedAssignments } from "@/hooks/use-assignments"
 import { useCourses, useDeleteCourse } from "@/hooks/use-courses"
 import { CourseItem } from "@/components/courses/course-item"
 import { CourseDetailsModal } from "@/components/courses/course-details-modal"
-import { useFollowers, useFollowing } from "@/hooks/use-follows"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { differenceInDays, format, isSameDay } from "date-fns"
 import { useUpdateCourse } from "@/hooks/use-courses"
@@ -38,6 +37,7 @@ import { CourseDeleteDialog } from "../courses/course-delete-dialog"
 import useEmblaCarousel from "embla-carousel-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
+import { useAuthContext } from "@/components/provider/auth-provider"
 
 
 
@@ -99,7 +99,7 @@ export default function ProfilePage() {
   const [selectedDeleteCourseId, setSelectedDeleteCourseId] = useState<number | null>(null)
   const [selectedIndex, setSelectedIndex] = useState(0)
 
-  const { user, setAuthState, useUpdateUser } = useAuth()
+  const { data: user } = useCurrentUser()
   const [editedData, setEditedData] = useState({
     Email: user?.Email || "",
     Username: user?.Username || "",
@@ -112,8 +112,8 @@ export default function ProfilePage() {
   const { data: assignments } = useAssignments()
   const { data: completedAssignments } = useCompletedAssignments()
   const { data: courses } = useCourses()
-  const { data: followers } = useFollowers(user?.ID as number)
-  const { data: following } = useFollowing(user?.ID as number)
+  const { followers, following } = useAuthContext()
+  const { mutate: updateUser } = useUpdateUser()
 
   const updateMutation = useUpdateCourse()
   const deleteMutation = useDeleteCourse()
@@ -223,7 +223,7 @@ export default function ProfilePage() {
     }
 
     var isChanged = false
-    var newUser: user.User | null = null
+
 
     // Process updates sequentially to avoid race conditions
     for (const [key, value] of Object.entries(editedData)) {
@@ -233,21 +233,15 @@ export default function ProfilePage() {
         LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
         
         // Wait for each update to complete before proceeding
-        newUser = await useUpdateUser(column, value)
+        await updateUser({ column, key, value })
         isChanged = true
-      }
-      else {
+      } else {  
         const message = `No changes to ${column} value: ${value}`
         LogInfo(message)
       }
     }
 
-    if (isChanged && newUser) {
-      setAuthState({
-        user: newUser,
-        followers: followers || [],
-        following: following || [],
-      })
+    if (isChanged) {
       toast.success("Profile updated successfully")
     } else {
       toast.info("No changes to profile")

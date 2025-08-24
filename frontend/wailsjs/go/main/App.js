@@ -78,6 +78,10 @@ export function GetNotes() {
   return window['go']['main']['App']['GetNotes']();
 }
 
+export function GetNotificationDaemonStatus() {
+  return window['go']['main']['App']['GetNotificationDaemonStatus']();
+}
+
 export function GetRemoteDocumentMetadata(arg1) {
   return window['go']['main']['App']['GetRemoteDocumentMetadata'](arg1);
 }
@@ -110,8 +114,20 @@ export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
 
+export function InstallNotificationDaemon() {
+  return window['go']['main']['App']['InstallNotificationDaemon']();
+}
+
 export function IsAuthenticated() {
   return window['go']['main']['App']['IsAuthenticated']();
+}
+
+export function IsNotificationDaemonInstalled() {
+  return window['go']['main']['App']['IsNotificationDaemonInstalled']();
+}
+
+export function IsNotificationDaemonRunning() {
+  return window['go']['main']['App']['IsNotificationDaemonRunning']();
 }
 
 export function Login(arg1, arg2) {
@@ -126,6 +142,10 @@ export function OpenDocument(arg1) {
   return window['go']['main']['App']['OpenDocument'](arg1);
 }
 
+export function RebuildNotificationDaemon() {
+  return window['go']['main']['App']['RebuildNotificationDaemon']();
+}
+
 export function ReconnectSSE() {
   return window['go']['main']['App']['ReconnectSSE']();
 }
@@ -138,8 +158,20 @@ export function SaveDocumentAs(arg1) {
   return window['go']['main']['App']['SaveDocumentAs'](arg1);
 }
 
+export function StartNotificationDaemon() {
+  return window['go']['main']['App']['StartNotificationDaemon']();
+}
+
+export function StopNotificationDaemon() {
+  return window['go']['main']['App']['StopNotificationDaemon']();
+}
+
 export function Sync() {
   return window['go']['main']['App']['Sync']();
+}
+
+export function UninstallNotificationDaemon() {
+  return window['go']['main']['App']['UninstallNotificationDaemon']();
 }
 
 export function UpdateAssignment(arg1, arg2, arg3) {

@@ -4,11 +4,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ExploreView } from "@/components/community/explore-view"
 import { FollowersView } from "@/components/community/followers-view"
 import { FollowingView } from "@/components/community/following-view"
-import { RecommendationsView } from "@/components/community/recommendations-view"
-import { Search, Users, UserPlus } from "lucide-react"
+import { Search, Users } from "lucide-react"
+import { useAuthContext } from "@/components/provider/auth-provider"
 
 
 export default function CommunityPage() {
+ 
+  const { followers, following, users } = useAuthContext()
+
   return (
     <div className="page">
       {/* Floating background elements */}
@@ -40,15 +43,15 @@ export default function CommunityPage() {
           </TabsList>
 
           <TabsContent value="explore">
-            <ExploreView />
+            <ExploreView users={users} />
           </TabsContent>
 
           <TabsContent value="followers">
-            <FollowersView />
+            <FollowersView followers={followers} />
           </TabsContent>
 
           <TabsContent value="following">
-            <FollowingView />
+            <FollowingView following={following} />
           </TabsContent>
 
         </Tabs>

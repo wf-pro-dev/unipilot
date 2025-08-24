@@ -22,6 +22,7 @@ import (
 	"unipilot/internal/models/note"
 	"unipilot/internal/models/user"
 	"unipilot/internal/network"
+	"unipilot/internal/services/daemon"
 	"unipilot/internal/services/fileops"
 	"unipilot/internal/sse"
 	"unipilot/internal/storage"
@@ -32,10 +33,11 @@ import (
 
 // App struct
 type App struct {
-	ctx    context.Context
-	Auth   *auth.Auth
-	Events *events.Events
-	DB     *app.DatabaseHelper
+	ctx       context.Context
+	Auth      *auth.Auth
+	Events    *events.Events
+	DB        *app.DatabaseHelper
+	DaemonMgr *daemon.Manager
 }
 
 // NewApp creates a new App application struct
@@ -59,24 +61,70 @@ func (a *App) Startup(ctx context.Context) {
 		a.DB = dbHelper
 	}
 
+	// Initialize daemon manager
+	if a.DB != nil {
+		userID := a.DB.GetCurrentUserID()
+		if userID > 0 {
+			daemonMgr, err := daemon.NewManager(userID, ctx) // Pass the context
+			if err != nil {
+				log.Printf("Warning: Could not initialize daemon manager: %v", err)
+			} else {
+				a.DaemonMgr = daemonMgr
+
+				// Auto-install daemon if not already installed
+				if !daemonMgr.IsDaemonInstalled() {
+					log.Printf("[App] Installing notification daemon...")
+					if err := daemonMgr.InstallDaemon(); err != nil {
+						log.Printf("Warning: Could not install notification daemon: %v", err)
+						// Show user-friendly error message
+						runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
+							Type:    runtime.ErrorDialog,
+							Title:   "Notification Setup",
+							Message: "Failed to set up background notifications. Notifications will only work when the app is running.",
+						})
+					} else {
+						log.Printf("[App] Notification daemon installed successfully")
+					}
+				} else {
+					log.Printf("[App] Notification daemon already installed")
+				}
+
+				// Start daemon if not running
+				if !daemonMgr.IsDaemonRunning() {
+					log.Printf("[App] Starting notification daemon...")
+					if err := daemonMgr.StartDaemon(); err != nil {
+						log.Printf("Warning: Could not start notification daemon: %v", err)
+					} else {
+						log.Printf("[App] Notification daemon started successfully")
+					}
+				} else {
+					log.Printf("[App] Notification daemon already running")
+				}
+			}
+		}
+	}
+
 	// Check if user is already authenticated and initialize HTTP client + SSE if needed
-	if _, err := a.Auth.IsAuthenticated(); err == nil && network.IsOnline() {
+	if _, err := a.Auth.IsAuthenticated(); err == nil {
 		log.Println("[App] User already authenticated, initializing HTTP client and SSE connection...")
 		if err := a.initializeAuthenticatedClient(); err != nil {
 			log.Printf("[App] Failed to initialize authenticated client: %v", err)
 		} else {
-			a.startSSEConnection()
+			if network.IsOnline() {
+				a.startSSEConnection()
 
-			// Start background sync manager
-			syncManager := sync.NewSyncManager(a.DB.GetDB())
-			go syncManager.BackgroundSync()
+				// Start background sync manager
+				syncManager := sync.NewSyncManager(a.DB.GetDB())
+				go syncManager.BackgroundSync()
 
-			// Process any pending syncs on startup
-			go func() {
-				if err := syncManager.ProcessPendingSyncs(); err != nil {
-					log.Printf("[App] Startup sync error: %v", err)
-				}
-			}()
+				// Process any pending syncs on startup
+				go func() {
+					if err := syncManager.ProcessPendingSyncs(); err != nil {
+						log.Printf("[App] Startup sync error: %v", err)
+					}
+				}()
+			}
+
 		}
 	}
 }
@@ -358,7 +406,7 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 		fmt.Println("Error creating remote note:", err)
 		return err
 	}
-
+	localNote.RemoteID = responseNote["id"]
 	localNote.Keywords = responseNote["keywords"]
 	localNote.Content = responseNote["content"]
 
@@ -1624,4 +1672,79 @@ func (a *App) GetNetworkStatus() map[string]interface{} {
 		"online":    isOnline,
 		"timestamp": time.Now().Unix(),
 	}
+}
+
+// Add daemon management methods for the UI:
+
+// InstallNotificationDaemon installs the notification daemon
+func (a *App) InstallNotificationDaemon() error {
+	if a.DaemonMgr == nil {
+		return fmt.Errorf("daemon manager not initialized")
+	}
+	return a.DaemonMgr.InstallDaemon()
+}
+
+// UninstallNotificationDaemon uninstalls the notification daemon
+func (a *App) UninstallNotificationDaemon() error {
+	if a.DaemonMgr == nil {
+		return fmt.Errorf("daemon manager not initialized")
+	}
+	return a.DaemonMgr.UninstallDaemon()
+}
+
+// IsNotificationDaemonInstalled checks if the daemon is installed
+func (a *App) IsNotificationDaemonInstalled() bool {
+	if a.DaemonMgr == nil {
+		return false
+	}
+	return a.DaemonMgr.IsDaemonInstalled()
+}
+
+// IsNotificationDaemonRunning checks if the daemon is running
+func (a *App) IsNotificationDaemonRunning() bool {
+	if a.DaemonMgr == nil {
+		return false
+	}
+	return a.DaemonMgr.IsDaemonRunning()
+}
+
+// StartNotificationDaemon starts the daemon
+func (a *App) StartNotificationDaemon() error {
+	if a.DaemonMgr == nil {
+		return fmt.Errorf("daemon manager not initialized")
+	}
+	return a.DaemonMgr.StartDaemon()
+}
+
+// StopNotificationDaemon stops the daemon
+func (a *App) StopNotificationDaemon() error {
+	if a.DaemonMgr == nil {
+		return fmt.Errorf("daemon manager not initialized")
+	}
+	return a.DaemonMgr.StopDaemon()
+}
+
+// GetNotificationDaemonStatus returns the daemon status
+func (a *App) GetNotificationDaemonStatus() map[string]interface{} {
+	if a.DaemonMgr == nil {
+		return map[string]interface{}{
+			"installed": false,
+			"running":   false,
+			"error":     "Daemon manager not initialized",
+		}
+	}
+
+	return map[string]interface{}{
+		"installed": a.DaemonMgr.IsDaemonInstalled(),
+		"running":   a.DaemonMgr.IsDaemonRunning(),
+		"error":     nil,
+	}
+}
+
+// Add method to rebuild daemon (for updates)
+func (a *App) RebuildNotificationDaemon() error {
+	if a.DaemonMgr == nil {
+		return fmt.Errorf("daemon manager not initialized")
+	}
+	return a.DaemonMgr.RebuildDaemon()
 }
