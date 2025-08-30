@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"unipilot/internal/models"
+
 	"gorm.io/gorm"
 )
 
@@ -175,21 +177,15 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type NotificationMessage struct {
-	Type    string      `json:"type"`    // "create", "update", "delete"
-	Entity  string      `json:"entity"`  // "assignment", "course"
-	ID      string      `json:"id"`      // Entity ID
-	Message string      `json:"message"` // Human-readable message
-	Data    interface{} `json:"data"`    // The actual data
-}
-
-func (s *SSEServer) SendNotification(userID uint, msgType, entity, id, message string, data interface{}) {
-	notification := NotificationMessage{
-		Type:    msgType,
-		Entity:  entity,
-		ID:      id,
-		Message: message,
-		Data:    data,
+func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity, entityID uint, title, subtitle, message, action string) {
+	notification := models.LocalNotification{
+		SenderID: senderID,
+		Entity:   entity,
+		EntityID: entityID,
+		Title:    title,
+		Subtitle: subtitle,
+		Action:   action,
+		Message:  message,
 	}
 
 	jsonData, err := json.Marshal(notification)
@@ -199,3 +195,4 @@ func (s *SSEServer) SendNotification(userID uint, msgType, entity, id, message s
 
 	s.SendToUser(userID, jsonData)
 }
+
