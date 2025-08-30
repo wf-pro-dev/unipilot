@@ -141,7 +141,7 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
                   <div className="flex items-center">
                     <div className={` h-2 w-2 rounded-full ${assignment.Course?.Color}`} />
                     <p className="line-clamp-1">
-                      {formData.course_code} - {formData.course_name}
+                      {formData.course_code}
                     </p>
                   </div>
                 </SelectTrigger>

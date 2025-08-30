@@ -21,8 +21,6 @@ export function DeleteDocument(arg1:number):Promise<void>;
 
 export function DeleteNote(arg1:note.LocalNote):Promise<void>;
 
-export function EnsureSSEConnection():Promise<void>;
-
 export function Follow(arg1:number):Promise<boolean>;
 
 export function GetAssignment(arg1:number):Promise<assignment.LocalAssignment>;
@@ -51,8 +49,6 @@ export function GetRemoteDocumentMetadata(arg1:number):Promise<Array<Record<stri
 
 export function GetRemoteUsers():Promise<Array<user.User>>;
 
-export function GetSSEConnectionStatus():Promise<Record<string, any>>;
-
 export function GetSubmissionDocuments(arg1:number):Promise<Array<document.LocalDocument>>;
 
 export function GetSupportDocuments(arg1:number):Promise<Array<document.LocalDocument>>;
@@ -60,8 +56,6 @@ export function GetSupportDocuments(arg1:number):Promise<Array<document.LocalDoc
 export function GetUser(arg1:number):Promise<user.User>;
 
 export function GetUserStorageInfo():Promise<document.StorageInfo>;
-
-export function Greet(arg1:string):Promise<string>;
 
 export function InstallNotificationDaemon():Promise<void>;
 
@@ -78,8 +72,6 @@ export function Logout():Promise<void>;
 export function OpenDocument(arg1:number):Promise<void>;
 
 export function RebuildNotificationDaemon():Promise<void>;
-
-export function ReconnectSSE():Promise<void>;
 
 export function Register(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<user.User>;
 

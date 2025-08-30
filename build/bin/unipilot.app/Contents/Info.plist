@@ -24,6 +24,24 @@
         <key>NSHumanReadableCopyright</key>
         <string>Copyright.........</string>
         
+        <key>CFBundleDocumentTypes</key>
+        <array>
+          
+          <dict>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+              <string></string>
+            </array>
+            <key>CFBundleTypeName</key>
+            <string></string>
+            <key>CFBundleTypeRole</key>
+            <string></string>
+            <key>CFBundleTypeIconFile</key>
+            <string>icon</string>
+          </dict>
+          
+        </array>
+        
         
     </dict>
 </plist>

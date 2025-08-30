@@ -20,7 +20,7 @@ export default function CommunityPage() {
 
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             Community
           </h1>
           <p className="text-gray-400 mt-2">Connect with fellow students and discover study partners</p>

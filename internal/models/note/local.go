@@ -17,5 +17,5 @@ type LocalNote struct {
 	Keywords   string `gorm:"type:text"`
 	Videos     string `gorm:"type:text"`
 
-	Course course.Course `gorm:"foreignKey:CourseCode;references:Code"`
+	Course course.LocalCourse `gorm:"foreignKey:CourseCode;references:Code"`
 }

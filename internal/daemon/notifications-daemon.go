@@ -6,7 +6,10 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"unipilot/internal/client"
 	"unipilot/internal/services/notifications"
+	"unipilot/internal/sse"
+	"unipilot/internal/storage"
 )
 
 func main() {
@@ -16,8 +19,9 @@ func main() {
 	)
 	flag.Parse()
 
-	if *userID == 0 {
-		log.Fatal("User ID is required")
+	user, err := storage.GetCurrentUser()
+	if err != nil {
+		log.Fatalf("Failed to get current user: %v", err)
 	}
 
 	// Setup logging if specified
@@ -36,12 +40,41 @@ func main() {
 		log.Fatalf("Failed to create scheduler: %v", err)
 	}
 
-	if err := scheduler.InitializeForDaemon(*userID); err != nil {
+	if err := scheduler.InitializeForDaemon(user); err != nil {
 		log.Fatalf("Failed to initialize scheduler: %v", err)
 	}
 
 	if err := scheduler.StartScheduler(); err != nil {
 		log.Fatalf("Failed to start scheduler: %v", err)
+	}
+
+	// Create and start event handler
+	eventHandler, err := notifications.NewEventHandler(*userID)
+	if err != nil {
+		log.Fatalf("Failed to create event handler: %v", err)
+	}
+
+	// Try to get authenticated HTTP client from stored credentials
+	httpClient, err := client.NewClientWithCookies()
+	if err != nil {
+		log.Printf("Warning: Could not create authenticated HTTP client: %v", err)
+		log.Printf("Event handler will not receive real-time notifications")
+	} else {
+		// Create SSE client for the daemon with authentication
+		sseClient := sse.NewSSE()
+
+		// Start SSE connection in background with authenticated client
+		go func() {
+			log.Printf("[Daemon] Starting authenticated SSE connection for event handler")
+			sseClient.Connect(httpClient)
+		}()
+
+		// Start event handler with the SSE client
+		if err := eventHandler.StartEventHandler(sseClient); err != nil {
+			log.Printf("Warning: Failed to start event handler: %v", err)
+		} else {
+			log.Printf("Event handler started for user %d", *userID)
+		}
 	}
 
 	log.Printf("Notification daemon started for user %d", *userID)
@@ -52,5 +85,8 @@ func main() {
 	<-sigChan
 
 	log.Println("Shutting down notification daemon...")
+
+	// Stop both scheduler and event handler
 	scheduler.StopScheduler()
+	eventHandler.StopEventHandler()
 }

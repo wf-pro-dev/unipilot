@@ -82,7 +82,7 @@ export default function NotesPage() {
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
               Study Notes
             </h1>
             <p className="mt-2 text-gray-400">Generate AI-powered study notes for your courses</p>

@@ -413,7 +413,7 @@ export namespace note {
 	    Content: string;
 	    Keywords: string;
 	    Videos: string;
-	    Course: course.Course;
+	    Course: course.LocalCourse;
 	
 	    static createFrom(source: any = {}) {
 	        return new LocalNote(source);
@@ -432,7 +432,7 @@ export namespace note {
 	        this.Content = source["Content"];
 	        this.Keywords = source["Keywords"];
 	        this.Videos = source["Videos"];
-	        this.Course = this.convertValues(source["Course"], course.Course);
+	        this.Course = this.convertValues(source["Course"], course.LocalCourse);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

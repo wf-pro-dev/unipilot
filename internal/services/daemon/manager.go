@@ -302,7 +302,7 @@ func (m *Manager) createPlistFile() error {
         <string>-user</string>
         <string>%d</string>
         <string>-log</string>
-        <string>%s/Library/Logs/unipilot/unipilot-notifications.log</string>
+        <string>%s/Library/Logs/unipilot/unipilot-notification.log</string>
     </array>
     
     <key>RunAtLoad</key>
@@ -312,10 +312,10 @@ func (m *Manager) createPlistFile() error {
     <true/>
     
     <key>StandardOutPath</key>
-    <string>%s/Library/Logs/unipilot/unipilot-notifications.log</string>
+    <string>%s/Library/Logs/unipilot/unipilot-notification.log</string>
     
     <key>StandardErrorPath</key>
-    <string>%s/Library/Logs/unipilot/unipilot-notifications-error.log</string>
+    <string>%s/Library/Logs/unipilot/unipilot-notification-error.log</string>
     
     <key>ProcessType</key>
     <string>Background</string>

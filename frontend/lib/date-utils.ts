@@ -1,7 +1,7 @@
 /**
  * Utility functions for handling timezone-aware date parsing
  */
-import { format, differenceInDays, isTomorrow, isToday, isBefore, isAfter, addDays, differenceInMinutes } from "date-fns"
+import { format, differenceInDays, isTomorrow, isToday, isBefore, isAfter, addDays, differenceInMinutes, weeksToDays, isWithinInterval } from "date-fns"
 import { course } from '@/wailsjs/go/models'
 /**
  * Parses a deadline value with timezone awareness
@@ -110,10 +110,12 @@ export function getDueDescription(deadline: Date, status: string): string {
 
 export interface ParsedSchedule {
   days: number[]
-  startTime: number // 24-hour format
+  startHour: number // 24-hour format
   startMinute: number
-  endTime: number
+  nextClassStart: Date
+  endHour: number
   endMinute: number
+  nextClassEnd: Date
   startTimeString: string
   endTimeString: string
 }
@@ -167,10 +169,27 @@ export function parseSchedule(schedule: string): ParsedSchedule | null {
       }
     }
 
+    // Calculate the start and end dates for the next class
+    const now = new Date()
+    const dayIndex = now.getDay()
+    var next_date = now
+
+    var valid_days = days.filter(day => day >= dayIndex)
+    if (valid_days.length > 0) {
+      next_date = addDays(now, Math.max(...valid_days) - dayIndex)
+    } else {
+      next_date = addDays(now,  (7 - dayIndex) + Math.min(...days))
+    }
+    
+    const nextClassStart = new Date(next_date.getFullYear(), next_date.getMonth(), next_date.getDate(), start24, startMinute, 0, 0)
+    const nextClassEnd = new Date(next_date.getFullYear(), next_date.getMonth(), next_date.getDate(), end24, endMinute, 0, 0)
+    console.log(schedule, nextClassStart, nextClassEnd, next_date.getDate())
     return {
       days,
-      startTime: start24,
-      endTime: end24,
+      startHour: start24,
+      endHour: end24,
+      nextClassStart: nextClassStart,
+      nextClassEnd: nextClassEnd,
       startMinute: startMinute,
       endMinute: endMinute,
       startTimeString: `${startHour}:${startMin} ${startPeriod}`,
@@ -188,60 +207,48 @@ export function parseSchedule(schedule: string): ParsedSchedule | null {
  * @returns The next course to be taken, or null if no courses are found
  */
 
-export function getNextCourse(courses: course.LocalCourse[]): { course: course.LocalCourse | null, isOn: boolean, until:number | null } {
+export function getNextCourse(courses: course.LocalCourse[]): { course: course.LocalCourse | null, isOn: boolean, until: number | null } {
   const now = new Date()
-  const dayIndex = now.getDay()
-  var nextCourse = null
   var isOn = false
   var until = null
 
-  for (var i = 0; i < 7; i++) {
-    const day = (dayIndex + i) % 7
-    var today_clases = []
-    for (const course of courses) {
+
+  var next_course = courses
+    // Filter out classes that are already over
+    .filter(course => {
+
       const schedule = parseSchedule(course.Schedule)
-      if (schedule?.days.includes(day) && ( i != 0 || ( schedule?.endTime >= now.getHours() && schedule?.endMinute >= now.getMinutes() ) )) {
-        console.log(schedule?.days.includes(day),i != 0, schedule?.endTime >= now.getHours(), schedule?.endMinute >= now.getMinutes())
-        today_clases.push(course)
-      }
-    }
 
-
-    if (today_clases.length > 0) {
-
-      nextCourse = today_clases.sort((a, b) => {
-        const scheduleA = parseSchedule(a.Schedule)
-        const scheduleB = parseSchedule(b.Schedule)
-        return (scheduleA?.startTime || 0) - (scheduleB?.startTime || 0)
-      })[0]
-
-    }
-
-    if (nextCourse) {
-      const schedule = parseSchedule(nextCourse.Schedule)
       if (schedule) {
-        if (schedule?.startTime && schedule?.endTime && schedule?.startTime <= now.getHours() && schedule?.endTime >= now.getHours()) {
-          isOn = IsOn(schedule) && day == dayIndex
-        }
-      // Calculate the duration until the next course
-        const next_class_date = new Date(now.getFullYear(), now.getMonth(), addDays(now, i).getDate(), schedule?.startTime, schedule?.startMinute)
-        until = differenceInMinutes(next_class_date, now)
-   
+        return differenceInMinutes(schedule.nextClassEnd, now) > 0
       }
+      return false
+    })
+    // Sort by the next class end date
+    .sort((a, b) => {
+      const scheduleA = parseSchedule(a.Schedule)
+      const scheduleB = parseSchedule(b.Schedule)
+      return differenceInMinutes(scheduleA?.nextClassEnd || new Date(), scheduleB?.nextClassEnd || new Date())
+    })[0]
 
-      break
+  if (next_course) {
+    const schedule = parseSchedule(next_course.Schedule)
+    if (schedule) {
+      isOn = isBefore(schedule.nextClassStart, now) && isAfter(schedule.nextClassEnd, now)
+
+      until = isOn ? differenceInMinutes(schedule.nextClassEnd, now) : differenceInMinutes(schedule.nextClassStart, now)
     }
-
   }
 
-  return { course: nextCourse, isOn: isOn, until: until }
+
+  return { course: next_course, isOn: isOn, until: until }
 }
 
-export function IsOn(schedule: ParsedSchedule):  boolean {
-  const startHour = schedule.startTime
+export function IsOn(schedule: ParsedSchedule): boolean {
+  const startHour = schedule.startHour
   const startMinute = parseInt(schedule.startTimeString.split(":")[1])
 
-  const endHour = schedule.endTime
+  const endHour = schedule.endHour
   const endMinute = parseInt(schedule.endTimeString.split(":")[1])
 
   const today = new Date()

@@ -11,5 +11,13 @@
   "author": {
     "name": "William Fotso",
     "email": "will.fotso.pro@gmail.com"
+  },
+  "info": {
+    "fileAssociations": [
+	{
+	  "iconName": "icon"
+	}
+    ]
   }
+
 }

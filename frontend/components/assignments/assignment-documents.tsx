@@ -102,9 +102,6 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
     if (emblaApi) emblaApi.scrollNext()
   }, [emblaApi])
 
-  const scrollTo = useCallback((index: number) => {
-    if (emblaApi) emblaApi.scrollTo(index)
-  }, [emblaApi])
 
   const handleUpload = (type: "support" | "submission") => {
     setUploadType(type)
@@ -212,7 +209,6 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
       <div className="flex flex-col">
         {filteredDocs.length > 0 ? (
           <div className="relative">
-
 
             {/* Carousel container */}
             <div className="overflow-hidden" ref={emblaRef}>

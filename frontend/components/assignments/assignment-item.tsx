@@ -11,6 +11,7 @@ import { useState } from "react"
 import { StatusTag } from "./tags/status-tag"
 import { CourseTag } from "./tags/course-tag"
 import { TypeTag } from "./tags/type-tag"
+import { BrowserOpenURL } from "@/wailsjs/runtime/runtime"
 
 interface AssignmentItemProps {
   assignment: assignment.LocalAssignment
@@ -65,7 +66,12 @@ export function AssignmentItem({
     onOpenEdit(assignment)
   }
 
-  return (
+  const handleOpenLink = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation()
+    BrowserOpenURL(assignment.Link)
+  }
+
+    return (
     <div>
       <Card
         className={`glass border-0 hover:bg-white/5 transition-colors ${!disabled && onAssignmentClick ? 'cursor-pointer' : ''
@@ -111,6 +117,13 @@ export function AssignmentItem({
                       >
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={handleOpenLink}
+                        disabled={disabled}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Open link
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={(e) => {

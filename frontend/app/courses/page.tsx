@@ -13,11 +13,13 @@ import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
 import { course } from "@/wailsjs/go/models"
 import { CourseDeleteDialog } from "./course-delete-dialog"
-  
+import { LinkRequestModal } from "@/components/community/link-request-modal"
+
 export default function CoursesPage() {
   const { data: courses = [], isLoading, error } = useCourses()
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
   const [selectedDeleteCourseId, setSelectedDeleteCourseId] = useState<number | null>(null)
+  const [isLinkRequestModalOpen, setIsLinkRequestModalOpen] = useState(false)
 
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -25,7 +27,7 @@ export default function CoursesPage() {
   // Get the current view from URL parameters, default to "today"
   const currentView = searchParams.get("view") || "schedule"
   const currentCourse = searchParams.get("course") || null
- 
+
   useEffect(() => {
     if (currentCourse) {
       const course = courses.find((course) => course.Code === currentCourse)
@@ -122,7 +124,7 @@ export default function CoursesPage() {
       <div className="relative z-10">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
               Courses
             </h1>
             <p className="mt-2 text-gray-400">
@@ -173,7 +175,8 @@ export default function CoursesPage() {
           onClose={() => setSelectedCourseId(null)}
           onEdit={handleEditCourse}
           onDelete={handleDeleteCourseClick}
-        />  
+          onLinkRequest={() => setIsLinkRequestModalOpen(true)}
+        />
 
         <CourseDeleteDialog
           isOpen={!!selectedDeleteCourseId}
@@ -181,6 +184,11 @@ export default function CoursesPage() {
           courseId={selectedDeleteCourseId}
           courses={courses || []}
           onDelete={handleDeleteCourse}
+        />
+
+        <LinkRequestModal
+          isOpen={isLinkRequestModalOpen}
+          onClose={() => setIsLinkRequestModalOpen(false)}
         />
         
       </div>

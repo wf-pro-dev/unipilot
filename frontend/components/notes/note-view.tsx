@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { NoteItem } from "./note-item"
-import { CalendarDays, CheckCircle2, Filter, Loader2, Search, X } from "lucide-react"
+import { CalendarDays, CheckCircle2, FileText, Filter, Loader2, Search, X } from "lucide-react"
 import { note } from "@/wailsjs/go/models"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
@@ -40,16 +40,16 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
 
   const filteredNotes = useMemo(() => {
     return notes
-    .filter((note) => {
-      const matchesSearch =
-        note.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        note.Keywords.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesCourse = selectedCourse === "all" || note.CourseCode === selectedCourse
-      return matchesSearch && matchesCourse
-    })
-    .sort((a, b) => {
-      return new Date(b.CreatedAt).getTime() - new Date(a.CreatedAt).getTime()
-    })
+      .filter((note) => {
+        const matchesSearch =
+          note.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          note.Keywords.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesCourse = selectedCourse === "all" || note.CourseCode === selectedCourse
+        return matchesSearch && matchesCourse
+      })
+      .sort((a, b) => {
+        return new Date(b.CreatedAt).getTime() - new Date(a.CreatedAt).getTime()
+      })
   }, [notes, searchTerm, selectedCourse])
 
   const hasActiveFilters = searchTerm !== "" || selectedCourse !== "all"
@@ -130,23 +130,25 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
           </div>
         </CardContent>
       </Card>
-      <Card className="border-0 glass p-0">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2 text-white">
-            <CalendarDays className="w-5 h-5" />
-            <span>{title}</span>
-            {isLoading && <Loader2 className="ml-2 w-4 h-4 animate-spin" />}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {(filteredNotes || []).length === 0 ? (
-            <div className="flex justify-center items-center h-48 text-gray-400">
-              <div className="text-center">
-                <CheckCircle2 className="mx-auto w-12 h-12 opacity-50" />
-                <p>No notes</p>
-              </div>
-            </div>
-          ) : (
+      {(filteredNotes || []).length === 0 ? (
+        <div className="flex flex-col items-center justify-center">
+          <div className="my-32 p-10 glass rounded-lg text-center">
+            <FileText className="h-12 w-12 text-white/20 mx-auto mb-4" strokeWidth={1.5} />
+            <h3 className="text-lg font-medium text-white mb-2">No notes found</h3>
+            <p className="text-gray-400">Create a note to get started</p>
+          </div>
+        </div>
+      ) : (
+        <Card className="border-0 glass p-0">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-white">
+              <CalendarDays className="w-5 h-5" />
+              <span>{title}</span>
+              {isLoading && <Loader2 className="ml-2 w-4 h-4 animate-spin" />}
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent>
             <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
               {(filteredNotes || []).map((note, index) => (
                 <NoteItem
@@ -159,10 +161,9 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
                 />
               ))}
             </div>
-          )}
-
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
     </div >
   )

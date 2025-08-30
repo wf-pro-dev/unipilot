@@ -24,7 +24,6 @@ import (
 	"unipilot/internal/network"
 	"unipilot/internal/services/daemon"
 	"unipilot/internal/services/fileops"
-	"unipilot/internal/sse"
 	"unipilot/internal/storage"
 	"unipilot/internal/sync"
 
@@ -65,7 +64,7 @@ func (a *App) Startup(ctx context.Context) {
 	if a.DB != nil {
 		userID := a.DB.GetCurrentUserID()
 		if userID > 0 {
-			daemonMgr, err := daemon.NewManager(userID, ctx) // Pass the context
+			daemonMgr, err := daemon.NewManager(userID, ctx)
 			if err != nil {
 				log.Printf("Warning: Could not initialize daemon manager: %v", err)
 			} else {
@@ -76,7 +75,6 @@ func (a *App) Startup(ctx context.Context) {
 					log.Printf("[App] Installing notification daemon...")
 					if err := daemonMgr.InstallDaemon(); err != nil {
 						log.Printf("Warning: Could not install notification daemon: %v", err)
-						// Show user-friendly error message
 						runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
 							Type:    runtime.ErrorDialog,
 							Title:   "Notification Setup",
@@ -104,15 +102,13 @@ func (a *App) Startup(ctx context.Context) {
 		}
 	}
 
-	// Check if user is already authenticated and initialize HTTP client + SSE if needed
+	// Check if user is already authenticated and initialize HTTP client if needed
 	if _, err := a.Auth.IsAuthenticated(); err == nil {
-		log.Println("[App] User already authenticated, initializing HTTP client and SSE connection...")
+		log.Println("[App] User already authenticated, initializing HTTP client...")
 		if err := a.initializeAuthenticatedClient(); err != nil {
 			log.Printf("[App] Failed to initialize authenticated client: %v", err)
 		} else {
 			if network.IsOnline() {
-				a.startSSEConnection()
-
 				// Start background sync manager
 				syncManager := sync.NewSyncManager(a.DB.GetDB())
 				go syncManager.BackgroundSync()
@@ -1117,92 +1113,12 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 // OTHER OPERATIONS
 // ========================================
 
-// startSSEConnection initializes and starts the SSE connection with proper authentication check
-func (a *App) startSSEConnection() {
-	// Ensure we have an authenticated HTTP client
-	if a.Auth.Client == nil {
-		log.Println("[App] No HTTP client available, cannot start SSE")
-		return
-	}
-
-	// Stop any existing SSE connection first
-	a.stopSSEConnection()
-
-	// Initialize new SSE connection
-	a.Auth.SSE = sse.NewSSE()
-
-	// Start the SSE connection in a goroutine
-	go a.Auth.SSE.Connect(a.Auth.Client)
-
-	// Start the event handler
-	a.Events.Start(a.Auth.SSE)
-
-	log.Println("[App] SSE connection started successfully")
-}
-
-// stopSSEConnection stops the current SSE connection and event handling
-func (a *App) stopSSEConnection() {
-	if a.Auth.SSE != nil {
-		log.Println("[App] Stopping existing SSE connection...")
-		a.Auth.SSE.StopListener()
-		a.Auth.SSE = nil
-	}
-
-	if a.Events != nil {
-		a.Events.Stop()
-		// Recreate events handler for next connection
-		a.Events = events.NewEvents()
-	}
-
-	log.Println("[App] SSE connection stopped")
-}
-
-// ensureSSEConnection ensures SSE is running if user is authenticated and online
-func (a *App) ensureSSEConnection() {
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
-		log.Println("[App] User not authenticated, stopping SSE if running")
-		a.stopSSEConnection()
-		return
-	}
-
-	if !network.IsOnline() {
-		log.Println("[App] Network offline, stopping SSE if running")
-		a.stopSSEConnection()
-		return
-	}
-
-	// If we don't have an HTTP client, try to initialize it
-	if a.Auth.Client == nil {
-		log.Println("[App] No HTTP client available, trying to initialize from stored cookies")
-		if err := a.initializeAuthenticatedClient(); err != nil {
-			log.Printf("[App] Failed to initialize HTTP client: %v", err)
-			return
-		}
-	}
-
-	// If we don't have an active SSE connection, start one
-	if a.Auth.SSE == nil {
-		log.Println("[App] No active SSE connection, starting new connection")
-		a.startSSEConnection()
-	}
-}
-
-// Greet returns a greeting for the given name
-func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, It's show time!", name)
-}
-
 // Register handles user registration
 func (a *App) Register(username, email, password, university, language string) (*user.User, error) {
 	user, err := a.Auth.Register(username, email, password, university, language)
 	if err != nil {
 		fmt.Println("Register error: ", err)
 		return nil, err
-	}
-
-	// Start SSE connection after successful registration
-	if network.IsOnline() {
-		a.startSSEConnection()
 	}
 
 	// Reinitialize database helper after registration
@@ -1223,11 +1139,6 @@ func (a *App) Login(username, password string) (*user.User, error) {
 		return nil, err
 	}
 
-	// Start SSE connection after successful login
-	if network.IsOnline() {
-		a.startSSEConnection()
-	}
-
 	// Reinitialize database helper after login
 	dbHelper, err := app.NewDatabaseHelper()
 	if err != nil {
@@ -1241,9 +1152,6 @@ func (a *App) Login(username, password string) (*user.User, error) {
 
 // Logout handles user logout
 func (a *App) Logout() error {
-	// Stop SSE connection first
-	a.stopSSEConnection()
-
 	if err := a.Auth.Logout(); err != nil {
 		return err
 	}
@@ -1264,61 +1172,6 @@ func (a *App) IsAuthenticated() (*user.User, error) {
 	}
 
 	return user, nil
-}
-
-// EnsureSSEConnection manually checks and ensures SSE connection is in correct state
-func (a *App) EnsureSSEConnection() error {
-	log.Println("[App] Manual SSE connection check requested")
-	a.ensureSSEConnection()
-	return nil
-}
-
-// GetSSEConnectionStatus returns the current status of the SSE connection
-func (a *App) GetSSEConnectionStatus() map[string]interface{} {
-	user, err := a.Auth.IsAuthenticated()
-	if err != nil {
-		return map[string]interface{}{
-			"connected":     false,
-			"authenticated": false,
-			"online":        network.IsOnline(),
-			"client_ready":  a.Auth.Client != nil,
-		}
-	}
-	status := map[string]interface{}{
-		"connected":     false,
-		"authenticated": user != nil,
-		"online":        network.IsOnline(),
-		"client_ready":  a.Auth.Client != nil,
-	}
-
-	if a.Auth.SSE != nil {
-		status["connected"] = true
-		status["sse_instance"] = "active"
-	} else {
-		status["sse_instance"] = "inactive"
-	}
-
-	return status
-}
-
-// ReconnectSSE manually triggers an SSE reconnection (useful for network recovery)
-func (a *App) ReconnectSSE() error {
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
-		return fmt.Errorf("user not authenticated")
-	}
-
-	if !network.IsOnline() {
-		return fmt.Errorf("network is offline")
-	}
-
-	if a.Auth.Client == nil {
-		return fmt.Errorf("HTTP client not available")
-	}
-
-	log.Println("[App] Manual SSE reconnection requested")
-	a.startSSEConnection()
-
-	return nil
 }
 
 // Sync performs synchronization of local changes with the remote server

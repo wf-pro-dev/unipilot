@@ -145,91 +145,95 @@ function CoursesSchedule({ courses, onCourseClick, onEdit, onDelete }: CoursesSc
                             </div>
 
                             {/* Days columns */}
-                            {DAYS.map((day, dayIndex) => (
-                                <div key={day} className="flex-1 min-w-[120px]">
-                                    <div className="h-12 p-2 font-medium text-center border-b">
-                                        {day}
-                                    </div>
-                                    <div className="relative">
-                                        {/* Hour grid lines */}
-                                        {timeSlots.map(hour => (
-                                            <div
-                                                key={hour}
-                                                className="h-[60px] border-b border-r border-border"
-                                            />
-                                        ))}
-
-                                        {/* Time indicator */}
-                                        {currentTop > 0 && now.getDay() == dayIndex && currentHour < 20 && (
-                                            <div className="absolute -left-1 -right-1 h-1 bg-blue-500/70 z-50" style={{
-                                                top: `${currentTop}px`
-                                            }} />
-                                        )}
+                            {DAYS.map((day, dayIndex) => {
+                                console.log(currentTop, now.getDay(), dayIndex, currentHour, currentTop > 0 && now.getDay() == dayIndex && currentHour < 20)
+                                return (
+                                    <div key={day} className="flex-1 min-w-[120px]">
+                                        <div className="h-12 p-2 font-medium text-center border-b">
+                                            {day}
+                                        </div>
+                                        <div className="relative">
+                                            {/* Hour grid lines */}
+                                            {timeSlots.map(hour => (
+                                                <div
+                                                    key={hour}
+                                                    className="h-[60px] border-b border-r border-border"
+                                                />
+                                            ))}
 
 
-                                        {/* Course blocks */}
-                                        {scheduledCourses
-                                            .filter(course => course.parsedSchedule?.days.includes(dayIndex))
-                                            .map((course, index) => {
-                                                if (!course.parsedSchedule) return null
+                                            {/* Time indicator */}
+                                            {currentTop > 0 && now.getDay() == dayIndex && currentHour < 20 && (
+                                                <div className="absolute -left-1 -right-1 h-1 bg-blue-500/70 z-50" style={{
+                                                    top: `${currentTop}px`
+                                                }} />
+                                            )}
 
-                                                var isOn = false
-                                                const startHour = course.parsedSchedule.startTime
-                                                const startMinute = course.parsedSchedule.startMinute
 
-                                                const endHour = course.parsedSchedule.endTime
-                                                const endMinute = course.parsedSchedule.endMinute
+                                            {/* Course blocks */}
+                                            {scheduledCourses
+                                                .filter(course => course.parsedSchedule?.days.includes(dayIndex))
+                                                .map((course, index) => {
+                                                    if (!course.parsedSchedule) return null
 
-                                                const today = new Date()
-                                                const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), startHour, startMinute)
-                                                const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), endHour, endMinute)
+                                                    var isOn = false
+                                                    const startHour = course.parsedSchedule.startHour
+                                                    const startMinute = course.parsedSchedule.startMinute
 
-                                                isOn = day == format(today, 'EEEE') && isBefore(startDate, today) && isAfter(endDate, today)
+                                                    const endHour = course.parsedSchedule.endHour
+                                                    const endMinute = course.parsedSchedule.endMinute
 
-                                                const duration = differenceInMinutes(endDate, startDate) + 1
+                                                    const today = new Date()
+                                                    const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), startHour, startMinute)
+                                                    const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), endHour, endMinute)
 
-                                                // Calculate position: each hour slot is 60px (h-15)
-                                                var topPosition = ((startHour - timeSlots[0]) * 60)
-                                                if (startMinute != 0) {
-                                                    topPosition = topPosition + (60 / (60 / startMinute))
-                                                }
-                                                const height = duration - 2 // 1px/min / Subtract 2px for border spacing
+                                                    isOn = day == format(today, 'EEEE') && isBefore(startDate, today) && isAfter(endDate, today)
 
-                                                return (
+                                                    const duration = differenceInMinutes(endDate, startDate) + 1
 
-                                                    <Card
-                                                        key={`${course.ID}-${index}`}
-                                                        className={`absolute left-1 right-1 text-xs text-white font-medium shadow-sm ${isOn ? 'bg-blue-500/50 hover:bg-blue-500/70' : 'glass hover:bg-white/5'} border-0  transition-all duration-300 `}
-                                                        style={{
-                                                            backgroundColor: course.Color || '#3b82f6',
-                                                            top: `${topPosition}px`,
-                                                            height: `${height}px`
-                                                        }}
-                                                        onClick={() => onCourseClick(course)}
-                                                    >
-                                                        <CardContent className="p-2">
-                                                            <div className="flex flex-col space-y-2">
-                                                                <div className="flex flex-row items-center gap-2">
-                                                                    <div className={`h-2 w-2  rounded-full ${course.Color}`} />
-                                                                    <div className="font-semibold truncate">
-                                                                        {course.Code}
+                                                    // Calculate position: each hour slot is 60px (h-15)
+                                                    var topPosition = ((startHour - timeSlots[0]) * 60)
+                                                    if (startMinute != 0) {
+                                                        topPosition = topPosition + (60 / (60 / startMinute))
+                                                    }
+                                                    const height = duration - 2 // 1px/min / Subtract 2px for border spacing
+
+                                                    return (
+
+                                                        <Card
+                                                            key={`${course.ID}-${index}`}
+                                                            className={`absolute left-1 right-1 text-xs text-white font-medium shadow-sm ${isOn ? 'bg-blue-500/50 hover:bg-blue-500/70' : 'glass hover:bg-white/5'} border-0  transition-all duration-300 `}
+                                                            style={{
+                                                                backgroundColor: course.Color || '#3b82f6',
+                                                                top: `${topPosition}px`,
+                                                                height: `${height}px`
+                                                            }}
+                                                            onClick={() => onCourseClick(course)}
+                                                        >
+                                                            <CardContent className="p-2">
+                                                                <div className="flex flex-col space-y-2">
+                                                                    <div className="flex flex-row items-center gap-2">
+                                                                        <div className={`h-2 w-2  rounded-full ${course.Color}`} />
+                                                                        <div className="font-semibold truncate">
+                                                                            {course.Code}
+                                                                        </div>
                                                                     </div>
+
+                                                                    <div className="text-xs opacity-90">
+                                                                        {course.parsedSchedule?.startTimeString} - {course.parsedSchedule?.endTimeString}
+                                                                    </div>
+
                                                                 </div>
+                                                            </CardContent>
+                                                        </Card>
 
-                                                                <div className="text-xs opacity-90">
-                                                                    {course.parsedSchedule?.startTimeString} - {course.parsedSchedule?.endTimeString}
-                                                                </div>
-
-                                                            </div>
-                                                        </CardContent>
-                                                    </Card>
-
-                                                )
-                                            })
-                                        }
+                                                    )
+                                                })
+                                            }
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                )
+                            })}
                         </div>
                     </div>
 

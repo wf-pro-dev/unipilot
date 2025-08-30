@@ -161,7 +161,7 @@ export default function AssignmentsPage() {
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               Assignments
             </h1>
             <p className="text-gray-400 mt-2">Track and manage your coursework deadlines</p>

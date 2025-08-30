@@ -21,6 +21,8 @@ import {
   CheckCircle2,
   Search,
   Share,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import Link from "next/link"
 import { course as Course } from "@/wailsjs/go/models"
@@ -29,7 +31,7 @@ import { formatDeadline } from "@/lib/date-utils"
 import { assignment } from "@/wailsjs/go/models"
 import { StatusTag } from "@/components/assignments/tags/status-tag"
 import { CourseEditDialog } from "./course-edit-dialog"
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
@@ -41,6 +43,8 @@ import { note } from "@/wailsjs/go/models"
 import { toast } from "sonner"
 import { Input } from "../ui/input"
 import { useRouter } from "next/navigation"
+import useEmblaCarousel from "embla-carousel-react"
+import { LinkRequestModal } from "@/components/community/link-request-modal"
 
 interface CourseDetailsModalProps {
   isOpen: boolean
@@ -49,9 +53,10 @@ interface CourseDetailsModalProps {
   courses: Course.LocalCourse[]
   onEdit: (course: Course.LocalCourse, column: string, value: string) => void
   onDelete: (course: Course.LocalCourse) => void
+  onLinkRequest: () => void
 }
 
-export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit, onDelete }: CourseDetailsModalProps) {
+export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit, onDelete, onLinkRequest }: CourseDetailsModalProps) {
   const course = courses.find(c => c.ID === courseId) || null
   if (!course) return null
   const router = useRouter()
@@ -59,6 +64,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
   const [selectedNoteID, setSelectedNoteID] = useState<number | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+ 
 
   const { data: assignments, isLoading } = useAssignments()
   const notes = useCourseNotes(course)
@@ -66,6 +72,8 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
   const updateMutation = useUpdateAssignment()
   const updateNote = useUpdateNote()
   const deleteNote = useDeleteNote()
+
+  const [selectedIndex, setSelectedIndex] = useState(0)
 
   var course_assignments = (assignments || []).filter((assignment: assignment.LocalAssignment) => assignment.Course?.Code === course.Code) || []
   var completed_assignments_count = course_assignments.filter((assignment: assignment.LocalAssignment) => assignment.StatusName === "Done").length
@@ -134,6 +142,46 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
     })
   }, [notes, searchTerm])
 
+  // Embla Carousel setup
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    align: 'start',
+    containScroll: 'trimSnaps',
+    dragFree: false,
+    skipSnaps: false
+  })
+
+  // Carousel navigation functions
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev()
+  }, [emblaApi])
+
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext()
+  }, [emblaApi])
+
+  // Track current slide
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return
+    setSelectedIndex(emblaApi.selectedScrollSnap())
+  }, [emblaApi])
+
+  useEffect(() => {
+    if (!emblaApi) return
+    onSelect()
+    emblaApi.on('select', onSelect)
+    return () => {
+      emblaApi.off('select', onSelect)
+    }
+  }, [emblaApi, onSelect])
+
+  // Reset to first page when filter changes
+  useEffect(() => {
+    setSelectedIndex(0)
+    if (emblaApi) {
+      emblaApi.scrollTo(0)
+    }
+  }, [emblaApi])
+
 
   return (
     <div>
@@ -183,7 +231,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                         <Users className="w-4 h-4 text-blue-400" />
                         <span>Instructor</span>
                       </div>
-                      <p className="font-medium text-white text-sm">{courseData.Instructor}</p>
+                      <p className="text-white text-sm">{courseData.Instructor}</p>
                     </div>
 
 
@@ -192,7 +240,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                         <Calendar className="w-4 h-4 text-purple-400" />
                         <span>Schedule</span>
                       </div>
-                      <p className="font-medium text-white text-sm">{courseData.Schedule}</p>
+                      <p className="text-white text-sm">{courseData.Schedule}</p>
                     </div>
 
 
@@ -206,7 +254,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                         <Mail className="w-4 h-4 text-orange-400" />
                         <span>Email</span>
                       </div>
-                      <p className="font-medium text-white text-sm">{courseData.InstructorEmail}</p>
+                      <p className="text-white text-sm">{courseData.InstructorEmail}</p>
                     </div>
 
                     <div className="space-y-2">
@@ -214,7 +262,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                         <MapPin className="w-4 h-4 text-green-400" />
                         <span>Location</span>
                       </div>
-                      <p className="font-medium text-white text-sm">{courseData.Location}</p>
+                      <p className="text-white text-sm">{courseData.Location || "No location"}</p>
                     </div>
 
                   </div>
@@ -322,7 +370,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
               <TabsContent value="notes" className="space-y-4">
 
                 <div className="space-y-4">
-                  <div className="flex w-full space-x-4 items-center">
+                  <div className="flex w-full space-x-2 items-center">
                     <div className="relative flex-1">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <Input
@@ -348,11 +396,38 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                     </div>
                   </div>
                   {filteredNotes.length > 0 ? (
-                    filteredNotes.map((note) => (
-                      <div key={note.ID}>
-                        <NoteItem note={note} onNoteClick={setSelectedNoteID} onEdit={handleEditNote} onDelete={handleDeleteNote} />
+                    <div className="relative">
+                      <div className="overflow-hidden" ref={emblaRef}>
+                        <div className="flex">
+                          {filteredNotes.map((note) => (
+                            <div className="flex-none w-full min-w-0" key={note.ID}>
+                              <NoteItem note={note} onNoteClick={setSelectedNoteID} onEdit={handleEditNote} onDelete={handleDeleteNote} />
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ))
+                      {filteredNotes.length > 1 && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="left-0 absolute rounded-full top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 h-8 w-8 bg-gray-800/50 border border-gray-600"
+                            onClick={scrollPrev}
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="right-0 absolute rounded-full top-1/2 -translate-y-1/2 translate-x-1/2 z-10 h-8 w-8 bg-gray-800/50 border border-gray-600"
+                            onClick={scrollNext}
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   ) : (
                     <div className="py-8 text-center">
                       <CheckCircle2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -391,7 +466,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                 className="flex-1 bg-transparent border-gray-600"
                 onClick={(e) => {
                   e.stopPropagation()
-                  setOpen(true)
+                  onLinkRequest()
                 }}
               >
                 <Share className="mr-1 w-3 h-3" />
@@ -429,6 +504,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
         onEdit={handleEditNote}
         onDelete={handleDeleteNote}
       />
+     
     </div>
   )
 }

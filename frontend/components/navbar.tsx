@@ -16,6 +16,7 @@ import { Home, BookOpen, ClipboardList, FileText, Users, Settings, LogOut, User 
 import { useAuthContext } from "./provider/auth-provider"
 import { OfflineIndicator } from "./ui/offline-indicator"
 import { useLogout } from "@/hooks/use-auth"
+import Image from "next/image"
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
@@ -42,11 +43,9 @@ export function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <div className="flex justify-center items-center w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-                <BookOpen className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
-                StudyTracker
+              <Image src="/icon.png" alt="Unipilot" width={24} height={24} className="rounded-lg" />
+              <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                UniPilot
               </span>
             </Link>
           </div>

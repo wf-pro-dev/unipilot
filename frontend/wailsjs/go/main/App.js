@@ -30,10 +30,6 @@ export function DeleteNote(arg1) {
   return window['go']['main']['App']['DeleteNote'](arg1);
 }
 
-export function EnsureSSEConnection() {
-  return window['go']['main']['App']['EnsureSSEConnection']();
-}
-
 export function Follow(arg1) {
   return window['go']['main']['App']['Follow'](arg1);
 }
@@ -90,10 +86,6 @@ export function GetRemoteUsers() {
   return window['go']['main']['App']['GetRemoteUsers']();
 }
 
-export function GetSSEConnectionStatus() {
-  return window['go']['main']['App']['GetSSEConnectionStatus']();
-}
-
 export function GetSubmissionDocuments(arg1) {
   return window['go']['main']['App']['GetSubmissionDocuments'](arg1);
 }
@@ -108,10 +100,6 @@ export function GetUser(arg1) {
 
 export function GetUserStorageInfo() {
   return window['go']['main']['App']['GetUserStorageInfo']();
-}
-
-export function Greet(arg1) {
-  return window['go']['main']['App']['Greet'](arg1);
 }
 
 export function InstallNotificationDaemon() {
@@ -144,10 +132,6 @@ export function OpenDocument(arg1) {
 
 export function RebuildNotificationDaemon() {
   return window['go']['main']['App']['RebuildNotificationDaemon']();
-}
-
-export function ReconnectSSE() {
-  return window['go']['main']['App']['ReconnectSSE']();
 }
 
 export function Register(arg1, arg2, arg3, arg4, arg5) {

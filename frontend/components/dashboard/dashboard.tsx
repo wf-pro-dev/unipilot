@@ -132,7 +132,11 @@ export function Dashboard() {
         })
 
         const assignments = useMemo(() => {
-            return (week_assignments || []).filter((assignment) => assignment.StatusName === status)
+            return (week_assignments || [])
+                .filter((assignment) => assignment.StatusName === status)
+                .sort((a, b) => {
+                    return new Date(a.Deadline).getTime() - new Date(b.Deadline).getTime()
+                })
         }, [week_assignments, status])
 
         return (
@@ -182,7 +186,6 @@ export function Dashboard() {
                     <p className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                         {greeting}, {user?.Username} 👋
                     </p>
-                    <p className="text-gray-400 mt-2">Ready to tackle your assignments today?</p>
                 </div>
 
                 <StatsCards />
@@ -260,33 +263,28 @@ export function Dashboard() {
                                         {until && (
                                             <div className="flex flex-row space-x-2 items-center">
                                                 <Clock className="w-4 h-4 text-white" />
-                                                {isOn ? (
-                                                    <div className="text-xs text-white font-semibold">
-                                                        NOW
-                                                    </div>
 
-                                                ) : (
-                                                    <div className="flex flex-row space-x-1 text-xs text-white">
-                                                        {daysUntil > 0 && (
-                                                            <div className="flex flex-row space-x-1">
-                                                                <span className="font-semibold">{daysUntil}</span>
-                                                                <span>day{daysUntil > 1 ? "s," : ","}</span>
-                                                            </div>
+                                                <div className="flex flex-row space-x-1 text-xs text-white">
+                                                    {daysUntil > 0 && (
+                                                        <div className="flex flex-row space-x-1">
+                                                            <span className="font-semibold">{daysUntil}</span>
+                                                            <span>day{daysUntil > 1 ? "s," : ","}</span>
+                                                        </div>
 
-                                                        )}
+                                                    )}
 
-                                                        {hoursUntil > 0 && (
-                                                            <div className="flex flex-row space-x-1">
-                                                                <span className="font-semibold">{hoursUntil}</span>
-                                                                <span>hour{hoursUntil > 1 ? "s," : ","}</span>
-                                                            </div>
-                                                        )}
+                                                    {hoursUntil > 0 && (
+                                                        <div className="flex flex-row space-x-1">
+                                                            <span className="font-semibold">{hoursUntil}</span>
+                                                            <span>hour{hoursUntil > 1 ? "s," : ","}</span>
+                                                        </div>
+                                                    )}
 
-                                                        <span className="font-semibold">{minutesUntil}</span>
-                                                        <span>minute{minutesUntil > 1 ? "s" : ""} left</span>
+                                                    <span className="font-semibold">{minutesUntil}</span>
+                                                    <span>minute{minutesUntil > 1 ? "s" : ""} left{isOn ? " in class" : ""}</span>
 
-                                                    </div>
-                                                )}
+                                                </div>
+
 
                                             </div>
                                         )}
@@ -320,30 +318,30 @@ export function Dashboard() {
                                 )}
                                 <CardFooter >
                                     {course ? (
-                                        <div className="grid grid-cols-2 gap-2">
+                                        <div className="grid grid-cols-5 w-full gap-2">
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                className="flex-1 bg-transparent border-gray-600 text-xs"
+                                                className="flex-1 col-span-3 bg-transparent border-gray-600 text-xs"
                                                 onClick={(e) => {
                                                     e.stopPropagation()
                                                     router.push(`/assignments?view=list&course=${course?.Code}`)
                                                 }}
                                             >
-                                                 <ClipboardList className="mr-0.5 w-2 h-2" />
+                                                <ClipboardList className="w-2 h-2" />
                                                 Assignments
                                             </Button>
 
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                className="flex-1 bg-transparent border-gray-600 text-xs"
+                                                className="flex-1 col-span-2 bg-transparent border-gray-600 text-xs"
                                                 onClick={(e) => {
                                                     e.stopPropagation()
                                                     router.push(`/notes?course=${course?.Code}`)
                                                 }}
                                             >
-                                                <FileText className="mr-0.5 w-2 h-2" />
+                                                <FileText className="w-2 h-2" />
                                                 Notes
                                             </Button>
                                         </div>
@@ -365,157 +363,170 @@ export function Dashboard() {
                                 </CardFooter>
                             </Card>
 
-                        <Card className="flex flex-col glass" >
-                            <CardHeader className="flex flex-row items-center space-x-2">
-                                <div className={`p-1 rounded-lg bg-white/20`}>
-                                    <Calendar className={`h-4 w-4 text-white`} strokeWidth={1.5} />
-                                </div>
-                                <p className="text-sm font-medium text-white">
-                                    Upcoming Exams
-                                </p>
-                            </CardHeader>
-                            <CardContent className="flex-1 space-y-4 overflow-scroll">
-                                {UpcomingExams.length > 0 ? (
-                                    UpcomingExams
-                                        .map((exam) => (
-                                            <div key={exam.ID} className="flex flex-row items-center">
-                                                <Dot className="h-6 w-6 text-white" />
-                                                <div className="flex flex-col">
-                                                    <div className="text-xs text-gray-400">
-                                                        {exam.CourseCode}
-                                                    </div>
-                                                    <div className="text-sm font-medium text-white">
-                                                        {exam.Title}
+                            <Card className="flex flex-col glass" >
+                                <CardHeader className="flex flex-row items-center space-x-2">
+                                    <div className={`p-1 rounded-lg bg-white/20`}>
+                                        <Calendar className={`h-4 w-4 text-white`} strokeWidth={1.5} />
+                                    </div>
+                                    <p className="text-sm font-medium text-white">
+                                        Upcoming Exams
+                                    </p>
+                                </CardHeader>
+                                <CardContent className="flex-1 space-y-4 overflow-scroll">
+                                    {UpcomingExams.length > 0 ? (
+                                        UpcomingExams
+                                            .map((exam) => (
+                                                <div key={exam.ID} className="flex flex-row items-center">
+                                                    <Dot className="h-6 w-6 text-white" />
+                                                    <div className="flex flex-col">
+                                                        <div className="text-xs text-gray-400">
+                                                            {exam.CourseCode}
+                                                        </div>
+                                                        <div className="text-sm font-medium text-white">
+                                                            {exam.Title}
+                                                        </div>
                                                     </div>
                                                 </div>
+                                            ))
+                                    ) : (
+                                        <div className="flex flex-col gap-4 items-center justify-center h-full">
+                                            <Calendar className="h-12 w-12 text-white/20 mx-auto" />
+                                            <p className="text-xs text-gray-400">No exams found</p>
+                                        </div>
+                                    )}
+                                </CardContent>
+                                <CardFooter className="flex space-x-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="flex-1 bg-transparent border-gray-600 text-xs"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            router.push(`/assignments?view=exam`)
+                                        }}
+                                    >
+                                        <ClipboardList className="mr-1 w-2 h-2" />
+                                        View All
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-5 col-span-4 ">
+                        <div className="flex glass" />
+
+                        <Card className="flex flex-col glass" >
+                            <CardHeader className="pb-4 flex flex-row items-center justify-between">
+                                <div className="flex flex-row items-center space-x-2">
+                                    <div className={`p-1 rounded-lg bg-white/20`}>
+                                        <FileText className={`h-4 w-4 text-white`} strokeWidth={1.5} />
+                                    </div>
+                                    <p className="text-sm font-medium text-white">
+                                        Latest Notes
+                                    </p>
+                                </div>
+                                <div className="flex flex-row items-center space-x-4">
+                                    <div>
+                                        {notesPages.length > 1 && (
+                                            <div className="flex flex-row items-center space-x-2">
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    className="rounded-full z-10 h-6 w-6 bg-gray-800/50 border border-gray-600"
+                                                    onClick={scrollPrev}
+                                                >
+                                                    <ChevronLeft className="h-4 w-4" />
+                                                </Button>
+
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    className="rounded-full z-10 h-6 w-6 bg-gray-800/50 border border-gray-600"
+                                                    onClick={scrollNext}
+                                                >
+                                                    <ChevronRight className="h-4 w-4" />
+                                                </Button>
                                             </div>
-                                        ))
+                                        )}
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-24 bg-transparent border-gray-600 text-xs"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            router.push(`/notes`)
+                                        }}
+                                    >
+                                        <FileText className="mr-1 w-2 h-2" />
+                                        View All
+                                    </Button>
+
+
+
+                                </div>
+                            </CardHeader>
+                            <CardContent className="flex flex-row gap-4 ">
+
+                                {notes && notes.length > 0 ? (
+                                    <div className="relative w-full">
+                                        <div className="overflow-hidden" ref={emblaRef}>
+                                            <div className="flex">
+                                                {notesPages.map((page, pageIndex) => (
+                                                    <div
+                                                        key={pageIndex}
+                                                        className="flex-none w-full min-w-0"
+                                                    >
+                                                        <div className="grid grid-cols-2 gap-4 w-full">
+                                                            {page?.map((note: note.LocalNote) => {
+
+                                                                return (
+                                                                    <div key={note.ID} className="flex-1 w-full p-2 rounded-lg bg-gray-800/50 border border-gray-600">
+                                                                        <div className="flex flex-col space-y-2">
+                                                                            <div className="text-sm font-medium text-white line-clamp-1">
+                                                                                {note.Title}
+                                                                            </div>
+                                                                            <div className="flex flex-row items-center justify-between">
+
+                                                                                <div className="flex flex-row items-center space-x-2">
+                                                                                    <div className={`w-2 h-2 rounded-full ${note.Course.Color}`} />
+                                                                                    <div className="text-xs text-white">
+                                                                                        {note.CourseCode}
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className="text-xs text-gray-400">
+                                                                                    {note.Subject}
+                                                                                </div>
+                                                                            </div>
+
+                                                                        </div>
+                                                                    </div>
+                                                                )
+                                                            })}
+
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+
+
+                                    </div>
+
                                 ) : (
-                                    <div className="flex flex-col gap-4 items-center justify-center h-full">
-                                        <Calendar className="h-12 w-12 text-white/20 mx-auto" />
-                                        <p className="text-xs text-gray-400">No exams found</p>
+                                    <div className="flex flex-row gap-4 items-center justify-center h-full">
+                                        <FileText strokeWidth={1.5} className="h-10 w-10 text-white/20 mx-auto" />
+                                        <p className="text-xs text-gray-400">No notes found</p>
                                     </div>
                                 )}
                             </CardContent>
-                            <CardFooter className="flex space-x-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="flex-1 bg-transparent border-gray-600 text-xs"
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        router.push(`/assignments?view=exam`)
-                                    }}
-                                >
-                                    <ClipboardList className="mr-1 w-2 h-2" />
-                                    View All
-                                </Button>
-                            </CardFooter>
                         </Card>
                     </div>
-                </div>
-                <div className="grid grid-cols-2 gap-5 col-span-4 ">
-                    <div className="flex glass" />
-
-                    <Card className="flex flex-col glass" >
-                        <CardHeader className="pb-4 flex flex-row items-center justify-between">
-                            <div className="flex flex-row items-center space-x-2">
-                                <div className={`p-1 rounded-lg bg-white/20`}>
-                                    <FileText className={`h-4 w-4 text-white`} strokeWidth={1.5} />
-                                </div>
-                                <p className="text-sm font-medium text-white">
-                                    Latest Notes
-                                </p>
-                            </div>
-                            <div className="flex flex-row items-center space-x-4">
-                                <div>
-                                    {notesPages.length > 1 && (
-                                        <div className="flex flex-row items-center space-x-2">
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                className="rounded-full z-10 h-6 w-6 bg-gray-800/50 border border-gray-600"
-                                                onClick={scrollPrev}
-                                            >
-                                                <ChevronLeft className="h-4 w-4" />
-                                            </Button>
-
-                                            <Button
-                                                variant="outline"
-                                                size="icon"
-                                                className="rounded-full z-10 h-6 w-6 bg-gray-800/50 border border-gray-600"
-                                                onClick={scrollNext}
-                                            >
-                                                <ChevronRight className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="w-24 bg-transparent border-gray-600 text-xs"
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        router.push(`/notes`)
-                                    }}
-                                >
-                                    <FileText className="mr-1 w-2 h-2" />
-                                    View All
-                                </Button>
 
 
-
-                            </div>
-                        </CardHeader>
-                        <CardContent className="flex flex-row gap-4 ">
-
-                            {notes && notes.length > 0 ? (
-                                <div className="relative">
-                                    <div className="overflow-hidden" ref={emblaRef}>
-                                        <div className="flex">
-                                            {notesPages.map((page, pageIndex) => (
-                                                <div
-                                                    key={pageIndex}
-                                                    className="flex-none w-full min-w-0"
-                                                >
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        {page?.map((note: note.LocalNote) => (
-                                                            <div key={note.ID} className="p-2 rounded-lg bg-gray-800/50 border border-gray-600">
-                                                                <div className="flex flex-col">
-                                                                    <div className="text-sm font-medium text-white line-clamp-1">
-                                                                        {note.Title}
-                                                                    </div>
-                                                                    <div className="text-xs text-gray-400">
-                                                                        {note.Subject}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-
-
-                                </div>
-
-                            ) : (
-                                <div className="flex flex-row gap-4 items-center justify-center h-full">
-                                    <FileText strokeWidth={1.5} className="h-10 w-10 text-white/20 mx-auto" />
-                                    <p className="text-xs text-gray-400">No notes found</p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
-
-
+                </div >
             </div >
-        </div >
         </DndProvider >
     )
 }

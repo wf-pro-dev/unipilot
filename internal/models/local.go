@@ -92,7 +92,10 @@ const (
 	NotificationNoteUpdate NotificationType = "note_update"
 
 	NotificationDocument NotificationType = "document"
-	NotificationFollow   NotificationType = "follow"
+
+	NotificationFollow NotificationType = "follow"
+
+	NotificationSync NotificationType = "sync"
 )
 
 type LocalNotification struct {
@@ -106,6 +109,7 @@ type LocalNotification struct {
 	Action    string           `gorm:"not null" json:"action"` // create, update
 	Message   string           `gorm:"not null" json:"message"`
 	Read      bool             `gorm:"default:false" json:"read"`
+	Data      string           `json:"data"`
 	Sender    user.User        `gorm:"foreignKey:SenderID;references:ID" json:"sender"`
 	ExpiresAt *time.Time       `gorm:"index"`
 }

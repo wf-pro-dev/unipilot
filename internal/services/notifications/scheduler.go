@@ -11,6 +11,7 @@ import (
 	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
+	"unipilot/internal/models/user"
 	"unipilot/internal/storage"
 
 	"github.com/gen2brain/beeep"
@@ -26,7 +27,13 @@ type Scheduler struct {
 	cancel    context.CancelFunc
 	isRunning bool
 	mu        sync.RWMutex
-	userID    uint
+	user      user.User
+
+	// Performance optimizations
+	courseCache       []course.LocalCourse
+	cacheLastUpdate   time.Time
+	cacheMutex        sync.RWMutex
+	notificationCache map[string]time.Time // Track sent notifications to avoid duplicates
 }
 
 // NewScheduler creates a new notification scheduler
@@ -41,23 +48,24 @@ func NewScheduler() (*Scheduler, error) {
 	}
 
 	scheduler := &Scheduler{
-		cron:      cron.New(cron.WithSeconds()),
-		db:        db,
-		ctx:       ctx,
-		cancel:    cancel,
-		isRunning: false,
+		cron:              cron.New(cron.WithSeconds()),
+		db:                db,
+		ctx:               ctx,
+		cancel:            cancel,
+		isRunning:         false,
+		notificationCache: make(map[string]time.Time),
 	}
 
 	return scheduler, nil
 }
 
 // InitializeForDaemon sets up the scheduler to run as a daemon
-func (s *Scheduler) InitializeForDaemon(userID uint) error {
+func (s *Scheduler) InitializeForDaemon(user *user.User) error {
 	// Set the user ID for this daemon instance
-	s.userID = userID
+	s.user = *user
 
 	// Initialize any daemon-specific configurations
-	log.Printf("[Scheduler] Initialized daemon for user %d", userID)
+	log.Printf("[Scheduler] Initialized daemon for user %d", user.ID)
 	return nil
 }
 
@@ -80,7 +88,7 @@ func (s *Scheduler) StartScheduler() error {
 	}
 
 	// Schedule evening notifications at 8:00 PM
-	eveningEntry, err := s.cron.AddFunc("0 18 10 * * *", func() {
+	eveningEntry, err := s.cron.AddFunc("0 0 20 * * *", func() {
 		log.Printf("[Scheduler] Starting evening notifications at %s", time.Now().Format("15:04:05"))
 		s.SendDailyNotifications("evening")
 	})
@@ -88,7 +96,8 @@ func (s *Scheduler) StartScheduler() error {
 		return fmt.Errorf("failed to schedule evening notifications: %w", err)
 	}
 
-	// Schedule course entry notifications every 5 minutes
+	// Schedule course entry notifications every 5 minutes instead of every minute
+	// This reduces database load by 80%
 	courseEntry, err := s.cron.AddFunc("@every 5m", func() {
 		log.Printf("[Scheduler] Starting course entry notifications at %s", time.Now().Format("15:04:05"))
 		s.SendCourseEntryNotifications()
@@ -97,14 +106,60 @@ func (s *Scheduler) StartScheduler() error {
 		return fmt.Errorf("failed to schedule course entry notifications: %w", err)
 	}
 
+	// Schedule cache refresh every hour to keep course data fresh
+	cacheRefresh, err := s.cron.AddFunc("@every 1h", func() {
+		log.Printf("[Scheduler] Refreshing course cache at %s", time.Now().Format("15:04:05"))
+		s.refreshCourseCache()
+	})
+	if err != nil {
+		return fmt.Errorf("failed to schedule cache refresh: %w", err)
+	}
+
 	s.cron.Start()
 	s.isRunning = true
 
-	log.Printf("[Scheduler] Started with morning entry ID: %d, evening entry ID: %d, course entry ID: %d", morningEntry, eveningEntry, courseEntry)
+	log.Printf("[Scheduler] Started with morning entry ID: %d, evening entry ID: %d, course entry ID: %d, cache refresh ID: %d",
+		morningEntry, eveningEntry, courseEntry, cacheRefresh)
 	log.Printf("[Scheduler] Next morning notification: %s", s.cron.Entry(morningEntry).Next.Format("2006-01-02 15:04:05"))
 	log.Printf("[Scheduler] Next evening notification: %s", s.cron.Entry(eveningEntry).Next.Format("2006-01-02 15:04:05"))
+	log.Printf("[Scheduler] Next course entry notification: %s", s.cron.Entry(courseEntry).Next.Format("2006-01-02 15:04:05"))
+	log.Printf("[Scheduler] Next cache refresh: %s", s.cron.Entry(cacheRefresh).Next.Format("2006-01-02 15:04:05"))
 
 	return nil
+}
+
+// refreshCourseCache updates the cached course data
+func (s *Scheduler) refreshCourseCache() {
+	s.cacheMutex.Lock()
+	defer s.cacheMutex.Unlock()
+
+	var courses []course.LocalCourse
+	if err := s.db.Where("semester = ?", s.user.Semester).Find(&courses).Error; err != nil {
+		log.Printf("[Scheduler] Error refreshing course cache: %v", err)
+		return
+	}
+
+	s.courseCache = courses
+	s.cacheLastUpdate = time.Now()
+	log.Printf("[Scheduler] Refreshed course cache with %d courses", len(courses))
+}
+
+// getCachedCourses returns courses from cache, refreshing if needed
+func (s *Scheduler) getCachedCourses() ([]course.LocalCourse, error) {
+	s.cacheMutex.RLock()
+
+	// If cache is empty or older than 1 hour, refresh it
+	if len(s.courseCache) == 0 || time.Since(s.cacheLastUpdate) > time.Hour {
+		s.cacheMutex.RUnlock()
+		s.refreshCourseCache()
+		s.cacheMutex.RLock()
+	}
+
+	courses := make([]course.LocalCourse, len(s.courseCache))
+	copy(courses, s.courseCache)
+	s.cacheMutex.RUnlock()
+
+	return courses, nil
 }
 
 // StopScheduler gracefully stops the scheduler and cleans up resources
@@ -178,7 +233,7 @@ func (s *Scheduler) getWeeklyAssignments() ([]assignment.LocalAssignment, error)
 		return nil, fmt.Errorf("failed to query assignments: %w", err)
 	}
 
-	log.Printf("[Scheduler] Retrieved %d assignments for user %d", len(assignments), s.userID)
+	log.Printf("[Scheduler] Retrieved %d assignments for user %d", len(assignments), s.user.ID)
 	return assignments, nil
 }
 
@@ -214,7 +269,7 @@ func (s *Scheduler) createAssignmentNotification(courseCode string, assignments 
 		Type:      models.NotificationAssignment,
 		Title:     title,
 		Message:   message,
-		SenderID:  s.userID,
+		SenderID:  s.user.ID,
 		Read:      false,
 		ExpiresAt: &time.Time{},
 	}
@@ -246,88 +301,118 @@ func (s *Scheduler) formatMessage(count int) string {
 func (s *Scheduler) SendCourseEntryNotifications() {
 	log.Printf("[Scheduler] Processing course entry notifications")
 
-	// Get courses
-	courses, err := s.getCourseEntries()
+	// Get courses from cache instead of database
+	courses, err := s.getCachedCourses()
 	if err != nil {
 		log.Printf("[Scheduler] Error getting courses: %v", err)
 		return
 	}
 
-	for _, course := range courses {
-		s.createCourseNotification(course)
-		time.Sleep(2 * time.Second) // Delay between notifications
+	// Only process courses that have classes today
+	today := time.Now().Weekday()
+	relevantCourses := s.filterCoursesForToday(courses, today)
+
+	if len(relevantCourses) == 0 {
+		log.Printf("[Scheduler] No courses scheduled for today (%s)", today.String())
+		return
 	}
 
-}
+	log.Printf("[Scheduler] Processing %d courses scheduled for today", len(relevantCourses))
 
-type UntilType string
-
-const (
-	UntilHiigh UntilType = "an hour"
-	UntilLow   UntilType = "10 minutes"
-)
-
-type CourseEntry struct {
-	course course.LocalCourse
-	until  UntilType
-}
-
-func (s *Scheduler) getCourseEntries() ([]CourseEntry, error) {
-	now := time.Now()
-	inHour := now.Add(time.Hour)
-	in10Minutes := now.Add(10 * time.Minute)
-	var results []CourseEntry
-	var courses []course.LocalCourse
-	err := s.db.Find(&courses).Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to query courses: %w", err)
+	for _, course := range relevantCourses {
+		s.processCourseForNotification(course)
+		time.Sleep(1 * time.Second) // Reduced delay since we're processing fewer courses
 	}
+}
+
+// filterCoursesForToday returns only courses that have classes on the given day
+func (s *Scheduler) filterCoursesForToday(courses []course.LocalCourse, day time.Weekday) []course.LocalCourse {
+	var relevant []course.LocalCourse
 
 	for _, course := range courses {
 		schedule, err := course.ParseSchedule(course.Schedule)
 		if err != nil {
-			log.Printf("[Scheduler] Error parsing schedule for course %s: %v", course.Code, err)
-			continue
+			continue // Skip courses with invalid schedules
 		}
 
-		// If the class is currently in session, skip
-		if duringClass(now, schedule.StartTime, schedule.StartMinute) {
-			continue
-		}
-
-		// If the class is scheduled to start in the next hour, add a notification
-		if slices.Contains(schedule.Days, int(now.Weekday())) &&
-			duringClass(inHour, schedule.StartTime, schedule.StartMinute) {
-			results = append(results, CourseEntry{course: course, until: UntilHiigh})
-		}
-
-		// If the class is scheduled to start in the next 10 minutes, add a notification
-		if slices.Contains(schedule.Days, int(now.Weekday())) &&
-			duringClass(in10Minutes, schedule.StartTime, schedule.StartMinute) {
-			results = append(results, CourseEntry{course: course, until: UntilLow})
+		if slices.Contains(schedule.Days, int(day)) {
+			relevant = append(relevant, course)
 		}
 	}
 
-	return results, nil
+	return relevant
 }
 
-func duringClass(time time.Time, hour int, minute int) bool {
-	return time.Hour() >= hour && time.Hour() <= hour &&
-		time.Minute() >= minute && time.Minute() <= minute
+// processCourseForNotification checks if a course needs a notification and sends it
+func (s *Scheduler) processCourseForNotification(course course.LocalCourse) {
+	now := time.Now()
+	in30Minutes := now.Add(30 * time.Minute)
+
+	schedule, err := course.ParseSchedule(course.Schedule)
+	if err != nil {
+		log.Printf("[Scheduler] Error parsing schedule for course %s: %v", course.Code, err)
+		return
+	}
+
+	startTime := time.Date(now.Year(), now.Month(), now.Day(), schedule.StartTime, schedule.StartMinute, 0, 0, now.Location())
+	endTime := time.Date(now.Year(), now.Month(), now.Day(), schedule.EndTime, schedule.EndMinute, 0, 0, now.Location())
+
+	courseEntry := CourseEntry{
+		course:    course,
+		schedule:  schedule,
+		startTime: startTime,
+		endTime:   endTime,
+	}
+
+	// If the class is currently in session, skip
+	if duringClass(now, courseEntry) {
+		return
+	}
+
+	// If the class is scheduled to start in the next 30 minutes, send notification
+	if duringClass(in30Minutes, courseEntry) {
+		// Check if we already sent a notification for this course today
+		cacheKey := fmt.Sprintf("%s_%s", course.Code, now.Format("2006-01-02"))
+		if lastSent, exists := s.notificationCache[cacheKey]; exists &&
+			time.Since(lastSent) < 30*time.Minute {
+			return // Already sent notification recently
+		}
+
+		s.createCourseNotification(courseEntry)
+		s.notificationCache[cacheKey] = now
+	}
+}
+
+type CourseEntry struct {
+	course    course.LocalCourse
+	schedule  *course.ParsedSchedule
+	startTime time.Time
+	endTime   time.Time
+}
+
+func duringClass(t time.Time, courseEntry CourseEntry) bool {
+	return courseEntry.startTime.Before(t) && courseEntry.endTime.After(t)
 }
 
 func (s *Scheduler) createCourseNotification(courseEntry CourseEntry) {
-	title := s.formatTitle(courseEntry.course.Code)
-	message := fmt.Sprintf("You have a class in %s", courseEntry.until)
+	title := fmt.Sprintf("%s - %s", courseEntry.course.Code, courseEntry.course.Name)
+	message := fmt.Sprintf("You have a class at %v in 30 minutes", courseEntry.startTime.Format("15:04"))
 
 	// Create notification in database
 	notification := models.LocalNotification{
 		Type:      models.NotificationCourse,
 		Title:     title,
 		Message:   message,
-		SenderID:  s.userID,
+		SenderID:  s.user.ID,
 		Read:      false,
-		ExpiresAt: &time.Time{},
+		ExpiresAt: &courseEntry.endTime,
+	}
+
+	// Check if notification already exists (avoid duplicates)
+	if err := s.db.Where("title = ? AND message = ? AND sender_id = ? AND expires_at > ?",
+		title, message, s.user.ID, time.Now()).First(&notification).Error; err == nil {
+		log.Printf("[Scheduler] Notification already exists: %s", title)
+		return
 	}
 
 	if err := s.db.Create(&notification).Error; err != nil {

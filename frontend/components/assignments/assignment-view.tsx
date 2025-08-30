@@ -20,18 +20,20 @@ export function AssignmentView({ title, assignments, onToggleComplete, onAssignm
 
   if (assignments.length === 0) {
     return (
-      <div className="py-32 text-center">
-        <CheckCircle2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-white mb-2">No assignments found</h3>
-        <p className="text-gray-400">Create an assignment to get started</p>
+      <div className="flex flex-col items-center justify-center">
+        <div className="my-32 p-10 glass rounded-lg text-center">
+          <CheckCircle2 className="h-12 w-12 text-white/20 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-white mb-2">No assignments found</h3>
+          <p className="text-gray-400">Create an assignment to get started</p>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
-      <Card className="glass border-0">
-        <CardHeader>
+      <Card className="glass p-4 border-0">
+        <CardHeader className="p-0">
           <CardTitle className="flex items-center space-x-2 text-white">
             <CalendarDays className="h-5 w-5" />
             <span className="text-lg font-medium">{title}</span>

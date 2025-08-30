@@ -154,7 +154,7 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
                     <SelectItem key={course.Code} value={course.Code}>
                       <div className="flex items-center gap-2">
                         <div className={` h-2 w-2 rounded-full ${course.Color}`} />
-                        {course.Code} - {course.Name}
+                        {course.Code}
                       </div>
                     </SelectItem>
                   ))}

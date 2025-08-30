@@ -1,0 +1,317 @@
+package notifications
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"sync"
+	"time"
+
+	"unipilot/internal/models"
+	"unipilot/internal/sse"
+	"unipilot/internal/storage"
+
+	"github.com/gen2brain/beeep"
+	"gorm.io/gorm"
+)
+
+// EventHandler handles real-time notification events
+type EventHandler struct {
+	sseClient *sse.SSE
+	db        *gorm.DB
+	ctx       context.Context
+	cancel    context.CancelFunc
+	isRunning bool
+	mu        sync.RWMutex
+	userID    uint
+}
+
+// NewEventHandler creates a new event handler
+func NewEventHandler(userID uint) (*EventHandler, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	db, _, err := storage.GetLocalDB()
+	if err != nil {
+		cancel()
+		return nil, fmt.Errorf("failed to get database: %w", err)
+	}
+	return &EventHandler{
+		userID:    userID,
+		db:        db,
+		ctx:       ctx,
+		cancel:    cancel,
+		isRunning: false,
+	}, nil
+}
+
+// InitializeForDaemon sets up the event handler to run as a daemon
+func (eh *EventHandler) InitializeForDaemon(userID uint) error {
+	// Set the user ID for this daemon instance
+	eh.userID = userID
+
+	// Initialize any daemon-specific configurations
+	log.Printf("[EventHandler] Initialized daemon for user %d", userID)
+	return nil
+}
+
+// StartEventHandler initializes and starts listening to SSE events using existing SSE connection
+func (eh *EventHandler) StartEventHandler(existingSSE *sse.SSE) error {
+	eh.mu.Lock()
+	defer eh.mu.Unlock()
+
+	if eh.isRunning {
+		log.Printf("[EventHandler] Event handler is already running")
+		return nil
+	}
+
+	if existingSSE == nil {
+		return fmt.Errorf("existing SSE client is nil")
+	}
+
+	log.Printf("[EventHandler] Starting event handler for user %d using existing SSE connection", eh.userID)
+
+	// Use the existing SSE client instead of creating a new one
+	eh.sseClient = existingSSE
+
+	// Start event processing in a separate goroutine
+	go eh.processEvents()
+
+	eh.isRunning = true
+	log.Printf("[EventHandler] Event handler started successfully using existing SSE connection")
+	return nil
+}
+
+// StopEventHandler gracefully stops the event handler
+func (eh *EventHandler) StopEventHandler() error {
+	eh.mu.Lock()
+	defer eh.mu.Unlock()
+
+	if !eh.isRunning {
+		log.Printf("[EventHandler] Event handler is not running")
+		return nil
+	}
+
+	log.Printf("[EventHandler] Stopping event handler for user %d", eh.userID)
+
+	// Cancel context to stop all goroutines
+	if eh.cancel != nil {
+		eh.cancel()
+	}
+
+	// Note: We don't stop the SSE client here since it's managed by the main app
+	// We just stop our event processing
+
+	eh.isRunning = false
+	log.Printf("[EventHandler] Event handler stopped successfully")
+	return nil
+}
+
+// IsEventHandlerRunning checks if the event handler is currently active
+func (eh *EventHandler) IsEventHandlerRunning() bool {
+	eh.mu.RLock()
+	defer eh.mu.RUnlock()
+	return eh.isRunning
+}
+
+// HandleFollowNotification processes follow events from SSE
+func (eh *EventHandler) HandleFollowNotification(data json.RawMessage, message string) {
+	log.Printf("[EventHandler] Processing follow notification: %s", message)
+
+	var followData struct {
+		SenderID uint `json:"sender_id"`
+	}
+
+	if err := json.Unmarshal(data, &followData); err != nil {
+		log.Printf("[EventHandler] Error parsing follow data: %v", err)
+		return
+	}
+
+	title := "New Follow"
+	notification := models.LocalNotification{
+		Type:      models.NotificationFollow,
+		Title:     title,
+		Message:   message, // {Sender Name} followed you
+		SenderID:  followData.SenderID,
+		Read:      false,
+		ExpiresAt: &time.Time{},
+	}
+
+	if err := eh.db.Create(&notification).Error; err != nil {
+		log.Printf("[EventHandler] Error saving notification: %v", err)
+		return
+	}
+
+	if err := beeep.Notify(title, message, ""); err != nil {
+		log.Printf("[EventHandler] Error sending system notification: %v", err)
+	} else {
+		log.Printf("[EventHandler] Sent follow notification: %s", title)
+	}
+}
+
+// HandleSyncNotification processes sync events for notes/assignments
+func (eh *EventHandler) HandleSyncNotification(data json.RawMessage, message string) {
+	log.Printf("[EventHandler] Processing sync notification: %s", message)
+
+	var syncData struct {
+		Entity   string `json:"entity"`
+		EntityID uint   `json:"entity_id"`
+		Action   string `json:"action"` // update, create, delete
+	}
+
+	if err := json.Unmarshal(data, &syncData); err != nil {
+		log.Printf("[EventHandler] Error parsing sync data: %v", err)
+		return
+	}
+
+	sync := models.LocalNotification{
+		Type:      models.NotificationSync,
+		Title:     "New course",
+		Message:   message, // Sender name shared this course : {Course Code} with you
+		SenderID:  eh.userID,
+		Read:      false,
+		ExpiresAt: &time.Time{},
+		Data:      string(data),
+	}
+
+	if err := eh.db.Create(&sync).Error; err != nil {
+		log.Printf("[EventHandler] Error saving notification: %v", err)
+		return
+	}
+
+	if err := beeep.Notify("Sync", message, ""); err != nil {
+		log.Printf("[EventHandler] Error sending system notification: %v", err)
+	} else {
+		log.Printf("[EventHandler] Sent sync notification: %s", message)
+	}
+}
+
+// HandleAssignmentNotification processes real-time assignment events
+func (eh *EventHandler) HandleAssignmentNotification(data json.RawMessage, message string) {
+	log.Printf("[EventHandler] Processing assignment notification: %s", message)
+
+	var assignmentData struct {
+		ID         uint   `json:"id"`
+		Title      string `json:"title"`
+		CourseCode string `json:"course_code"`
+		Action     string `json:"action"` // create, update, delete
+	}
+
+	if err := json.Unmarshal(data, &assignmentData); err != nil {
+		log.Printf("[EventHandler] Error parsing assignment data: %v", err)
+		return
+	}
+
+	notification := models.LocalNotification{
+		Type:      models.NotificationAssignment,
+		Title:     "New assignment",
+		Message:   message, // {Sender Name} shared this assignment from {Course Code} : {Assignment Title} with you
+		SenderID:  eh.userID,
+		Read:      false,
+		ExpiresAt: &time.Time{},
+	}
+
+	if err := eh.db.Create(&notification).Error; err != nil {
+		log.Printf("[EventHandler] Error saving notification: %v", err)
+		return
+	}
+
+	if err := beeep.Notify(assignmentData.Title, message, ""); err != nil {
+		log.Printf("[EventHandler] Error sending system notification: %v", err)
+	} else {
+		log.Printf("[EventHandler] Sent assignment notification: %s", assignmentData.Title)
+	}
+}
+
+// processEvents processes incoming SSE events
+func (eh *EventHandler) processEvents() {
+	log.Printf("[EventHandler] Starting event processing loop")
+
+	for {
+		select {
+		case <-eh.ctx.Done():
+			log.Printf("[EventHandler] Event processing stopped (context cancelled)")
+			return
+		case event, ok := <-eh.sseClient.Events():
+			if !ok {
+				log.Printf("[EventHandler] SSE events channel closed")
+				return
+			}
+
+			// Parse the event and route to appropriate handler
+			eh.routeEvent(event)
+		case err, ok := <-eh.sseClient.Errors():
+			if !ok {
+				log.Printf("[EventHandler] SSE errors channel closed")
+				return
+			}
+			log.Printf("[EventHandler] SSE error: %v", err)
+		}
+	}
+}
+
+// routeEvent routes SSE events to appropriate handlers
+func (eh *EventHandler) routeEvent(event sse.Event) {
+	var notification struct {
+		Type    string          `json:"type"`
+		Entity  string          `json:"entity"`
+		Message string          `json:"message"`
+		Data    json.RawMessage `json:"data"`
+	}
+
+	if err := json.Unmarshal(event.Data, &notification); err != nil {
+		log.Printf("[EventHandler] Error parsing notification: %v", err)
+		return
+	}
+
+	// Route based on entity type
+	switch notification.Entity {
+	case "follow":
+		eh.HandleFollowNotification(notification.Data, notification.Message)
+	case "sync":
+		eh.HandleSyncNotification(notification.Data, notification.Message)
+	case "assignment":
+		eh.HandleAssignmentNotification(notification.Data, notification.Message)
+	default:
+		log.Printf("[EventHandler] Unknown entity type: %s", notification.Entity)
+	}
+}
+
+// GetNotificationStatus returns current notification system status
+func (eh *EventHandler) GetNotificationStatus() map[string]interface{} {
+	eh.mu.RLock()
+	defer eh.mu.RUnlock()
+
+	status := map[string]interface{}{
+		"event_handler_running": eh.isRunning,
+		"user_id":               eh.userID,
+		"timestamp":             time.Now().Unix(),
+	}
+
+	// Add SSE connection status if available
+	if eh.sseClient != nil {
+		status["sse_client_available"] = true
+		// Note: We can't directly check if SSE is connected since it's managed by the main app
+		// The main app should provide this information
+	} else {
+		status["sse_client_available"] = false
+	}
+
+	// Add context status
+	if eh.ctx != nil {
+		select {
+		case <-eh.ctx.Done():
+			status["context_cancelled"] = true
+		default:
+			status["context_cancelled"] = false
+		}
+	} else {
+		status["context_cancelled"] = true
+	}
+
+	// Add error status if any recent errors occurred
+	// This could be expanded to track recent errors
+	status["recent_errors"] = []string{} // Placeholder for error tracking
+
+	return status
+}
