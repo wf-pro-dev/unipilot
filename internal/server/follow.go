@@ -147,9 +147,14 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 		}
 
 		PrintLog(fmt.Sprintf("Sending notification to user %d", req.FollowedID))
-
-		var followedUser = user.User{ID: req.FollowedID}
-		if err := db.First(&followedUser).Error; err != nil {
+    
+		var currentUser user.User
+		if err := db.First(&currentUser, userID).Error; err != nil {
+			PrintERROR(w, http.StatusInternalServerError, "Database error")
+			return
+		}
+		var followedUser user.User
+		if err := db.First(&followedUser, req.FollowedID).Error; err != nil {
 			PrintERROR(w, http.StatusInternalServerError, "Database error")
 			return
 		}
@@ -159,13 +164,12 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 
 		if sseServer != nil {
 			sseServer.SendNotification(
-				userID,
 				req.FollowedID,
+				userID,
 				models.EntityFollow,
 				req.FollowedID,
-				"New follower",
-				fmt.Sprintf("You share %d courses with this user", sharedCoursesCount),
-				fmt.Sprintf("%s followed you", followedUser.Username),
+				currentUser.Username,
+				fmt.Sprintf("%s followed you. You share %d courses with this user", currentUser.Username ,sharedCoursesCount),
 				"create",
 			)
 		}
