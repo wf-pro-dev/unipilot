@@ -93,7 +93,7 @@ CONTEXT:
 
 INSTRUCTIONS:
 1. Generate exactly 5 relevant keywords that capture the main concepts of this lecture
-2. Create a comprehensive lecture summary with a minimun of 2000 words
+2. Create a comprehensive lecture summary with a minimun of 6000 words
 3. Structure the content in proper Markdown format with clear headings and subheadings
 4. Include key concepts, definitions, examples, and important points
 5. Use academic language appropriate for the subject level

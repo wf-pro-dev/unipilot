@@ -47,6 +47,7 @@ const (
 	EntityDocument   Entity = "document"
 	EntityNote       Entity = "note"
 	EntityUser       Entity = "user"
+	EntityFollow     Entity = "follow"
 )
 
 type LocalUpdate struct {
