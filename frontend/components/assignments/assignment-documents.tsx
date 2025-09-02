@@ -102,9 +102,6 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
     if (emblaApi) emblaApi.scrollNext()
   }, [emblaApi])
 
-  const scrollTo = useCallback((index: number) => {
-    if (emblaApi) emblaApi.scrollTo(index)
-  }, [emblaApi])
 
   const handleUpload = (type: "support" | "submission") => {
     setUploadType(type)
@@ -153,12 +150,12 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
         <div className="flex gap-2 items-center">
           <FileText className="w-5 h-5 text-muted-foreground" />
           <h3 className="text-lg font-medium">Documents</h3>
-          <Badge variant="secondary" className="ml-2">
-            {allDocuments.data?.length || 0}
-          </Badge>
         </div>
         <div className="flex gap-2 items-center">
-          <Button variant="outline" size="sm" className="h-8" onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}>
+          <Button variant="outline"
+            size="sm"
+            className="flex-1 bg-transparent border-gray-600"
+            onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}>
             <Upload className="w-4 h-4" />
           </Button>
           <DocumentStorageInfo />
@@ -172,7 +169,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
             variant={filter === "all" ? "default" : "outline"}
             size="sm"
             onClick={() => setFilter("all")}
-            className="h-8"
+            className="h-7 text-xs font-normal"
           >
             <Folder className="mr-1 w-4 h-4" />
             All ({allDocuments.data?.length || 0})
@@ -181,7 +178,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
             variant={filter === "support" ? "default" : "outline"}
             size="sm"
             onClick={() => setFilter("support")}
-            className="h-8"
+            className="h-7 text-xs font-normal"
           >
             <FileCheck className="mr-1 w-4 h-4" />
             Support ({supportDocuments.data?.length || 0})
@@ -190,7 +187,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
             variant={filter === "submission" ? "default" : "outline"}
             size="sm"
             onClick={() => setFilter("submission")}
-            className="h-8"
+            className="h-7 text-xs font-normal"
           >
             <Send className="mr-1 w-4 h-4" />
             Submissions ({submissionDocuments.data?.length || 0})
@@ -212,7 +209,6 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
       <div className="flex flex-col">
         {filteredDocs.length > 0 ? (
           <div className="relative">
-
 
             {/* Carousel container */}
             <div className="overflow-hidden" ref={emblaRef}>
@@ -264,7 +260,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
           </div>
         ) : (
           <div className="flex flex-col justify-center items-center py-8 text-center">
-            <FileText className="mb-2 w-12 h-12 text-muted-foreground" />
+            <FileText className="mb-2 w-12 h-12 text-muted-foreground" strokeWidth={1} />
             <p className="text-sm text-muted-foreground">
               {filter === "all"
                 ? "No documents uploaded yet"
@@ -277,10 +273,10 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
               size="sm"
               variant="outline"
               onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}
-              className="mt-2 h-8"
+              className="mt-4 py-2 px-3 gap-2 flex-1 text-blue-400 bg-transparent border-blue-600 hover:bg-blue-600/10"
             >
-              <Upload className="mr-1 w-4 h-4" />
-              Upload Document
+              <Upload className="w-4 h-4"  />
+              Upload
             </Button>
           </div>
         )}

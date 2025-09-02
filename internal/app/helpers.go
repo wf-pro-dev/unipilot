@@ -5,6 +5,7 @@ import (
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/note"
+	"unipilot/internal/models/notifications"
 	"unipilot/internal/models/user"
 	"unipilot/internal/storage"
 
@@ -104,7 +105,7 @@ func (h *DatabaseHelper) DeleteCourse(course *course.LocalCourse) error {
 // GetNotes returns all notes for the current user
 func (h *DatabaseHelper) GetNotes() ([]note.LocalNote, error) {
 	var LocalNote []note.LocalNote
-	err := h.db.Find(&LocalNote).Error
+	err := h.db.Preload("Course").Find(&LocalNote).Order("created_at DESC").Error
 	return LocalNote, err
 }
 
@@ -121,4 +122,19 @@ func (h *DatabaseHelper) UpdateNote(LocalNote *note.LocalNote, column, value str
 // DeleteNote deletes a note
 func (h *DatabaseHelper) DeleteNote(note *note.LocalNote) error {
 	return h.db.Delete(note).Error
+}
+
+// GetNotifications returns all notifications for the current user
+func (h *DatabaseHelper) GetNotifications() ([]notifications.LocalNotification, error) {
+	h.db = h.db.Debug()
+	var LocalNotification []notifications.LocalNotification
+	err := h.db.
+		Where("type = ?", notifications.NotificationFollow).Or("type = ?", notifications.NotificationSync).
+		Find(&LocalNotification).
+		Order("created_at DESC").Error
+	return LocalNotification, err
+}
+
+func (h *DatabaseHelper) DeleteNotification(notification *notifications.LocalNotification) error {
+	return h.db.Delete(notification).Error
 }

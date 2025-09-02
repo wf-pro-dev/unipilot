@@ -5,23 +5,24 @@ import { Input } from "@/components/ui/input"
 import { Search, Users, Filter  } from "lucide-react"
 import { useState } from "react"
 import { UserItem } from "./user-item"
-import { useAuth } from "@/hooks/use-auth"
-import { useFollowing } from "@/hooks/use-follows"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useNetworkStatus } from "@/hooks/use-network-status"
 import { OfflineBanner } from "../ui/offline-banner"
+import { user } from "@/wailsjs/go/models"
 
-export function FollowingView() {
+interface FollowingViewProps {
+  following: user.User[] | undefined
+}
+
+export function FollowingView({ following }: FollowingViewProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedUniversity, setSelectedUniversity] = useState("All Universities")
 
   const {isOnline} = useNetworkStatus()
-  const { user: currentUser } = useAuth()
-  const { data: following, isLoading: followingLoading } = useFollowing(currentUser?.ID as number)
 
   const universities = Array.from(new Set(following?.map((user) => user.University) || [])).filter((university) => university !== "")
 
-  const filteredFollowing = (following || []).filter((user) => {
+  const filteredFollowing = following?.filter((user) => {
     const matchesSearch =
       user.Username.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.Email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -79,7 +80,7 @@ export function FollowingView() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredFollowing?.map((user) => (
-          <UserItem key={user.ID} userID={user.ID} />
+          <UserItem key={user.ID} userID={user.ID}/>
         ))}
       </div>
       {filteredFollowing?.length === 0 && (

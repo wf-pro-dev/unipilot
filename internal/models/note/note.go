@@ -63,4 +63,3 @@ func Get_Note_byLocalID(id, user_id uint, db *gorm.DB) (*Note, error) {
 	}
 	return note, nil
 }
-

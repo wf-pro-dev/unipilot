@@ -147,7 +147,7 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 		}
 
 		PrintLog(fmt.Sprintf("Sending notification to user %d", req.FollowedID))
-
+    
 		var currentUser user.User
 		if err := db.First(&currentUser, userID).Error; err != nil {
 			PrintERROR(w, http.StatusInternalServerError, "Database error")
@@ -383,4 +383,3 @@ func HandleGetFollowStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
-

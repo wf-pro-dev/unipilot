@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Mail, User, Lock, GraduationCap, Globe } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
+import { useRegister } from "@/hooks/use-auth"
 import { motion } from "framer-motion"
+import { toast } from "sonner"
 
 interface RegisterFormProps {
     onRegisterSuccess?: () => void
@@ -52,36 +53,37 @@ export function RegisterForm({ onRegisterSuccess }: RegisterFormProps) {
     const [confirmPassword, setConfirmPassword] = useState("")
     const [university, setUniversity] = useState("")
     const [language, setLanguage] = useState("en")
-    const [error, setError] = useState("")
-    const { register, isLoading } = useAuth()
+   
+    const { mutate: register, isPending: isLoading } = useRegister()
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        setError("")
 
         // Validation
         if (password !== confirmPassword) {
-            setError("Passwords do not match")
+            toast.error("Passwords do not match")
             return
         }
 
         if (password.length < 6) {
-            setError("Password must be at least 6 characters long")
+            toast.error("Password must be at least 6 characters long")
             return
         }
 
         if (!email.includes("@")) {
-            setError("Please enter a valid email address")
+            toast.error("Please enter a valid email address")
             return
         }
 
-        const result = await register(username, email, password, university, language)
+        register({ username, email, password, university, language }, {
+            onSuccess: () => {
+                onRegisterSuccess?.()
+            },
+            onError: (error) => {
+                toast.error(error.message)
+            }
+        })
 
-        if (result.success) {
-            onRegisterSuccess?.()
-        } else {
-            setError(result.error || "Registration failed")
-        }
     }
 
     return (
@@ -210,11 +212,6 @@ export function RegisterForm({ onRegisterSuccess }: RegisterFormProps) {
                                 </div>
                             </div>
                         </div>
-                        {error && (
-                            <Alert variant="destructive">
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
-                        )}
 
                         <Button type="submit" className="w-full" disabled={isLoading || !university}>
                             {isLoading ? (

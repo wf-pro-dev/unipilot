@@ -5,25 +5,25 @@ import { Input } from "@/components/ui/input"
 import { Search, Users, Filter  } from "lucide-react"
 import { useState } from "react"
 import { UserItem } from "./user-item"
-import { useAuth } from "@/hooks/use-auth"
-import { useFollowers } from "@/hooks/use-follows"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useNetworkStatus } from "@/hooks/use-network-status"
 import { OfflineBanner } from "../ui/offline-banner"
+import { user } from "@/wailsjs/go/models"
 
-export function FollowersView() {
+interface FollowersViewProps {
+  followers: user.User[] | undefined
+}
+
+export function FollowersView({ followers }: FollowersViewProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedUniversity, setSelectedUniversity] = useState("All Universities")
 
   const {isOnline} = useNetworkStatus()
-  const { user: currentUser } = useAuth()
-
-  const { data: followers, isLoading: followersLoading } = useFollowers(currentUser?.ID as number)
 
   const universities = Array.from(new Set(followers?.map((user) => user.University) || [])).filter((university) => university !== "")
 
 
-  const filteredFollowers = (followers || []).filter((user) => {
+  const filteredFollowers = followers?.filter((user) => {
     const matchesSearch =
       user.Username.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.Email.toLowerCase().includes(searchQuery.toLowerCase())
@@ -32,7 +32,6 @@ export function FollowersView() {
 
     return matchesSearch && matchesUniversity
   })
-
 
   if (!isOnline) {
     return <OfflineBanner />

@@ -5,10 +5,6 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AssignmentsCalendar } from "@/components/assignments/assignments-calendar"
 import { AssignmentsTable } from "@/components/assignments/assignments-table"
-import { TodayAssignments } from "@/components/assignments/today-assignments"
-import { WeekAssignments } from "@/components/assignments/week-assignments"
-import { OverdueAssignments } from "@/components/assignments/overdue-assignments"
-import { ExamAssignments } from "@/components/assignments/exam-assignments"
 import { AddAssignmentDialog } from "@/components/assignments/add-assignment-dialog"
 import { AssignmentDetailsModal } from "@/components/assignments/assignment-details-modal"
 import { Calendar, List, Clock, CheckCircle2, AlertTriangle, CalendarDays, Loader2 } from "lucide-react"
@@ -27,6 +23,8 @@ import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format, isSameDay } from "date-fns"
 import { DayAssignmentsModal } from "@/components/assignments/day-assignments-modal"
 import { toast } from "sonner"
+import { AssignmentEditDialog } from "@/components/assignments/assignment-edit-dialog"
+import { AssignmentView } from "@/components/assignments/assignment-view"
 
 export default function AssignmentsPage() {
   const searchParams = useSearchParams()
@@ -45,6 +43,7 @@ export default function AssignmentsPage() {
   const createMutation = useCreateAssignment()
 
   const [selectedAssignment, setSelectedAssignment] = useState<assignment.LocalAssignment | null>(null)
+  const [selectedAssignmentEdit, setSelectedAssignmentEdit] = useState<assignment.LocalAssignment | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
   // Get the current view from URL parameters, default to "today"
@@ -60,6 +59,8 @@ export default function AssignmentsPage() {
   const courseFilter = searchParams.get("course") || null
   const statusFilter = searchParams.get("status") || null
   const priorityFilter = searchParams.get("priority") || null
+
+  console.log("filter (page)", { courseFilter, statusFilter, priorityFilter })
 
   const handleEditAssignment = async (assignment: assignment.LocalAssignment, column: string, value: string) => {
     const message = "[Frontend] assignment " + assignment.ID + " remote_id " + assignment.RemoteID + " " + column + " changed to " + value
@@ -160,7 +161,7 @@ export default function AssignmentsPage() {
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               Assignments
             </h1>
             <p className="text-gray-400 mt-2">Track and manage your coursework deadlines</p>
@@ -169,74 +170,82 @@ export default function AssignmentsPage() {
         </div>
 
         <Tabs value={activeView} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 glass border-0 mb-8">
-            <TabsTrigger value="today" className="flex items-center space-x-2">
+          <TabsList className="grid w-full grid-cols-6 glass border-0 mb-4">
+            <TabsTrigger value="today" className="flex items-center space-x-2 ">
               <Clock className="h-4 w-4" />
               <span>Today ({todayAssignments?.length || 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="week" className="flex items-center space-x-2">
+            <TabsTrigger value="week" className="flex items-center space-x-2 ">
               <CalendarDays className="h-4 w-4" />
               <span>This Week ({weekAssignments?.length || 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="overdue" className="flex items-center space-x-2">
+            <TabsTrigger value="overdue" className="flex items-center space-x-2 ">
               <AlertTriangle className="h-4 w-4" />
               <span>Overdue ({overdueAssignments?.length || 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="exam" className="flex items-center space-x-2">
+            <TabsTrigger value="exam" className="flex items-center space-x-2 ">
               <CheckCircle2 className="h-4 w-4" />
               <span>Exam ({examAssignments?.length || 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="flex items-center space-x-2">
+            <TabsTrigger value="calendar" className="flex items-center space-x-2 ">
               <Calendar className="h-4 w-4" />
               <span>Calendar</span>
             </TabsTrigger>
-            <TabsTrigger value="list" className="flex items-center space-x-2">
+            <TabsTrigger value="list" className="flex items-center space-x-2 ">
               <List className="h-4 w-4" />
               <span>All ({assignments?.length || 0})</span>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="today">
-            <TodayAssignments
-              assignments={todayAssignments || []}
+            <AssignmentView
+              title="Today's Assignments"
+              assignments={todayAssignments}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
-              onEdit={handleEditAssignment}
+              onEdit={handleEditAssignment} 
               onDelete={handleDeleteAssignment}
-              isLoading={updateMutation.isPending}
+              onOpenEdit={setSelectedAssignmentEdit}
+              isLoading={isLoading}
             />
           </TabsContent>
 
           <TabsContent value="week">
-            <WeekAssignments
-              assignments={weekAssignments || []}
+            <AssignmentView
+              title="Due This Week"
+              assignments={weekAssignments}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
               onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
-              isLoading={updateMutation.isPending}
+              onOpenEdit={setSelectedAssignmentEdit}
+              isLoading={isLoading}
             />
           </TabsContent>
 
           <TabsContent value="overdue">
-            <OverdueAssignments
-              assignments={overdueAssignments || []}
+            <AssignmentView
+              title="Overdue Assignments"
+              assignments={overdueAssignments}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
               onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
-              isLoading={updateMutation.isPending}
+              onOpenEdit={setSelectedAssignmentEdit}
+              isLoading={isLoading}
             />
           </TabsContent>
 
           <TabsContent value="exam">
-            <ExamAssignments
-              assignments={examAssignments || []}
+            <AssignmentView
+              title="Exam Assignments"
+              assignments={examAssignments}
               onToggleComplete={handleToggleComplete}
               onAssignmentClick={setSelectedAssignment}
               onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
-              isLoading={updateMutation.isPending}
+              onOpenEdit={setSelectedAssignmentEdit}
+              isLoading={isLoading}
             />
           </TabsContent>
 
@@ -248,7 +257,7 @@ export default function AssignmentsPage() {
               onMoveAssignment={handleMoveAssignment}
               onAssignmentClick={setSelectedAssignment}
               onDateClick={setSelectedDate}
-              isLoading={updateMutation.isPending}
+              isLoading={isLoading}
             />
           </TabsContent>
 
@@ -259,8 +268,9 @@ export default function AssignmentsPage() {
               onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               onAssignmentClick={setSelectedAssignment}
+              onOpenEdit={setSelectedAssignmentEdit}
               filter={{ course: courseFilter || "all", status: statusFilter || "all", priority: priorityFilter || "all" }}
-              isLoading={updateMutation.isPending}
+              isLoading={isLoading}
             />
           </TabsContent>
         </Tabs>
@@ -268,7 +278,8 @@ export default function AssignmentsPage() {
         <AssignmentDetailsModal
           isOpen={!!selectedAssignment}
           onClose={() => setSelectedAssignment(null)}
-          assignment={selectedAssignment}
+          assignment_id={selectedAssignment?.ID}
+          onOpenEdit={setSelectedAssignmentEdit}
           onEdit={handleEditAssignment}
           onDelete={handleDeleteAssignment}
           isLoading={updateMutation.isPending}
@@ -279,11 +290,18 @@ export default function AssignmentsPage() {
           date={selectedDate}
           assignments={assignments || []}
           onToggleComplete={handleToggleComplete}
-          onAddAssignment={() => {}}
+          onAddAssignment={() => { }}
           onEdit={handleEditAssignment}
           onDelete={handleDeleteAssignment}
           onAssignmentClick={setSelectedAssignment}
           isLoading={updateMutation.isPending}
+        />
+
+        <AssignmentEditDialog
+          open={!!selectedAssignmentEdit}
+          setOpen={() => setSelectedAssignmentEdit(null)}
+          assignment={selectedAssignmentEdit!}
+          onEdit={handleEditAssignment}
         />
       </div>
     </div>

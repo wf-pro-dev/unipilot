@@ -2,8 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogError } from "@/wailsjs/runtime/runtime"
-import { note } from '@/wailsjs/go/models'
-import { useToast } from './use-toast'
+import { note, course } from '@/wailsjs/go/models'
 
 // Query keys for consistent cache management
 export const noteKeys = {
@@ -21,6 +20,7 @@ export function useNotes() {
     queryKey: noteKeys.lists(),
     queryFn: async (): Promise<note.LocalNote[]> => {
       try {
+
         return await window.go.main.App.GetNotes()
       } catch (error) {
         LogError("Failed to fetch notes: " + error)
@@ -155,6 +155,12 @@ export function useDeleteNote() {
       queryClient.invalidateQueries({ queryKey: noteKeys.lists() })
     },
   })
+}
+
+export function useCourseNotes(course: course.LocalCourse) {
+  const { data: notes } = useNotes()
+  const courseNotes = (notes || []).filter(note => note.CourseCode == course.Code)
+  return courseNotes
 }
 
 

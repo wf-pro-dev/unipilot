@@ -70,7 +70,7 @@ export function AddNoteDialog({ onAdd }: AddNoteDialogProps) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700">
+                <Button className="text-white bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700">
                     <Plus className="h-4 w-4 mr-2" />
                     Add Note
                 </Button>

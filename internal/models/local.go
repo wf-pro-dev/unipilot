@@ -74,4 +74,3 @@ func (u *LocalUpdate) ToMap() map[string]string {
 		"last_error":    u.LastError,
 	}
 }
-

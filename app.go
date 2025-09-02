@@ -20,10 +20,11 @@ import (
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/document"
 	"unipilot/internal/models/note"
+	"unipilot/internal/models/notifications"
 	"unipilot/internal/models/user"
 	"unipilot/internal/network"
+	"unipilot/internal/services/daemon"
 	"unipilot/internal/services/fileops"
-	"unipilot/internal/sse"
 	"unipilot/internal/storage"
 	"unipilot/internal/sync"
 
@@ -32,10 +33,11 @@ import (
 
 // App struct
 type App struct {
-	ctx    context.Context
-	Auth   *auth.Auth
-	Events *events.Events
-	DB     *app.DatabaseHelper
+	ctx       context.Context
+	Auth      *auth.Auth
+	Events    *events.Events
+	DB        *app.DatabaseHelper
+	DaemonMgr *daemon.Manager
 }
 
 // NewApp creates a new App application struct
@@ -59,24 +61,67 @@ func (a *App) Startup(ctx context.Context) {
 		a.DB = dbHelper
 	}
 
-	// Check if user is already authenticated and initialize HTTP client + SSE if needed
-	if _, err := a.Auth.IsAuthenticated(); err == nil && network.IsOnline() {
-		log.Println("[App] User already authenticated, initializing HTTP client and SSE connection...")
+	// Initialize daemon manager
+	if a.DB != nil {
+		userID := a.DB.GetCurrentUserID()
+		if userID > 0 {
+			daemonMgr, err := daemon.NewManager(userID, ctx)
+			if err != nil {
+				log.Printf("Warning: Could not initialize daemon manager: %v", err)
+			} else {
+				a.DaemonMgr = daemonMgr
+
+				// Auto-install daemon if not already installed
+				if !daemonMgr.IsDaemonInstalled() {
+					log.Printf("[App] Installing notification daemon...")
+					if err := daemonMgr.InstallDaemon(); err != nil {
+						log.Printf("Warning: Could not install notification daemon: %v", err)
+						runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
+							Type:    runtime.ErrorDialog,
+							Title:   "Notification Setup",
+							Message: "Failed to set up background notifications. Notifications will only work when the app is running.",
+						})
+					} else {
+						log.Printf("[App] Notification daemon installed successfully")
+					}
+				} else {
+					log.Printf("[App] Notification daemon already installed")
+				}
+
+				// Start daemon if not running
+				if !daemonMgr.IsDaemonRunning() {
+					log.Printf("[App] Starting notification daemon...")
+					if err := daemonMgr.StartDaemon(); err != nil {
+						log.Printf("Warning: Could not start notification daemon: %v", err)
+					} else {
+						log.Printf("[App] Notification daemon started successfully")
+					}
+				} else {
+					log.Printf("[App] Notification daemon already running")
+				}
+			}
+		}
+	}
+
+	// Check if user is already authenticated and initialize HTTP client if needed
+	if _, err := a.Auth.IsAuthenticated(); err == nil {
+		log.Println("[App] User already authenticated, initializing HTTP client...")
 		if err := a.initializeAuthenticatedClient(); err != nil {
 			log.Printf("[App] Failed to initialize authenticated client: %v", err)
 		} else {
-			a.startSSEConnection()
+			if network.IsOnline() {
+				// Start background sync manager
+				syncManager := sync.NewSyncManager(a.DB.GetDB())
+				go syncManager.BackgroundSync()
 
-			// Start background sync manager
-			syncManager := sync.NewSyncManager(a.DB.GetDB())
-			go syncManager.BackgroundSync()
+				// Process any pending syncs on startup
+				go func() {
+					if err := syncManager.ProcessPendingSyncs(); err != nil {
+						log.Printf("[App] Startup sync error: %v", err)
+					}
+				}()
+			}
 
-			// Process any pending syncs on startup
-			go func() {
-				if err := syncManager.ProcessPendingSyncs(); err != nil {
-					log.Printf("[App] Startup sync error: %v", err)
-				}
-			}()
 		}
 	}
 }
@@ -358,7 +403,7 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 		fmt.Println("Error creating remote note:", err)
 		return err
 	}
-
+	localNote.RemoteID = responseNote["id"]
 	localNote.Keywords = responseNote["keywords"]
 	localNote.Content = responseNote["content"]
 
@@ -1065,84 +1110,16 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 	return nil
 }
 
+func (a *App) DeleteNotification(notification *notifications.LocalNotification) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.DB.DeleteNotification(notification)
+}
+
 // ========================================
 // OTHER OPERATIONS
 // ========================================
-
-// startSSEConnection initializes and starts the SSE connection with proper authentication check
-func (a *App) startSSEConnection() {
-	// Ensure we have an authenticated HTTP client
-	if a.Auth.Client == nil {
-		log.Println("[App] No HTTP client available, cannot start SSE")
-		return
-	}
-
-	// Stop any existing SSE connection first
-	a.stopSSEConnection()
-
-	// Initialize new SSE connection
-	a.Auth.SSE = sse.NewSSE()
-
-	// Start the SSE connection in a goroutine
-	go a.Auth.SSE.Connect(a.Auth.Client)
-
-	// Start the event handler
-	a.Events.Start(a.Auth.SSE)
-
-	log.Println("[App] SSE connection started successfully")
-}
-
-// stopSSEConnection stops the current SSE connection and event handling
-func (a *App) stopSSEConnection() {
-	if a.Auth.SSE != nil {
-		log.Println("[App] Stopping existing SSE connection...")
-		a.Auth.SSE.StopListener()
-		a.Auth.SSE = nil
-	}
-
-	if a.Events != nil {
-		a.Events.Stop()
-		// Recreate events handler for next connection
-		a.Events = events.NewEvents()
-	}
-
-	log.Println("[App] SSE connection stopped")
-}
-
-// ensureSSEConnection ensures SSE is running if user is authenticated and online
-func (a *App) ensureSSEConnection() {
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
-		log.Println("[App] User not authenticated, stopping SSE if running")
-		a.stopSSEConnection()
-		return
-	}
-
-	if !network.IsOnline() {
-		log.Println("[App] Network offline, stopping SSE if running")
-		a.stopSSEConnection()
-		return
-	}
-
-	// If we don't have an HTTP client, try to initialize it
-	if a.Auth.Client == nil {
-		log.Println("[App] No HTTP client available, trying to initialize from stored cookies")
-		if err := a.initializeAuthenticatedClient(); err != nil {
-			log.Printf("[App] Failed to initialize HTTP client: %v", err)
-			return
-		}
-	}
-
-	// If we don't have an active SSE connection, start one
-	if a.Auth.SSE == nil {
-		log.Println("[App] No active SSE connection, starting new connection")
-		a.startSSEConnection()
-	}
-}
-
-// Greet returns a greeting for the given name
-func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, It's show time!", name)
-}
 
 // Register handles user registration
 func (a *App) Register(username, email, password, university, language string) (*user.User, error) {
@@ -1150,11 +1127,6 @@ func (a *App) Register(username, email, password, university, language string) (
 	if err != nil {
 		fmt.Println("Register error: ", err)
 		return nil, err
-	}
-
-	// Start SSE connection after successful registration
-	if network.IsOnline() {
-		a.startSSEConnection()
 	}
 
 	// Reinitialize database helper after registration
@@ -1175,11 +1147,6 @@ func (a *App) Login(username, password string) (*user.User, error) {
 		return nil, err
 	}
 
-	// Start SSE connection after successful login
-	if network.IsOnline() {
-		a.startSSEConnection()
-	}
-
 	// Reinitialize database helper after login
 	dbHelper, err := app.NewDatabaseHelper()
 	if err != nil {
@@ -1193,9 +1160,6 @@ func (a *App) Login(username, password string) (*user.User, error) {
 
 // Logout handles user logout
 func (a *App) Logout() error {
-	// Stop SSE connection first
-	a.stopSSEConnection()
-
 	if err := a.Auth.Logout(); err != nil {
 		return err
 	}
@@ -1216,61 +1180,6 @@ func (a *App) IsAuthenticated() (*user.User, error) {
 	}
 
 	return user, nil
-}
-
-// EnsureSSEConnection manually checks and ensures SSE connection is in correct state
-func (a *App) EnsureSSEConnection() error {
-	log.Println("[App] Manual SSE connection check requested")
-	a.ensureSSEConnection()
-	return nil
-}
-
-// GetSSEConnectionStatus returns the current status of the SSE connection
-func (a *App) GetSSEConnectionStatus() map[string]interface{} {
-	user, err := a.Auth.IsAuthenticated()
-	if err != nil {
-		return map[string]interface{}{
-			"connected":     false,
-			"authenticated": false,
-			"online":        network.IsOnline(),
-			"client_ready":  a.Auth.Client != nil,
-		}
-	}
-	status := map[string]interface{}{
-		"connected":     false,
-		"authenticated": user != nil,
-		"online":        network.IsOnline(),
-		"client_ready":  a.Auth.Client != nil,
-	}
-
-	if a.Auth.SSE != nil {
-		status["connected"] = true
-		status["sse_instance"] = "active"
-	} else {
-		status["sse_instance"] = "inactive"
-	}
-
-	return status
-}
-
-// ReconnectSSE manually triggers an SSE reconnection (useful for network recovery)
-func (a *App) ReconnectSSE() error {
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
-		return fmt.Errorf("user not authenticated")
-	}
-
-	if !network.IsOnline() {
-		return fmt.Errorf("network is offline")
-	}
-
-	if a.Auth.Client == nil {
-		return fmt.Errorf("HTTP client not available")
-	}
-
-	log.Println("[App] Manual SSE reconnection requested")
-	a.startSSEConnection()
-
-	return nil
 }
 
 // Sync performs synchronization of local changes with the remote server
@@ -1343,6 +1252,14 @@ func (a *App) GetNotes() ([]note.LocalNote, error) {
 		return nil, fmt.Errorf("database not initialized")
 	}
 	return a.DB.GetNotes()
+}
+
+// GetNotifications returns all notifications for the current user
+func (a *App) GetNotifications() ([]notifications.LocalNotification, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	return a.DB.GetNotifications()
 }
 
 // Document Management Methods
@@ -1624,4 +1541,79 @@ func (a *App) GetNetworkStatus() map[string]interface{} {
 		"online":    isOnline,
 		"timestamp": time.Now().Unix(),
 	}
+}
+
+// Add daemon management methods for the UI:
+
+// InstallNotificationDaemon installs the notification daemon
+func (a *App) InstallNotificationDaemon() error {
+	if a.DaemonMgr == nil {
+		return fmt.Errorf("daemon manager not initialized")
+	}
+	return a.DaemonMgr.InstallDaemon()
+}
+
+// UninstallNotificationDaemon uninstalls the notification daemon
+func (a *App) UninstallNotificationDaemon() error {
+	if a.DaemonMgr == nil {
+		return fmt.Errorf("daemon manager not initialized")
+	}
+	return a.DaemonMgr.UninstallDaemon()
+}
+
+// IsNotificationDaemonInstalled checks if the daemon is installed
+func (a *App) IsNotificationDaemonInstalled() bool {
+	if a.DaemonMgr == nil {
+		return false
+	}
+	return a.DaemonMgr.IsDaemonInstalled()
+}
+
+// IsNotificationDaemonRunning checks if the daemon is running
+func (a *App) IsNotificationDaemonRunning() bool {
+	if a.DaemonMgr == nil {
+		return false
+	}
+	return a.DaemonMgr.IsDaemonRunning()
+}
+
+// StartNotificationDaemon starts the daemon
+func (a *App) StartNotificationDaemon() error {
+	if a.DaemonMgr == nil {
+		return fmt.Errorf("daemon manager not initialized")
+	}
+	return a.DaemonMgr.StartDaemon()
+}
+
+// StopNotificationDaemon stops the daemon
+func (a *App) StopNotificationDaemon() error {
+	if a.DaemonMgr == nil {
+		return fmt.Errorf("daemon manager not initialized")
+	}
+	return a.DaemonMgr.StopDaemon()
+}
+
+// GetNotificationDaemonStatus returns the daemon status
+func (a *App) GetNotificationDaemonStatus() map[string]interface{} {
+	if a.DaemonMgr == nil {
+		return map[string]interface{}{
+			"installed": false,
+			"running":   false,
+			"error":     "Daemon manager not initialized",
+		}
+	}
+
+	return map[string]interface{}{
+		"installed": a.DaemonMgr.IsDaemonInstalled(),
+		"running":   a.DaemonMgr.IsDaemonRunning(),
+		"error":     nil,
+	}
+}
+
+// Add method to rebuild daemon (for updates)
+func (a *App) RebuildNotificationDaemon() error {
+	if a.DaemonMgr == nil {
+		return fmt.Errorf("daemon manager not initialized")
+	}
+	return a.DaemonMgr.RebuildDaemon()
 }

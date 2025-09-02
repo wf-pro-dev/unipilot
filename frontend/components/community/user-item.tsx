@@ -4,13 +4,11 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { User as UserIcon, Calendar, MessageCircle, UserPlus, UserMinus } from "lucide-react"
 import { useFollow, useFollowers, useFollowing } from "@/hooks/use-follows"
-import { assignment, user } from "@/wailsjs/go/models"
-import { Skeleton } from "../ui/skeleton"
-import { memo, useState } from "react"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
-import { useAuth } from "@/hooks/use-auth"
 import { useUsers } from "@/hooks/use-users"
+import { useAuthContext } from "../provider/auth-provider"
+import { Skeleton } from "../ui/skeleton"
 
 interface UserItemProps {
   userID: number
@@ -21,17 +19,19 @@ export function UserItem({ userID }: UserItemProps) {
 
   const { data: followers, isLoading: followersLoading } = useFollowers(userID)
   const { data: following, isLoading: followingLoading } = useFollowing(userID)
+ 
   const { data: users, isLoading: userLoading } = useUsers()
   const user = users?.find((user) => user.ID === userID)
+  const { user: currentUser, followers: currentUserFollowers, following: currentUserFollowing } = useAuthContext()
+  
 
-  const { user: currentUser } = useAuth()
 
   // Check if current user is following this user by checking if current user is in the followers list
-  const isFollowed = followers?.some((follower) => follower.ID === currentUser?.ID) || false
+  const isFollowed = currentUserFollowing?.some((following) => following.ID === userID) 
   // Check if this user is following the current user by checking if the current user is in the following list
-  const isFollowing = following?.some((following) => following.ID === currentUser?.ID) || false
+  const isFollowing = currentUserFollowers?.some((follower) => follower.ID === userID) 
 
-  const followMutation = useFollow(currentUser!, isFollowed)
+  const followMutation = useFollow(currentUser!, isFollowed!)
 
 
   const handleFollow = () => {
@@ -39,7 +39,6 @@ export function UserItem({ userID }: UserItemProps) {
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     followMutation.mutate(user!)
   }
-
 
   return (
     <Card
@@ -127,7 +126,7 @@ export function UserItem({ userID }: UserItemProps) {
 
 
         <div className="flex pt-2 space-x-2">
-          {isFollowed ? (
+          {isFollowed! ? (
             <Button
               variant="outline"
               size="sm"
@@ -140,7 +139,7 @@ export function UserItem({ userID }: UserItemProps) {
               <UserMinus className="mr-1 w-3 h-3" />
               Unfollow
             </Button>
-          ) : isFollowing ? (
+          ) : isFollowing! ? (
             <Button
               variant="outline"
               size="sm"

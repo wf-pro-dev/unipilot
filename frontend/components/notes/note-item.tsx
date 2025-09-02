@@ -61,7 +61,7 @@ export function NoteItem({
     <div>
       <Card
         className={`glass border-0 hover:bg-white/5 transition-colors ${!disabled && onNoteClick ? 'cursor-pointer' : ''
-          } ${disabled ? 'opacity-50' : ''}`}
+          } ${disabled ? 'animate-fade' : ''}`}
         onClick={handleCardClick}
       >
         <CardContent className="p-4">
@@ -129,7 +129,7 @@ export function NoteItem({
 
                 {/* Keywords */}
 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 line-clamp-1 ">
                   <Tag className="w-3 h-3 text-gray-400" />
                   {keywords.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
@@ -145,7 +145,11 @@ export function NoteItem({
                       )}
                     </div>
                   ) :
-                    <Skeleton className="h-4 w-3/4" />
+                    <div className="flex items-center space-x-2">
+                      {Array.from({ length: 5 }).map((_, index) => (  
+                        <Skeleton key={index} className="h-4 w-20" />
+                      ))}
+                    </div>
                   }
 
                 </div>

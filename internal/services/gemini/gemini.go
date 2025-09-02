@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	
+
 	"github.com/spf13/viper"
 
 	"google.golang.org/genai"
@@ -19,13 +19,12 @@ type GeminiRequest struct {
 }
 
 type GeminiResponse struct {
-	Keywords	string
-	Content		string
+	Keywords string
+	Content  string
 }
 
 func GenerateNote(request *GeminiRequest) (*GeminiResponse, error) {
 	ctx := context.Background()
-	
 
 	viper.SetConfigFile(".env")
 	err := viper.ReadInConfig()
@@ -35,11 +34,10 @@ func GenerateNote(request *GeminiRequest) (*GeminiResponse, error) {
 
 	GEMINI_API_KEY := viper.GetString("GEMINI_API_KEY")
 
-
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-        	APIKey:  GEMINI_API_KEY,
-        	Backend: genai.BackendGeminiAPI,
-    	})
+		APIKey:  GEMINI_API_KEY,
+		Backend: genai.BackendGeminiAPI,
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -71,14 +69,11 @@ func GenerateNote(request *GeminiRequest) (*GeminiResponse, error) {
 		log.Fatal(err)
 	}
 
-
 	var response *GeminiResponse
 	err = json.Unmarshal([]byte(result.Text()), &response)
 	if err != nil {
 		return nil, errors.New("failed to unmarshal response")
 	}
-
-
 
 	return response, nil
 }
@@ -105,6 +100,9 @@ INSTRUCTIONS:
 
 OUTPUT FORMAT:
 Return a JSON object with exactly two fields:
+- 'title': The title of the lecture
+- 'subject': The subject of the lecture
+- 'course_name': The name of the course
 - 'keywords': A comma-separated string of exactly 5 keywords
 - 'content': The complete lecture notes in Markdown format
 

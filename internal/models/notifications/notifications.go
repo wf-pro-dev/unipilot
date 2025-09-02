@@ -60,4 +60,3 @@ func (n *LocalNotification) ToMap() map[string]string {
 		"updated_at": n.UpdatedAt.Format(time.RFC3339),
 	}
 }
-
