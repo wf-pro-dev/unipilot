@@ -176,15 +176,15 @@ export function parseSchedule(schedule: string): ParsedSchedule | null {
 
     var valid_days = days.filter(day => day >= dayIndex)
     if (valid_days.length > 0) {
-      next_date = addDays(now, Math.max(...valid_days) - dayIndex)
+      console.log(schedule, valid_days.length, Math.max(...valid_days) - dayIndex)
+      next_date = addDays(now, Math.min(...valid_days) - dayIndex)
     } else {
       next_date = addDays(now,  (7 - dayIndex) + Math.min(...days))
     }
     
     const nextClassStart = new Date(next_date.getFullYear(), next_date.getMonth(), next_date.getDate(), start24, startMinute, 0, 0)
     const nextClassEnd = new Date(next_date.getFullYear(), next_date.getMonth(), next_date.getDate(), end24, endMinute, 0, 0)
-    console.log(schedule, nextClassStart, nextClassEnd, next_date.getDate())
-    return {
+     return {
       days,
       startHour: start24,
       endHour: end24,

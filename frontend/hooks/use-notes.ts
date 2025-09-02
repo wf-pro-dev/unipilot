@@ -3,7 +3,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogError } from "@/wailsjs/runtime/runtime"
 import { note, course } from '@/wailsjs/go/models'
-import { useToast } from './use-toast'
 
 // Query keys for consistent cache management
 export const noteKeys = {

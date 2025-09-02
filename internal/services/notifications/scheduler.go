@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
+	"unipilot/internal/models/notifications"
 	"unipilot/internal/models/user"
 	"unipilot/internal/storage"
 
@@ -265,8 +265,8 @@ func (s *Scheduler) createAssignmentNotification(courseCode string, assignments 
 	message := s.formatMessage(len(assignments))
 
 	// Create notification in database
-	notification := models.LocalNotification{
-		Type:      models.NotificationAssignment,
+	notification := notifications.LocalNotification{
+		Type:      notifications.NotificationAssignment,
 		Title:     title,
 		Message:   message,
 		SenderID:  s.user.ID,
@@ -399,8 +399,8 @@ func (s *Scheduler) createCourseNotification(courseEntry CourseEntry) {
 	message := fmt.Sprintf("You have a class at %v in 30 minutes", courseEntry.startTime.Format("15:04"))
 
 	// Create notification in database
-	notification := models.LocalNotification{
-		Type:      models.NotificationCourse,
+	notification := notifications.LocalNotification{
+		Type:      notifications.NotificationCourse,
 		Title:     title,
 		Message:   message,
 		SenderID:  s.user.ID,

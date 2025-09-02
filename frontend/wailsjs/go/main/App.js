@@ -30,6 +30,10 @@ export function DeleteNote(arg1) {
   return window['go']['main']['App']['DeleteNote'](arg1);
 }
 
+export function DeleteNotification(arg1) {
+  return window['go']['main']['App']['DeleteNotification'](arg1);
+}
+
 export function Follow(arg1) {
   return window['go']['main']['App']['Follow'](arg1);
 }
@@ -76,6 +80,10 @@ export function GetNotes() {
 
 export function GetNotificationDaemonStatus() {
   return window['go']['main']['App']['GetNotificationDaemonStatus']();
+}
+
+export function GetNotifications() {
+  return window['go']['main']['App']['GetNotifications']();
 }
 
 export function GetRemoteDocumentMetadata(arg1) {

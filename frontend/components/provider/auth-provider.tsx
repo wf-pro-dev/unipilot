@@ -3,12 +3,13 @@
 import { createContext, useContext, ReactNode, useEffect } from "react"
 import { useCurrentUser } from "@/hooks/use-auth"
 import AuthPage from "../auth/page"
-import { assignment, course, note, user } from "@/wailsjs/go/models"
+import { assignment, course, note, user, notifications } from "@/wailsjs/go/models"
 import { useFollowers, useFollowing } from "@/hooks/use-follows"
 import { useUsers } from "@/hooks/use-users"
 import { useCourses } from "@/hooks/use-courses"
 import { useAssignments } from "@/hooks/use-assignments"
 import { useNotes } from "@/hooks/use-notes"
+import { useNotifications } from "@/hooks/use-notifications"
 
 
 interface AuthContextType {
@@ -19,6 +20,7 @@ interface AuthContextType {
   courses: course.LocalCourse[] | undefined
   assignments: assignment.LocalAssignment[] | undefined
   notes: note.LocalNote[] | undefined
+  notifications: notifications.LocalNotification[] | undefined
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -43,7 +45,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const { data: courses, refetch: refetchCourses } = useCourses()
   const { data: assignments, refetch: refetchAssignments } = useAssignments()
   const { data: notes, refetch: refetchNotes } = useNotes()
-
+  const { data: notifications, refetch: refetchNotifications } = useNotifications() 
   useEffect(() => {
     if (user) {
         refetchFollowers()
@@ -52,6 +54,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         refetchCourses()
         refetchAssignments()
         refetchNotes()
+        refetchNotifications()
     }
   }, [user])
   
@@ -64,7 +67,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, followers, following, users, courses, assignments, notes }}>
+    <AuthContext.Provider value={{ user, followers, following, users, courses, assignments, notes, notifications }}>
       {children}
     </AuthContext.Provider>
   )

@@ -3,6 +3,7 @@
 import {assignment} from '../models';
 import {course} from '../models';
 import {note} from '../models';
+import {notifications} from '../models';
 import {document} from '../models';
 import {main} from '../models';
 import {user} from '../models';
@@ -20,6 +21,8 @@ export function DeleteCourse(arg1:course.LocalCourse):Promise<void>;
 export function DeleteDocument(arg1:number):Promise<void>;
 
 export function DeleteNote(arg1:note.LocalNote):Promise<void>;
+
+export function DeleteNotification(arg1:notifications.LocalNotification):Promise<void>;
 
 export function Follow(arg1:number):Promise<boolean>;
 
@@ -44,6 +47,8 @@ export function GetNetworkStatus():Promise<Record<string, any>>;
 export function GetNotes():Promise<Array<note.LocalNote>>;
 
 export function GetNotificationDaemonStatus():Promise<Record<string, any>>;
+
+export function GetNotifications():Promise<Array<notifications.LocalNotification>>;
 
 export function GetRemoteDocumentMetadata(arg1:number):Promise<Array<Record<string, any>>>;
 

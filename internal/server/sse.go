@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"unipilot/internal/models"
+	"unipilot/internal/models/notifications"
 
 	"gorm.io/gorm"
 )
@@ -178,7 +179,7 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity, entityID uint, title, subtitle, message, action string) {
-	notification := models.LocalNotification{
+	notification := notifications.LocalNotification{
 		SenderID: senderID,
 		Entity:   entity,
 		EntityID: entityID,

@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
+	"unipilot/internal/models/notifications"
 	"unipilot/internal/storage"
 )
 
@@ -173,7 +173,7 @@ func (h *Events) HandleFollow(data json.RawMessage, message string) {
 		}
 	}()
 
-	var n models.LocalNotification
+	var n notifications.LocalNotification
 	if err := json.Unmarshal(data, &n); err != nil {
 		log.Printf("Error unmarshalling notification: %v", err)
 		return

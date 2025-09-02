@@ -10,6 +10,7 @@ import (
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/document"
 	"unipilot/internal/models/note"
+	"unipilot/internal/models/notifications"
 
 	"github.com/spf13/viper"
 	"gorm.io/driver/sqlite"
@@ -103,7 +104,7 @@ func InitializeSchema(db *gorm.DB) error {
 		&models.LocalUpdate{},
 		&document.LocalDocument{},
 		&note.LocalNote{},
-		&models.LocalNotification{},
+		&notifications.LocalNotification{},
 	)
 
 	if err != nil {

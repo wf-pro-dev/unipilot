@@ -20,6 +20,7 @@ import (
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/document"
 	"unipilot/internal/models/note"
+	"unipilot/internal/models/notifications"
 	"unipilot/internal/models/user"
 	"unipilot/internal/network"
 	"unipilot/internal/services/daemon"
@@ -1109,6 +1110,13 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 	return nil
 }
 
+func (a *App) DeleteNotification(notification *notifications.LocalNotification) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.DB.DeleteNotification(notification)
+}
+
 // ========================================
 // OTHER OPERATIONS
 // ========================================
@@ -1244,6 +1252,14 @@ func (a *App) GetNotes() ([]note.LocalNote, error) {
 		return nil, fmt.Errorf("database not initialized")
 	}
 	return a.DB.GetNotes()
+}
+
+// GetNotifications returns all notifications for the current user
+func (a *App) GetNotifications() ([]notifications.LocalNotification, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	return a.DB.GetNotifications()
 }
 
 // Document Management Methods

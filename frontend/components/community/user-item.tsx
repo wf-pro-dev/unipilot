@@ -22,10 +22,9 @@ export function UserItem({ userID }: UserItemProps) {
  
   const { data: users, isLoading: userLoading } = useUsers()
   const user = users?.find((user) => user.ID === userID)
-  const { user: currentUser } = useAuthContext()
+  const { user: currentUser, followers: currentUserFollowers, following: currentUserFollowing } = useAuthContext()
   
-  const { data: currentUserFollowers } = useFollowers(currentUser?.ID as number)
-  const { data: currentUserFollowing } = useFollowing(currentUser?.ID as number)
+
 
   // Check if current user is following this user by checking if current user is in the followers list
   const isFollowed = currentUserFollowing?.some((following) => following.ID === userID) 

@@ -12,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Home, BookOpen, ClipboardList, FileText, Users, Settings, LogOut, User } from "lucide-react"
+import { Home, BookOpen, ClipboardList, FileText, Users, Settings, LogOut, User, Bell } from "lucide-react"
 import { useAuthContext } from "./provider/auth-provider"
 import { OfflineIndicator } from "./ui/offline-indicator"
 import { useLogout } from "@/hooks/use-auth"
@@ -43,7 +43,7 @@ export function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <Image src="/icon.png" alt="Unipilot" width={24} height={24} className="rounded-lg" />
+              <Image src="/icon.png" alt="Unipilot" width={32} height={32} className="rounded-lg" />
               <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
                 UniPilot
               </span>
@@ -70,9 +70,18 @@ export function Navbar() {
             })}
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-4">
+            
+            <Link href="/notifications" className="relative w-8 h-8 rounded-full glass" >
+              <Button variant="ghost" className="relative w-8 h-8 rounded-full">
+                <Bell className="w-6 h-6" />
+              </Button>
+            </Link>
+
             <OfflineIndicator variant="icon" />
+            
             <DropdownMenu>
+              
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative w-8 h-8 rounded-full">
                   <Avatar className="w-8 h-8">
@@ -81,6 +90,7 @@ export function Navbar() {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
+              
               <DropdownMenuContent className="w-56 glass border-white/10" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
@@ -113,6 +123,7 @@ export function Navbar() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
           </div>
         </div>
       </div>

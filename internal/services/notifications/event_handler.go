@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"unipilot/internal/models"
+	"unipilot/internal/models/notifications"
 	"unipilot/internal/sse"
 	"unipilot/internal/storage"
 
@@ -115,37 +115,24 @@ func (eh *EventHandler) IsEventHandlerRunning() bool {
 }
 
 // HandleFollowNotification processes follow events from SSE
-func (eh *EventHandler) HandleFollowNotification(data json.RawMessage, message string) {
-	log.Printf("[EventHandler] Processing follow notification: %s", message)
+func (eh *EventHandler) HandleFollowNotification(notification notifications.LocalNotification) {
+	log.Printf("[EventHandler] Processing follow notification: %s", notification.Message)
+	log.Printf("[EventHandler] Data: %s", string(notification.Data))
 
-	var followData struct {
-		SenderID uint `json:"sender_id"`
-	}
-
-	if err := json.Unmarshal(data, &followData); err != nil {
-		log.Printf("[EventHandler] Error parsing follow data: %v", err)
-		return
-	}
-
-	title := "New Follow"
-	notification := models.LocalNotification{
-		Type:      models.NotificationFollow,
-		Title:     title,
-		Message:   message, // {Sender Name} followed you
-		SenderID:  followData.SenderID,
-		Read:      false,
-		ExpiresAt: &time.Time{},
-	}
+	// Set the notification type and ensure it's marked as unread
+	notification.Type = notifications.NotificationFollow
+	notification.Read = false
+	notification.ExpiresAt = &time.Time{}
 
 	if err := eh.db.Create(&notification).Error; err != nil {
 		log.Printf("[EventHandler] Error saving notification: %v", err)
 		return
 	}
 
-	if err := beeep.Notify(title, message, ""); err != nil {
+	if err := beeep.Notify(notification.Title, notification.Message, ""); err != nil {
 		log.Printf("[EventHandler] Error sending system notification: %v", err)
 	} else {
-		log.Printf("[EventHandler] Sent follow notification: %s", title)
+		log.Printf("[EventHandler] Sent follow notification: %s", notification.Title)
 	}
 }
 
@@ -164,8 +151,8 @@ func (eh *EventHandler) HandleSyncNotification(data json.RawMessage, message str
 		return
 	}
 
-	sync := models.LocalNotification{
-		Type:      models.NotificationSync,
+	sync := notifications.LocalNotification{
+		Type:      notifications.NotificationSync,
 		Title:     "New course",
 		Message:   message, // Sender name shared this course : {Course Code} with you
 		SenderID:  eh.userID,
@@ -202,8 +189,8 @@ func (eh *EventHandler) HandleAssignmentNotification(data json.RawMessage, messa
 		return
 	}
 
-	notification := models.LocalNotification{
-		Type:      models.NotificationAssignment,
+	notification := notifications.LocalNotification{
+		Type:      notifications.NotificationAssignment,
 		Title:     "New assignment",
 		Message:   message, // {Sender Name} shared this assignment from {Course Code} : {Assignment Title} with you
 		SenderID:  eh.userID,
@@ -252,26 +239,23 @@ func (eh *EventHandler) processEvents() {
 
 // routeEvent routes SSE events to appropriate handlers
 func (eh *EventHandler) routeEvent(event sse.Event) {
-	var notification struct {
-		Type    string          `json:"type"`
-		Entity  string          `json:"entity"`
-		Message string          `json:"message"`
-		Data    json.RawMessage `json:"data"`
-	}
 
+	var notification notifications.LocalNotification
 	if err := json.Unmarshal(event.Data, &notification); err != nil {
 		log.Printf("[EventHandler] Error parsing notification: %v", err)
 		return
 	}
 
+	log.Printf("[EventHandler] Notification: %+v", notification)
+
 	// Route based on entity type
 	switch notification.Entity {
 	case "follow":
-		eh.HandleFollowNotification(notification.Data, notification.Message)
+		eh.HandleFollowNotification(notification)
 	case "sync":
-		eh.HandleSyncNotification(notification.Data, notification.Message)
+		eh.HandleSyncNotification(event.Data, notification.Message)
 	case "assignment":
-		eh.HandleAssignmentNotification(notification.Data, notification.Message)
+		eh.HandleAssignmentNotification(event.Data, notification.Message)
 	default:
 		log.Printf("[EventHandler] Unknown entity type: %s", notification.Entity)
 	}
