@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"sync"
 	"time"
+	"log"
 
 	"unipilot/internal/models"
+	"unipilot/internal/models/notifications"
 
 	"gorm.io/gorm"
 )
@@ -177,22 +179,24 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity, entityID uint, title, subtitle, message, action string) {
-	notification := models.LocalNotification{
+func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity, entityID uint, title, message, action string) {
+	notification := notifications.LocalNotification{
 		SenderID: senderID,
 		Entity:   entity,
 		EntityID: entityID,
-		Title:    title,
-		Subtitle: subtitle,
 		Action:   action,
+		Title:    title,
 		Message:  message,
 	}
+	PrintLog(fmt.Sprintf("notification : %v",notification))
 
 	jsonData, err := json.Marshal(notification)
 	if err != nil {
+		log.Printf("[Error] error marshalling notification : %v ",err)
 		return
 	}
 
+	PrintLog(fmt.Sprintf("jsonData : %v", jsonData))
 	s.SendToUser(userID, jsonData)
 }
 
