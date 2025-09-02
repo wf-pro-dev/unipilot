@@ -109,6 +109,12 @@ interface User {
   AssignmentsDbId: string
   NotionID: string
   CoursesDbId: string
+  Avatar?: string
+  University?: string
+  FollowCount: number
+  IsVerified: boolean
+  Language: string
+  CoursesCode: string[]
   LastSync?: Date 
   CreatedAt: Date 
   UpdatedAt: Date 

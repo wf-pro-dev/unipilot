@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/viper"
 
 	"unipilot/internal/storage"
-	
+
 	"github.com/gorilla/sessions"
 
 	"gorm.io/gorm"
@@ -80,8 +80,12 @@ func StartServer() {
 	http.HandleFunc("/acc-homework/register", DBMiddleware(db, RegisterHandler))
 	http.HandleFunc("/acc-homework/login", DBMiddleware(db, LoginHandler))
 	http.HandleFunc("/acc-homework/logout", AuthMiddleware(LogoutHandler))
+	
 	http.HandleFunc("/acc-homework/user", DBMiddleware(db, AuthMiddleware(GetUserHandler)))
+	http.HandleFunc("/acc-homework/user/update", DBMiddleware(db, AuthMiddleware(UpdateUserHandler)))
 
+	http.HandleFunc("/acc-homework/users", DBMiddleware(db, AuthMiddleware(GetUsersHandler)))
+	
 	http.HandleFunc("/acc-homework/assignment", DBMiddleware(db, AuthMiddleware(CreateAssignmentHandler)))
 	http.HandleFunc("/acc-homework/assignment/get", DBMiddleware(db, AuthMiddleware(GetAssignmentHandler)))
 	http.HandleFunc("/acc-homework/assignment/update", DBMiddleware(db, AuthMiddleware(UpdateAssignmentHandler)))
@@ -89,18 +93,22 @@ func StartServer() {
 	http.HandleFunc("/acc-homework/course", DBMiddleware(db, AuthMiddleware(CreateCourseHandler)))
 	http.HandleFunc("/acc-homework/course/get", DBMiddleware(db, AuthMiddleware(GetCourseHandler)))
 	http.HandleFunc("/acc-homework/course/update", DBMiddleware(db, AuthMiddleware(UpdateCourseHandler)))
-	
+
 	http.HandleFunc("/acc-homework/document/metadata", DBMiddleware(db, AuthMiddleware(CreateDocumentMetadataHandler)))
 	http.HandleFunc("/acc-homework/document/metadata/delete", DBMiddleware(db, AuthMiddleware(DeleteDocumentMetadataHandler)))
 
 	http.HandleFunc("/acc-homework/note", DBMiddleware(db, AuthMiddleware(CreateNoteHandler)))
 	http.HandleFunc("/acc-homework/note/get", DBMiddleware(db, AuthMiddleware(GetNoteHandler)))
 	http.HandleFunc("/acc-homework/note/update", DBMiddleware(db, AuthMiddleware(UpdateNoteHandler)))
+
+	http.HandleFunc("/acc-homework/follow", DBMiddleware(db, AuthMiddleware(HandleFollow)))
+	http.HandleFunc("/acc-homework/followers", DBMiddleware(db, AuthMiddleware(HandleGetFollowers)))
+	http.HandleFunc("/acc-homework/following", DBMiddleware(db, AuthMiddleware(HandleGetFollowing)))
+	http.HandleFunc("/acc-homework/follow-status", DBMiddleware(db, AuthMiddleware(HandleGetFollowStatus)))
 	
 	log.Println("Server listening on :3000...")
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }
-
 
 func PrintLog(message string) {
 	log.Printf("[INFO] %s", message)
@@ -110,4 +118,3 @@ func PrintERROR(w http.ResponseWriter, code int, message string) {
 	log.Printf("[ERROR] [%d] %s", code, message)
 	http.Error(w, message, code)
 }
-

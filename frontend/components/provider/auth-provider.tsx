@@ -1,16 +1,26 @@
 "use client"
 
-import { createContext, useContext, ReactNode } from "react"
-import { useAuth } from "@/hooks/use-auth"
+import { createContext, useContext, ReactNode, useEffect } from "react"
+import { useCurrentUser } from "@/hooks/use-auth"
 import AuthPage from "../auth/page"
+import { assignment, course, note, user, notifications } from "@/wailsjs/go/models"
+import { useFollowers, useFollowing } from "@/hooks/use-follows"
+import { useUsers } from "@/hooks/use-users"
+import { useCourses } from "@/hooks/use-courses"
+import { useAssignments } from "@/hooks/use-assignments"
+import { useNotes } from "@/hooks/use-notes"
+import { useNotifications } from "@/hooks/use-notifications"
 
 
 interface AuthContextType {
-  isAuthenticated: boolean
-  isLoading: boolean
-  user: any | null
-  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>
-  logout: () => Promise<{ success: boolean; error?: string }>
+  user: user.User | undefined
+  followers: user.User[] | undefined
+  following: user.User[] | undefined
+  users: user.User[] | undefined
+  courses: course.LocalCourse[] | undefined
+  assignments: assignment.LocalAssignment[] | undefined
+  notes: note.LocalNote[] | undefined
+  notifications: notifications.LocalNotification[] | undefined
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -28,26 +38,36 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-
-  const auth = useAuth()
-
-  // Show loading spinner while checking authentication
-  if (auth.isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="w-32 h-32 rounded-full border-b-2 border-blue-500 animate-spin"></div>
-      </div>
-    )
+  const { data: user, isLoading } = useCurrentUser()
+  const { data: followers, refetch: refetchFollowers } = useFollowers(user?.ID as number)
+  const { data: following, refetch: refetchFollowing } = useFollowing(user?.ID as number)
+  const { data: users, refetch: refetchUsers } = useUsers()
+  const { data: courses, refetch: refetchCourses } = useCourses()
+  const { data: assignments, refetch: refetchAssignments } = useAssignments()
+  const { data: notes, refetch: refetchNotes } = useNotes()
+  const { data: notifications, refetch: refetchNotifications } = useNotifications() 
+  useEffect(() => {
+    if (user) {
+        refetchFollowers()
+        refetchFollowing()
+        refetchUsers()
+        refetchCourses()
+        refetchAssignments()
+        refetchNotes()
+        refetchNotifications()
+    }
+  }, [user])
+  
+  if (isLoading) {
+    return <div>Loading...</div> // Or a proper loading component
   }
 
-  // Show login form if not authenticated
-  if (!auth.isAuthenticated) {
+  if (!user) {
     return <AuthPage />
   }
 
-  // Show the app if authenticated
   return (
-    <AuthContext.Provider value={auth}>
+    <AuthContext.Provider value={{ user, followers, following, users, courses, assignments, notes, notifications }}>
       {children}
     </AuthContext.Provider>
   )

@@ -5,6 +5,7 @@ import (
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/note"
+	"unipilot/internal/models/notifications"
 	"unipilot/internal/models/user"
 	"unipilot/internal/storage"
 
@@ -23,8 +24,6 @@ func NewDatabaseHelper() (*DatabaseHelper, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	db = db.Debug()
 
 	return &DatabaseHelper{db: db, userID: userID}, nil
 }
@@ -78,7 +77,7 @@ func (h *DatabaseHelper) CreateAssignment(assignment *assignment.LocalAssignment
 // UpdateAssignment updates an existing assignment
 func (h *DatabaseHelper) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, column, value string) error {
 	// Only update the assignment fields, not the related course data
-	return h.db.Exec(fmt.Sprintf("UPDATE local_assignments SET %s = '%s' WHERE id = '%d'", column, value, LocalAssignment.ID)).Error
+	return h.db.Exec(fmt.Sprintf("UPDATE local_assignments SET %s = '%s', updated_at = CURRENT_TIMESTAMP WHERE id = '%d'", column, value, LocalAssignment.ID)).Error
 }
 
 // DeleteAssignment deletes an assignment
@@ -95,7 +94,7 @@ func (h *DatabaseHelper) CreateCourse(course *course.Course) error {
 // UpdateCourse updates an existing course
 func (h *DatabaseHelper) UpdateCourse(LocalCourse *course.LocalCourse, column, value string) error {
 	// Only update the assignment fields, not the related course data
-	return h.db.Exec(fmt.Sprintf("UPDATE local_courses SET %s = '%s' WHERE id = '%d'", column, value, LocalCourse.ID)).Error
+	return h.db.Exec(fmt.Sprintf("UPDATE local_courses SET %s = '%s', updated_at = CURRENT_TIMESTAMP WHERE id = '%d'", column, value, LocalCourse.ID)).Error
 }
 
 // DeleteCourse deletes a course
@@ -106,7 +105,7 @@ func (h *DatabaseHelper) DeleteCourse(course *course.LocalCourse) error {
 // GetNotes returns all notes for the current user
 func (h *DatabaseHelper) GetNotes() ([]note.LocalNote, error) {
 	var LocalNote []note.LocalNote
-	err := h.db.Find(&LocalNote).Error
+	err := h.db.Preload("Course").Find(&LocalNote).Order("created_at DESC").Error
 	return LocalNote, err
 }
 
@@ -117,10 +116,25 @@ func (h *DatabaseHelper) CreateNote(note *note.LocalNote) error {
 
 // UpdateNote updates an existing note
 func (h *DatabaseHelper) UpdateNote(LocalNote *note.LocalNote, column, value string) error {
-	return h.db.Exec(fmt.Sprintf("UPDATE local_notes SET %s = '%s' WHERE id = '%d'", column, value, LocalNote.ID)).Error
+	return h.db.Exec(fmt.Sprintf("UPDATE local_notes SET %s = '%s', updated_at = CURRENT_TIMESTAMP WHERE id = '%d'", column, value, LocalNote.ID)).Error
 }
 
 // DeleteNote deletes a note
 func (h *DatabaseHelper) DeleteNote(note *note.LocalNote) error {
 	return h.db.Delete(note).Error
+}
+
+// GetNotifications returns all notifications for the current user
+func (h *DatabaseHelper) GetNotifications() ([]notifications.LocalNotification, error) {
+	h.db = h.db.Debug()
+	var LocalNotification []notifications.LocalNotification
+	err := h.db.
+		Where("type = ?", notifications.NotificationFollow).Or("type = ?", notifications.NotificationSync).
+		Find(&LocalNotification).
+		Order("created_at DESC").Error
+	return LocalNotification, err
+}
+
+func (h *DatabaseHelper) DeleteNotification(notification *notifications.LocalNotification) error {
+	return h.db.Delete(notification).Error
 }

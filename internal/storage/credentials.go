@@ -5,28 +5,17 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
+	"unipilot/internal/models/user"
 )
-
-type LocalCredentials struct {
-	IsAuthenticated bool `json:"is_authenticated"`
-	User            struct {
-		UserID   uint   `json:"user_id"`
-		Username string `json:"username"`
-	} `json:"user"`
-}
 
 var (
-	credLock    sync.Mutex
-	credentials *LocalCredentials
+	credLock sync.Mutex
 )
 
-func GetCurrentUser() (*LocalCredentials, error) {
+func GetCurrentUser() (*user.User, error) {
 	credLock.Lock()
 	defer credLock.Unlock()
-
-	if credentials != nil {
-		return credentials, nil
-	}
 
 	path, err := getCredsPath()
 	if err != nil {
@@ -38,21 +27,54 @@ func GetCurrentUser() (*LocalCredentials, error) {
 		return nil, err
 	}
 
-	var creds LocalCredentials
-	if err := json.Unmarshal(data, &creds); err != nil {
+	var response struct {
+		ID         uint   `json:"id"`
+		Username   string `json:"username"`
+		Email      string `json:"email"`
+		Avatar     string `json:"avatar"`
+		University string `json:"university"`
+		Semester   string `json:"semester"`
+		Year       string `json:"year"`
+		Language   string `json:"language"`
+		CreatedAt  string `json:"created_at"`
+		UpdatedAt  string `json:"updated_at"`
+	}
+	if err := json.Unmarshal(data, &response); err != nil {
 		return nil, err
 	}
 
-	credentials = &creds
-	return credentials, nil
+	currentUser := &user.User{
+		Username:   response.Username,
+		Email:      response.Email,
+		Avatar:     response.Avatar,
+		University: response.University,
+		Semester:   response.Semester,
+		Year:       response.Year,
+		Language:   response.Language,
+	}
+
+	createdAt, err := time.Parse(time.RFC3339, response.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	updatedAt, err := time.Parse(time.RFC3339, response.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	currentUser.CreatedAt = createdAt
+	currentUser.UpdatedAt = updatedAt
+	currentUser.ID = response.ID
+
+	return currentUser, nil
 }
 
 func GetCurrentUserID() (uint, error) {
-	creds, err := GetCurrentUser()
+	user, err := GetCurrentUser()
 	if err != nil {
 		return 0, err
 	}
-	return creds.User.UserID, nil
+	return user.ID, nil
 }
 
 func getCredsPath() (string, error) {
@@ -63,20 +85,11 @@ func getCredsPath() (string, error) {
 	return filepath.Join(configDir, "acc-homework", "credentials.json"), nil
 }
 
-func StoreCredentials(userID uint, username string) error {
+func StoreCredentials(user user.User) error {
 	credLock.Lock()
 	defer credLock.Unlock()
 
-	creds := LocalCredentials{
-		IsAuthenticated: true,
-		User: struct {
-			UserID   uint   `json:"user_id"`
-			Username string `json:"username"`
-		}{
-			UserID:   userID,
-			Username: username,
-		},
-	}
+	userData := user
 
 	path, err := getCredsPath()
 	if err != nil {
@@ -87,7 +100,7 @@ func StoreCredentials(userID uint, username string) error {
 		return err
 	}
 
-	data, err := json.Marshal(creds)
+	data, err := json.Marshal(userData.ToMap())
 	if err != nil {
 		return err
 	}
@@ -104,6 +117,5 @@ func ClearCredentials() error {
 		return err
 	}
 
-	credentials = nil
 	return os.Remove(path)
 }

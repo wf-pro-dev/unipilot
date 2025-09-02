@@ -1,125 +1,124 @@
 "use client"
 
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
-import { useState, useEffect } from "react"
-import { storage } from "@/wailsjs/go/models"
+import { user } from "@/wailsjs/go/models"
 
-interface AuthState {
-  isAuthenticated: boolean
-  isLoading: boolean
-  user: any | null
+// Query keys for auth
+export const authKeys = {
+  user: ['auth', 'user'] as const,
+  followers: ['auth', 'followers'] as const,
+  following: ['auth', 'following'] as const,
 }
 
-// Helper function to check if Wails bindings are available
-const isWailsAvailable = (): boolean => {
-  return typeof window !== 'undefined' && 
-         !!window.go && 
-         !!window.go.main && 
-         !!window.go.main.App
-}
-
-export function useAuth() {
-
-  const [authState, setAuthState] = useState<AuthState>({
-    isAuthenticated: false,
-    isLoading: true,
-    user: null,
-  })
-
-  const register = async (username: string, email: string, password: string, university: string, language: string) => {
-    try {
-      if (!isWailsAvailable()) {
-        throw new Error("Wails bindings not available")
-      }
-      await window.go.main.App.Register(username, email, password, university, language)
-      setAuthState({
-        isAuthenticated: true,
-        isLoading: false,
-        user: { username },
-      })
-      return { success: true }
-    } catch (error) {
-
-      return { success: false, error: error instanceof Error ? error.message : "Register failed" }
-    }
-  }
-
-  const login = async (username: string, password: string) => {
-    try {
-      if (!isWailsAvailable()) {
-        throw new Error("Wails bindings not available")
-      }
-      await window.go.main.App.Login(username, password)
-      setAuthState({
-        isAuthenticated: true,
-        isLoading: false,
-        user: { username },
-      })
-      return { success: true }
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Login failed"
-      }
-    }
-  }
-
-  const logout = async () => {
-    try {
-      if (!isWailsAvailable()) {
-        throw new Error("Wails bindings not available")
-      }
-      await window.go.main.App.Logout()
-      setAuthState({
-        isAuthenticated: false,
-        isLoading: false,
-        user: null,
-      })
-      return { success: true }
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Logout failed"
-      }
-    }
-  }
-
-  // Check authentication status on mount
-  useEffect(() => {
-    const checkAuth = async () => {
+// Main hook for fetching current user
+export function useCurrentUser() {
+  return useQuery({
+    queryKey: authKeys.user,
+    queryFn: async (): Promise<user.User | null> => {
       try {
-        if (!isWailsAvailable()) {
-          // If Wails is not available, wait a bit and try again
-          setTimeout(checkAuth, 100)
-          return
-        }
-        
-        if (!authState.isAuthenticated) {
-          const creds: storage.LocalCredentials = await window.go.main.App.IsAuthenticated()
-          setAuthState({
-            isAuthenticated: creds.is_authenticated,
-            isLoading: false,
-            user: creds.is_authenticated ? { username: creds.user.username } : null,
-          })
-        }
+        return await window.go.main.App.IsAuthenticated()
       } catch (error) {
-        //LogError("Error checking auth: " + error)
-        // If there's an error checking auth, assume not authenticated
-        setAuthState({
-          isAuthenticated: false,
-          isLoading: false,
-          user: null,
-        })
+        LogError("Failed to check authentication: " + error)
+        return null
       }
-    }
-
-    checkAuth()
-  }, [])
-
-  return {
-    ...authState,
-    login,
-    logout,
-    register,
-  }
+    },
+    retry: false,
+  })
 }
+
+// Login mutation
+export function useLogin() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ username, password }: { username: string; password: string }) => {
+      return await window.go.main.App.Login(username, password)
+    },
+    onSuccess: (user) => {
+      // Update the user cache
+      queryClient.setQueryData(authKeys.user, user)
+      // Invalidate followers/following to refetch them
+      queryClient.invalidateQueries({ queryKey: authKeys.followers })
+      queryClient.invalidateQueries({ queryKey: authKeys.following })
+    },
+    onError: (error) => {
+      LogError("Login failed: " + error)
+
+    },
+  })
+}
+
+// Register mutation
+export function useRegister() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      username,
+      email,
+      password,
+      university,
+      language
+    }: {
+      username: string
+      email: string
+      password: string
+      university: string
+      language: string
+    }) => {
+      return await window.go.main.App.Register(username, email, password, university, language)
+    },
+    onSuccess: (user) => {
+      queryClient.setQueryData(authKeys.user, user)
+    },
+    onError: (error) => {
+      LogError("Registration failed: " + error)
+    },
+  })
+}
+
+// Logout mutation
+export function useLogout() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async () => {
+      return await window.go.main.App.Logout()
+    },
+    onSuccess: () => {
+      // Clear all auth-related cache
+      queryClient.setQueryData(authKeys.user, null)
+      queryClient.removeQueries({ queryKey: authKeys.followers })
+      queryClient.removeQueries({ queryKey: authKeys.following })
+    },
+    onError: (error) => {
+      LogError("Logout failed: " + error)
+    },
+  })
+}
+
+// Update user mutation
+export function useUpdateUser() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ column, key , value }: { column: string; key:string ;value: string }) => {
+      return await window.go.main.App.UpdateUser(column, value)
+    },
+    onMutate: async ({ column, key, value, }: { column: string; key: string; value: string  }) => {
+      await queryClient.cancelQueries({ queryKey: authKeys.user })
+      const previousUser = queryClient.getQueryData<user.User>(authKeys.user)
+      queryClient.setQueryData(authKeys.user, { ...previousUser, [key]: value })
+      return { previousUser }
+    },
+    onError: (error, variables, context) => {
+      if (context?.previousUser) {
+        queryClient.setQueryData(authKeys.user, context.previousUser)
+      }
+      LogError("Failed to update user: " + error)
+    },
+  })
+}
+
+

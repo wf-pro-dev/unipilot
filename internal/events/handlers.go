@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"unipilot/internal/models/assignment"
-	"unipilot/internal/services/notifications"
+	"unipilot/internal/models/notifications"
 	"unipilot/internal/storage"
 )
 
@@ -67,16 +67,12 @@ func (h *Events) HandleAssignmentCreate(data json.RawMessage, message string) {
 		CourseCode: ar.CourseCode,
 		TypeName:   ar.TypeName,
 		StatusName: ar.StatusName,
-		NotionID:   ar.NotionID,
-		SyncStatus: assignment.SyncStatusSynced,
 	}
 	if err := tx.Create(&a).Error; err != nil {
 		tx.Rollback()
 		log.Printf("Error creating assignment: %v", err)
 		return
 	}
-
-	Notify("created", message, a.ToMap())
 
 	tx.Commit()
 
@@ -123,8 +119,6 @@ func (h *Events) HandleAssignmentUpdate(data json.RawMessage, message string) {
 
 	tx.Commit()
 
-	Notify("updated", message, a.ToMap())
-
 }
 
 func (h *Events) HandleAssignmentDelete(data json.RawMessage, message string) {
@@ -163,35 +157,34 @@ func (h *Events) HandleAssignmentDelete(data json.RawMessage, message string) {
 
 	tx.Commit()
 
-	Notify("deleted", message, a.ToMap())
-
 }
 
-func Notify(action, message string, assignment map[string]string) {
+func (h *Events) HandleFollow(data json.RawMessage, message string) {
 
-	notification_id := fmt.Sprintf("%s-%s", assignment["notion_id"], action)
-	title := fmt.Sprintf("%s: %s", assignment["course_code"], assignment["title"])
-	subtitle := fmt.Sprintf("%s at %s", action, time.Now().Format(time.Stamp))
-
-	args := []string{
-		"-group", notification_id,
-		"-title", title,
-		"-subtitle", subtitle,
-		"-message", message,
-		"-sound", "Frog",
-		"-timeout", "60", // Notification stays for 30 seconds
-	}
-
-	err := notifications.UseNotifier(args)
+	db, _, err := storage.GetLocalDB()
 	if err != nil {
-		log.Printf("Error sending notification: %v", err)
+		return
 	}
 
-	time.Sleep(15 * time.Second) // Wait for the notification to be sent
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
-	err = notifications.UseNotifier([]string{"-remove", notification_id})
-	if err != nil {
-		log.Printf("Error removing notification: %v", err)
+	var n notifications.LocalNotification
+	if err := json.Unmarshal(data, &n); err != nil {
+		log.Printf("Error unmarshalling notification: %v", err)
+		return
 	}
+
+	if err := tx.Create(&n).Error; err != nil {
+		tx.Rollback()
+		log.Printf("Error creating notification: %v", err)
+		return
+	}
+
+	tx.Commit()
 
 }

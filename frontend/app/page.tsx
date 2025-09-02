@@ -9,10 +9,12 @@ import { RecentActivity } from "@/components/dashboard/recent-activity"
 import { AssignmentsDueToday } from "@/components/dashboard/assignments-due-today"
 import { AssignmentsThisWeek } from "@/components/dashboard/assignments-this-week"
 import { AssignmentDetailsModal } from "@/components/assignments/assignment-details-modal"
-import { assignment } from "@/wailsjs/go/models"
+import { OfflineBanner } from "@/components/ui/offline-banner"
+import { assignment, user } from "@/wailsjs/go/models"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
 import { useUpdateAssignment } from "@/hooks/use-assignments"
+import { Dashboard } from "@/components/dashboard/dashboard"
 
 export default function DashboardPage() {
   const [selectedAssignment, setSelectedAssignment] = useState<assignment.LocalAssignment | null>(null)
@@ -32,52 +34,19 @@ export default function DashboardPage() {
     })
   }
 
-  const handleToggleComplete = async (assignment: assignment.LocalAssignment) => {
-    const newStatus = assignment.StatusName === "Done" ? "Not started" : "Done"
-    handleEditAssignment(assignment, "status_name", newStatus)
-  }
-
-  const handleDeleteAssignment = (id: number) => {
-    console.log("Deleting assignment:", id)
+  const handleDeleteAssignment = (assignment: assignment.LocalAssignment) => {
+    console.log("Deleting assignment:", assignment.ID)
   }
 
   return (
-    <div className="page">
+    <div className="page h-screen">
+
       {/* Floating background elements */}
       <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
       <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float-delayed"></div>
 
-      <div className="relative z-10">
-        <WelcomeSection />
+      <Dashboard />
 
-        <div className="mt-8">
-          <StatsCards />
-        </div>
-
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
-          <div className="lg:col-span-2 space-y-6">
-
-            <AssignmentsDueToday />
-            <AssignmentsThisWeek />
-            <RecentActivity />
-          </div>
-
-          <div className="space-y-6">
-            <CoursesCard />
-            <UpcomingDeadlines onAssignmentClick={setSelectedAssignment} />
-          </div>
-        </div>
-      </div>
-      
-      <AssignmentDetailsModal
-        isOpen={!!selectedAssignment}
-        onClose={() => setSelectedAssignment(null)}
-        assignment={selectedAssignment}
-        onEdit={handleEditAssignment}
-        onDelete={handleDeleteAssignment}
-        onToggleComplete={handleToggleComplete}
-      />
     </div>
   )
 }

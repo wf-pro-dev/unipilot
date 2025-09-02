@@ -12,8 +12,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Home, BookOpen, ClipboardList, FileText, Users, Settings, LogOut, User } from "lucide-react"
+import { Home, BookOpen, ClipboardList, FileText, Users, Settings, LogOut, User, Bell } from "lucide-react"
 import { useAuthContext } from "./provider/auth-provider"
+import { OfflineIndicator } from "./ui/offline-indicator"
+import { useLogout } from "@/hooks/use-auth"
+import Image from "next/image"
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
@@ -25,14 +28,14 @@ const navItems = [
 
 export function Navbar() {
   const pathname = usePathname()
-  const { logout, user } = useAuthContext()
+  const { user } = useAuthContext()
+  const { mutate: logout } = useLogout()
 
-  const handleLogout = async () => {
-    const result = await logout()
-    if (result.success) {
-      window.location.reload()
-    }
+  const handleLogout = () => {
+    logout()
+    window.location.reload()
   }
+
 
   return (
     <nav className="fixed top-0 right-0 left-0 z-50 border-0 border-b backdrop-blur-xl glass border-white/10">
@@ -40,11 +43,9 @@ export function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href="/" className="flex items-center space-x-2">
-              <div className="flex justify-center items-center w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg">
-                <BookOpen className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
-                StudyTracker
+              <Image src="/icon.png" alt="Unipilot" width={32} height={32} className="rounded-lg" />
+              <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+                UniPilot
               </span>
             </Link>
           </div>
@@ -69,8 +70,18 @@ export function Navbar() {
             })}
           </div>
 
-          <div className="flex items-center">
+          <div className="flex items-center space-x-4">
+            
+            <Link href="/notifications" className="relative w-8 h-8 rounded-full glass" >
+              <Button variant="ghost" className="relative w-8 h-8 rounded-full">
+                <Bell className="w-6 h-6" />
+              </Button>
+            </Link>
+
+            <OfflineIndicator variant="icon" />
+            
             <DropdownMenu>
+              
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative w-8 h-8 rounded-full">
                   <Avatar className="w-8 h-8">
@@ -79,14 +90,15 @@ export function Navbar() {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
+              
               <DropdownMenuContent className="w-56 glass border-white/10" align="end" forceMount>
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none text-white">
-                      {user?.email || "User"}
+                      {user?.Email || "User"}
                     </p>
                     <p className="text-xs leading-none text-gray-400">
-                      {user?.email || "user@student.acc.edu"}
+                      {user?.Email || "user@student.acc.edu"}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -111,6 +123,7 @@ export function Navbar() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+
           </div>
         </div>
       </div>

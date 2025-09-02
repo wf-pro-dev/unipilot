@@ -64,7 +64,7 @@ func (c *SSE) Connect(httpClient *http.Client) {
 			// Wait before retrying, but exit immediately if cancelled.
 			select {
 			case <-time.After(5 * time.Second):
-				// Continue to the next iteration of the loop.
+				// Continue to the §next iteration of the loop.
 			case <-c.ctx.Done():
 				// Exit immediately.
 				return

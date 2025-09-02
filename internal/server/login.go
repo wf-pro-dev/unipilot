@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"unipilot/internal/models/user"
 
 	"github.com/spf13/viper"
@@ -66,13 +65,9 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := strconv.Itoa(int(user.ID))
-
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message":  "Login successful",
-		"username": user.Username,
-		"user_id":  id,
-		"error":    "",
+		"user": user.ToMap(),
 	})
 }

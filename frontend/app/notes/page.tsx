@@ -8,8 +8,12 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
+import { useSearchParams, usePathname } from "next/navigation"
 
 export default function NotesPage() {
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
+
   const { data: notes, isLoading } = useNotes()
 
   const createNote = useCreateNote()
@@ -17,6 +21,11 @@ export default function NotesPage() {
   const updateNote = useUpdateNote()
   const [selectedNoteID, setSelectedNoteID] = useState<number | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+
+  const courseFilter = searchParams.get("course") || "all"
+
+  console.log("route", pathname)
+  console.log("filter (page)", { courseFilter })
 
   const handleAddNote = async (note: note.LocalNote) => {
     const message = "note " + note.Title + " added"
@@ -73,7 +82,7 @@ export default function NotesPage() {
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
               Study Notes
             </h1>
             <p className="mt-2 text-gray-400">Generate AI-powered study notes for your courses</p>
@@ -90,6 +99,7 @@ export default function NotesPage() {
           onDelete={handleDeleteNote}
           onEdit={handleEditNote}
           isLoading={isLoading}
+          filter={{ course: courseFilter }}
         />
 
 

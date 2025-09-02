@@ -19,12 +19,10 @@ type Course struct {
 	UserID          uint      `gorm:"not null"`
 	LocalID         uint      `gorm:"not null"`
 	User            user.User `gorm:"foreignKey:UserID;references:ID"`
-	NotionID        string
-	Code            string `gorm:"index:idx_courses_user_code_active,unique,where:deleted_at IS NULL;not null"`
-	Name            string `gorm:"not null"`
-	Color           string `gorm:"default:bg-blue-500"`
-	Duration        string
-	RoomNumber      string
+	Code            string    `gorm:"index:idx_courses_user_code_active,unique,where:deleted_at IS NULL;not null"`
+	Name            string    `gorm:"not null"`
+	Color           string    `gorm:"default:bg-blue-500"`
+	Location        string
 	StartDate       time.Time
 	EndDate         time.Time
 	Schedule        string
@@ -66,11 +64,11 @@ func NewCourse() *Course {
 
 	fmt.Printf("The Room Number: ")
 	scanner.Scan()
-	course.RoomNumber = scanner.Text()
+	course.Location = scanner.Text()
 
 	fmt.Printf("The Duration: ")
 	scanner.Scan()
-	course.Duration = scanner.Text()
+	course.Schedule = scanner.Text()
 
 	return course
 }
@@ -86,10 +84,10 @@ func Get_Course_byId(id uint, db *gorm.DB) (*Course, error) {
 	}
 	return course, nil
 }
-func Get_Course_byLocalId(id uint, db *gorm.DB) (*Course, error) {
+func Get_Course_byLocalId(id, user_id uint, db *gorm.DB) (*Course, error) {
 	course := &Course{}
 	err := db.Preload("User").
-		Where("local_id = ?", id).
+		Where("local_id = ? AND user_id = ?", id, user_id).
 		First(course).Error
 
 	if err != nil {
@@ -124,12 +122,10 @@ func (c *Course) ToMap() map[string]string {
 		"id":               strconv.Itoa(int(c.ID)),
 		"local_id":         strconv.Itoa(int(c.LocalID)),
 		"user_id":          strconv.Itoa(int(c.UserID)),
-		"notion_id":        c.NotionID,
 		"name":             c.Name,
 		"code":             c.Code,
-		"room_number":      c.RoomNumber,
-		"duration":         c.Duration,
 		"color":            c.Color,
+		"location":         c.Location,
 		"start_date":       c.StartDate.Format(time.DateOnly),
 		"end_date":         c.EndDate.Format(time.DateOnly),
 		"schedule":         c.Schedule,

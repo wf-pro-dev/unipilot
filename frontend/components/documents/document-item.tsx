@@ -163,10 +163,12 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
                 v{doc.Version}
               </Badge>
 
+              <span className="text-xs">{formatFileSize(doc.FileSize)}</span>
+
+    
             </div>
 
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span>{formatFileSize(doc.FileSize)}</span>
               <span className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 {format(new Date(doc.UpdatedAt), "MMM d, yyyy hh:mm a")}

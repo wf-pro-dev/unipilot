@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Calendar, ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react"
 import { format } from "date-fns"
-import { assignment } from "@/wailsjs/go/models"
+import { assignment, models } from "@/wailsjs/go/models"
 import { parseDeadline } from "@/lib/date-utils"
 import { CalendarContainer } from "./calendar-container"
 import { DndProvider } from "react-dnd"
@@ -22,7 +22,7 @@ interface AssignmentsCalendarProps {
 }
 
 export function AssignmentsCalendar({
-  assignments,  
+  assignments,
   onAddAssignment,
   onMoveAssignment,
   onEdit,
@@ -37,36 +37,36 @@ export function AssignmentsCalendar({
     const month = date.getMonth()
     const firstDay = new Date(year, month, 1)
     const startingDayOfWeek = firstDay.getDay()
-    
+
     const days = []
-    
+
     // Add days from previous month to fill beginning
     const prevMonth = new Date(year, month - 1)
     const prevMonthYear = prevMonth.getFullYear()
     const prevMonthIndex = prevMonth.getMonth()
     const daysInPrevMonth = new Date(prevMonthYear, prevMonthIndex + 1, 0).getDate()
-    
+
     for (let i = startingDayOfWeek - 1; i >= 0; i--) {
       days.push(new Date(prevMonthYear, prevMonthIndex, daysInPrevMonth - i))
     }
-    
+
     // Add all days of current month
     const daysInMonth = new Date(year, month + 1, 0).getDate()
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month, day))
     }
-    
+
     // Add days from next month to reach exactly 35 days
     const nextMonth = new Date(year, month + 1)
     const nextMonthYear = nextMonth.getFullYear()
     const nextMonthIndex = nextMonth.getMonth()
-    
+
     let nextMonthDay = 1
     while (days.length < 35) {
       days.push(new Date(nextMonthYear, nextMonthIndex, nextMonthDay))
       nextMonthDay++
     }
-    
+
     return days
   }
 
@@ -80,6 +80,13 @@ export function AssignmentsCalendar({
         console.warn("Invalid date for assignment:", assignment.ID, assignment.Deadline)
         return false
       }
+    }).sort((a, b) => {
+      var status: { [key: string]: number } = {
+        "Not started": 0,
+        "In progress": 1,
+        "Done": 2
+      }
+      return status[a.StatusName] - status[b.StatusName]
     })
   }
 
@@ -131,14 +138,6 @@ export function AssignmentsCalendar({
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
-                <Button
-                  onClick={onAddAssignment}
-                  className="bg-blue-600 hover:bg-blue-700"
-                  disabled={isLoading}
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add
-                </Button>
               </div>
             </div>
           </CardHeader>
@@ -158,7 +157,6 @@ export function AssignmentsCalendar({
                 const isCurrentMonth = day.getMonth() === currentDate.getMonth() && day.getFullYear() === currentDate.getFullYear()
                 const isToday = format(day, "MMM d, yyyy") === format(new Date(), "MMM d, yyyy")
                 const dayAssignments = getAssignmentsForDate(day)
-
                 return (
                   <CalendarContainer
                     key={index}
@@ -171,7 +169,7 @@ export function AssignmentsCalendar({
                     onEdit={onEdit}
                     onAssignmentClick={onAssignmentClick}
                     index={index}
-                    />
+                  />
                 )
               })}
             </div>

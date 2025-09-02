@@ -8,10 +8,7 @@ import (
 	"time"
 
 	"unipilot/internal/models/note"
-	"unipilot/internal/models/course"
 	"unipilot/internal/services/gemini"
-	"unipilot/internal/services/markdown"
-
 	"gorm.io/gorm"
 )
 
@@ -124,16 +121,6 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse markdown content to HTML for storage
-	markdownService := markdown.NewMarkdownService()
-	htmlContent, err := markdownService.ParseToHTML(geminiResponse["content"])
-	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to parse markdown content: %v", err))
-		return
-	}
-
-
-	PrintLog(response.Content)
 	
 	local_id, err := strconv.Atoi(input.LocalID)
 	if err != nil {
@@ -145,11 +132,12 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	nVal := note.Note{
 		UserID:     userID,
+		LocalID:    uint(local_id),
 		CourseCode: input.CourseCode,
 		Title:      input.Title,
 		Subject:    input.Subject,
-		Keywords:   geminiResponse["keywords"],
-		Content:    htmlContent,
+		Keywords:   geminiResponse.Keywords,
+		Content:    geminiResponse.Content,
 	}
 
 	result := tx.Create(&nVal)
@@ -161,13 +149,6 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nObj := &nVal
-
-	n, err := note.Get_Note_byID(nObj.ID, userID, tx)
-	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
-		return
-	}
 
 	// Convert to map safely
 	noteMap := nVal.ToMap()
@@ -239,8 +220,8 @@ func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 
-	var n note.Note
-	if err := tx.Where("id = ? AND user_id = ?", uint(int_id), userID).First(&n).Error; err != nil {
+	n, err := note.Get_Note_byLocalID(uint(int_id), userID, db) 
+	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to get note: %s", err))
 		return
 	}

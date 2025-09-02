@@ -6,19 +6,20 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
+	"time"
 	"unipilot/internal/client"
+	"unipilot/internal/models/user"
 	"unipilot/internal/sse"
 	"unipilot/internal/storage"
 	"unipilot/internal/sync"
 )
 
 // Login handles only authentication and saving the session cookie to a file.
-func (a *Auth) Login(username, password string) error {
+func (a *Auth) Login(username, password string) (*user.User, error) {
 
 	httpClient, err := client.NewClientWithCookies() // Changed from NewClient()
 	if err != nil {
-		return fmt.Errorf("could not create http client: %w", err)
+		return nil, fmt.Errorf("could not create http client: %w", err)
 	}
 
 	// Set the client to the auth struct
@@ -29,38 +30,45 @@ func (a *Auth) Login(username, password string) error {
 
 	resp, err := httpClient.Post("https://newsroom.dedyn.io/acc-homework/login", "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("http post failed: %w", err)
+		return nil, fmt.Errorf("http post failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("login failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("login failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	if err := client.SaveCookies(httpClient); err != nil {
-		return fmt.Errorf("failed to save cookies: %w", err)
+		return nil, fmt.Errorf("failed to save cookies: %w", err)
 	}
 
 	// Parse the response to get user ID
-	var response map[string]interface{}
+	// Parse the response to get user ID
+	var response struct {
+		User map[string]interface{} `json:"user"`
+	}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return fmt.Errorf("failed to parse response: %w", err)
+		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
-	// Extract user ID from response
-	userIDStr, ok := response["user_id"].(string)
-	if !ok {
-		return fmt.Errorf("invalid user_id in response")
-	}
-	userIDint, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		return fmt.Errorf("failed to parse user ID: %w", err)
+	response_user := user.User{
+		Username:   response.User["username"].(string),
+		Email:      response.User["email"].(string),
+		Avatar:     response.User["avatar"].(string),
+		University: response.User["university"].(string),
+		Semester:   response.User["semester"].(string),
+		Year:       response.User["year"].(string),
+		Language:   response.User["language"].(string),
 	}
 
+	response_user.CreatedAt, _ = time.Parse(time.RFC3339, response.User["created_at"].(string))
+	response_user.UpdatedAt, _ = time.Parse(time.RFC3339, response.User["updated_at"].(string))
+
+	response_user.ID = uint(response.User["id"].(float64))
 	// Store credentials first
-	if err := storage.StoreCredentials(uint(userIDint), username); err != nil {
-		return fmt.Errorf("failed to store credentials: %w", err)
+	if err := storage.StoreCredentials(response_user); err != nil {
+		return nil, fmt.Errorf("failed to store credentials: %w", err)
 	}
 
 	// Initialize the SSE connection early to ensure it's never nil
@@ -74,7 +82,7 @@ func (a *Auth) Login(username, password string) error {
 		// This might happen if the database directory doesn't exist yet
 		fmt.Printf("Warning: Could not get local database: %v\n", err)
 		fmt.Printf("Login successful, but database operations failed\n")
-		return nil // Don't fail the login, just return success
+		return &response_user, nil // Don't fail the login, just return success
 	}
 
 	a.LocalDB = localDB
@@ -100,5 +108,5 @@ func (a *Auth) Login(username, password string) error {
 		// Don't rollback, continue with the transaction
 	}
 
-	return nil
+	return &response_user, nil
 }

@@ -19,122 +19,235 @@ import {
   Save,
   Camera,
   TrendingUp,
-  FileText,
-  Clock,
-  Users,
+  ChevronLeft,
+  ChevronRight,
+  X,
 } from "lucide-react"
-import { useState } from "react"
-import { useAuth } from "@/hooks/use-auth"
+import { useCallback, useEffect, useState } from "react"
+import { useCurrentUser, useUpdateUser } from "@/hooks/use-auth"
 import { useAssignments, useCompletedAssignments } from "@/hooks/use-assignments"
-import { useCourses } from "@/hooks/use-courses"
+import { useCourses, useDeleteCourse } from "@/hooks/use-courses"
 import { CourseItem } from "@/components/courses/course-item"
 import { CourseDetailsModal } from "@/components/courses/course-details-modal"
-import { Course } from "@/types/models"
+import { LogInfo } from "@/wailsjs/runtime/runtime"
+import { differenceInDays, format, isSameDay } from "date-fns"
+import { useUpdateCourse } from "@/hooks/use-courses"
+import { course, user } from "@/wailsjs/go/models"
+import { CourseDeleteDialog } from "../courses/course-delete-dialog"
+import useEmblaCarousel from "embla-carousel-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { toast } from "sonner"
+import { useAuthContext } from "@/components/provider/auth-provider"
 
-// Mock user data
-const userData = {
-  id: 1,
-  name: "John Doe",
-  username: "@john_doe",
-  email: "john.doe@student.acc.edu",
-  phone: "+1 (512) 555-0123",
-  avatar: "/placeholder.svg?height=120&width=120",
-  university: "Austin Community College",
-  year: "Junior",
-  major: "Computer Science",
-  courses: [
-    {
-      id: 1,
-      code: "CS 201",
-      name: "Data Structures",
-      instructor: "Dr. Smith",
-      credits: 3,
-      color: "bg-blue-500",
-      schedule: "MWF 10:00-11:00 AM",
-      assignments: 8,
-      completed: 6,
-      semester: "Spring 2024",
-    },
-    {
-      id: 2,
-      code: "MATH 301",
-      name: "Calculus III",
-      instructor: "Prof. Johnson",
-      credits: 4,
-      color: "bg-green-500",
-      schedule: "TTh 2:00-3:30 PM",
-      assignments: 12,
-      completed: 10,
-      semester: "Spring 2024",
-    },
-    {
-      id: 3,
-      code: "AI 401",
-      name: "Artificial Intelligence",
-      instructor: "Dr. Williams",
-      credits: 3,
-      color: "bg-purple-500",
-      schedule: "MWF 1:00-2:00 PM",
-      assignments: 6,
-      completed: 4,
-      semester: "Spring 2024",
-    },
-    {
-      id: 4,
-      code: "ENG 102",
-      name: "English Composition",
-      instructor: "Prof. Davis",
-      credits: 3,
-      color: "bg-orange-500",
-      schedule: "TTh 11:00-12:30 PM",
-      assignments: 5,
-      completed: 5,
-      semester: "Spring 2024",
-    },
-  ],
-  followers: 156,
-  following: 203,
-  posts: 42,
-  location: "Austin, TX",
-  joinedDate: "2022-08-15",
-  stats: {
-    assignmentsCompleted: 87,
-    totalAssignments: 95,
-    notesCreated: 23,
-    studyHours: 156,
-  },
-}
+
+
+const years = [
+  "Freshman",
+  "Sophomore",
+  "Junior",
+  "Senior",
+  "Graduate"
+]
+
+const semesters = [
+  { name: "SUMMER 2028", value: "SUMMER 2028" },
+  { name: "SPRING 2028", value: "SPRING 2028" },
+  { name: "FALL 2027", value: "FALL 2027" },
+  { name: "SUMMER 2027", value: "SUMMER 2027" },
+  { name: "SPRING 2027", value: "SPRING 2027" },
+  { name: "FALL 2026", value: "FALL 2026" },
+  { name: "SUMMER 2026", value: "SUMMER 2026" },
+  { name: "SPRING 2026", value: "SPRING 2026" },
+  { name: "FALL 2025", value: "FALL 2025" },
+  { name: "SUMMER 2025", value: "SUMMER 2025" },
+  { name: "SPRING 2025", value: "SPRING 2025" },
+  { name: "FALL 2024", value: "FALL 2024" },
+]
+
+const universities = [
+  "Austin Community College",
+  "Harvard University",
+  "Stanford University",
+  "MIT",
+  "University of California, Berkeley",
+  "University of Oxford",
+  "University of Cambridge",
+  "Yale University",
+  "Princeton University",
+  "Columbia University",
+  "University of Chicago",
+  "Other"
+]
+
+// Common languages
+const languages = [
+  { code: "en", name: "English" },
+  { code: "es", name: "Spanish" },
+  { code: "fr", name: "French" },
+  { code: "de", name: "German" },
+  { code: "it", name: "Italian" },
+  { code: "pt", name: "Portuguese" },
+  { code: "zh", name: "Chinese" },
+  { code: "ja", name: "Japanese" },
+  { code: "ko", name: "Korean" },
+  { code: "ar", name: "Arabic" }
+]
 
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
-  const [editedData, setEditedData] = useState(userData)
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
-  
-  const { user } = useAuth()
+  const [selectedDeleteCourseId, setSelectedDeleteCourseId] = useState<number | null>(null)
+  const [selectedIndex, setSelectedIndex] = useState(0)
+
+  const { data: user } = useCurrentUser()
+  const [editedData, setEditedData] = useState({
+    Email: user?.Email || "",
+    Username: user?.Username || "",
+    University: user?.University || "",
+    Semester: user?.Semester || "",
+    Year: user?.Year || "",
+    Language: user?.Language || "",
+    Avatar: user?.Avatar || "",
+  })
   const { data: assignments } = useAssignments()
-  const { data: completedAssignments } =  useCompletedAssignments()
+  const { data: completedAssignments } = useCompletedAssignments()
   const { data: courses } = useCourses()
+  const { followers, following } = useAuthContext()
+  const { mutate: updateUser } = useUpdateUser()
 
-  const completionPercentage = ( (completedAssignments || []).length / (assignments || []).length) * 100
+  const updateMutation = useUpdateCourse()
+  const deleteMutation = useDeleteCourse()
 
-  const handleSave = () => {
-    // Here you would typically save to a backend
-    setIsEditing(false)
-    console.log("Saving profile data:", editedData)
+  const completionPercentage = ((completedAssignments || []).length / (assignments || []).length) * 100
+
+  const coursesPerPage = 4
+  const coursePages = []
+  for (let i = 0; i < (courses?.length || 0); i += coursesPerPage) {
+    coursePages.push(courses?.sort((a, b) => differenceInDays(b.StartDate, a.StartDate)).slice(i, i + coursesPerPage))
   }
+
+  useEffect(() => {
+    if (!user) return
+    setEditedData({
+      Email: user?.Email || "",
+      Username: user?.Username || "",
+      University: user?.University || "",
+      Semester: user?.Semester || "",
+      Year: user?.Year || "",
+      Language: user?.Language || "",
+      Avatar: user?.Avatar || "",
+    })
+  }, [user])
 
   const handleCancel = () => {
-    setEditedData(userData)
+    setEditedData({
+      Email: user?.Email || "",
+      Username: user?.Username || "",
+      University: user?.University || "",
+      Semester: user?.Semester || "",
+      Year: user?.Year || "",
+      Language: user?.Language || "",
+      Avatar: user?.Avatar || "",
+    })
     setIsEditing(false)
   }
 
-  const handleCourseClick = (courseId: number) => {
-    setSelectedCourseId(courseId)
+  const handleCourseClick = (course: course.LocalCourse) => {
+    setSelectedCourseId(course.ID)
   }
 
-  const handleEditCourse = (course: Course, column: string, value: string) => {
-    // Handle course editing if needed
-    console.log("Editing course:", course, column, value)
+  const handleEditCourse = async (courseData: course.LocalCourse, column: string, value: string) => {
+    const message = "course " + courseData.Code + " " + column + " changed to " + value
+    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
+
+    // Use the optimistic update mutation
+    updateMutation.mutate({
+      course: courseData,
+      column,
+      value
+    })
+  }
+
+  const handleDeleteCourseClick = (course: course.LocalCourse) => {
+    setSelectedDeleteCourseId(course.ID)
+  }
+
+  const handleDeleteCourse = async (course: course.LocalCourse) => {
+    const message = "course " + course.Code + " deleted"
+    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
+    deleteMutation.mutate(course)
+  }
+
+  // Embla Carousel setup
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    align: 'start',
+    containScroll: 'trimSnaps',
+    dragFree: false,
+    skipSnaps: false
+  })
+
+  // Track current slide
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return
+    setSelectedIndex(emblaApi.selectedScrollSnap())
+  }, [emblaApi])
+
+  useEffect(() => {
+    if (!emblaApi) return
+    onSelect()
+    emblaApi.on('select', onSelect)
+    return () => {
+      emblaApi.off('select', onSelect)
+    }
+  }, [emblaApi, onSelect])
+
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev()
+  }, [emblaApi])
+
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext()
+  }, [emblaApi])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    const key_to_column = {
+      Email: "email",
+      Username: "username",
+      University: "university",
+      Semester: "semester",
+      Year: "year",
+      Language: "language",
+      Avatar: "avatar",
+    }
+
+    var isChanged = false
+
+
+    // Process updates sequentially to avoid race conditions
+    for (const [key, value] of Object.entries(editedData)) {
+      const column = key_to_column[key as keyof typeof key_to_column]
+      if (value != user?.[key as keyof user.User]) {
+        const message = "user " + user?.Username + " " + column + ": " + user?.[key as keyof user.User] + " -> " + value
+        LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
+        
+        // Wait for each update to complete before proceeding
+        await updateUser({ column, key, value })
+        isChanged = true
+      } else {  
+        const message = `No changes to ${column} value: ${value}`
+        LogInfo(message)
+      }
+    }
+
+    if (isChanged) {
+      toast.success("Profile updated successfully")
+    } else {
+      toast.info("No changes to profile")
+    }
+
+    setIsEditing(false)
   }
 
   return (
@@ -160,9 +273,9 @@ export default function ProfilePage() {
                 <div className="flex flex-col items-center space-y-4">
                   <div className="relative">
                     <Avatar className="h-24 w-24">
-                      <AvatarImage src={userData.avatar || "/placeholder.svg"} alt={userData.name} />
+                      <AvatarImage src={"/placeholder.svg"} alt={user?.Username} />
                       <AvatarFallback className="text-lg">
-                        {user?.username
+                        {user?.Username
                           .split(" ")
                           .map((n) => n[0])
                           .join("")}
@@ -177,51 +290,29 @@ export default function ProfilePage() {
                     </Button>
                   </div>
 
-                  {isEditing ? (
-                    <div className="w-full space-y-3">
-                      <Input
-                        value={editedData.name}
-                        onChange={(e) => setEditedData({ ...editedData, name: e.target.value })}
-                        className="bg-gray-800/50 border-gray-600"
-                      />
-                      <Input
-                        value={editedData.username}
-                        onChange={(e) => setEditedData({ ...editedData, username: e.target.value })}
-                        className="bg-gray-800/50 border-gray-600"
-                      />
-                    </div>
-                  ) : (
-                    <div className="text-center">
-                      <h2 className="text-xl font-bold text-white">{user?.username}</h2>
-                      <p className="text-blue-400">{userData?.email}</p>
-                    </div>
-                  )}
 
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline" className="border-gray-600">
-                      <GraduationCap className="h-3 w-3 mr-1" />
-                      {userData.year}
-                    </Badge>
+                  <div className="text-center">
+                    <h2 className="text-xl font-bold text-white">{user?.Username}</h2>
+                    <p className="text-blue-400">{user?.Email}</p>
                   </div>
 
-                  <div className="flex justify-center space-x-2 w-full">
-                    {isEditing ? (
-                      <>
-                        <Button onClick={handleSave} size="sm">
-                          <Save className="h-4 w-4 mr-1" />
-                          Save
-                        </Button>
-                        <Button onClick={handleCancel} variant="outline" size="sm">
-                          Cancel
-                        </Button>
-                      </>
-                    ) : (
-                      <Button onClick={() => setIsEditing(true)} size="sm">
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit Profile
-                      </Button>
-                    )}
+                  <Separator orientation="horizontal" className="w-20 bg-gray-600" />
+
+                  <div className="flex flex-row w-full justify-evenly text-center items-center">
+                    <div>
+                      <div className="text-xl font-bold text-white">{followers?.length}</div>
+                      <div className="text-xs text-gray-400">Followers</div>
+                    </div>
+
+                    <Separator orientation="vertical" className="h-10 bg-gray-600" />
+
+                    <div>
+                      <div className="text-xl font-bold text-white">{following?.length}</div>
+                      <div className="text-xs text-gray-400">Following</div>
+                    </div>
+
                   </div>
+
                 </div>
               </CardContent>
             </Card>
@@ -238,183 +329,254 @@ export default function ProfilePage() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-gray-400">Assignments Completed</span>
-                    <span className="text-sm text-white">{userData.stats.assignmentsCompleted}/{userData.stats.totalAssignments}</span>
+                    <span className="text-sm text-white">{completedAssignments?.length}/{assignments?.length || 1}</span>
                   </div>
-                  <Progress value={(userData.stats.assignmentsCompleted / userData.stats.totalAssignments) * 100} className="h-2" />
+                  <Progress value={(completedAssignments?.length / (assignments?.length || 0)) * 100} className="h-2" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div>
-                    <div className="text-2xl font-bold text-white">{userData.stats.notesCreated}</div>
-                    <div className="text-sm text-gray-400">Notes Created</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-white">{userData.stats.studyHours}</div>
-                    <div className="text-sm text-gray-400">Study Hours</div>
-                  </div>
-                </div>
+
               </CardContent>
             </Card>
 
-            {/* Social Stats */}
-            <Card className="glass border-0">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-white">
-                  <Users className="h-5 w-5 text-blue-400" />
-                  <span>Social</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  <div>
-                    <div className="text-2xl font-bold text-white">{userData.followers}</div>
-                    <div className="text-sm text-gray-400">Followers</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-white">{userData.following}</div>
-                    <div className="text-sm text-gray-400">Following</div>
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold text-white">{userData.posts}</div>
-                    <div className="text-sm text-gray-400">Posts</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+
           </div>
 
           {/* Right Column - Details */}
           <div className="lg:col-span-2 space-y-6">
             {/* Personal Information */}
             <Card className="glass border-0">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-white">
-                  <User className="h-5 w-5 text-blue-400" />
-                  <span>Personal Information</span>
-                  {!isEditing && (
-                    <Button onClick={() => setIsEditing(true)} size="sm" className="ml-auto">
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <form onSubmit={handleSubmit}>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between text-white">
+                    <div className="flex items-center space-x-2">
+                      <User className="h-5 w-5 text-blue-400" />
+                      <span>Personal Information</span>
+                    </div>
+                    <div>
+                      {!isEditing ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 bg-transparent border-gray-600"
+                          onClick={() => setIsEditing(true)}>
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
+                      ) : (
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 text-red-400 bg-transparent border-red-600 hover:bg-red-600/10"
+                            onClick={handleCancel}
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Cancel
+                          </Button>
+                        <Button
+                          type="submit"
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-blue-400 bg-transparent border-blue-600 hover:bg-blue-600/10"
+                        >
+                          <Save className="h-4 w-4 mr-1" />
+                          Save
+                        </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
                   <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-400 block mb-2">Email</label>
-                      {isEditing ? (
-                        <Input
-                          value={editedData.email}
-                          onChange={(e) => setEditedData({ ...editedData, email: e.target.value })}
-                          className="bg-gray-800/50 border-gray-600"
-                        />
-                      ) : (
-                        <div className="flex items-center space-x-2 text-white">
-                          <Mail className="h-4 w-4 text-blue-400" />
-                          <span>{userData.email}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-gray-400 block mb-2">Phone</label>
-                      {isEditing ? (
-                        <Input
-                          value={editedData.phone}
-                          onChange={(e) => setEditedData({ ...editedData, phone: e.target.value })}
-                          className="bg-gray-800/50 border-gray-600"
-                        />
-                      ) : (
-                        <div className="flex items-center space-x-2 text-white">
-                          <Phone className="h-4 w-4 text-green-400" />
-                          <span>{userData.phone}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-gray-400 block mb-2">Location</label>
-                      {isEditing ? (
-                        <Input
-                          value={editedData.location}
-                          onChange={(e) => setEditedData({ ...editedData, location: e.target.value })}
-                          className="bg-gray-800/50 border-gray-600"
-                        />
-                      ) : (
-                        <div className="flex items-center space-x-2 text-white">
-                          <MapPin className="h-4 w-4 text-red-400" />
-                          <span>{userData.location}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium text-gray-400 block mb-2">University</label>
-                      <div className="text-white">{userData.university}</div>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-gray-400 block mb-2">Major</label>
-                      {isEditing ? (
-                        <Input
-                          value={editedData.major}
-                          onChange={(e) => setEditedData({ ...editedData, major: e.target.value })}
-                          className="bg-gray-800/50 border-gray-600"
-                        />
-                      ) : (
-                        <div className="text-white">{userData.major}</div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-gray-400 block mb-2">Joined</label>
-                      <div className="flex items-center space-x-2 text-white">
-                        <Calendar className="h-4 w-4 text-purple-400" />
-                        <span>{new Date(userData.joinedDate).toLocaleDateString()}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label htmlFor="email" className="text-sm font-medium text-gray-400 block mb-2">Email</label>
+                        {isEditing ? (
+                          <Input
+                            id="email"
+                            value={editedData?.Email}
+                            placeholder={user?.Email}
+                            onChange={(e) => setEditedData({ ...editedData, Email: e.target.value })}
+                            className="bg-gray-800/50 border-gray-600"
+                          />
+                        ) : (
+                          <div className="flex items-center space-x-2 text-white">
+                            <Mail className="h-4 w-4 text-blue-400" />
+                            <span>{user?.Email}</span>
+                          </div>
+                        )}
                       </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-400 block mb-2">University</label>
+                        {!isEditing ? (
+                          <div className="text-white">{user?.University}</div>
+                        ) : (
+                          <Select value={editedData?.University} onValueChange={(value) => setEditedData({ ...editedData, University: value })}>
+                            <SelectTrigger className="bg-gray-800/50 border-gray-600">
+                              <SelectValue placeholder={editedData?.University} />
+                            </SelectTrigger>
+                            <SelectContent className="glass">
+                              {universities.map((university) => (
+                                <SelectItem key={university} value={university}>{university}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+
+
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-400 block mb-2">Joined</label>
+                        <div className="flex items-center space-x-2 text-white">
+                          <Calendar className="h-4 w-4 text-purple-400" />
+                          <span>{format(new Date(user?.CreatedAt || new Date()), "MMMM d, yyyy")}</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-400 block mb-2">Semester</label>
+                        {!isEditing ? (
+                          <Badge variant="outline" className="px-2 py-1 bg-gray-800/50 border border-gray-600 rounded-full">
+                            <span className="text-xs text-white font-medium">{user?.Semester}</span>
+                          </Badge>
+                        ) : (
+                          <Select value={editedData?.Semester} onValueChange={(value) => setEditedData({ ...editedData, Semester: value })}>
+                            <SelectTrigger className="bg-gray-800/50 border-gray-600">
+                              <SelectValue placeholder={editedData?.Semester} />
+                            </SelectTrigger>
+                            <SelectContent className="glass">
+                              {semesters.map((semester) => (
+                                <SelectItem key={semester.value} value={semester.value}>{semester.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-gray-400 block mb-2">Year</label>
+                        {!isEditing ? (
+                          <Badge variant="outline" className=" px-2 py-1 bg-gray-800/50 border border-gray-600 rounded-full">
+                            <span className="text-xs text-white font-medium">{user?.Year}</span>
+                          </Badge>
+                        ) : (
+                          <Select value={editedData?.Year} onValueChange={(value) => setEditedData({ ...editedData, Year: value })}>
+                            <SelectTrigger className="bg-gray-800/50 border-gray-600">
+                              <SelectValue placeholder={editedData?.Year} />
+                            </SelectTrigger>
+                            <SelectContent className="glass">
+                              {years.map((year) => (
+                                <SelectItem key={year} value={year}>{year}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+
                     </div>
                   </div>
-                </div>
-              </CardContent>
+                </CardContent>
+              </form>
             </Card>
 
             {/* Current Courses */}
-            <Card className="glass border-0">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2 text-white">
+            <div className="space-y-2">
+              <Card className="flex items-center justify-between text-white p-4 border-0 glass">
+                <div className="flex items-center space-x-2">
                   <BookOpen className="h-5 w-5 text-green-400" />
-                  <span>Current Courses</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {courses?.slice(0, 4).map((course) => {
-                    return (
-                     <CourseItem 
-                        course={course} 
-                        onEdit={() => {}} 
-                        onDelete={() => {}} 
-                        onToggleComplete={() => {}} 
-                        onCourseClick={handleCourseClick} 
-                     />
-                    )
-                  })}
+                  <span>Courses</span>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex items-center">
+                  {coursePages.length > 1 && (
+                    <Badge variant="outline" className="flex items-center p-2 bg-gray-800/50 border border-gray-600 rounded-full">
+                      <p className="text-sm text-muted-foreground">{selectedIndex + 1} / <span className="text-white">{coursePages.length}</span></p>
+                    </Badge>
+                  )}
+                </div>
+              </Card>
+
+              <div className="flex flex-col relative">
+
+                <div className="overflow-hidden" ref={emblaRef}>
+                  <div className="flex">
+                    {coursePages.map((page, pageIndex) => {
+                      return (
+                        <div
+                          key={pageIndex}
+                          className="flex-none w-full min-w-0"
+                        >
+                          <div className="grid grid-cols-2 gap-4">
+                            {page?.map((course) => {
+                              return (
+                                <CourseItem
+                                  course={course}
+                                  onEdit={() => { }}
+                                  onDelete={handleDeleteCourseClick}
+                                  onCourseClick={handleCourseClick}
+                                />
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                </div>
+
+                {coursePages.length > 1 && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="left-0 absolute rounded-full top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 h-8 w-8 bg-gray-800/50 border border-gray-600"
+                      onClick={scrollPrev}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="right-0 absolute rounded-full top-1/2 -translate-y-1/2 translate-x-1/2 z-10 h-8 w-8 bg-gray-800/50 border border-gray-600"
+                      onClick={scrollNext}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+
+              </div>
+
+
+            </div>
           </div>
         </div>
-      </div>
-      <CourseDetailsModal
+
+        <CourseDeleteDialog
+          isOpen={!!selectedDeleteCourseId}
+          onClose={() => setSelectedDeleteCourseId(null)}
+          courseId={selectedDeleteCourseId}
+          courses={courses || []}
+          onDelete={handleDeleteCourse}
+        />
+
+        <CourseDetailsModal
           isOpen={!!selectedCourseId}
           courseId={selectedCourseId}
+          courses={courses || []}
           onClose={() => setSelectedCourseId(null)}
           onEdit={handleEditCourse}
+          onDelete={handleDeleteCourseClick}
         />
+      </div>
     </div>
   )
 }

@@ -86,7 +86,7 @@ func NewAssignment() *Assignment {
 	return assignment
 }
 
-func Get_Assignment_byId(id, user_id uint, db *gorm.DB) (*Assignment, error) {
+func Get_Assignment_byID(id, user_id uint, db *gorm.DB) (*Assignment, error) {
 	assignment := &Assignment{}
 	err := db.Preload("User").
 		Preload("Course", "user_id = ?", user_id).
@@ -107,7 +107,7 @@ func Get_Assignment_byLocalID(id, user_id uint, db *gorm.DB) (*Assignment, error
 		Preload("Course", "user_id = ?", user_id).
 		Preload("Type").
 		Preload("Status").
-		Where("local_id = ?", id).
+		Where("local_id = ? AND user_id = ?", id, user_id).
 		First(assignment).Error
 
 	if err != nil {
@@ -152,98 +152,6 @@ func (a *Assignment) ToMap() map[string]string {
 	}
 }
 
-/*func (a *Assignment) Add(db *gorm.DB) (err error) {
-
-// 	assignment := a.ToMap()
-
-// 	delete(assignment, "id")
-
-// 	err = db.Create(a).Error
-
-// 	if err != nil {
-// 		log.Fatalln("Error adding assignment to database: ", err)
-// 		return err
-// 	}
-
-// 	notion_id, err_notion := a.Add_Notion()
-
-// 	if err_notion != nil {
-// 		log.Fatalln("Error adding assignment to Notion: ", err_notion)
-// 		return err_notion
-// 	}
-
-// 	var lastVal int
-// 	err = db.Raw("SELECT MAX(id) FROM assignements").Scan(&lastVal).Error
-// 	if err != nil {
-// 		log.Fatal(err)
-// 	}
-// 	err = db.Model(&Assignment{}).Where("id = ?", lastVal).Update("notion_id", notion_id).Error
-
-// 	if err != nil {
-// 		log.Fatalln("Error updating assignment: ", err)
-// 		return err
-// 	}
-
-// 	return nil
-// }
-
-
-func (a *Assignment) Update(col, value string, db *gorm.DB) (err error) {
-
-		err = db.Model(&Assignment{}).Where("id = ?", a.ID).Update(col, value).Error
-
-		if err != nil {
-			log.Fatalln("Error updating assignment in database: ", err)
-			return err
-		}
-
-		assignment := a.ToMap()
-		assignment[col] = value
-
-		if col == "course_code" {
-			c , _ := course.Get_Course_byCode(value, db)
-			value = c.NotionID
-		}
-
-		var obj map[string]string
-
-		if col == "status" {
-			obj = models.Get_AssignmentStatus_byName(value, db).ToMap()
-		} else {
-			obj = models.Get_AssignmentType_byName(value, db).ToMap()
-		}
-
-		err = a.Update_Notion(col, value, obj)
-
-		if err != nil {
-			log.Fatalln("Error updating assignment to Notion: ", err)
-			return err
-		}
-
-		return nil
-	}
-
-
-// func (a *Assignment) Delete(db *gorm.DB) (err error) {
-
-
-// 	err = db.Delete(a).Error
-
-// 	if err != nil {
-// 		log.Fatalln(err)
-// 	}
-
-// 	err = a.Delete_Notion()
-// 	if err != nil {
-// 		log.Fatalln(err)
-// 	}
-
-// 	return nil
-// }*/
-
-// Document-related methods
-
-// GetDocuments retrieves all documents for this assignment
 func (a *Assignment) GetDocuments(db *gorm.DB) ([]document.Document, error) {
 	return document.GetDocumentsByAssignment(a.ID, a.UserID, db)
 }

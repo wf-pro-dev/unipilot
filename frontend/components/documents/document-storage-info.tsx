@@ -38,7 +38,10 @@ export function DocumentStorageInfo() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8">
+        <Button 
+        variant="outline" 
+        size="sm" 
+        className="flex-1 bg-transparent border-gray-600">
           <HardDrive className="w-4 h-4" />
         </Button>
       </PopoverTrigger>

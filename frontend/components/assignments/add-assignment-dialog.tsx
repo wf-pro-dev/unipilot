@@ -50,9 +50,10 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
     course_code: "",
     course_name: "",
     type_name: "",
-    status_name: "",
+    status_name: "Not started",
     priority: "low",
     todo: "",
+    link: "",
   })
 
   const key_to_column = {
@@ -62,6 +63,7 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
     status_name: "StatusName",
     priority: "Priority",
     todo: "Todo",
+    link: "Link",
   }
 
   const { data: courses } = useCourses()
@@ -77,15 +79,14 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
       CourseCode: formData.course_code,
       TypeName: formData.type_name,
       StatusName: formData.status_name,
-      Priority: formData.priority,
-
+      Priority: formData.priority || "low",
+      Link: formData.link || "https://acconline.austincc.edu/ultra/stream",
       ID: 0,
       CreatedAt: new Date(),
       UpdatedAt: new Date(),
       DeletedAt: null,
       RemoteID: 0,
       NotionID: "",
-      Link: "",
       Completed: false,
       SyncStatus: "pending",
       Course: null as any,
@@ -102,13 +103,14 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
       status_name: "",
       priority: "low",
       todo: "",
+      link: "",
     })
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
+        <Button className="text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
           <Plus className="h-4 w-4 mr-2" />
           Add Assignment
         </Button>
@@ -152,7 +154,7 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
                     <SelectItem key={course.Code} value={course.Code}>
                       <div className="flex items-center gap-2">
                         <div className={` h-2 w-2 rounded-full ${course.Color}`} />
-                        {course.Code} - {course.Name}
+                        {course.Code}
                       </div>
                     </SelectItem>
                   ))}
@@ -213,7 +215,7 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
                 onValueChange={(value) => setFormData({ ...formData, status_name: value })}
               >
                 <SelectTrigger className="bg-gray-800/50 border-gray-600">
-                  <SelectValue placeholder="Select status" />
+                <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="glass border-gray-600">
                   {statuses.map((status) => (
@@ -224,6 +226,19 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="link" className="text-gray-300">
+              Link
+            </Label>
+            <Input
+              id="link"
+              value={formData.link}
+              onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+              placeholder="https://acconline.austincc.edu/ultra/stream"
+              className="bg-gray-800/50 border-gray-600"
+            />
           </div>
 
           <div>

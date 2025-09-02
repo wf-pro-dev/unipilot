@@ -23,12 +23,12 @@ function MermaidDiagram({ children }: { children: string }) {
 
   useEffect(() => {
     if (ref.current && children) {
-      mermaid.initialize({ 
+      mermaid.initialize({
         startOnLoad: true,
         theme: 'default',
         securityLevel: 'loose',
       })
-      
+
       const renderDiagram = async () => {
         try {
           const { svg } = await mermaid.render(`mermaid-${Date.now()}`, children)
@@ -42,7 +42,7 @@ function MermaidDiagram({ children }: { children: string }) {
           }
         }
       }
-      
+
       renderDiagram()
     }
   }, [children])
@@ -54,8 +54,8 @@ function MermaidDiagram({ children }: { children: string }) {
   )
 }
 
-export function MarkdownRenderer({ 
-  content, 
+export function MarkdownRenderer({
+  content,
   className,
   variant = 'default'
 }: MarkdownRendererProps) {
@@ -63,7 +63,7 @@ export function MarkdownRenderer({
     return <div className={cn("text-muted-foreground", className)}>No content available</div>
   }
 
-  const baseClasses = "prose prose-sm max-w-none"
+  const baseClasses = "prose prose-sm max-w-none leading-relaxed"
   const variantClasses = {
     default: "prose-gray dark:prose-invert",
     compact: "prose-gray dark:prose-invert prose-compact",
@@ -81,29 +81,30 @@ export function MarkdownRenderer({
         components={{
           // Custom components for better styling with proper spacing
           h1: ({ children }) => (
-            <h1 className="text-2xl font-bold text-foreground border-b border-border pb-2 mb-6 mt-8 first:mt-0">
+            <h1 className="text-2xl font-bold text-foreground border-b border-border pb-2 mb-6 leading-tight">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-xl font-semibold text-foreground border-b border-border pb-2 mb-5 mt-7">
+            <h2 className="text-xl font-semibold text-foreground border-b border-border pb-2 mb-5 leading-tight">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-lg font-medium text-foreground mb-4 mt-6">
+            <h3 className="text-lg font-medium text-foreground mb-4 leading-tight">
               {children}
             </h3>
           ),
           code: ({ inline, className, children, ...props }) => {
             const match = /language-(\w+)/.exec(className || '')
             const language = match ? match[1] : ''
-            
+
             // Handle mermaid diagrams
             if (language === 'mermaid') {
               return <MermaidDiagram>{String(children).replace(/\n$/, '')}</MermaidDiagram>
             }
-            
+
+            // Inline code (single backticks)
             if (inline) {
               return (
                 <code 
@@ -114,17 +115,20 @@ export function MarkdownRenderer({
                 </code>
               )
             }
+
+            // Block code (triple backticks) - render inline with text
             return (
-              <div className="my-6">
-                <code className={cn("block", className)} {...props}>
-                  {children}
-                </code>
-              </div>
+              <code 
+                className={cn("bg-muted px-2 py-1 rounded text-sm font-mono text-muted-foreground inline-block", className)} 
+                {...props}
+              >
+                {children}
+              </code>
             )
           },
           pre: ({ children, ...props }) => (
             <div className="my-8">
-              <pre 
+              <pre
                 className="bg-muted rounded-lg p-4 overflow-x-auto text-sm font-mono border"
                 {...props}
               >
@@ -133,7 +137,7 @@ export function MarkdownRenderer({
             </div>
           ),
           blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-primary pl-6 py-2 my-6 italic text-muted-foreground bg-muted/20 rounded-r">
+            <blockquote className="border-l-4 border-primary pl-6 py-2 italic text-muted-foreground bg-muted/20 rounded-r leading-relaxed">
               {children}
             </blockquote>
           ),
@@ -150,7 +154,7 @@ export function MarkdownRenderer({
             </th>
           ),
           td: ({ children }) => (
-            <td className="border-b border-border px-4 py-3">
+            <td className="border-b border-border px-4 py-3 leading-relaxed">
               {children}
             </td>
           ),
@@ -159,7 +163,7 @@ export function MarkdownRenderer({
             // KaTeX equations have specific classes
             if (className?.includes('math-display')) {
               return (
-                <div className={cn("my-8 flex justify-center", className)} {...props}>
+                <div className={cn("flex justify-center", className)} {...props}>
                   {children}
                 </div>
               )
@@ -167,7 +171,7 @@ export function MarkdownRenderer({
             return <div className={className} {...props}>{children}</div>
           },
           p: ({ children }) => (
-            <p className="mb-4 leading-7">
+            <p className="mb-4 leading-relaxed">
               {children}
             </p>
           )
@@ -180,13 +184,13 @@ export function MarkdownRenderer({
 }
 
 // Styled version with enhanced visual hierarchy
-export function StyledMarkdownRenderer({ 
-  content, 
-  className 
+export function StyledMarkdownRenderer({
+  content,
+  className
 }: Omit<MarkdownRendererProps, 'variant'>) {
   return (
-    <MarkdownRenderer 
-      content={content} 
+    <MarkdownRenderer
+      content={content}
       className={className}
       variant="styled"
     />
@@ -194,13 +198,13 @@ export function StyledMarkdownRenderer({
 }
 
 // Compact version for inline display
-export function InlineMarkdownRenderer({ 
-  content, 
-  className 
+export function InlineMarkdownRenderer({
+  content,
+  className
 }: Omit<MarkdownRendererProps, 'variant'>) {
   return (
-    <MarkdownRenderer 
-      content={content} 
+    <MarkdownRenderer
+      content={content}
       className={className}
       variant="compact"
     />

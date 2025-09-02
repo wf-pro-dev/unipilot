@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
 import { motion } from "framer-motion"
+import { useLogin } from "@/hooks/use-auth"
+import { toast } from "sonner"
 
 interface LoginFormProps {
   onLoginSuccess?: () => void
@@ -17,20 +17,19 @@ interface LoginFormProps {
 export function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
-  const { login, isLoading } = useAuth()
+  const { mutate: login, isPending: isLoading } = useLogin()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("")
 
-    const result = await login(username, password)
-    
-    if (result.success) {
-      onLoginSuccess?.()
-    } else {
-      setError(result.error || "Login failed")
-    }
+    login({ username, password }, {
+      onSuccess: () => {
+        onLoginSuccess?.()
+      },
+      onError: (error) => {
+        toast.error(String(error))
+      }
+    })
   }
 
   return (
@@ -75,12 +74,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 className="glass"
               />
             </div>
-            
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+          
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (

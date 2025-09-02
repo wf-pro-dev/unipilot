@@ -30,8 +30,12 @@ export function DeleteNote(arg1) {
   return window['go']['main']['App']['DeleteNote'](arg1);
 }
 
-export function EnsureSSEConnection() {
-  return window['go']['main']['App']['EnsureSSEConnection']();
+export function DeleteNotification(arg1) {
+  return window['go']['main']['App']['DeleteNotification'](arg1);
+}
+
+export function Follow(arg1) {
+  return window['go']['main']['App']['Follow'](arg1);
 }
 
 export function GetAssignment(arg1) {
@@ -58,16 +62,36 @@ export function GetCourses() {
   return window['go']['main']['App']['GetCourses']();
 }
 
+export function GetFollowers(arg1) {
+  return window['go']['main']['App']['GetFollowers'](arg1);
+}
+
+export function GetFollowing(arg1) {
+  return window['go']['main']['App']['GetFollowing'](arg1);
+}
+
+export function GetNetworkStatus() {
+  return window['go']['main']['App']['GetNetworkStatus']();
+}
+
 export function GetNotes() {
   return window['go']['main']['App']['GetNotes']();
+}
+
+export function GetNotificationDaemonStatus() {
+  return window['go']['main']['App']['GetNotificationDaemonStatus']();
+}
+
+export function GetNotifications() {
+  return window['go']['main']['App']['GetNotifications']();
 }
 
 export function GetRemoteDocumentMetadata(arg1) {
   return window['go']['main']['App']['GetRemoteDocumentMetadata'](arg1);
 }
 
-export function GetSSEConnectionStatus() {
-  return window['go']['main']['App']['GetSSEConnectionStatus']();
+export function GetRemoteUsers() {
+  return window['go']['main']['App']['GetRemoteUsers']();
 }
 
 export function GetSubmissionDocuments(arg1) {
@@ -86,12 +110,20 @@ export function GetUserStorageInfo() {
   return window['go']['main']['App']['GetUserStorageInfo']();
 }
 
-export function Greet(arg1) {
-  return window['go']['main']['App']['Greet'](arg1);
+export function InstallNotificationDaemon() {
+  return window['go']['main']['App']['InstallNotificationDaemon']();
 }
 
 export function IsAuthenticated() {
   return window['go']['main']['App']['IsAuthenticated']();
+}
+
+export function IsNotificationDaemonInstalled() {
+  return window['go']['main']['App']['IsNotificationDaemonInstalled']();
+}
+
+export function IsNotificationDaemonRunning() {
+  return window['go']['main']['App']['IsNotificationDaemonRunning']();
 }
 
 export function Login(arg1, arg2) {
@@ -106,8 +138,8 @@ export function OpenDocument(arg1) {
   return window['go']['main']['App']['OpenDocument'](arg1);
 }
 
-export function ReconnectSSE() {
-  return window['go']['main']['App']['ReconnectSSE']();
+export function RebuildNotificationDaemon() {
+  return window['go']['main']['App']['RebuildNotificationDaemon']();
 }
 
 export function Register(arg1, arg2, arg3, arg4, arg5) {
@@ -116,6 +148,22 @@ export function Register(arg1, arg2, arg3, arg4, arg5) {
 
 export function SaveDocumentAs(arg1) {
   return window['go']['main']['App']['SaveDocumentAs'](arg1);
+}
+
+export function StartNotificationDaemon() {
+  return window['go']['main']['App']['StartNotificationDaemon']();
+}
+
+export function StopNotificationDaemon() {
+  return window['go']['main']['App']['StopNotificationDaemon']();
+}
+
+export function Sync() {
+  return window['go']['main']['App']['Sync']();
+}
+
+export function UninstallNotificationDaemon() {
+  return window['go']['main']['App']['UninstallNotificationDaemon']();
 }
 
 export function UpdateAssignment(arg1, arg2, arg3) {
@@ -128,6 +176,10 @@ export function UpdateCourse(arg1, arg2, arg3) {
 
 export function UpdateNote(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateNote'](arg1, arg2, arg3);
+}
+
+export function UpdateUser(arg1, arg2) {
+  return window['go']['main']['App']['UpdateUser'](arg1, arg2);
 }
 
 export function UploadDocument(arg1, arg2) {
