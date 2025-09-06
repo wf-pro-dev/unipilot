@@ -5,10 +5,11 @@ import { useFollow } from "@/hooks/use-follows"
 import { notifications } from "@/wailsjs/go/models"
 import { Check, X } from "lucide-react"
 import { useAuthContext } from "../provider/auth-provider"
-import { LogInfo } from "@/wailsjs/runtime/runtime"
+import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
 import { useDeleteNotification } from "@/hooks/use-notifications"
 import { toast } from "sonner"
+import { useAcceptLink } from "@/hooks/use-courses"
 
 interface NotificationsItemProps {
     notification: notifications.LocalNotification
@@ -20,6 +21,7 @@ export function NotificationsItem({ notification }: NotificationsItemProps) {
     // Check if current user is following this user by checking if current user is in the followers list
     const isFollowed = following?.some((following) => following.ID === notification.sender_id)
     const followMutation = useFollow(currentUser!, false)
+    const acceptLinkMutation = useAcceptLink()
     const deleteMutation = useDeleteNotification()
 
     const handleFollow = () => {
@@ -43,7 +45,19 @@ export function NotificationsItem({ notification }: NotificationsItemProps) {
 
     const NotificationProps: { [key: string]: { ButtonText: string, ShowButton: boolean, OnClick: () => void     } } = {
         "follow": { ButtonText: "Follow", ShowButton: !isFollowed, OnClick: handleFollow },
-        "sync": { ButtonText: "Link", ShowButton: true, OnClick: () => {} },
+        "sync": { ButtonText: "Link", ShowButton: true, OnClick: () => {
+            LogInfo("Accepting link request " + notification.data)
+            acceptLinkMutation.mutate({ courseData: notification.data }),
+            {
+                onSuccess: () => {
+                    toast.success("Couse successfully linked")
+                },
+                onError: (error: any) => {
+                    LogError("Failed to accept link request: " + error)
+                    toast.error("Failed to link course")
+                }
+            }
+        } },
     }
 
 

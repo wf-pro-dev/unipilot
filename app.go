@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -27,6 +28,8 @@ import (
 	"unipilot/internal/services/fileops"
 	"unipilot/internal/storage"
 	"unipilot/internal/sync"
+
+	"gorm.io/gorm"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -1621,4 +1624,30 @@ func (a *App) RebuildNotificationDaemon() error {
 // LinkCourse links a course to a list of users
 func (a *App) RequestLinkCourse(courseCode string, usersID []uint) error {
 	return client.RequestLinkCourse(courseCode, usersID)
+}
+
+func (a *App) AcceptLink(courseData string) error {
+
+	// Unmarshal the course data
+	var c course.LocalCourse
+	if err := json.Unmarshal([]byte(courseData), &c); err != nil {
+		return err
+	}
+
+	runtime.LogInfof(a.ctx, "AcceptLink: %v", c)
+
+	//Determine if the course already exists
+	var existingCourse course.LocalCourse
+	err := a.DB.GetDB().Where("code = ?", c.Code).First(&existingCourse).Error
+	if err != nil {
+		// If the course doesn't exist, create it
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			a.CreateCourse(&c)
+		}
+		return err
+	}
+	// Update the course with the new link ID
+	a.UpdateCourse(&existingCourse, "link_id", c.LinkID.String())
+
+	return nil
 }

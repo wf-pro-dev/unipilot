@@ -8,6 +8,8 @@ import {document} from '../models';
 import {main} from '../models';
 import {user} from '../models';
 
+export function AcceptLink(arg1:string):Promise<void>;
+
 export function CreateAssignment(arg1:assignment.LocalAssignment):Promise<void>;
 
 export function CreateCourse(arg1:course.LocalCourse):Promise<void>;

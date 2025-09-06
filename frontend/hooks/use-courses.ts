@@ -183,6 +183,15 @@ export function useRequestLinkCourse() {
   })
 }
 
+// Hook for accepting a link request
+export function useAcceptLink() {
+  return useMutation({
+    mutationFn: async ({ courseData }: { courseData: string }) => {
+      return await window.go.main.App.AcceptLink(courseData)
+    }
+  })
+}
+
 // Derived data hooks for specific views
 
 export function useUpcomingCourses() {
