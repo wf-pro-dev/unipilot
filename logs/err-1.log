@@ -2421,3 +2421,268 @@
 2025-09-02T06:22:56: 2025/09/02 06:22:56 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
 2025-09-02T06:24:22: 2025/09/02 06:24:22 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
 2025-09-02T06:27:46: 2025/09/02 06:27:46 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-04T06:49:15: 2025/09/04 06:49:15 Server listening on :3000...
+2025-09-04T06:49:17: 2025/09/04 06:49:17 [INFO] SSE connection attempt from 127.0.0.1:32772
+2025-09-04T06:49:17: 2025/09/04 06:49:17 [INFO] New SSE user id : 1
+2025-09-04T06:49:17: 2025/09/04 06:49:17 [INFO] Active Clients: map[1:0xc00030ce70]
+2025-09-04T07:06:55: 2025/09/04 07:06:55 [INFO] Client 1 disconnected (context canceled)
+2025-09-04T07:06:55: 2025/09/04 07:06:55 [INFO] Removing client 1 (reason: connection closing)
+2025-09-04T08:43:51: 2025/09/04 08:43:51 [INFO] SSE connection attempt from 127.0.0.1:43872
+2025-09-04T08:43:51: 2025/09/04 08:43:51 [INFO] New SSE user id : 1
+2025-09-04T08:43:51: 2025/09/04 08:43:51 [INFO] Active Clients: map[1:0xc00030d6e0]
+2025-09-04T09:31:57: 2025/09/04 09:31:57 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-04T09:31:57: 2025/09/04 09:31:57 [INFO] user_id 1 assignment 142 column status_name value Not started
+2025-09-04T09:31:57: 2025/09/04 09:31:57 [INFO] user_id 1 assignment 142 column deadline value 2025-09-04 00:00:00-05:00
+2025-09-04T09:31:57: 2025/09/04 09:31:57 [INFO] assignment input data local ID : 109 Title: Homework 1 : Course code: ITSE-2321 Type : Quiz Deadline : 2025-09-04 
+2025-09-04T09:31:57: 2025/09/04 09:31:57 [INFO] assignment input : {109 Homework 1 Chapter 1: Introduction to Java Programming 2025-09-04 ITSE-2321 Quiz Not started medium}
+2025-09-04T09:31:57: 2025/09/04 09:31:57 [INFO] assignment input data local ID : 110 Title: Program 1 : Course code: ITSE-2321 Type : HW Deadline : 2025-09-05 
+2025-09-04T09:31:57: 2025/09/04 09:31:57 [INFO] assignment input : {110 Program 1 Program 1 – Introduction to Java Applications 2025-09-05 ITSE-2321 HW Not started low}
+2025-09-04T09:32:36: 2025/09/04 09:32:36 [ERROR] [500] failed to getting assignment: record not found
+2025-09-04T09:33:56: 2025/09/04 09:33:56 [INFO] user_id 1 assignment 182 column deadline value 2025-09-10 00:00:00-05:00
+2025-09-04T09:55:38: 2025/09/04 09:55:38 [INFO] User ID : 19, Total : 0, Followers : []
+2025-09-04T09:55:38: 2025/09/04 09:55:38 [INFO] User ID : 3, Total : 0, Followers : []
+2025-09-04T09:59:43: 2025/09/04 09:59:43 [INFO] SSE connection attempt from 127.0.0.1:59142
+2025-09-04T09:59:43: 2025/09/04 09:59:43 [INFO] New SSE user id : 1
+2025-09-04T09:59:43: 2025/09/04 09:59:43 [INFO] Active Clients: map[1:0xc000360ed0]
+2025-09-04T10:14:02: 2025/09/04 10:14:02 [INFO] Client 1 disconnected (context canceled)
+2025-09-04T10:14:02: 2025/09/04 10:14:02 [INFO] Removing client 1 (reason: connection closing)
+2025-09-04T10:25:07: 2025/09/04 10:25:07 [INFO] Client 1 disconnected (context canceled)
+2025-09-04T10:25:07: 2025/09/04 10:25:07 [INFO] Removing client 1 (reason: connection closing)
+2025-09-04T10:38:33: 2025/09/04 10:38:33 [INFO] SSE connection attempt from 127.0.0.1:50808
+2025-09-04T10:38:33: 2025/09/04 10:38:33 [INFO] New SSE user id : 1
+2025-09-04T10:38:33: 2025/09/04 10:38:33 [INFO] Active Clients: map[1:0xc000360f00]
+2025-09-04T10:44:41: 2025/09/04 10:44:41 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-04T10:50:41: 2025/09/04 10:50:41 [INFO] assignment input data local ID : 111 Title: Chapter 9 : Course code: SPCH-1311 Type : HW Deadline : 2025-09-09 
+2025-09-04T10:50:41: 2025/09/04 10:50:41 [INFO] assignment input : {111 Chapter 9 Read Chapter 9 : Exploring Self-Awareness and Communication  2025-09-09 SPCH-1311 HW Not started low}
+2025-09-04T10:51:13: 2025/09/04 10:51:13 [INFO] user_id 1 assignment 183 column title value Exploring Self-Awareness and Communication 
+2025-09-04T10:51:24: 2025/09/04 10:51:24 [INFO] user_id 1 assignment 143 column title value Diversity and communication on Revel
+2025-09-04T11:26:25: 2025/09/04 11:26:25 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-04T12:03:36: 2025/09/04 12:03:36 [INFO] Client 1 disconnected (context canceled)
+2025-09-04T12:03:36: 2025/09/04 12:03:36 [INFO] Removing client 1 (reason: connection closing)
+2025-09-04T12:06:09: 2025/09/04 12:06:09 [INFO] SSE connection attempt from 127.0.0.1:52362
+2025-09-04T12:06:09: 2025/09/04 12:06:09 [INFO] New SSE user id : 1
+2025-09-04T12:06:09: 2025/09/04 12:06:09 [INFO] Active Clients: map[1:0xc000360f00]
+2025-09-04T12:22:51: 2025/09/04 12:22:51 [INFO] Client 1 disconnected (context canceled)
+2025-09-04T12:22:51: 2025/09/04 12:22:51 [INFO] Removing client 1 (reason: connection closing)
+2025-09-04T12:33:50: 2025/09/04 12:33:50 [INFO] SSE connection attempt from 127.0.0.1:44250
+2025-09-04T12:33:50: 2025/09/04 12:33:50 [INFO] New SSE user id : 1
+2025-09-04T12:33:50: 2025/09/04 12:33:50 [INFO] Active Clients: map[1:0xc000193170]
+2025-09-04T13:54:32: 2025/09/04 13:54:32 [INFO] Client 1 disconnected (context canceled)
+2025-09-04T13:54:32: 2025/09/04 13:54:32 [INFO] Removing client 1 (reason: connection closing)
+2025-09-04T17:16:25: 2025/09/04 17:16:25 [INFO] SSE connection attempt from 127.0.0.1:33352
+2025-09-04T17:16:25: 2025/09/04 17:16:25 [INFO] New SSE user id : 1
+2025-09-04T17:16:25: 2025/09/04 17:16:25 [INFO] Active Clients: map[1:0xc000360f60]
+2025-09-04T21:09:01: 2025/09/04 21:09:01 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-04T21:32:12: 2025/09/04 21:32:12 [INFO] Client 1 disconnected (context canceled)
+2025-09-04T21:32:12: 2025/09/04 21:32:12 [INFO] Removing client 1 (reason: connection closing)
+2025-09-04T22:21:24: 2025/09/04 22:21:24 [INFO] SSE connection attempt from 127.0.0.1:35896
+2025-09-04T22:21:24: 2025/09/04 22:21:24 [INFO] New SSE user id : 1
+2025-09-04T22:21:24: 2025/09/04 22:21:24 [INFO] Active Clients: map[1:0xc000360f00]
+2025-09-04T22:38:13: 2025/09/04 22:38:13 [INFO] Client 1 disconnected (context canceled)
+2025-09-04T22:38:13: 2025/09/04 22:38:13 [INFO] Removing client 1 (reason: connection closing)
+2025-09-04T23:16:10: 2025/09/04 23:16:10 [INFO] SSE connection attempt from 127.0.0.1:35972
+2025-09-04T23:16:10: 2025/09/04 23:16:10 [INFO] New SSE user id : 1
+2025-09-04T23:16:10: 2025/09/04 23:16:10 [INFO] Active Clients: map[1:0xc000360f60]
+2025-09-04T23:33:14: 2025/09/04 23:33:14 [INFO] Client 1 disconnected (context canceled)
+2025-09-04T23:33:14: 2025/09/04 23:33:14 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T00:06:16: 2025/09/05 00:06:16 [INFO] SSE connection attempt from 127.0.0.1:50492
+2025-09-05T00:06:16: 2025/09/05 00:06:16 [INFO] New SSE user id : 1
+2025-09-05T00:06:16: 2025/09/05 00:06:16 [INFO] Active Clients: map[1:0xc000360f60]
+2025-09-05T00:23:04: 2025/09/05 00:23:04 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T00:23:04: 2025/09/05 00:23:04 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T00:49:48: 2025/09/05 00:49:48 [INFO] SSE connection attempt from 127.0.0.1:45894
+2025-09-05T00:49:48: 2025/09/05 00:49:48 [INFO] New SSE user id : 1
+2025-09-05T00:49:48: 2025/09/05 00:49:48 [INFO] Active Clients: map[1:0xc000360f60]
+2025-09-05T01:06:37: 2025/09/05 01:06:37 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T01:06:37: 2025/09/05 01:06:37 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T01:56:34: 2025/09/05 01:56:34 [INFO] SSE connection attempt from 127.0.0.1:39914
+2025-09-05T01:56:34: 2025/09/05 01:56:34 [INFO] New SSE user id : 1
+2025-09-05T01:56:34: 2025/09/05 01:56:34 [INFO] Active Clients: map[1:0xc000360f60]
+2025-09-05T02:13:23: 2025/09/05 02:13:23 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T02:13:23: 2025/09/05 02:13:23 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T02:45:08: 2025/09/05 02:45:08 [INFO] SSE connection attempt from 127.0.0.1:45394
+2025-09-05T02:45:08: 2025/09/05 02:45:08 [INFO] New SSE user id : 1
+2025-09-05T02:45:08: 2025/09/05 02:45:08 [INFO] Active Clients: map[1:0xc000193200]
+2025-09-05T03:01:55: 2025/09/05 03:01:55 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T03:01:55: 2025/09/05 03:01:55 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T03:40:17: 2025/09/05 03:40:17 [INFO] SSE connection attempt from 127.0.0.1:48882
+2025-09-05T03:40:17: 2025/09/05 03:40:17 [INFO] New SSE user id : 1
+2025-09-05T03:40:17: 2025/09/05 03:40:17 [INFO] Active Clients: map[1:0xc0001932c0]
+2025-09-05T03:57:05: 2025/09/05 03:57:05 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T03:57:05: 2025/09/05 03:57:05 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T04:22:21: 2025/09/05 04:22:21 [INFO] SSE connection attempt from 127.0.0.1:56336
+2025-09-05T04:22:21: 2025/09/05 04:22:21 [INFO] New SSE user id : 1
+2025-09-05T04:22:21: 2025/09/05 04:22:21 [INFO] Active Clients: map[1:0xc0001932c0]
+2025-09-05T04:39:08: 2025/09/05 04:39:08 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T04:39:08: 2025/09/05 04:39:08 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T05:09:57: 2025/09/05 05:09:57 [INFO] SSE connection attempt from 127.0.0.1:57136
+2025-09-05T05:09:57: 2025/09/05 05:09:57 [INFO] New SSE user id : 1
+2025-09-05T05:09:57: 2025/09/05 05:09:57 [INFO] Active Clients: map[1:0xc0001932c0]
+2025-09-05T05:26:47: 2025/09/05 05:26:47 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T05:26:47: 2025/09/05 05:26:47 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T06:00:08: 2025/09/05 06:00:08 [INFO] SSE connection attempt from 127.0.0.1:48576
+2025-09-05T06:00:08: 2025/09/05 06:00:08 [INFO] New SSE user id : 1
+2025-09-05T06:00:08: 2025/09/05 06:00:08 [INFO] Active Clients: map[1:0xc0001932c0]
+2025-09-05T06:05:20: 2025/09/05 06:05:20 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-05T06:06:46: 2025/09/05 06:06:46 [INFO] User ID : 19, Total : 0, Followers : []
+2025-09-05T06:06:46: 2025/09/05 06:06:46 [INFO] User ID : 3, Total : 0, Followers : []
+2025-09-05T06:46:43: 2025/09/05 06:46:43 Server listening on :3000...
+2025-09-05T06:46:43: 2025/09/05 06:46:43 [INFO] SSE connection attempt from 127.0.0.1:50524
+2025-09-05T06:46:43: 2025/09/05 06:46:43 [INFO] New SSE user id : 1
+2025-09-05T06:46:43: 2025/09/05 06:46:43 [INFO] Active Clients: map[1:0xc0002f8e70]
+2025-09-05T07:03:31: 2025/09/05 07:03:31 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T07:03:31: 2025/09/05 07:03:31 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T08:35:13: 2025/09/05 08:35:13 [INFO] SSE connection attempt from 127.0.0.1:41348
+2025-09-05T08:35:13: 2025/09/05 08:35:13 [INFO] New SSE user id : 1
+2025-09-05T08:35:13: 2025/09/05 08:35:13 [INFO] Active Clients: map[1:0xc00044e7b0]
+2025-09-05T08:41:19: 2025/09/05 08:41:19 [INFO] SSE connection attempt from 127.0.0.1:51954
+2025-09-05T08:41:19: 2025/09/05 08:41:19 [INFO] New SSE user id : 1
+2025-09-05T08:41:19: 2025/09/05 08:41:19 [INFO] Active Clients: map[1:0xc000188150]
+2025-09-05T08:42:35: 2025/09/05 08:42:35 [INFO] User ID : 3, Total : 0, Followers : []
+2025-09-05T08:42:35: 2025/09/05 08:42:35 [INFO] User ID : 19, Total : 0, Followers : []
+2025-09-05T08:42:35: 2025/09/05 08:42:35 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-05T08:53:05: 2025/09/05 08:53:05 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T08:53:05: 2025/09/05 08:53:05 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T09:15:18: 2025/09/05 09:15:18 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-05T09:15:20: 2025/09/05 09:15:20 [INFO] user_id 1 assignment 181 column status_name value Done
+2025-09-05T09:15:30: 2025/09/05 09:15:30 [INFO] user_id 1 assignment 142 column status_name value In progress
+2025-09-05T09:19:51: 2025/09/05 09:19:51 [INFO] User ID : 3, Total : 0, Followers : []
+2025-09-05T09:19:51: 2025/09/05 09:19:51 [INFO] User ID : 19, Total : 0, Followers : []
+2025-09-05T09:21:43: 2025/09/05 09:21:43 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T09:21:43: 2025/09/05 09:21:43 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T09:35:34: 2025/09/05 09:35:34 [INFO] SSE connection attempt from 127.0.0.1:46926
+2025-09-05T09:35:34: 2025/09/05 09:35:34 [INFO] New SSE user id : 1
+2025-09-05T09:35:34: 2025/09/05 09:35:34 [INFO] Active Clients: map[1:0xc0003f26c0]
+2025-09-05T10:55:50: 2025/09/05 10:55:50 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T10:55:50: 2025/09/05 10:55:50 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T10:57:00: 2025/09/05 10:57:00 [INFO] SSE connection attempt from 127.0.0.1:42236
+2025-09-05T10:57:00: 2025/09/05 10:57:00 [INFO] New SSE user id : 1
+2025-09-05T10:57:00: 2025/09/05 10:57:00 [INFO] Active Clients: map[1:0xc00044e7e0]
+2025-09-05T11:36:23: 2025/09/05 11:36:23 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-05T11:37:05: 2025/09/05 11:37:05 [INFO] user_id 1 assignment 180 column deadline value 2025-09-07 00:00:00-05:00
+2025-09-05T11:54:48: 2025/09/05 11:54:48 [INFO] User ID : 3, Total : 0, Followers : []
+2025-09-05T11:54:48: 2025/09/05 11:54:48 [INFO] User ID : 19, Total : 0, Followers : []
+2025-09-05T12:21:28: 2025/09/05 12:21:28 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-05T13:27:34: 2025/09/05 13:27:34 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-05T13:36:36: 2025/09/05 13:36:36 [INFO] user_id 1 assignment 142 column status_name value Done
+2025-09-05T13:38:46: 2025/09/05 13:38:46 [INFO] assignment input data local ID : 112 Title: 2.4 - Infinite Limits : Course code: MATH-2413 Type : HW Deadline : 2025-09-08 
+2025-09-05T13:38:46: 2025/09/05 13:38:46 [INFO] assignment input : {112 2.4 - Infinite Limits  2025-09-08 MATH-2413 HW Not started low}
+2025-09-05T13:39:34: 2025/09/05 13:39:34 [INFO] user_id 1 assignment 184 column todo value Rationalize numerators and denominators.
+2025-09-05T13:39:34: Find the domain and range of functions.
+2025-09-05T13:39:34: Answer conceptual questions involving infinite limits and vertical asymptotes.
+2025-09-05T13:39:34: Find infinite limits numerically or graphically.
+2025-09-05T13:39:34: Evaluate limits analytically.
+2025-09-05T13:39:34: Sketch graphs of functions involving infinite limits.
+2025-09-05T13:39:34: Find vertical asymptotes.
+2025-09-05T13:39:34: Find formulas for functions with infinite limits.
+2025-09-05T13:40:35: 2025/09/05 13:40:35 [INFO] assignment input data local ID : 113 Title: 2.5 - Limits at Infinity : Course code: MATH-2413 Type : HW Deadline : 2025-09-11 
+2025-09-05T13:40:35: 2025/09/05 13:40:35 [INFO] assignment input : {113 2.5 - Limits at Infinity Rationalize numerators and denominators.
+2025-09-05T13:40:35: Answer conceptual questions involving end behavior and horizontal asymptotes.
+2025-09-05T13:40:35: Evaluate limits at infinity.
+2025-09-05T13:40:35: Determine end behavior of transcendental functions and sketch their graphs.
+2025-09-05T13:40:35: Find horizontal and vertical asymptotes of functions.
+2025-09-05T13:40:35: Find slant asymptotes and sketch graphs of rational functions.
+2025-09-05T13:40:35: Solve applications involving limits used to find steady states.
+2025-09-05T13:40:35: Sketch graphs of functions given information about their end behavior.
+2025-09-05T13:40:35: Find limits of sequences. 2025-09-11 MATH-2413 HW Not started low}
+2025-09-05T13:40:46: 2025/09/05 13:40:46 [INFO] user_id 1 assignment 184 column deadline value 2025-09-09 00:00:00-05:00
+2025-09-05T13:41:45: 2025/09/05 13:41:45 [INFO] assignment input data local ID : 114 Title: 2.6 Note Submission : Course code: MATH-2413 Type : HW Deadline : 2025-09-12 
+2025-09-05T13:41:45: 2025/09/05 13:41:45 [INFO] assignment input : {114 2.6 Note Submission  2025-09-12 MATH-2413 HW Not started low}
+2025-09-05T13:42:12: 2025/09/05 13:42:12 [INFO] user_id 1 assignment 186 column todo value 2.6 : Continuity
+2025-09-05T13:43:35: 2025/09/05 13:43:35 [INFO] assignment input data local ID : 115 Title: 2.6 - Continuity : Course code: MATH-2413 Type : HW Deadline : 2025-09-12 
+2025-09-05T13:43:35: 2025/09/05 13:43:35 [INFO] assignment input : {115 2.6 - Continuity Find the domain and range of functions.
+2025-09-05T13:43:35: Evaluate two-sided limits using limit laws and theorems.
+2025-09-05T13:43:35: Answer conceptual questions involving continuity.
+2025-09-05T13:43:35: Find points of discontinuity or intervals of continuity.
+2025-09-05T13:43:35: Determine if functions are continuous at given values.
+2025-09-05T13:43:35: Evaluate limits using continuity principles.
+2025-09-05T13:43:35: Use the Intermediate Value Theorem to show equations have solutions on given intervals.
+2025-09-05T13:43:35: Solve applications involving continuity principles.
+2025-09-05T13:43:35: Use technology to investigate inaccuracies of graphing technology.
+2025-09-05T13:43:35: Sketch graphs of continuous functions given information about their points of discontinuity.
+2025-09-05T13:43:35: Classify discontinuities. 2025-09-12 MATH-2413 HW Not started low}
+2025-09-05T14:03:42: 2025/09/05 14:03:42 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T14:03:42: 2025/09/05 14:03:42 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T14:03:50: 2025/09/05 14:03:50 [INFO] SSE connection attempt from 127.0.0.1:36194
+2025-09-05T14:03:50: 2025/09/05 14:03:50 [INFO] New SSE user id : 1
+2025-09-05T14:03:50: 2025/09/05 14:03:50 [INFO] Active Clients: map[1:0xc00037cea0]
+2025-09-05T14:13:43: 2025/09/05 14:13:43 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-05T14:41:35: 2025/09/05 14:41:35 [INFO] user_id 1 assignment 137 column status_name value Done
+2025-09-05T15:22:45: 2025/09/05 15:22:45 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T15:22:45: 2025/09/05 15:22:45 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T17:11:19: 2025/09/05 17:11:19 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-05T17:12:29: 2025/09/05 17:12:29 [INFO] SSE connection attempt from 127.0.0.1:50824
+2025-09-05T17:12:29: 2025/09/05 17:12:29 [INFO] New SSE user id : 1
+2025-09-05T17:12:29: 2025/09/05 17:12:29 [INFO] Active Clients: map[1:0xc00015f200]
+2025-09-05T21:05:39: 2025/09/05 21:05:39 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T21:05:39: 2025/09/05 21:05:39 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T21:23:24: 2025/09/05 21:23:24 [INFO] SSE connection attempt from 127.0.0.1:58542
+2025-09-05T21:23:24: 2025/09/05 21:23:24 [INFO] New SSE user id : 1
+2025-09-05T21:23:24: 2025/09/05 21:23:24 [INFO] Active Clients: map[1:0xc00015f320]
+2025-09-05T21:40:12: 2025/09/05 21:40:12 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T21:40:12: 2025/09/05 21:40:12 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T22:13:23: 2025/09/05 22:13:23 [INFO] SSE connection attempt from 127.0.0.1:52248
+2025-09-05T22:13:23: 2025/09/05 22:13:23 [INFO] New SSE user id : 1
+2025-09-05T22:13:23: 2025/09/05 22:13:23 [INFO] Active Clients: map[1:0xc00015f320]
+2025-09-05T22:30:19: 2025/09/05 22:30:19 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T22:30:19: 2025/09/05 22:30:19 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T22:48:59: 2025/09/05 22:48:59 [INFO] SSE connection attempt from 127.0.0.1:56440
+2025-09-05T22:48:59: 2025/09/05 22:48:59 [INFO] New SSE user id : 1
+2025-09-05T22:48:59: 2025/09/05 22:48:59 [INFO] Active Clients: map[1:0xc00015f320]
+2025-09-05T23:05:53: 2025/09/05 23:05:53 [INFO] Client 1 disconnected (context canceled)
+2025-09-05T23:05:53: 2025/09/05 23:05:53 [INFO] Removing client 1 (reason: connection closing)
+2025-09-05T23:49:57: 2025/09/05 23:49:57 [INFO] SSE connection attempt from 127.0.0.1:56914
+2025-09-05T23:49:57: 2025/09/05 23:49:57 [INFO] New SSE user id : 1
+2025-09-05T23:49:57: 2025/09/05 23:49:57 [INFO] Active Clients: map[1:0xc00015f320]
+2025-09-06T00:06:46: 2025/09/06 00:06:46 [INFO] Client 1 disconnected (context canceled)
+2025-09-06T00:06:46: 2025/09/06 00:06:46 [INFO] Removing client 1 (reason: connection closing)
+2025-09-06T00:40:28: 2025/09/06 00:40:28 [INFO] SSE connection attempt from 127.0.0.1:56212
+2025-09-06T00:40:28: 2025/09/06 00:40:28 [INFO] New SSE user id : 1
+2025-09-06T00:40:28: 2025/09/06 00:40:28 [INFO] Active Clients: map[1:0xc00015f320]
+2025-09-06T00:57:17: 2025/09/06 00:57:17 [INFO] Client 1 disconnected (context canceled)
+2025-09-06T00:57:17: 2025/09/06 00:57:17 [INFO] Removing client 1 (reason: connection closing)
+2025-09-06T01:40:26: 2025/09/06 01:40:26 [INFO] SSE connection attempt from 127.0.0.1:47806
+2025-09-06T01:40:26: 2025/09/06 01:40:26 [INFO] New SSE user id : 1
+2025-09-06T01:40:26: 2025/09/06 01:40:26 [INFO] Active Clients: map[1:0xc00015f320]
+2025-09-06T01:57:13: 2025/09/06 01:57:13 [INFO] Client 1 disconnected (context canceled)
+2025-09-06T01:57:13: 2025/09/06 01:57:13 [INFO] Removing client 1 (reason: connection closing)
+2025-09-06T02:25:13: 2025/09/06 02:25:13 [INFO] SSE connection attempt from 127.0.0.1:55964
+2025-09-06T02:25:13: 2025/09/06 02:25:13 [INFO] New SSE user id : 1
+2025-09-06T02:25:13: 2025/09/06 02:25:13 [INFO] Active Clients: map[1:0xc00015f320]
+2025-09-06T02:42:00: 2025/09/06 02:42:00 [INFO] Client 1 disconnected (context canceled)
+2025-09-06T02:42:00: 2025/09/06 02:42:00 [INFO] Removing client 1 (reason: connection closing)
+2025-09-06T03:09:06: 2025/09/06 03:09:06 [INFO] SSE connection attempt from 127.0.0.1:34596
+2025-09-06T03:09:06: 2025/09/06 03:09:06 [INFO] New SSE user id : 1
+2025-09-06T03:09:06: 2025/09/06 03:09:06 [INFO] Active Clients: map[1:0xc00015f320]
+2025-09-06T03:25:54: 2025/09/06 03:25:54 [INFO] Client 1 disconnected (context canceled)
+2025-09-06T03:25:54: 2025/09/06 03:25:54 [INFO] Removing client 1 (reason: connection closing)
+2025-09-06T03:57:36: 2025/09/06 03:57:36 [INFO] SSE connection attempt from 127.0.0.1:43342
+2025-09-06T03:57:36: 2025/09/06 03:57:36 [INFO] New SSE user id : 1
+2025-09-06T03:57:36: 2025/09/06 03:57:36 [INFO] Active Clients: map[1:0xc00015f320]
+2025-09-06T04:14:31: 2025/09/06 04:14:31 [INFO] Client 1 disconnected (context canceled)
+2025-09-06T04:14:31: 2025/09/06 04:14:31 [INFO] Removing client 1 (reason: connection closing)
+2025-09-06T04:45:45: 2025/09/06 04:45:45 [INFO] SSE connection attempt from 127.0.0.1:33968
+2025-09-06T04:45:45: 2025/09/06 04:45:45 [INFO] New SSE user id : 1
+2025-09-06T04:45:45: 2025/09/06 04:45:45 [INFO] Active Clients: map[1:0xc00015f320]
+2025-09-06T05:02:30: 2025/09/06 05:02:30 [INFO] Client 1 disconnected (context canceled)
+2025-09-06T05:02:30: 2025/09/06 05:02:30 [INFO] Removing client 1 (reason: connection closing)
+2025-09-06T05:44:36: 2025/09/06 05:44:36 [INFO] SSE connection attempt from 127.0.0.1:41484
+2025-09-06T05:44:36: 2025/09/06 05:44:36 [INFO] New SSE user id : 1
+2025-09-06T05:44:36: 2025/09/06 05:44:36 [INFO] Active Clients: map[1:0xc00015f320]
+2025-09-06T06:01:41: 2025/09/06 06:01:41 [INFO] Client 1 disconnected (context canceled)
+2025-09-06T06:01:41: 2025/09/06 06:01:41 [INFO] Removing client 1 (reason: connection closing)
+2025-09-06T06:56:58: 2025/09/06 06:56:58 [INFO] SSE connection attempt from 127.0.0.1:35800
+2025-09-06T06:56:58: 2025/09/06 06:56:58 [INFO] New SSE user id : 1
+2025-09-06T06:56:58: 2025/09/06 06:56:58 [INFO] Active Clients: map[1:0xc00015f320]
+2025-09-06T07:26:53: 2025/09/06 07:26:53 [INFO] Client 1 disconnected (context canceled)
+2025-09-06T07:26:53: 2025/09/06 07:26:53 [INFO] Removing client 1 (reason: connection closing)
+2025-09-06T07:32:15: 2025/09/06 07:32:15 [INFO] SSE connection attempt from 127.0.0.1:51732
+2025-09-06T07:32:15: 2025/09/06 07:32:15 [INFO] New SSE user id : 1
+2025-09-06T07:32:15: 2025/09/06 07:32:15 [INFO] Active Clients: map[1:0xc00015f320]
+2025-09-06T08:19:47: 2025/09/06 08:19:47 [INFO] Client 1 disconnected (context canceled)
+2025-09-06T08:19:47: 2025/09/06 08:19:47 [INFO] Removing client 1 (reason: connection closing)
+2025-09-06T08:47:24: 2025/09/06 08:47:24 [INFO] SSE connection attempt from 127.0.0.1:42516
+2025-09-06T08:47:24: 2025/09/06 08:47:24 [INFO] New SSE user id : 1
+2025-09-06T08:47:24: 2025/09/06 08:47:24 [INFO] Active Clients: map[1:0xc00015f320]
+2025-09-06T08:51:07: 2025/09/06 08:51:07 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-06T09:10:25: 2025/09/06 09:10:25 [INFO] user_id 1 assignment 146 column status_name value Done

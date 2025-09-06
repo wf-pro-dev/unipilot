@@ -6,8 +6,12 @@ import (
 	"net/http"
 	"strconv"
 	"time"
-
+	"log"
+	
+	"unipilot/internal/models"
 	"unipilot/internal/models/course"
+	"unipilot/internal/models/user"
+	"unipilot/internal/models/notifications"
 
 	"gorm.io/gorm"
 )
@@ -255,14 +259,14 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := course.Get_Course_byId(uint(int_id), tx)
+	c, err := course.Get_Course_byId(uint(int_id), tx)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting course: %s", err))
 		return
 	}
 
 	if err := tx.Exec(fmt.Sprintf("UPDATE courses SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
-		updateData.Value, time.Now().Format(time.RFC3339), a.ID).Error; err != nil {
+		updateData.Value, time.Now().Format(time.RFC3339), c.ID).Error; err != nil {
 		PrintERROR(w, http.StatusInternalServerError,
 			fmt.Sprintf("Error updating assignment in database: %s", err))
 		return
@@ -303,8 +307,84 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 	}*/
 
 	PrintLog(fmt.Sprintf("user_id %s course %d column %s value %s",
-		userIDVal, a.ID, updateData.Column, updateData.Value))
+		userIDVal, c.ID, updateData.Column, updateData.Value))
 
 	tx.Commit()
 
+}
+
+func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request){
+
+	dbVal := r.Context().Value("db")
+	if dbVal == nil {
+		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
+		return
+	}
+
+	db, ok := dbVal.(*gorm.DB)
+	if !ok {
+		PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
+		return
+	}
+
+	userIDVal := r.Context().Value("user_id")
+	if userIDVal == nil {
+		PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
+		return
+	}
+
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
+		return
+	}
+
+	var currentUser user.User
+	if err := db.First(&currentUser, userID).Error; err != nil {
+		PrintERROR(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+	
+	var linkRequestData struct {
+		CourseCode string `json:"course_code"`
+		UsersID []uint `json:"users_id"`
+	}
+
+	err := json.NewDecoder(r.Body).Decode(&linkRequestData)
+	if err != nil {
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
+		return
+	}
+	
+	// 1. Get send course informations
+	c, err := course.Get_Course_byCode(linkRequestData.CourseCode, userID, db)
+
+	cJson, err := json.Marshal(c)
+	if err != nil {
+		log.Printf("[Error] error marshalling notification : %v ",err)
+		
+	}
+	if sseServer != nil {
+
+		// 2. Send link info to users via SSE (field data)
+		for _,sendeeID := range linkRequestData.UsersID { 
+			sseServer.SendNotification(
+				uint(sendeeID),
+				userID,
+				models.EntityCourse,
+				c.ID,
+				notifications.NotificationSync,
+				c.Name,
+				fmt.Sprintf("%s shared a course with you : %s", currentUser.Username , c.Code),
+				"sync",
+				string(cJson),
+
+			)
+			PrintLog(fmt.Sprintf("Sending sendee : %v, course name : %s", uint(sendeeID), c.Name))
+		}
+	}
+	// Infos : Course All except user_id, Sender (name)
+
+	PrintLog(fmt.Sprintf("Course ID : %v, Users ID : %v",linkRequestData.CourseCode, linkRequestData.UsersID))
+	
 }
