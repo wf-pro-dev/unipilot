@@ -149,3 +149,37 @@ func SendCourseUpdate(id, column, value string) error {
 
 	return nil
 }
+
+func RequestLinkCourse(courseCode string, usersID []uint) error {
+
+	new_client, err := NewClientWithCookies()
+	if err != nil {
+		return err
+	}
+
+	linkData := map[string]interface{}{
+		"course_code": courseCode,
+		"users_id":    usersID,
+	}
+
+	jsonData, _ := json.Marshal(linkData)
+
+	resp, err := new_client.Post(
+		"https://newsroom.dedyn.io/acc-homework/course/link/request",
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}

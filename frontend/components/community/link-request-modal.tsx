@@ -7,18 +7,36 @@ import { Card } from "../ui/card";
 import { useState } from "react";
 import { user } from "@/wailsjs/go/models"
 import { Check, CheckCircle2, X } from "lucide-react";
+import { useRequestLinkCourse } from "@/hooks/use-courses";
+import { LogInfo } from "@/wailsjs/runtime/runtime";
 
-export function LinkRequestModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+interface LinkRequestModalProps {
+    isOpen: boolean
+    onClose: () => void
+    courseID: number
+}
+
+export function LinkRequestModal({ isOpen, onClose, courseID }: LinkRequestModalProps) {
+    const { courses } = useAuthContext()
     const { followers } = useAuthContext()
-    const [selectedFollowers, setSelectedFollowers] = useState<user.User[]>([])
+    const [selectedFollowers, setSelectedFollowers] = useState<number[]>([])
+
+    const { mutate: requestLinkCourse } = useRequestLinkCourse()
 
     const handleShare = (follower: user.User) => {
-        if (selectedFollowers.includes(follower)) {
-            setSelectedFollowers(selectedFollowers.filter((f) => f.ID !== follower.ID))
+        if (selectedFollowers.includes(follower.ID)) {
+            setSelectedFollowers(selectedFollowers.filter((f) => f !== follower.ID))
         } else {
-            setSelectedFollowers([...selectedFollowers, follower])
+            setSelectedFollowers([...selectedFollowers, follower.ID])
         }
     }
+
+    const handleRequestLinkCourse = () => {
+        LogInfo("Requesting to link course " + courseID + " to " + selectedFollowers.length + " followers")
+        requestLinkCourse({ courseCode: courses?.find((c) => c.ID === courseID)?.Code || "", usersID: selectedFollowers })
+    }
+
+
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -36,7 +54,7 @@ export function LinkRequestModal({ isOpen, onClose }: { isOpen: boolean, onClose
                     {followers && followers.length > 0 ? (
                         <div className="grid grid-cols-3 gap-4">
                             {followers?.map((follower) => (
-                                <Card key={follower.ID} className={`flex items-center space-x-2 p-4 transition-all duration-300 cursor-pointer ${selectedFollowers.includes(follower) ? 'bg-blue-500/50 hover:bg-blue-500/70' : 'glass hover:bg-white/5'}`} onClick={() => handleShare(follower)}>
+                                <Card key={follower.ID} className={`flex items-center space-x-2 p-4 transition-all duration-300 cursor-pointer ${selectedFollowers.includes(follower.ID) ? 'bg-blue-500/50 hover:bg-blue-500/70' : 'glass hover:bg-white/5'}`} onClick={() => handleShare(follower)}>
                                     <Avatar className="w-6 h-6">
                                         <AvatarImage src={follower.Avatar || "/placeholder.svg"} alt={follower.Username} />
                                         <AvatarFallback>
@@ -71,7 +89,7 @@ export function LinkRequestModal({ isOpen, onClose }: { isOpen: boolean, onClose
                             className="flex-1 bg-transparent border-gray-600"
                             onClick={(e) => {
                                 e.stopPropagation()
-                                onClose()
+                                handleRequestLinkCourse()
                             }}
                         >
                             <Check className="mr-1 w-3 h-3" />

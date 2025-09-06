@@ -8,6 +8,8 @@ import {document} from '../models';
 import {main} from '../models';
 import {user} from '../models';
 
+export function AcceptLink(arg1:string):Promise<void>;
+
 export function CreateAssignment(arg1:assignment.LocalAssignment):Promise<void>;
 
 export function CreateCourse(arg1:course.LocalCourse):Promise<void>;
@@ -79,6 +81,8 @@ export function OpenDocument(arg1:number):Promise<void>;
 export function RebuildNotificationDaemon():Promise<void>;
 
 export function Register(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<user.User>;
+
+export function RequestLinkCourse(arg1:string,arg2:Array<number>):Promise<void>;
 
 export function SaveDocumentAs(arg1:number):Promise<void>;
 

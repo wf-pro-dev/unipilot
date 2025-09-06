@@ -8,6 +8,7 @@ import (
 	"unipilot/internal/models"
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/user"
+	"unipilot/internal/models/notifications"
 
 	"gorm.io/gorm"
 )
@@ -168,9 +169,11 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 				userID,
 				models.EntityFollow,
 				req.FollowedID,
+				notifications.NotificationFollow,
 				currentUser.Username,
 				fmt.Sprintf("%s followed you. You share %d courses with this user", currentUser.Username ,sharedCoursesCount),
 				"create",
+				"",
 			)
 		}
 	}
