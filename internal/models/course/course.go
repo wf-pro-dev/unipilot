@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"github.com/google/uuid"
 
 	"unipilot/internal/models/user"
 
@@ -30,6 +31,7 @@ type Course struct {
 	Semester        string
 	Instructor      string
 	InstructorEmail string
+	LinkID         uuid.UUID `gorm:"unique"`
 }
 
 // BeforeCreate is a GORM hook that runs before creating a record
@@ -95,7 +97,8 @@ func Get_Course_byLocalId(id, user_id uint, db *gorm.DB) (*Course, error) {
 	}
 	return course, nil
 }
-func Get_Course_byCode(code, user_id string, db *gorm.DB) (*Course, error) {
+
+func Get_Course_byCode(code string, user_id uint, db *gorm.DB) (*Course, error) {
 	course := &Course{}
 	err := db.Where("code = ? AND user_id = ?", code, user_id).First(course).Error
 	if err != nil {
@@ -132,6 +135,7 @@ func (c *Course) ToMap() map[string]string {
 		"semester":         c.Semester,
 		"instructor":       c.Instructor,
 		"instructor_email": c.InstructorEmail,
+		"link_id":	    c.LinkID.String(),
 		"credits":          strconv.Itoa(int(c.Credits)),
 		"created_at":       c.CreatedAt.Format(time.DateOnly),
 		"updated_at":       c.UpdatedAt.Format(time.DateOnly),

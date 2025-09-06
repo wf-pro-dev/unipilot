@@ -11,9 +11,6 @@ import (
 	"unipilot/internal/models"
 	"unipilot/internal/models/notifications"
 
-	"unipilot/internal/models"
-	"unipilot/internal/models/notifications"
-
 	"gorm.io/gorm"
 )
 
@@ -181,16 +178,18 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity, entityID uint, title, message, action string) {
+func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity, entityID uint, nType notifications.NotificationType, title, message, action, data string) {
 	notification := notifications.LocalNotification{
 		SenderID: senderID,
 		Entity:   entity,
 		EntityID: entityID,
+		Type:	  nType,
 		Action:   action,
 		Title:    title,
 		Message:  message,
+		Data:	  data,
 	}
-	PrintLog(fmt.Sprintf("notification : %v",notification))
+	//PrintLog(fmt.Sprintf("notification : %v",notification))
 
 	jsonData, err := json.Marshal(notification)
 	if err != nil {
@@ -198,7 +197,7 @@ func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity
 		return
 	}
 
-	PrintLog(fmt.Sprintf("jsonData : %v", jsonData))
+	//PrintLog(fmt.Sprintf("jsonData : %v", jsonData))
 	s.SendToUser(userID, jsonData)
 }
 
