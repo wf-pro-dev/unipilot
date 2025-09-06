@@ -164,6 +164,7 @@ export namespace course {
 	    Semester: string;
 	    Instructor: string;
 	    InstructorEmail: string;
+	    LinkID: number[];
 	
 	    static createFrom(source: any = {}) {
 	        return new LocalCourse(source);
@@ -187,6 +188,7 @@ export namespace course {
 	        this.Semester = source["Semester"];
 	        this.Instructor = source["Instructor"];
 	        this.InstructorEmail = source["InstructorEmail"];
+	        this.LinkID = source["LinkID"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

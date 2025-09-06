@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -35,6 +36,7 @@ type LocalCourse struct {
 	Semester        string
 	Instructor      string
 	InstructorEmail string
+	LinkID          uuid.UUID `gorm:"unique"`
 }
 
 // BeforeCreate is a GORM hook that runs before creating a record
@@ -67,6 +69,7 @@ func (c *LocalCourse) ToMap() map[string]string {
 		"semester":         c.Semester,
 		"instructor":       c.Instructor,
 		"instructor_email": c.InstructorEmail,
+		"link_id":          c.LinkID.String(),
 	}
 }
 

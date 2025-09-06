@@ -187,6 +187,7 @@ export default function CoursesPage() {
         />
 
         <LinkRequestModal
+          courseID={selectedCourseId!}
           isOpen={isLinkRequestModalOpen}
           onClose={() => setIsLinkRequestModalOpen(false)}
         />
