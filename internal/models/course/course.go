@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"github.com/google/uuid"
 
 	"unipilot/internal/models/user"
 
@@ -30,6 +31,7 @@ type Course struct {
 	Semester        string
 	Instructor      string
 	InstructorEmail string
+	LinkID         uuid.UUID `gorm:"unique"`
 }
 
 // BeforeCreate is a GORM hook that runs before creating a record
@@ -133,6 +135,7 @@ func (c *Course) ToMap() map[string]string {
 		"semester":         c.Semester,
 		"instructor":       c.Instructor,
 		"instructor_email": c.InstructorEmail,
+		"link_id":	    c.LinkID.String(),
 		"credits":          strconv.Itoa(int(c.Credits)),
 		"created_at":       c.CreatedAt.Format(time.DateOnly),
 		"updated_at":       c.UpdatedAt.Format(time.DateOnly),

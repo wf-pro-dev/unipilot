@@ -7,7 +7,8 @@ import (
 	"strconv"
 	"time"
 	"log"
-	
+	"github.com/google/uuid"
+
 	"unipilot/internal/models"
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/user"
@@ -359,6 +360,24 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request){
 	// 1. Get send course informations
 	c, err := course.Get_Course_byCode(linkRequestData.CourseCode, userID, db)
 
+	//2. Create an uuid for the link
+
+	var linkId uuid.UUID 
+	if c.LinkID == uuid.Nil {
+		linkId = uuid.New()
+		c.LinkID = linkId
+		if err = db.Save(&c).Error ; err != nil {
+			PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Could not save uuid %s", err))
+			return
+
+		}
+	} else {
+		linkId = c.LinkID
+	}
+
+
+	PrintLog(fmt.Sprintf(" link uuid :",linkId))
+
 	cJson, err := json.Marshal(c)
 	if err != nil {
 		log.Printf("[Error] error marshalling notification : %v ",err)
@@ -380,7 +399,6 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request){
 				string(cJson),
 
 			)
-			PrintLog(fmt.Sprintf("Sending sendee : %v, course name : %s", uint(sendeeID), c.Name))
 		}
 	}
 	// Infos : Course All except user_id, Sender (name)
