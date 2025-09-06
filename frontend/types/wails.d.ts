@@ -37,6 +37,7 @@ declare global {
           UpdateUser: (column: string, value: string) => Promise<user.User>
           GetNotifications: () => Promise<notifications.LocalNotification[]>
           DeleteNotification: (notification: notifications.LocalNotification) => Promise<void>
+          RequestLinkCourse: (courseCode: string, usersID: number[]) => Promise<void>
         }
       }
     }

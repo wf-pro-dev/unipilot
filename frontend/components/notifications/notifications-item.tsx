@@ -10,21 +10,22 @@ import { format } from "date-fns"
 import { useDeleteNotification } from "@/hooks/use-notifications"
 import { toast } from "sonner"
 
-export function NotificationsItem({ notification }: { notification: notifications.LocalNotification }) {
-    const acceptButtonText: { [key: string]: string } = {
-        "follow": "Follow",
-        "sync": "Link",
-    }
+interface NotificationsItemProps {
+    notification: notifications.LocalNotification
+}
+
+export function NotificationsItem({ notification }: NotificationsItemProps) {
+
     const { user: currentUser, following } = useAuthContext()
     // Check if current user is following this user by checking if current user is in the followers list
-    const isFollowed = following?.some((following) => following.ID === notification.sender_id) 
+    const isFollowed = following?.some((following) => following.ID === notification.sender_id)
     const followMutation = useFollow(currentUser!, false)
     const deleteMutation = useDeleteNotification()
 
     const handleFollow = () => {
         const message = "following " + notification.title
         LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-        followMutation.mutate(notification.sender!) , {
+        followMutation.mutate(notification.sender!), {
             onSuccess: () => {
                 toast.success("You are now following " + notification.title)
             },
@@ -40,6 +41,11 @@ export function NotificationsItem({ notification }: { notification: notification
         deleteMutation.mutate(notification)
     }
 
+    const NotificationProps: { [key: string]: { ButtonText: string, ShowButton: boolean, OnClick: () => void     } } = {
+        "follow": { ButtonText: "Follow", ShowButton: !isFollowed, OnClick: handleFollow },
+        "sync": { ButtonText: "Link", ShowButton: true, OnClick: () => {} },
+    }
+
 
 
     return (
@@ -48,7 +54,7 @@ export function NotificationsItem({ notification }: { notification: notification
             className="border-0 transition-all duration-300 cursor-pointer glass group"
         >
             <CardHeader className="pb-2">
-               <h2 className="text-lg font-medium">{notification.title}</h2>
+                <h2 className="text-lg font-medium">{notification.title}</h2>
             </CardHeader>
 
             <CardContent className="space-y-2">
@@ -56,20 +62,22 @@ export function NotificationsItem({ notification }: { notification: notification
 
 
                 <div className="flex pt-2 space-x-2">
-                    {!isFollowed && (
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-blue-400 bg-transparent border-blue-600 hover:bg-blue-600/10 space-x-2"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            handleFollow()
-                            handleDelete()
-                        }}>
-                        <Check className="w-4 h-4" />
-                        {acceptButtonText[notification.type]}
-                    </Button>
-                    )} 
+
+                    {NotificationProps[notification.type].ShowButton && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 text-blue-400 bg-transparent border-blue-600 hover:bg-blue-600/10 space-x-2"
+                            onClick={(e) => {
+                                e.stopPropagation()
+                                NotificationProps[notification.type].OnClick()
+                                handleDelete()
+                            }}>
+                            <Check className="w-4 h-4" />
+                            {NotificationProps[notification.type].ButtonText}
+                        </Button>
+                    )}
+
 
                     <Button
                         variant="outline"
@@ -83,6 +91,7 @@ export function NotificationsItem({ notification }: { notification: notification
                         <X className="w-4 h-4" />
                         Ignore
                     </Button>
+                    
                 </div>
             </CardContent>
         </Card>

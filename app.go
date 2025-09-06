@@ -1617,3 +1617,8 @@ func (a *App) RebuildNotificationDaemon() error {
 	}
 	return a.DaemonMgr.RebuildDaemon()
 }
+
+// LinkCourse links a course to a list of users
+func (a *App) RequestLinkCourse(courseCode string, usersID []uint) error {
+	return client.RequestLinkCourse(courseCode, usersID)
+}

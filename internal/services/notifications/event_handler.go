@@ -137,39 +137,23 @@ func (eh *EventHandler) HandleFollowNotification(notification notifications.Loca
 }
 
 // HandleSyncNotification processes sync events for notes/assignments
-func (eh *EventHandler) HandleSyncNotification(data json.RawMessage, message string) {
-	log.Printf("[EventHandler] Processing sync notification: %s", message)
+func (eh *EventHandler) HandleSyncNotification(notification notifications.LocalNotification) {
+	log.Printf("[EventHandler] Processing sync notification: %s", notification.Message)
+	log.Printf("[EventHandler] Data: %s", string(notification.Data))
 
-	var syncData struct {
-		Entity   string `json:"entity"`
-		EntityID uint   `json:"entity_id"`
-		Action   string `json:"action"` // update, create, delete
-	}
+	notification.Type = notifications.NotificationSync
+	notification.Read = false
+	notification.ExpiresAt = &time.Time{}
 
-	if err := json.Unmarshal(data, &syncData); err != nil {
+	if err := eh.db.Create(&notification).Error; err != nil {
 		log.Printf("[EventHandler] Error parsing sync data: %v", err)
 		return
 	}
 
-	sync := notifications.LocalNotification{
-		Type:      notifications.NotificationSync,
-		Title:     "New course",
-		Message:   message, // Sender name shared this course : {Course Code} with you
-		SenderID:  eh.userID,
-		Read:      false,
-		ExpiresAt: &time.Time{},
-		Data:      string(data),
-	}
-
-	if err := eh.db.Create(&sync).Error; err != nil {
-		log.Printf("[EventHandler] Error saving notification: %v", err)
-		return
-	}
-
-	if err := beeep.Notify("Sync", message, ""); err != nil {
+	if err := beeep.Notify(notification.Title, notification.Message, ""); err != nil {
 		log.Printf("[EventHandler] Error sending system notification: %v", err)
 	} else {
-		log.Printf("[EventHandler] Sent sync notification: %s", message)
+		log.Printf("[EventHandler] Sent sync notification: %s", notification.Title)
 	}
 }
 
@@ -249,11 +233,11 @@ func (eh *EventHandler) routeEvent(event sse.Event) {
 	log.Printf("[EventHandler] Notification: %+v", notification)
 
 	// Route based on entity type
-	switch notification.Entity {
-	case "follow":
+	switch notification.Type {
+	case notifications.NotificationFollow:
 		eh.HandleFollowNotification(notification)
-	case "sync":
-		eh.HandleSyncNotification(event.Data, notification.Message)
+	case notifications.NotificationSync:
+		eh.HandleSyncNotification(notification)
 	case "assignment":
 		eh.HandleAssignmentNotification(event.Data, notification.Message)
 	default:

@@ -174,6 +174,15 @@ export function useDeleteCourse() {
   })
 }
 
+// Hook for requesting to link a course to a list of users
+export function useRequestLinkCourse() {
+  return useMutation({
+    mutationFn: async ({ courseCode, usersID }: { courseCode: string, usersID: number[] }) => {
+      return await window.go.main.App.RequestLinkCourse(courseCode, usersID)
+    }
+  })
+}
+
 // Derived data hooks for specific views
 
 export function useUpcomingCourses() {
