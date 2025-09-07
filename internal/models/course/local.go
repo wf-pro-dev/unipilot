@@ -36,7 +36,7 @@ type LocalCourse struct {
 	Semester        string
 	Instructor      string
 	InstructorEmail string
-	LinkID          uuid.UUID `gorm:"unique"`
+	LinkID          uuid.UUID
 }
 
 // BeforeCreate is a GORM hook that runs before creating a record
