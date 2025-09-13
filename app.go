@@ -166,6 +166,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 		TypeName:   assignmentData.TypeName,
 		StatusName: assignmentData.StatusName,
 		Priority:   assignmentData.Priority,
+		Link:       assignmentData.Link,
 	}
 
 	if _, err := a.Auth.IsAuthenticated(); err != nil {
@@ -188,6 +189,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 		TypeName:   localAssignment.TypeName,
 		StatusName: localAssignment.StatusName,
 		Priority:   localAssignment.Priority,
+		Link:       localAssignment.Link,
 	}
 
 	isOnline := network.IsOnline()
