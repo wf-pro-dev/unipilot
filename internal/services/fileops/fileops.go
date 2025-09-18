@@ -19,7 +19,7 @@ type FileUploadRequest struct {
 	UserID       uint
 	Type         document.DocumentType
 	FileName     string
-	FileContent  io.Reader
+	FilePath     string
 	FileSize     int64
 }
 
@@ -145,8 +145,17 @@ func UploadDocument(req FileUploadRequest, db *gorm.DB) (*FileUploadResponse, er
 		}, err
 	}
 
+	fileContent, err := os.Open(req.FilePath)
+	if err != nil {
+		return &FileUploadResponse{
+			Success: false,
+			Message: "Failed to open file",
+		}, err
+	}
+	defer fileContent.Close()
+
 	// Write file to disk
-	if err := writeFile(filePath, req.FileContent); err != nil {
+	if err := writeFile(filePath, fileContent); err != nil {
 		// Clean up database record
 		db.Delete(&localDoc)
 		return &FileUploadResponse{
@@ -232,7 +241,15 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 	}
 
 	// Write file
-	if err := writeFile(filePath, req.FileContent); err != nil {
+	fileContent, err := os.Open(req.FilePath)
+	if err != nil {
+		return &FileUploadResponse{
+			Success: false,
+			Message: "Failed to open file",
+		}, err
+	}
+	defer fileContent.Close()
+	if err := writeFile(filePath, fileContent); err != nil {
 		db.Delete(&newVersion)
 		return &FileUploadResponse{
 			Success: false,

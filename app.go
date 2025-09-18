@@ -473,13 +473,6 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 		return nil, fmt.Errorf("failed to get file info: %w", err)
 	}
 
-	// Open the file
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-
 	// Get current user ID
 	userID := a.DB.GetCurrentUserID()
 
@@ -489,7 +482,7 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 		UserID:       userID,
 		Type:         document.DocumentType(documentType),
 		FileName:     filepath.Base(filePath),
-		FileContent:  file,
+		FilePath:     filePath,
 		FileSize:     fileInfo.Size(),
 	}
 
@@ -503,24 +496,35 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 		return nil, fmt.Errorf("upload failed: %s", response.Message)
 	}
 
+	runtime.LogInfof(a.ctx, "local upload response: %v", response)
+
 	// Also store metadata remotely for sharing
 	if _, err := a.Auth.IsAuthenticated(); err == nil && a.Auth.Client != nil {
-		metadataReq := map[string]interface{}{
-			"assignment_id": assignmentID,
-			"local_id":      response.LocalDocument.ID,
-			"type":          documentType,
-			"file_name":     filepath.Base(filePath),
-			"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
-			"file_size":     fileInfo.Size(),
-		}
+		// metadataReq := map[string]interface{}{
+		// 	"assignment_id": assignmentID,
+		// 	"local_id":      response.LocalDocument.ID,
+		// 	"type":          documentType,
+		// 	"file_name":     filepath.Base(filePath),
+		// 	"file_content":  file,
+		// 	"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
+		// 	"file_size":     fileInfo.Size(),
+		// }
 
-		jsonData, _ := json.Marshal(metadataReq)
-		resp, _ := a.Auth.Client.Post("https://newsroom.dedyn.io/acc-homework/document/metadata",
-			"application/json", strings.NewReader(string(jsonData)))
-		if resp.StatusCode == 200 {
-			defer resp.Body.Close()
+		// jsonData, _ := json.Marshal(metadataReq)
+		// resp, _ := a.Auth.Client.Post("https://newsroom.dedyn.io/acc-homework/document/metadata",
+		// 	"application/json", strings.NewReader(string(jsonData)))
+		// if resp.StatusCode == 200 {
+		// 	defer resp.Body.Close()
+		// }
+
+		runtime.LogInfof(a.ctx, "sending document to remote: %v", response.LocalDocument.ID)
+
+		clientErr := client.SendDocument(&uploadReq, response.LocalDocument.ID)
+		if clientErr != nil {
+			return nil, fmt.Errorf("failed to send document: %w", clientErr)
+		} else {
+			runtime.LogInfof(a.ctx, "remote upload response: %v", "success")
 		}
-		// We don't block on this - local file upload is the priority
 
 	}
 
@@ -752,11 +756,11 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 	}
 
 	// Open the file
-	file, err := os.Open(filePath)
+	fileContent, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+	defer fileContent.Close()
 
 	// Create new version request
 	uploadReq := fileops.FileUploadRequest{
@@ -764,7 +768,7 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 		UserID:       userID,
 		Type:         existingDoc.Type,
 		FileName:     filepath.Base(filePath),
-		FileContent:  file,
+		FilePath:     filePath,
 		FileSize:     fileInfo.Size(),
 	}
 
