@@ -98,6 +98,7 @@ export function DayAssignmentsModal({
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onAssignmentClick={onAssignmentClick}
+                  onOpenEdit={onOpenEdit}
                   disabled={isLoading}
                 />
               ))}

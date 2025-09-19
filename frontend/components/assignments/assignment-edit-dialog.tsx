@@ -52,8 +52,12 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
   const [deadline, setDeadline] = useState<Date>(new Date(assignment.Deadline) || new Date())
   const [formData, setFormData] = useState({
     title: assignment.Title || "",
+    course : {
+      name: assignment.Course?.Name || "",
+      color: assignment.Course.Color || "",
+    },
     course_code: assignment.CourseCode || "",
-    course_name: assignment.Course?.Name || "",
+    
     type_name: assignment.TypeName || "",
     status_name: assignment.StatusName || "",
     priority: assignment.Priority || "",
@@ -81,14 +85,14 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
     setOpen(false)
 
     for (const [key, value] of Object.entries(formData)) {
-      if (key === "course_name") { continue }
+      if (key === "course"  ) { continue }
         
       const column = key_to_column[key as keyof typeof key_to_column] as keyof assignment.LocalAssignment
       if (value !== assignment[column]) {
 
         const message = `Changes to ${column} value: ${value} assignment: ${assignment[column]}`
         LogInfo(message)
-        onEdit(assignment, key, value)
+        onEdit(assignment, key, value as string)
       }
       else {
         const message = `No changes to ${column} value: ${value} assignment: ${assignment[column]}`
@@ -134,12 +138,16 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
                 value={formData.course_code}
                 onValueChange={(value) => {
                   const course = courses?.find((course) => course.Code === value)
-                  setFormData({ ...formData, course_code: value, course_name: course?.Name || "" })
+                  setFormData({ 
+                    ...formData, 
+                    course_code: value, 
+                    course : { name: course?.Name || "", color : course?.Color || ""  }
+                  })
                 }}
               >
                 <SelectTrigger className="bg-gray-800/50 border-gray-600">
-                  <div className="flex items-center">
-                    <div className={` h-2 w-2 rounded-full ${assignment.Course?.Color}`} />
+                  <div className="flex items-center gap-2">
+                    <div className={` h-2 w-2 rounded-full ${formData.course.color}`} />
                     <p className="line-clamp-1">
                       {formData.course_code}
                     </p>
@@ -193,7 +201,7 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {deadline ? format(deadline, "PPP") : <span>Pick a date</span>}
+                    {deadline ? format(deadline, "MMM d, yyyy") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 glass border-gray-600">

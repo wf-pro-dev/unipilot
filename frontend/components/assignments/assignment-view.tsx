@@ -16,7 +16,15 @@ interface AssignmentViewProps {
   isLoading?: boolean
 }
 
-export function AssignmentView({ title, assignments, onToggleComplete, onAssignmentClick, onDelete, onEdit, onOpenEdit, isLoading }: AssignmentViewProps) {
+export function AssignmentView({ 
+  title, 
+  assignments, 
+  onToggleComplete,
+  onAssignmentClick, 
+  onDelete, 
+  onEdit, 
+  onOpenEdit, 
+  isLoading }: AssignmentViewProps) {
 
   if (assignments.length === 0) {
     return (
