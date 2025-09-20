@@ -308,6 +308,7 @@ export default function AssignmentsPage() {
           onEdit={handleEditAssignment}
           onDelete={handleDeleteAssignment}
           onAssignmentClick={handleAssignmentClick}
+          onOpenEdit={setSelectedAssignmentEdit}
           isLoading={updateMutation.isPending}
         />
 

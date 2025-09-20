@@ -20,8 +20,7 @@ profile.cov
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-# logsi (server)
-
+# logs (server)
 logs
 
 # Go workspace file
@@ -41,5 +40,7 @@ package*
 
 frontend/node_module
 frontend/package*
+frontend/dist
+build
 
 

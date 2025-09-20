@@ -220,7 +220,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 	}
 
 	fileName := fmt.Sprintf("doc_%d_%d_v%d_%s", req.AssignmentID, req.UserID, newVersion.Version, req.FileName)
-	filePath := filepath.Join(appDataPath, "documents", fileName)
+	filePath := filepath.Join(appDataPath, fileName)
 	newVersion.FilePath = filePath
 
 	// Save to database

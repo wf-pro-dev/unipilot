@@ -17,6 +17,7 @@ interface DayAssignmentsModalProps {
   onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
   onDelete: (assignment: assignment.LocalAssignment) => void
   onAssignmentClick: (assignment: assignment.LocalAssignment) => void
+  onOpenEdit: (assignment: assignment.LocalAssignment) => void
   isLoading: boolean
 }
 
@@ -30,7 +31,7 @@ export function DayAssignmentsModal({
   onEdit,
   onDelete,
   onAssignmentClick,
-
+  onOpenEdit,
   isLoading,
   }: DayAssignmentsModalProps) {
   if (!date) return null
