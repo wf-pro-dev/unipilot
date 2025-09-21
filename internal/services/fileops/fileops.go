@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"unipilot/internal/models/document"
+	"unipilot/internal/services/utils"
 
 	"gorm.io/gorm"
 )
@@ -99,7 +100,7 @@ func UploadDocument(req FileUploadRequest, db *gorm.DB) (*FileUploadResponse, er
 	}
 
 	// Generate file path
-	appDataPath, err := document.GetAppDataPath()
+	documentDir, err := utils.GetDocumentDir()
 	if err != nil {
 		return &FileUploadResponse{
 			Success: false,
@@ -109,7 +110,7 @@ func UploadDocument(req FileUploadRequest, db *gorm.DB) (*FileUploadResponse, er
 
 	// Create unique filename with assignment and user info
 	fileName := fmt.Sprintf("doc_%d_%d_%s", req.AssignmentID, req.UserID, req.FileName)
-	filePath := filepath.Join(appDataPath, "documents", fileName)
+	filePath := filepath.Join(documentDir, fileName)
 	localDoc.FilePath = filePath
 
 	// Check storage quota
@@ -211,7 +212,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 	}
 
 	// Generate file path
-	appDataPath, err := document.GetAppDataPath()
+	documentDir, err := utils.GetDocumentDir()
 	if err != nil {
 		return &FileUploadResponse{
 			Success: false,
@@ -220,7 +221,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 	}
 
 	fileName := fmt.Sprintf("doc_%d_%d_v%d_%s", req.AssignmentID, req.UserID, newVersion.Version, req.FileName)
-	filePath := filepath.Join(appDataPath, fileName)
+	filePath := filepath.Join(documentDir, fileName)
 	newVersion.FilePath = filePath
 
 	// Save to database

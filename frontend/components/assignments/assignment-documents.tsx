@@ -287,7 +287,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
         isOpen={uploadDialogOpen}
         onClose={() => setUploadDialogOpen(false)}
         onUploadComplete={handleUploadComplete}
-        assignmentId={assignment.RemoteID}
+        assignmentId={assignment.ID}
         documentType={uploadType}
       />
     </div>

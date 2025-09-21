@@ -66,6 +66,10 @@ export function GetCourses() {
   return window['go']['main']['App']['GetCourses']();
 }
 
+export function GetCurrentUser() {
+  return window['go']['main']['App']['GetCurrentUser']();
+}
+
 export function GetFollowers(arg1) {
   return window['go']['main']['App']['GetFollowers'](arg1);
 }
@@ -116,10 +120,6 @@ export function GetUserStorageInfo() {
 
 export function InstallNotificationDaemon() {
   return window['go']['main']['App']['InstallNotificationDaemon']();
-}
-
-export function IsAuthenticated() {
-  return window['go']['main']['App']['IsAuthenticated']();
 }
 
 export function IsNotificationDaemonInstalled() {

@@ -17,7 +17,7 @@ export function useCurrentUser() {
     queryKey: authKeys.user,
     queryFn: async (): Promise<user.User | null> => {
       try {
-        return await window.go.main.App.IsAuthenticated()
+        return await window.go.main.App.GetCurrentUser()
       } catch (error) {
         LogError("Failed to check authentication: " + error)
         return null

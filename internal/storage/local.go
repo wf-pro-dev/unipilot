@@ -2,8 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
@@ -12,8 +10,6 @@ import (
 	"unipilot/internal/models/note"
 	"unipilot/internal/models/notifications"
 
-	"github.com/spf13/viper"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -21,78 +17,6 @@ var (
 	dbLock      sync.Mutex
 	dbInstances = make(map[uint]*gorm.DB)
 )
-
-func GetLocalDB() (*gorm.DB, uint, error) {
-	dbLock.Lock()
-	defer dbLock.Unlock()
-
-	userID, err := GetCurrentUserID()
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get current user ID: %w", err)
-	}
-
-	// Return cached instance if available
-	if db, exists := dbInstances[userID]; exists {
-		return db, userID, nil
-	}
-
-	// Determine database path
-	dbPath, err := getDBPath(userID)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get DB path: %w", err)
-	}
-
-	// Ensure directory exists
-	dbDir := filepath.Dir(dbPath)
-	if err := os.MkdirAll(dbDir, 0755); err != nil {
-		return nil, 0, fmt.Errorf("failed to create DB directory %s: %w", dbDir, err)
-	}
-
-	// Open database connection
-	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
-		PrepareStmt: true, // Better performance
-	})
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to open SQLite database at %s: %w", dbPath, err)
-	}
-
-	// Configure connection pool
-	sqlDB, err := db.DB()
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to get SQL DB: %w", err)
-	}
-	sqlDB.SetMaxOpenConns(1) // SQLite works best with single connection
-
-	// Initialize schema (including new document tables)
-	if err := InitializeSchema(db); err != nil {
-		return nil, 0, fmt.Errorf("failed to initialize schema: %w", err)
-	}
-
-	// Cache the instance
-	dbInstances[userID] = db
-
-	return db, userID, nil
-}
-
-func getDBPath(userID uint) (string, error) {
-	// Check for custom path in config
-	if customPath := viper.GetString("localdb.path"); customPath != "" {
-		return filepath.Join(customPath, fmt.Sprintf("user_%d.db", userID)), nil
-	}
-
-	// Use OS-specific default location
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get config directory: %w", err)
-	}
-
-	return filepath.Join(
-		configDir,
-		"acc-homework",
-		"data",
-		fmt.Sprintf("user_%d.db", userID),
-	), nil
-}
 
 func InitializeSchema(db *gorm.DB) error {
 	// Run migrations

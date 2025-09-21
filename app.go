@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unipilot/internal/app"
 	"unipilot/internal/auth"
 	"unipilot/internal/client"
+	"unipilot/internal/database"
 	"unipilot/internal/events"
 	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
@@ -26,7 +26,7 @@ import (
 	"unipilot/internal/network"
 	"unipilot/internal/services/daemon"
 	"unipilot/internal/services/fileops"
-	"unipilot/internal/storage"
+	"unipilot/internal/services/utils"
 	"unipilot/internal/sync"
 
 	"gorm.io/gorm"
@@ -36,18 +36,31 @@ import (
 
 // App struct
 type App struct {
-	ctx       context.Context
-	Auth      *auth.Auth
-	Events    *events.Events
-	DB        *app.DatabaseHelper
-	DaemonMgr *daemon.Manager
+	ctx    context.Context
+	Auth   *auth.Auth
+	DB     *database.Database
+	Events *events.Events
+	Daemon *daemon.Manager
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
+	authService := auth.NewAuth()
+
+	var dbService *database.Database
+	if authService.User != nil {
+		dbService = database.NewDatabase(authService.User)
+	}
+
+	var eventsService *events.Events
+	if dbService != nil {
+		eventsService = events.NewEvents(dbService.GetDB())
+	}
+
 	return &App{
-		Auth:   auth.NewAuth(),
-		Events: events.NewEvents(),
+		Auth:   authService,
+		DB:     dbService,
+		Events: eventsService,
 	}
 }
 
@@ -56,61 +69,69 @@ func NewApp() *App {
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// Initialize database helper
-	dbHelper, err := app.NewDatabaseHelper()
-	if err != nil {
-		fmt.Printf("Warning: Could not initialize database helper: %v\n", err)
-	} else {
-		a.DB = dbHelper
+	user, _ := utils.GetUserFromFile()
+	// if err != nil {
+	// 	log.Printf("Warning: Could not get user from file: %v", err)
+	// }
+
+	if user != nil {
+		a.Auth.User = user
+		// Initialize authenticated client
+		httpClient, err := client.NewClientWithCookies()
+		if err != nil {
+			log.Printf("Warning: Could not create http client from stored cookies: %v", err)
+		}
+
+		a.Auth.Client = httpClient
+		log.Println("[App] HTTP client initialized from stored cookies")
+
 	}
 
 	// Initialize daemon manager
-	if a.DB != nil {
-		userID := a.DB.GetCurrentUserID()
-		if userID > 0 {
-			daemonMgr, err := daemon.NewManager(userID, ctx)
-			if err != nil {
-				log.Printf("Warning: Could not initialize daemon manager: %v", err)
+
+	if a.Auth.User != nil && a.Auth.User.ID > 0 {
+		daemon, err := daemon.NewManager(a.Auth.User.ID, a.ctx)
+		if err != nil {
+			log.Printf("Warning: Could not initialize daemon manager: %v", err)
+		} else {
+			a.Daemon = daemon
+
+			// Auto-install daemon if not already installed
+			if !daemon.IsDaemonInstalled() {
+				log.Printf("[App] Installing notification daemon...")
+				if err := daemon.InstallDaemon(); err != nil {
+					log.Printf("Warning: Could not install notification daemon: %v", err)
+					runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
+						Type:    runtime.ErrorDialog,
+						Title:   "Notification Setup",
+						Message: "Failed to set up background notifications. Notifications will only work when the app is running.",
+					})
+				} else {
+					log.Printf("[App] Notification daemon installed successfully")
+				}
 			} else {
-				a.DaemonMgr = daemonMgr
+				log.Printf("[App] Notification daemon already installed")
+			}
 
-				// Auto-install daemon if not already installed
-				if !daemonMgr.IsDaemonInstalled() {
-					log.Printf("[App] Installing notification daemon...")
-					if err := daemonMgr.InstallDaemon(); err != nil {
-						log.Printf("Warning: Could not install notification daemon: %v", err)
-						runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
-							Type:    runtime.ErrorDialog,
-							Title:   "Notification Setup",
-							Message: "Failed to set up background notifications. Notifications will only work when the app is running.",
-						})
-					} else {
-						log.Printf("[App] Notification daemon installed successfully")
-					}
+			// Start daemon if not running
+			if !daemon.IsDaemonRunning() {
+				log.Printf("[App] Starting notification daemon...")
+				if err := daemon.StartDaemon(); err != nil {
+					log.Printf("Warning: Could not start notification daemon: %v", err)
 				} else {
-					log.Printf("[App] Notification daemon already installed")
+					log.Printf("[App] Notification daemon started successfully")
 				}
-
-				// Start daemon if not running
-				if !daemonMgr.IsDaemonRunning() {
-					log.Printf("[App] Starting notification daemon...")
-					if err := daemonMgr.StartDaemon(); err != nil {
-						log.Printf("Warning: Could not start notification daemon: %v", err)
-					} else {
-						log.Printf("[App] Notification daemon started successfully")
-					}
-				} else {
-					log.Printf("[App] Notification daemon already running")
-				}
+			} else {
+				log.Printf("[App] Notification daemon already running")
 			}
 		}
 	}
 
 	// Check if user is already authenticated and initialize HTTP client if needed
-	if _, err := a.Auth.IsAuthenticated(); err == nil {
+	if a.Auth.IsAuthenticated() {
 		log.Println("[App] User already authenticated, initializing HTTP client...")
-		if err := a.initializeAuthenticatedClient(); err != nil {
-			log.Printf("[App] Failed to initialize authenticated client: %v", err)
+		if a.Auth.Client != nil {
+			log.Printf("[App] Failed to initialize authenticated client: %v", a.Auth.Client)
 		} else {
 			if network.IsOnline() {
 				// Start background sync manager
@@ -127,18 +148,6 @@ func (a *App) Startup(ctx context.Context) {
 
 		}
 	}
-}
-
-// initializeAuthenticatedClient creates HTTP client from stored cookies when user is already authenticated
-func (a *App) initializeAuthenticatedClient() error {
-	httpClient, err := client.NewClientWithCookies()
-	if err != nil {
-		return fmt.Errorf("could not create http client from stored cookies: %w", err)
-	}
-
-	a.Auth.Client = httpClient
-	log.Println("[App] HTTP client initialized from stored cookies")
-	return nil
 }
 
 // ========================================
@@ -169,7 +178,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 		Link:       assignmentData.Link,
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -274,7 +283,7 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 		EndDate:         courseData.EndDate,
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -385,7 +394,7 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 		CourseCode: noteData.CourseCode,
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -429,7 +438,7 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -473,13 +482,10 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 		return nil, fmt.Errorf("failed to get file info: %w", err)
 	}
 
-	// Get current user ID
-	userID := a.DB.GetCurrentUserID()
-
 	// Create upload request
 	uploadReq := fileops.FileUploadRequest{
 		AssignmentID: assignmentID,
-		UserID:       userID,
+		UserID:       a.Auth.User.ID,
 		Type:         document.DocumentType(documentType),
 		FileName:     filepath.Base(filePath),
 		FilePath:     filePath,
@@ -499,7 +505,7 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 	runtime.LogInfof(a.ctx, "local upload response: %v", response)
 
 	// Also store metadata remotely for sharing
-	if _, err := a.Auth.IsAuthenticated(); err == nil && a.Auth.Client != nil {
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
 		// metadataReq := map[string]interface{}{
 		// 	"assignment_id": assignmentID,
 		// 	"local_id":      response.LocalDocument.ID,
@@ -708,11 +714,11 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
-	userID := a.DB.GetCurrentUserID()
+	userID := a.Auth.User.ID
 
 	// Verify the existing document belongs to the user
 	var existingDoc document.LocalDocument
@@ -783,7 +789,7 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 	}
 
 	// Also update metadata remotely for sharing (async)
-	if _, err := a.Auth.IsAuthenticated(); err == nil && a.Auth.Client != nil {
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
 		metadataReq := map[string]interface{}{
 			"assignment_id": existingDoc.AssignmentID,
 			"local_id":      existingDoc.ID,
@@ -809,40 +815,39 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 
 func (a *App) UpdateUser(column, value string) (*user.User, error) {
 	// Get the current user from storage
-	u, err := storage.GetCurrentUser()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get current user: %w", err)
+	currentUser := a.Auth.User
+
+	if currentUser == nil {
+		return nil, fmt.Errorf("current user not found")
 	}
 
 	// Update the specific field
 	switch column {
 	case "email":
-		u.Email = value
+		currentUser.Email = value
 	case "username":
-		u.Username = value
+		currentUser.Username = value
 	case "university":
-		u.University = value
+		currentUser.University = value
 	case "semester":
-		u.Semester = value
+		currentUser.Semester = value
 	case "year":
-		u.Year = value
+		currentUser.Year = value
 	case "language":
-		u.Language = value
+		currentUser.Language = value
 	case "avatar":
-		u.Avatar = value
+		currentUser.Avatar = value
 	default:
 		return nil, fmt.Errorf("unknown column: %s", column)
 	}
 
 	// Update the timestamp
-	u.UpdatedAt = time.Now()
+	currentUser.UpdatedAt = time.Now()
 
-	runtime.LogInfof(a.ctx, "Updated user: %v", u.ToMap())
+	runtime.LogInfof(a.ctx, "Updated user: %v", currentUser.ToMap())
 
-	// Store the updated user in the credentials file
-	if err := storage.StoreCredentials(*u); err != nil {
-		return nil, fmt.Errorf("failed to store credentials: %w", err)
-	}
+	// Set the user to the auth struct
+	a.Auth.User = currentUser
 
 	isOnline := network.IsOnline()
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
@@ -856,11 +861,11 @@ func (a *App) UpdateUser(column, value string) (*user.User, error) {
 	if clientErr != nil {
 		db := a.DB.GetDB()
 		sm := sync.NewSyncManager(db)
-		syncLog, err := sm.GetSyncLog(models.EntityUser, u.ID, "update", column)
+		syncLog, err := sm.GetSyncLog(models.EntityUser, currentUser.ID, "update", column)
 		if err != nil {
 			if syncErr := sm.CreateSyncLog(
 				models.EntityUser,
-				u.ID,
+				currentUser.ID,
 				"update",
 				column,
 				value,
@@ -868,17 +873,17 @@ func (a *App) UpdateUser(column, value string) (*user.User, error) {
 			); syncErr != nil {
 				return nil, fmt.Errorf("failed to create sync log: %w", syncErr)
 			}
-			return u, nil
+			return currentUser, nil
 		}
 		syncLog.Value = value
 
 		if err := db.Save(&syncLog).Error; err != nil {
 			return nil, fmt.Errorf("failed to save sync log: %w", err)
 		}
-		return u, nil
+		return currentUser, nil
 	}
 
-	return u, nil
+	return currentUser, nil
 }
 
 // ========================================
@@ -1023,11 +1028,11 @@ func (a *App) DeleteDocument(documentID uint) error {
 		return fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return fmt.Errorf("user not authenticated")
 	}
 
-	userID := a.DB.GetCurrentUserID()
+	userID := a.Auth.User.ID
 
 	// Get local document record
 	var doc document.LocalDocument
@@ -1051,7 +1056,7 @@ func (a *App) DeleteDocument(documentID uint) error {
 	// Storage info is now calculated on-demand, no need to update cache
 
 	// Also store metadata remotely for sharing
-	if _, err := a.Auth.IsAuthenticated(); err == nil && a.Auth.Client != nil {
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
 
 		resp, _ := a.Auth.Client.Post(fmt.Sprintf("https://newsroom.dedyn.io/acc-homework/document/metadata/delete?document_id=%d", documentID),
 			"application/json", nil)
@@ -1138,13 +1143,10 @@ func (a *App) Register(username, email, password, university, language string) (
 		return nil, err
 	}
 
-	// Reinitialize database helper after registration
-	dbHelper, err := app.NewDatabaseHelper()
-	if err != nil {
-		fmt.Printf("Warning: Could not initialize database helper after registration: %v\n", err)
-	} else {
-		a.DB = dbHelper
-	}
+	// Set the user to the auth struct
+	a.Auth.User = user
+	a.DB = database.NewDatabase(user)
+	a.Events = events.NewEvents(a.DB.GetDB())
 
 	return user, nil
 }
@@ -1156,13 +1158,10 @@ func (a *App) Login(username, password string) (*user.User, error) {
 		return nil, err
 	}
 
-	// Reinitialize database helper after login
-	dbHelper, err := app.NewDatabaseHelper()
-	if err != nil {
-		fmt.Printf("Warning: Could not initialize database helper after login: %v\n", err)
-	} else {
-		a.DB = dbHelper
-	}
+	// Set the user to the auth struct
+	a.Auth.User = user
+	a.DB = database.NewDatabase(user)
+	a.Events = events.NewEvents(a.DB.GetDB())
 
 	return user, nil
 }
@@ -1173,22 +1172,28 @@ func (a *App) Logout() error {
 		return err
 	}
 
-	a.DB = nil
+	authService := auth.NewAuth()
+
+	var dbService *database.Database
+	if authService.User != nil {
+		dbService = database.NewDatabase(authService.User)
+	}
+
+	var eventsService *events.Events
+	if dbService != nil {
+		eventsService = events.NewEvents(dbService.GetDB())
+	}
+
+	a.Auth = authService
+	a.DB = dbService
+	a.Events = eventsService
 
 	return nil
 }
 
 // IsAuthenticated checks if the user is currently authenticated
-func (a *App) IsAuthenticated() (*user.User, error) {
-	user, err := storage.GetCurrentUser()
-	if err != nil {
-		// When no credentials exist, return a LocalCredentials object with IsAuthenticated = false
-		// instead of an error, so frontend can properly handle the unauthenticated state
-		log.Printf("[App] No credentials found: %v", err)
-		return nil, nil
-	}
-
-	return user, nil
+func (a *App) GetCurrentUser() (*user.User, error) {
+	return a.Auth.User, nil
 }
 
 // Sync performs synchronization of local changes with the remote server
@@ -1198,7 +1203,7 @@ func (a *App) Sync() error {
 	}
 
 	// Check if user is authenticated
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -1279,7 +1284,7 @@ func (a *App) GetAssignmentDocuments(assignmentID uint) ([]document.LocalDocumen
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 	// Use LocalDocument and only return documents we have locally
@@ -1298,7 +1303,7 @@ func (a *App) GetSupportDocuments(assignmentID uint) ([]document.LocalDocument, 
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -1317,7 +1322,7 @@ func (a *App) GetSubmissionDocuments(assignmentID uint) ([]document.LocalDocumen
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -1336,7 +1341,7 @@ func (a *App) OpenDocument(documentID uint) error {
 		return fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -1369,7 +1374,7 @@ func (a *App) SaveDocumentAs(documentID uint) error {
 		return fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -1432,11 +1437,11 @@ func (a *App) GetUserStorageInfo() (*document.StorageInfo, error) {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
-	userID := a.DB.GetCurrentUserID()
+	userID := a.Auth.User.ID
 
 	// Calculate storage info on-demand
 	storageInfo, err := document.GetUserStorageInfo(userID, a.DB.GetDB())
@@ -1453,7 +1458,7 @@ func (a *App) GetRemoteDocumentMetadata(assignmentID uint) ([]map[string]interfa
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -1494,7 +1499,7 @@ func (a *App) GetCourseAssignments(course *course.LocalCourse) ([]assignment.Loc
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -1556,55 +1561,55 @@ func (a *App) GetNetworkStatus() map[string]interface{} {
 
 // InstallNotificationDaemon installs the notification daemon
 func (a *App) InstallNotificationDaemon() error {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return fmt.Errorf("daemon manager not initialized")
 	}
-	return a.DaemonMgr.InstallDaemon()
+	return a.Daemon.InstallDaemon()
 }
 
 // UninstallNotificationDaemon uninstalls the notification daemon
 func (a *App) UninstallNotificationDaemon() error {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return fmt.Errorf("daemon manager not initialized")
 	}
-	return a.DaemonMgr.UninstallDaemon()
+	return a.Daemon.UninstallDaemon()
 }
 
 // IsNotificationDaemonInstalled checks if the daemon is installed
 func (a *App) IsNotificationDaemonInstalled() bool {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return false
 	}
-	return a.DaemonMgr.IsDaemonInstalled()
+	return a.Daemon.IsDaemonInstalled()
 }
 
 // IsNotificationDaemonRunning checks if the daemon is running
 func (a *App) IsNotificationDaemonRunning() bool {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return false
 	}
-	return a.DaemonMgr.IsDaemonRunning()
+	return a.Daemon.IsDaemonRunning()
 }
 
 // StartNotificationDaemon starts the daemon
 func (a *App) StartNotificationDaemon() error {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return fmt.Errorf("daemon manager not initialized")
 	}
-	return a.DaemonMgr.StartDaemon()
+	return a.Daemon.StartDaemon()
 }
 
 // StopNotificationDaemon stops the daemon
 func (a *App) StopNotificationDaemon() error {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return fmt.Errorf("daemon manager not initialized")
 	}
-	return a.DaemonMgr.StopDaemon()
+	return a.Daemon.StopDaemon()
 }
 
 // GetNotificationDaemonStatus returns the daemon status
 func (a *App) GetNotificationDaemonStatus() map[string]interface{} {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return map[string]interface{}{
 			"installed": false,
 			"running":   false,
@@ -1613,18 +1618,18 @@ func (a *App) GetNotificationDaemonStatus() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"installed": a.DaemonMgr.IsDaemonInstalled(),
-		"running":   a.DaemonMgr.IsDaemonRunning(),
+		"installed": a.Daemon.IsDaemonInstalled(),
+		"running":   a.Daemon.IsDaemonRunning(),
 		"error":     nil,
 	}
 }
 
 // Add method to rebuild daemon (for updates)
 func (a *App) RebuildNotificationDaemon() error {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return fmt.Errorf("daemon manager not initialized")
 	}
-	return a.DaemonMgr.RebuildDaemon()
+	return a.Daemon.RebuildDaemon()
 }
 
 // LinkCourse links a course to a list of users

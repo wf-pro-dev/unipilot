@@ -5,8 +5,8 @@ import {course} from '../models';
 import {note} from '../models';
 import {notifications} from '../models';
 import {document} from '../models';
-import {main} from '../models';
 import {user} from '../models';
+import {main} from '../models';
 
 export function AcceptLink(arg1:string):Promise<void>;
 
@@ -40,6 +40,8 @@ export function GetCourseAssignments(arg1:course.LocalCourse):Promise<Array<assi
 
 export function GetCourses():Promise<Array<course.LocalCourse>>;
 
+export function GetCurrentUser():Promise<user.User>;
+
 export function GetFollowers(arg1:number):Promise<main.FollowResponse>;
 
 export function GetFollowing(arg1:number):Promise<main.FollowResponse>;
@@ -65,8 +67,6 @@ export function GetUser(arg1:number):Promise<user.User>;
 export function GetUserStorageInfo():Promise<document.StorageInfo>;
 
 export function InstallNotificationDaemon():Promise<void>;
-
-export function IsAuthenticated():Promise<user.User>;
 
 export function IsNotificationDaemonInstalled():Promise<boolean>;
 

@@ -12,6 +12,9 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed appIcons/icon.png
+var icon []byte
+
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()
@@ -31,6 +34,11 @@ func main() {
 		},
 		Mac: &mac.Options{
 			WebviewIsTransparent: true,
+			About: &mac.AboutInfo{
+				Title:   "Unipilot",
+				Message: "© 2025 Me",
+				Icon:    icon,
+			},
 		},
 	})
 

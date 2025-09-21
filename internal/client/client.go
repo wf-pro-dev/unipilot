@@ -8,8 +8,8 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"os"
-	"path/filepath"
 	"time"
+	"unipilot/internal/services/utils"
 
 	"golang.org/x/net/publicsuffix"
 )
@@ -41,25 +41,6 @@ func NewClient() (*http.Client, error) {
 	}, nil
 }
 
-// getCookieFilePath returns the canonical path for the cookie file.
-func getCookieFilePath() (string, error) {
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return "", err
-	}
-
-	// Create app directory and cookies subdirectory
-	appDir := filepath.Join(configDir, appName)
-	cookiesDir := filepath.Join(appDir, "cookies")
-
-	// Create directories with 0755 permissions (rwx for owner, rx for others)
-	if err := os.MkdirAll(cookiesDir, 0755); err != nil {
-		return "", err
-	}
-
-	return filepath.Join(cookiesDir, "cookies.txt"), nil
-}
-
 // SaveCookies serializes the cookies from the client's jar and saves them to a file.
 func SaveCookies(client *http.Client) error {
 
@@ -72,7 +53,7 @@ func SaveCookies(client *http.Client) error {
 		return fmt.Errorf("client jar is nil")
 	}
 
-	cookieFile, err := getCookieFilePath()
+	cookieFile, err := utils.GetCookieFilePath()
 	if err != nil {
 		return err
 	}
@@ -104,9 +85,9 @@ func NewClientWithCookies() (*http.Client, error) {
 		DisableKeepAlives:   false,
 	}
 
-	cookieFile, err := getCookieFilePath()
+	cookieFile, err := utils.GetCookieFilePath()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get cookie file path: %w", err)
 	}
 	// It's okay if the cookie file doesn't exist yet.
 	if _, err := os.Stat(cookieFile); os.IsNotExist(err) {
@@ -141,7 +122,7 @@ func NewClientWithCookies() (*http.Client, error) {
 }
 
 func LoadCookies() ([]*http.Cookie, error) {
-	path, err := getCookieFilePath()
+	path, err := utils.GetCookieFilePath()
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +143,7 @@ func LoadCookies() ([]*http.Cookie, error) {
 
 // ClearCookies removes the cookie file from disk.
 func ClearCookies() error {
-	cookieFile, err := getCookieFilePath()
+	cookieFile, err := utils.GetCookieFilePath()
 	if err != nil {
 		return err
 	}
@@ -193,7 +174,7 @@ func NewSSEClient() (*http.Client, error) {
 	}
 
 	// Load cookies if they exist
-	cookieFile, err := getCookieFilePath()
+	cookieFile, err := utils.GetCookieFilePath()
 	if err != nil {
 		return nil, err
 	}

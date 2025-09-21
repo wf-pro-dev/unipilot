@@ -11,7 +11,7 @@ declare global {
           Login: (username: string, password: string) => Promise<void>
           Logout: () => Promise<void>
           Greet: (name: string) => Promise<string>
-          IsAuthenticated: () => Promise<user.User>
+          GetCurrentUser: () => Promise<user.User>
           GetNetworkStatus: () => Promise<{ online: boolean; timestamp: number }>
           Sync: () => Promise<void>
           GetAssignment: (id: number) => Promise<assignment.LocalAssignment>
