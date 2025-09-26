@@ -106,12 +106,14 @@ export function useUploadDocument() {
   return useMutation({
     mutationFn: async ({ 
       assignmentId, 
+      remoteAssignmentId,
       documentType 
     }: { 
       assignmentId: number
+      remoteAssignmentId: number
       documentType: string 
     }) => {
-      return await UploadDocument(assignmentId, documentType)
+      return await UploadDocument(assignmentId, remoteAssignmentId, documentType)
     },
     
     // Optimistically update the cache

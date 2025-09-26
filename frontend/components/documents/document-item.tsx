@@ -119,7 +119,7 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
                 {doc.FileName}
               </p>
               <div className="flex items-center">
-                <DropdownMenu>
+                <DropdownMenu className="glass border-gray-600">
                   <DropdownMenuTrigger asChild>
                     <Button size="sm" variant="ghost" className="p-0" disabled={isLoading}>
                       <MoreVertical className="h-4 w-4" />

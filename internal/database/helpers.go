@@ -1,13 +1,20 @@
 package database
 
 import (
+	"context"
 	"fmt"
+	"path/filepath"
 
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
+	"unipilot/internal/models/document"
 	"unipilot/internal/models/note"
 	"unipilot/internal/models/notifications"
 	"unipilot/internal/models/user"
+	"unipilot/internal/services/fileops"
+	"unipilot/internal/services/utils"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"gorm.io/gorm"
 )
@@ -116,4 +123,99 @@ func (h *Database) GetNotifications() ([]notifications.LocalNotification, error)
 
 func (h *Database) DeleteNotification(notification *notifications.LocalNotification) error {
 	return h.db.Delete(notification).Error
+}
+
+func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUploadRequest, writeFile bool) (*fileops.FileUploadResponse, error) {
+
+	tx := h.db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Validate file type
+	if err := fileops.ValidateFileType(uploadReq.FileName); err != nil {
+		return nil, fmt.Errorf("unsupported file type")
+	}
+
+	// Validate file size
+	if uploadReq.FileSize > document.MaxFileSize {
+
+		return nil, fmt.Errorf("file size exceeds limit of %d MB", document.MaxFileSize/(1024*1024))
+	}
+
+	// Create LocalDocument record
+	localDoc := document.LocalDocument{
+		AssignmentID:       uploadReq.AssignmentID,
+		RemoteAssignmentID: uploadReq.RemoteAssignmentID,
+		UserID:             uploadReq.UserID,
+		Type:               uploadReq.Type,
+		FileName:           uploadReq.FileName,
+		FileType:           fileops.GetMimeType(uploadReq.FileName),
+		FileSize:           uploadReq.FileSize,
+		StorageKey:         uploadReq.StorageKey,
+		Version:            1,
+		HasLocalFile:       false, // Will be set to true after successful file write
+	}
+
+	// Generate file path
+	documentDir, err := utils.GetDocumentDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get app data path")
+	}
+
+	// Create unique filename with assignment and user info
+	fileName := fmt.Sprintf("doc_%d_%d_%s", uploadReq.AssignmentID, uploadReq.UserID, uploadReq.FileName)
+	filePath := filepath.Join(documentDir, fileName)
+	localDoc.FilePath = filePath
+
+	//Check storage quota
+	var totalSize int64
+	tx.Model(&document.LocalDocument{}).
+		Where("user_id = ? AND has_local_file = ?", uploadReq.UserID, true).
+		Select("COALESCE(SUM(file_size), 0)").
+		Scan(&totalSize)
+
+	if totalSize+uploadReq.FileSize > document.MaxUserQuota {
+		return nil, fmt.Errorf("storage quota exceeded. Current: %d MB, Limit: %d MB",
+			totalSize/(1024*1024), document.MaxUserQuota/(1024*1024))
+	}
+
+	// Save to database first
+	if err := tx.Create(&localDoc).Error; err != nil {
+		return nil, fmt.Errorf("failed to save document record")
+	}
+
+	runtime.LogInfof(ctx, "Document Creation: %s", localDoc.FileName)
+
+	var response *fileops.FileUploadResponse
+
+	if writeFile {
+		runtime.LogInfof(ctx, "Writing document to disk")
+		// Upload the document locally
+		response, err = fileops.WriteDocument(&localDoc, uploadReq.FileContent, tx)
+		if err != nil {
+			return nil, fmt.Errorf("upload failed: %w", err)
+		}
+	} else {
+		runtime.LogInfof(ctx, "NO Writing document to disk")
+		response = &fileops.FileUploadResponse{
+			LocalDocument: &localDoc,
+			Success:       true,
+			Message:       "Upload successful",
+		}
+	}
+
+	if !response.Success {
+		//tx.Rollback()
+		return nil, fmt.Errorf("upload failed: %s", response.Message)
+	}
+
+	runtime.LogInfof(ctx, "local upload response: %v", response)
+
+	// Also store metadata remotely for sharing
+
+	tx.Commit()
+	return response, nil
 }

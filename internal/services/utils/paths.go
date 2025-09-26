@@ -2,7 +2,6 @@ package utils
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 )
@@ -47,6 +46,22 @@ func getUserDir() (string, error) {
 	return userDir, nil
 }
 
+func getUserDirWithID(userID uint) (string, error) {
+
+	fileDir, err := getMainDir()
+	if err != nil {
+		return "", err
+	}
+
+	userDir := filepath.Join(fileDir, fmt.Sprintf("user_%d", userID))
+
+	if err := os.MkdirAll(userDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create document directory: %w", err)
+	}
+
+	return userDir, nil
+}
+
 func GetDocumentDir() (string, error) {
 
 	fileDir, err := getUserDir()
@@ -66,6 +81,25 @@ func GetDocumentDir() (string, error) {
 func GetDBPath() (string, error) {
 
 	fileDir, err := getUserDir()
+	if err != nil {
+		return "", err
+	}
+
+	dbPath := filepath.Join(fileDir, "data.db")
+
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		_, err := os.Create(dbPath)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return dbPath, nil
+}
+
+func GetDBPathWithID(userID uint) (string, error) {
+
+	fileDir, err := getUserDirWithID(userID)
 	if err != nil {
 		return "", err
 	}
@@ -107,6 +141,5 @@ func GetCredentialFile() (string, error) {
 			return "", err
 		}
 	}
-	log.Println("credentialsPath", credentialsPath)
 	return credentialsPath, nil
 }

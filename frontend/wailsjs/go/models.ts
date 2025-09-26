@@ -224,6 +224,7 @@ export namespace document {
 	    UpdatedAt: any;
 	    // Go type: gorm
 	    DeletedAt: any;
+	    RemoteAssignmentID: number;
 	    AssignmentID: number;
 	    UserID: number;
 	    Type: string;
@@ -231,6 +232,7 @@ export namespace document {
 	    FileType: string;
 	    FilePath: string;
 	    FileSize: number;
+	    StorageKey: string;
 	    Version: number;
 	    ParentDocID?: number;
 	    IsOriginal: boolean;
@@ -250,6 +252,7 @@ export namespace document {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.RemoteAssignmentID = source["RemoteAssignmentID"];
 	        this.AssignmentID = source["AssignmentID"];
 	        this.UserID = source["UserID"];
 	        this.Type = source["Type"];
@@ -257,6 +260,7 @@ export namespace document {
 	        this.FileType = source["FileType"];
 	        this.FilePath = source["FilePath"];
 	        this.FileSize = source["FileSize"];
+	        this.StorageKey = source["StorageKey"];
 	        this.Version = source["Version"];
 	        this.ParentDocID = source["ParentDocID"];
 	        this.IsOriginal = source["IsOriginal"];
@@ -299,6 +303,73 @@ export namespace document {
 	        this.total_size = source["total_size"];
 	        this.document_count = source["document_count"];
 	        this.calculated_at = this.convertValues(source["calculated_at"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace fileops {
+	
+	export class FileUploadRequest {
+	    AssignmentID: number;
+	    RemoteAssignmentID: number;
+	    UserID: number;
+	    Type: string;
+	    FileName: string;
+	    FilePath: string;
+	    FileSize: number;
+	    FileContent: any;
+	    StorageKey: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileUploadRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.AssignmentID = source["AssignmentID"];
+	        this.RemoteAssignmentID = source["RemoteAssignmentID"];
+	        this.UserID = source["UserID"];
+	        this.Type = source["Type"];
+	        this.FileName = source["FileName"];
+	        this.FilePath = source["FilePath"];
+	        this.FileSize = source["FileSize"];
+	        this.FileContent = source["FileContent"];
+	        this.StorageKey = source["StorageKey"];
+	    }
+	}
+	export class FileUploadResponse {
+	    LocalDocument?: document.LocalDocument;
+	    Success: boolean;
+	    Message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileUploadResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.LocalDocument = this.convertValues(source["LocalDocument"], document.LocalDocument);
+	        this.Success = source["Success"];
+	        this.Message = source["Message"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

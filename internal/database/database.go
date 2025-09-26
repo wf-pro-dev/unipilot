@@ -24,7 +24,7 @@ func NewDatabase(user *user.User) *Database {
 		return nil
 	}
 
-	database.db = gormDB
+	database.db = gormDB.Debug()
 
 	return database
 }

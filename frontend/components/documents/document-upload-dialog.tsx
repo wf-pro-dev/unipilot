@@ -21,6 +21,7 @@ interface DocumentUploadDialogProps {
   onClose: () => void
   onUploadComplete: () => void
   assignmentId: number
+  remoteAssignmentId: number
   documentType: "support" | "submission"
 }
 
@@ -29,6 +30,7 @@ export function DocumentUploadDialog({
   onClose,
   onUploadComplete,
   assignmentId,
+  remoteAssignmentId,
   documentType
 }: DocumentUploadDialogProps) {
   const [selectedType, setSelectedType] = useState<"support" | "submission">(documentType)
@@ -44,6 +46,7 @@ export function DocumentUploadDialog({
     try {
       const result = await uploadDocument.mutateAsync({ 
         assignmentId, 
+        remoteAssignmentId,
         documentType: selectedType 
       })
       

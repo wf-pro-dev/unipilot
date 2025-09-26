@@ -155,9 +155,10 @@ func (a *App) Startup(ctx context.Context) {
 // ========================================
 
 // CreateAssignment creates a new assignment
-func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error {
+func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*assignment.LocalAssignment, error) {
+
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return nil, fmt.Errorf("database not initialized")
 	}
 
 	tx := a.DB.GetDB().Begin()
@@ -179,13 +180,14 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 	}
 
 	if !a.Auth.IsAuthenticated() {
-		return fmt.Errorf("user not authenticated")
+		return nil, fmt.Errorf("user not authenticated")
 	}
 
 	// Create the assignment locally first
 	if err := tx.Create(localAssignment).Error; err != nil {
 		tx.Rollback()
-		return err
+		runtime.LogInfof(a.ctx, "Error creating assignment: %v", err)
+		return nil, err
 	}
 
 	// Always try to sync with server
@@ -201,6 +203,8 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 		Link:       localAssignment.Link,
 	}
 
+	//Online operation
+
 	isOnline := network.IsOnline()
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var responseAssignment map[string]interface{}
@@ -208,6 +212,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 	if isOnline {
 		responseAssignment, clientErr = client.CreateAssignment(remoteAssignment)
 	} else {
+
 		clientErr = fmt.Errorf("user is offline")
 	}
 
@@ -223,37 +228,37 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 			clientErr,
 		); syncErr != nil {
 			tx.Rollback()
-			return fmt.Errorf("failed to create sync log: %w", syncErr)
+			return nil, fmt.Errorf("failed to create sync log: %w", syncErr)
 		}
 
 		// Commit the transaction with the sync log
-		tx.Commit()
+		//tx.Commit()
 
-		return nil
+		return nil, nil
 	}
 
 	// Server operation succeeded
 	str_remote_id, ok := responseAssignment["id"].(string)
 	if !ok {
 		tx.Rollback()
-		return fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"])
+		return nil, fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"])
 	}
 
 	remote_id, err := strconv.Atoi(str_remote_id)
 	if err != nil {
 		tx.Rollback()
-		return fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"])
+		return nil, fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"])
 	}
 
 	localAssignment.RemoteID = uint(remote_id)
 
 	if err := tx.Save(localAssignment).Error; err != nil {
 		tx.Rollback()
-		return err
+		return nil, err
 	}
 
 	tx.Commit()
-	return nil
+	return localAssignment, nil
 }
 
 // CreateCourse creates a new course
@@ -433,7 +438,7 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 }
 
 // UploadDocument opens a file dialog and uploads a document to an assignment
-func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.LocalDocument, error) {
+func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documentType string) (*document.LocalDocument, error) {
 	if a.DB == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -446,6 +451,13 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 	if documentType != string(document.DocumentTypeSupport) && documentType != string(document.DocumentTypeSubmission) {
 		return nil, fmt.Errorf("invalid document type: %s", documentType)
 	}
+
+	tx := a.DB.GetDB().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
 	// Open file dialog
 	filters := []runtime.FileFilter{
@@ -482,59 +494,101 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 		return nil, fmt.Errorf("failed to get file info: %w", err)
 	}
 
+	fileContent, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer fileContent.Close()
+
 	// Create upload request
 	uploadReq := fileops.FileUploadRequest{
-		AssignmentID: assignmentID,
-		UserID:       a.Auth.User.ID,
-		Type:         document.DocumentType(documentType),
-		FileName:     filepath.Base(filePath),
-		FilePath:     filePath,
-		FileSize:     fileInfo.Size(),
+		AssignmentID:       assignmentID,
+		RemoteAssignmentID: remoteAssignmentID,
+		UserID:             a.Auth.User.ID,
+		Type:               document.DocumentType(documentType),
+		FileName:           filepath.Base(filePath),
+		FilePath:           filePath,
+		FileSize:           fileInfo.Size(),
+		FileContent:        fileContent,
+		StorageKey:         "",
 	}
 
-	// Upload the document locally
-	response, err := fileops.UploadDocument(uploadReq, a.DB.GetDB())
+	document, err := a.CreateDocument(uploadReq, true)
 	if err != nil {
-		return nil, fmt.Errorf("upload failed: %w", err)
+		tx.Rollback()
+		return nil, fmt.Errorf("failed to create document: %w", err)
 	}
 
-	if !response.Success {
-		return nil, fmt.Errorf("upload failed: %s", response.Message)
+	//tx.Commit()
+
+	return document, nil
+
+}
+
+func (a *App) CreateDocument(uploadReq fileops.FileUploadRequest, writeFile bool) (*document.LocalDocument, error) {
+
+	uploadResp, err := a.DB.CreateDocument(a.ctx, uploadReq, writeFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create document: %w", err)
 	}
 
-	runtime.LogInfof(a.ctx, "local upload response: %v", response)
+	response, err := a.SendDocument(uploadResp, writeFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send document: %w", err)
+	}
 
-	// Also store metadata remotely for sharing
-	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
-		// metadataReq := map[string]interface{}{
-		// 	"assignment_id": assignmentID,
-		// 	"local_id":      response.LocalDocument.ID,
-		// 	"type":          documentType,
-		// 	"file_name":     filepath.Base(filePath),
-		// 	"file_content":  file,
-		// 	"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
-		// 	"file_size":     fileInfo.Size(),
-		// }
+	return response, nil
 
-		// jsonData, _ := json.Marshal(metadataReq)
-		// resp, _ := a.Auth.Client.Post("https://newsroom.dedyn.io/acc-homework/document/metadata",
-		// 	"application/json", strings.NewReader(string(jsonData)))
-		// if resp.StatusCode == 200 {
-		// 	defer resp.Body.Close()
-		// }
+}
 
-		runtime.LogInfof(a.ctx, "sending document to remote: %v", response.LocalDocument.ID)
+func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse, writeFile bool) (*document.LocalDocument, error) {
 
-		clientErr := client.SendDocument(&uploadReq, response.LocalDocument.ID)
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil && writeFile {
+
+		db := a.DB.GetDB()
+		tx := db.Begin()
+		defer func() {
+			if r := recover(); r != nil {
+				tx.Rollback()
+			}
+		}()
+
+		runtime.LogInfof(a.ctx, "sending document to remote: %v", uploadResp.LocalDocument.ID)
+
+		// Switch local to remote
+		var assignment assignment.LocalAssignment
+		err := tx.Where("id = ?", uploadResp.LocalDocument.AssignmentID).First(&assignment).Error
+		if err != nil {
+			return nil, fmt.Errorf("failed to get assignment: %w", err)
+		}
+		uploadResp.LocalDocument.AssignmentID = assignment.RemoteID
+
+		runtime.LogInfof(a.ctx, "sending document to remote: %v", uploadResp.LocalDocument.AssignmentID)
+
+		storageKey, clientErr := client.SendDocument(uploadResp.LocalDocument, uploadResp.LocalDocument.ID)
 		if clientErr != nil {
 			return nil, fmt.Errorf("failed to send document: %w", clientErr)
 		} else {
 			runtime.LogInfof(a.ctx, "remote upload response: %v", "success")
 		}
 
+		runtime.LogInfof(a.ctx, "remote upload response: %v", storageKey)
+
+		uploadResp.LocalDocument.StorageKey = storageKey
+		if err := tx.Save(uploadResp.LocalDocument).Error; err != nil {
+			return nil, fmt.Errorf("failed to save document: %w", err)
+		}
+
+		tx.Commit()
+
 	}
 
-	return response.LocalDocument, nil
+	return uploadResp.LocalDocument, nil
+
 }
 
 // ========================================
@@ -770,12 +824,13 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 
 	// Create new version request
 	uploadReq := fileops.FileUploadRequest{
-		AssignmentID: existingDoc.AssignmentID,
-		UserID:       userID,
-		Type:         existingDoc.Type,
-		FileName:     filepath.Base(filePath),
-		FilePath:     filePath,
-		FileSize:     fileInfo.Size(),
+		AssignmentID:       existingDoc.AssignmentID,
+		RemoteAssignmentID: existingDoc.RemoteAssignmentID,
+		UserID:             userID,
+		Type:               existingDoc.Type,
+		FileName:           filepath.Base(filePath),
+		FilePath:           filePath,
+		FileSize:           fileInfo.Size(),
 	}
 
 	// Upload new version locally
@@ -1290,8 +1345,8 @@ func (a *App) GetAssignmentDocuments(assignmentID uint) ([]document.LocalDocumen
 	// Use LocalDocument and only return documents we have locally
 	var documents []document.LocalDocument
 	err := a.DB.GetDB().Where(
-		"assignment_id = ? AND has_local_file = ?",
-		assignmentID, true,
+		"assignment_id = ?",
+		assignmentID,
 	).Order("created_at DESC").Find(&documents).Error
 
 	return documents, err
@@ -1640,25 +1695,77 @@ func (a *App) RequestLinkCourse(courseCode string, usersID []uint) error {
 func (a *App) AcceptLink(courseData string) error {
 
 	// Unmarshal the course data
-	var c course.LocalCourse
-	if err := json.Unmarshal([]byte(courseData), &c); err != nil {
+	var localC course.LocalCourse
+	if err := json.Unmarshal([]byte(courseData), &localC); err != nil {
 		return err
 	}
 
-	runtime.LogInfof(a.ctx, "AcceptLink: %v", c)
+	runtime.LogInfof(a.ctx, "AcceptLink: %v", courseData)
 
 	//Determine if the course already exists
 	var existingCourse course.LocalCourse
-	err := a.DB.GetDB().Where("code = ?", c.Code).First(&existingCourse).Error
+	err := a.DB.GetDB().Where("code = ?", localC.Code).First(&existingCourse).Error
 	if err != nil {
 		// If the course doesn't exist, create it
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			a.CreateCourse(&c)
+			a.CreateCourse(&localC)
 		}
 		return err
 	}
 	// Update the course with the new link ID
-	a.UpdateCourse(&existingCourse, "link_id", c.LinkID.String())
+	a.UpdateCourse(&existingCourse, "link_id", localC.LinkID.String())
+
+	var c course.Course
+	if err := json.Unmarshal([]byte(courseData), &c); err != nil {
+		return err
+	}
+
+	runtime.LogInfo(a.ctx, "send request to accept link course")
+	response, err := client.AcceptLinkCourse(&c)
+
+	if err != nil {
+		return err
+	}
+
+	// Create the assignments
+	for _, remoteAssignment := range response.Assignments {
+
+		localAssignment := assignment.LocalAssignment{
+			Title:      remoteAssignment.Title,
+			Todo:       remoteAssignment.Todo,
+			Deadline:   remoteAssignment.Deadline,
+			CourseCode: remoteAssignment.CourseCode,
+			TypeName:   remoteAssignment.TypeName,
+			StatusName: "Not started",
+			Priority:   remoteAssignment.Priority,
+			Link:       remoteAssignment.Link,
+		}
+
+		var newAssignment *assignment.LocalAssignment
+		if newAssignment, err = a.CreateAssignment(&localAssignment); err != nil {
+			runtime.LogInfof(a.ctx, "Error creating assignment: %v", err)
+			return err
+		}
+
+		runtime.LogInfof(a.ctx, "Documents: %v", remoteAssignment.Documents)
+
+		for _, document := range remoteAssignment.Documents {
+			runtime.LogInfof(a.ctx, "Creating document: %v", document)
+			uploadReq := fileops.FileUploadRequest{
+				AssignmentID:       newAssignment.ID, // Update to new assignment ID
+				RemoteAssignmentID: newAssignment.RemoteID,
+				UserID:             a.Auth.User.ID, // Update to new user ID
+				Type:               document.Type,
+				FileName:           document.FileName,
+				FileSize:           document.FileSize,
+				StorageKey:         document.StorageKey,
+			}
+			_, err := a.DB.CreateDocument(a.ctx, uploadReq, false)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
 }

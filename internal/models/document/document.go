@@ -22,17 +22,19 @@ const (
 // Document represents a file attached to an assignment
 type Document struct {
 	gorm.Model
-	AssignmentID uint         `gorm:"not null;index"`
-	UserID       uint         `gorm:"not null;index"` // Original uploader
-	LocalID      uint         `gorm:"not null;index"` // Local document ID
-	Type         DocumentType `gorm:"not null;index"`
-	FileName     string       `gorm:"not null"`
-	FileType     string       `gorm:"not null"` // mime type or extension
-	FilePath     string       `gorm:"not null"` // relative to app data directory
-	FileSize     int64        `gorm:"not null"` // in bytes
-	Version      int          `gorm:"default:1"`
-	ParentDocID  *uint        `gorm:"index"`        // For version history
-	IsOriginal   bool         `gorm:"default:true"` // For shared assignment tracking
+	AssignmentID      uint `gorm:"not null;index"`
+	LocalAssignmentID uint
+	UserID            uint         `gorm:"not null;index"` // Original uploader
+	LocalID           uint         `gorm:"not null;index"` // Local document ID
+	Type              DocumentType `gorm:"not null;index"`
+	FileName          string       `gorm:"not null"`
+	FileType          string       `gorm:"not null"` // mime type or extension
+	FilePath          string       `gorm:"not null"` // relative to app data directory
+	FileSize          int64        `gorm:"not null"` // in bytes
+	StorageKey        string       `gorm:"unique"`   // Only for remote storage
+	Version           int          `gorm:"default:1"`
+	ParentDocID       *uint        `gorm:"index"`        // For version history
+	IsOriginal        bool         `gorm:"default:true"` // For shared assignment tracking
 
 	// Relationships
 	User      user.User  `gorm:"foreignKey:UserID;references:ID"`
@@ -175,17 +177,18 @@ func (d *Document) CreateNewVersion(newFileName string, newFileSize int64, newFi
 
 	// Create new version
 	newVersion := &Document{
-		AssignmentID: d.AssignmentID,
-		LocalID:      d.LocalID,
-		UserID:       d.UserID,
-		Type:         d.Type,
-		FileName:     newFileName,
-		FileType:     d.FileType,
-		FilePath:     newFilePath,
-		FileSize:     newFileSize,
-		Version:      latestVersion + 1,
-		ParentDocID:  &d.ID,
-		IsOriginal:   d.IsOriginal,
+		AssignmentID:      d.AssignmentID,
+		LocalAssignmentID: d.LocalAssignmentID,
+		LocalID:           d.LocalID,
+		UserID:            d.UserID,
+		Type:              d.Type,
+		FileName:          newFileName,
+		FileType:          d.FileType,
+		FilePath:          newFilePath,
+		FileSize:          newFileSize,
+		Version:           latestVersion + 1,
+		ParentDocID:       &d.ID,
+		IsOriginal:        d.IsOriginal,
 	}
 
 	// Validate before creating
