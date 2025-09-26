@@ -11,6 +11,8 @@ import (
 
 	"unipilot/internal/models"
 	"unipilot/internal/models/course"
+	"unipilot/internal/models/assignment"
+	//"unipilot/internal/models/document"
 	"unipilot/internal/models/user"
 	"unipilot/internal/models/notifications"
 
@@ -404,5 +406,109 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request){
 	// Infos : Course All except user_id, Sender (name)
 
 	PrintLog(fmt.Sprintf("Course ID : %v, Users ID : %v",linkRequestData.CourseCode, linkRequestData.UsersID))
+	
+}
+
+func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request){
+
+	dbVal := r.Context().Value("db")
+	if dbVal == nil {
+		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
+		return
+	}
+
+	db, ok := dbVal.(*gorm.DB)
+	if !ok {
+		PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
+		return
+	}
+
+	userIDVal := r.Context().Value("user_id")
+	if userIDVal == nil {
+		PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
+		return
+	}
+
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
+		return
+	}
+
+	var currentUser user.User
+	if err := db.First(&currentUser, userID).Error; err != nil {
+		PrintERROR(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+	
+	var c course.Course
+	err := json.NewDecoder(r.Body).Decode(&c)
+	if err != nil {
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
+		return
+	}
+
+	
+	//1. Get Course assignments
+	var courseAssignments []assignment.Assignment
+	err = db.Where("user_id = ? AND course_code = ?",c.UserID ,c.Code).Order("created_at").Find(&courseAssignments).Error
+	if err != nil {
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error getting course assignments with course code : %v ", err))
+		return
+	}
+
+
+
+	// 2. list assignments id
+	var responseAssignments []assignment.Assignment
+	for _, assignment := range courseAssignments {
+		assignmentDocuments, err := assignment.GetDocuments(db.Debug())
+
+		if err != nil {
+			PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error getting assignment %v documents: %v ", assignment.ID, err))
+			return
+		}
+		PrintLog(fmt.Sprintf("assignment id : %v documents: %v", assignment.ID, assignmentDocuments))
+
+		assignment.Documents = assignmentDocuments
+		responseAssignments = append(responseAssignments, assignment)
+	}
+	
+	/*2. Get Assignments documents
+	var assignmentDocuments []document.Document
+	err = db.Preload("Docmuents")..Where("assignment_id IN ?", assignmentIDs).Find(&assignmentDocuments).Error
+	if err != nil {
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error getting assignments documents :%v", err))
+		return
+	}*/
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"Error": err  ,
+		"assignments": responseAssignments,
+		//"documents": assignmentDocuments,
+	})
+
+	/*if sseServer != nil {
+
+		// 2. Send link info to users via SSE (field data)
+		for _,sendeeID := range linkRequestData.UsersID { 
+			sseServer.SendNotification(
+				uint(sendeeID),
+				userID,
+				models.EntityCourse,
+				c.ID,
+				notifications.NotificationSync,
+				c.Name,
+				fmt.Sprintf("%s shared a course with you : %s", currentUser.Username , c.Code),
+				"sync",
+				string(cJson),
+
+			)
+		}
+	}
+	// Infos : Course All except user_id, Sender (name)*/
+
+	PrintLog(fmt.Sprintf("Course ID : %v, From : %v, To: %v", c.Code, c.UserID, userID ))
 	
 }
