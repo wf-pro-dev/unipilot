@@ -4129,3 +4129,25 @@
 2025-09-26T08:51:22: 2025/09/26 08:51:22 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
 2025-09-26T10:18:00: 2025/09/26 10:18:00 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
 2025-09-26T13:51:10: 2025/09/26 13:51:10 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-26T22:47:07: 2025/09/26 22:47:07 Server listening on :3000...
+2025-09-26T22:47:12: 2025/09/26 22:47:12 [INFO] SSE connection attempt from 127.0.0.1:44214
+2025-09-26T22:47:12: 2025/09/26 22:47:12 [INFO] New SSE user id : 1
+2025-09-26T22:47:12: 2025/09/26 22:47:12 [INFO] Active Clients: map[1:0xc0003941e0]
+2025-09-26T22:47:24: 2025/09/26 22:47:24 [INFO] Client 1 disconnected (context canceled)
+2025-09-26T22:47:24: 2025/09/26 22:47:24 [INFO] Removing client 1 (reason: connection closing)
+2025-09-26T23:35:25: 2025/09/26 23:35:25 [INFO] SSE connection attempt from 127.0.0.1:39230
+2025-09-26T23:35:25: 2025/09/26 23:35:25 [INFO] New SSE user id : 1
+2025-09-26T23:35:25: 2025/09/26 23:35:25 [INFO] Active Clients: map[1:0xc000394ae0]
+2025-09-26T23:37:20: 2025/09/26 23:37:20 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-26T23:41:26: 2025/09/26 23:41:26 [INFO] user_id 1 column deleted_at value 2025-09-26T23:41:26-05:00
+2025-09-26T23:41:48: 2025/09/26 23:41:48 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-26T23:42:19: 2025/09/26 23:42:19 [INFO] User ID : 19, Total : 0, Followers : []
+2025-09-26T23:42:19: 2025/09/26 23:42:19 [INFO] User ID : 3, Total : 1, Followers : [{{1 2025-07-11 02:42:41.05966 -0500 CDT 2025-08-22 23:14:28 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} William Fotso will.fotso.pro@gmail.com $2a$10$kfJAlQS41p5pyo8ly5PDw..LKEuKWj0Op3agBHZNRq9SsdVJPgnQe  Austin Community College FALL 2025 Sophomore false  [] <nil> [] []}]
+2025-09-27T00:28:25: 2025/09/27 00:28:25 Server listening on :3000...
+2025-09-27T00:28:29: 2025/09/27 00:28:29 [INFO] SSE connection attempt from 127.0.0.1:53616
+2025-09-27T00:28:29: 2025/09/27 00:28:29 [INFO] New SSE user id : 1
+2025-09-27T00:28:29: 2025/09/27 00:28:29 [INFO] Active Clients: map[1:0xc00039a1e0]
+2025-09-27T02:52:02: 2025/09/27 02:52:02 Server listening on :3000...
+2025-09-27T02:52:05: 2025/09/27 02:52:05 [INFO] SSE connection attempt from 127.0.0.1:56898
+2025-09-27T02:52:05: 2025/09/27 02:52:05 [INFO] New SSE user id : 1
+2025-09-27T02:52:05: 2025/09/27 02:52:05 [INFO] Active Clients: map[1:0xc000359da0]

@@ -129,6 +129,15 @@ func Get_Assignment_byNotionID(notion_id string, db *gorm.DB) (*Assignment, erro
 	return assignment, nil
 }
 
+func (a *Assignment) GetCourseAssignment(db *gorm.DB) (*course.Course, error) {
+	var c *course.Course
+	err := db.Where("user_id = ? AND code = ?", a.UserID, a.CourseCode).First(&c).Error
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
 // ToMap converts the Assignment struct to a map[string]string
 // This maintains compatibility with the existing database operations
 func (a *Assignment) ToMap() map[string]string {

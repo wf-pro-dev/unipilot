@@ -6,8 +6,12 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+	"log"
 
+	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
+	"unipilot/internal/models/user"
+	"unipilot/internal/models/notifications"
 
 	"gorm.io/gorm"
 )
@@ -157,21 +161,6 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	/*notion_id, err := a.Add_Notion()
-	if err != nil {
-		tx.Rollback()
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error creating assignment in notion", err))
-		return
-	}
-
-	a.NotionID = notion_id
-	err = tx.Save(&a).Error
-	if err != nil {
-		tx.Rollback()
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error updating new assignment", err))
-		return
-	}*/
-
 	// Convert to map safely
 	assignmentMap := a.ToMap()
 	if assignmentMap == nil {
@@ -180,7 +169,68 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
 	tx.Commit()
+	
+	db = db.Debug()
+
+	// Send a notification to all the users linked
+	
+	newA, err := assignment.Get_Assignment_byID(aObj.ID, userID, db)
+	if err != nil {
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
+		return
+	}
+	
+	aJson, err := json.Marshal(newA)
+	if err != nil {
+		log.Printf("[Error] error marshalling notification : %v ",err)
+	}
+
+
+	PrintLog(fmt.Sprintf("notification data %v :", string(aJson)))
+
+
+	var currentUser user.User
+	if err := db.First(&currentUser, userID).Error; err != nil {
+		PrintERROR(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+
+	c, err := a.GetCourseAssignment(db)
+	if err != nil {
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting course assignment: %s", err))
+		return
+	}
+	
+	link_users, err :=  c.Get_Link_Users(db)
+	if err != nil {
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting users link to course assignment: %s", err))
+		return
+	}
+
+	
+	
+	PrintLog(fmt.Sprintf("link users : %v, sseServer : %v", link_users, sseServer != nil))
+	if sseServer != nil {
+		// 2. Send link info to users via SSE (field data)
+		for _,sendeeID := range link_users {
+			PrintLog(fmt.Sprintf("sending to : %d ",sendeeID))
+			sseServer.SendNotification(
+				uint(sendeeID),
+				userID,
+				models.EntityAssignment,
+				c.ID,
+				notifications.NotificationAssignment,
+				a.Title,
+				fmt.Sprintf("%s shared a new assignment on %s", currentUser.Username, c.Code),
+				"assignment",
+				string(aJson),
+
+			)
+		}
+	}
+
 
 	// Return response
 	w.Header().Set("Content-Type", "application/json")
