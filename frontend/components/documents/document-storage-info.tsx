@@ -25,7 +25,7 @@ export function DocumentStorageInfo() {
   const getStoragePercentage = (): number => {
     if (!storageInfo) return 0
     const maxStorage = 2 * 1024 * 1024 * 1024 // 2GB in bytes
-    return Math.min((storageInfo.TotalSize / maxStorage) * 100, 100)
+    return Math.min((storageInfo.total_size / maxStorage) * 100, 100)
   }
 
   const getStorageColor = (): string => {
@@ -68,7 +68,7 @@ export function DocumentStorageInfo() {
                 <div className="flex justify-between items-center text-sm">
                   <span>Used Storage</span>
                   <span className="font-medium">
-                    {formatFileSize(storageInfo.TotalSize)} / 2 GB
+                    {formatFileSize(storageInfo.total_size)} / 2 GB
                   </span>
                 </div>
                 <Progress value={getStoragePercentage()} className="h-2" />
@@ -81,13 +81,13 @@ export function DocumentStorageInfo() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">
-                    {storageInfo.DocumentCount}
+                    {storageInfo.document_count}
                   </div>
                   <div className="text-xs text-muted-foreground">Documents</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-primary">
-                    {formatFileSize(storageInfo.TotalSize)}
+                    {formatFileSize(storageInfo.total_size)}
                   </div>
                   <div className="text-xs text-muted-foreground">Used</div>
                 </div>
@@ -109,7 +109,7 @@ export function DocumentStorageInfo() {
 
               {/* Last Updated */}
               <div className="text-xs text-center text-muted-foreground">
-                Last updated: {new Date(storageInfo.LastCalculatedAt).toLocaleString()}
+                Last updated: {new Date(storageInfo.calculated_at).toLocaleString()}
               </div>
             </>
           ) : isLoading ? (

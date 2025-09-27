@@ -20,9 +20,11 @@ import {
   useOpenDocument,
   useSaveDocumentAs,
   useDeleteDocument,
-  useUploadDocumentVersion
+  useUploadDocumentVersion,
+  useDownloadDocument
 } from "@/hooks/use-documents"
 import { format } from "date-fns"
+import { toast } from "sonner"
 
 interface DocumentItemProps {
   document: document.LocalDocument
@@ -36,6 +38,7 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
   const saveDocumentAs = useSaveDocumentAs()
   const deleteDocument = useDeleteDocument()
   const uploadVersion = useUploadDocumentVersion()
+  const downloadDocument = useDownloadDocument()
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 B"
@@ -91,6 +94,22 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
     }
   }
 
+  const handleDownload = async () => {
+    try {
+      await downloadDocument.mutateAsync(doc,
+        {
+          onSuccess: () => {
+            toast.success("Document downloaded successfully")
+          },
+          onError: (error) => {
+            toast.error("Failed to download document: " + error)
+          }
+        })
+    } catch (error) {
+      console.error("Failed to download document:", error)
+    }
+  }
+
   const isLoading = openDocument.isPending || saveDocumentAs.isPending ||
     deleteDocument.isPending || uploadVersion.isPending
 
@@ -119,21 +138,35 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
                 {doc.FileName}
               </p>
               <div className="flex items-center">
-                <DropdownMenu>
+                <DropdownMenu className="glass border-gray-600">
                   <DropdownMenuTrigger asChild>
                     <Button size="sm" variant="ghost" className="p-0" disabled={isLoading}>
                       <MoreVertical className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleOpen} disabled={!doc.HasLocalFile}>
-                      <Eye className="h-4 w-4" />
-                      Open
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleSaveAs} disabled={!doc.HasLocalFile}>
-                      <Download className="h-4 w-4" />
-                      Save As...
-                    </DropdownMenuItem>
+                    {(doc.HasLocalFile) && (
+                      <>
+
+                        <DropdownMenuItem onClick={handleOpen} disabled={!doc.HasLocalFile}>
+                          <Eye className="h-4 w-4" />
+                          Open
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleSaveAs} disabled={!doc.HasLocalFile}>
+                          <Download className="h-4 w-4" />
+                          Save As...
+                        </DropdownMenuItem>
+                      </>
+                    )}
+
+                    {!doc.HasLocalFile && (
+                      <DropdownMenuItem onClick={handleDownload} disabled={doc.HasLocalFile}>
+                        <Download className="h-4 w-4" />
+                        Download
+                      </DropdownMenuItem>
+                    )}
+
+
                     <DropdownMenuItem onClick={handleUploadNewVersion}>
                       <Upload className="h-4 w-4" />
                       Upload New Version
@@ -165,7 +198,7 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
 
               <span className="text-xs">{formatFileSize(doc.FileSize)}</span>
 
-    
+
             </div>
 
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -177,14 +210,14 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
             </div>
 
           </div>
-        </div>
+        </div >
 
         {/* Actions */}
 
-      </div>
+      </div >
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      < AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Document</AlertDialogTitle>
@@ -203,7 +236,7 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog >
     </>
   )
 } 

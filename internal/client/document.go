@@ -9,63 +9,67 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"unipilot/internal/services/fileops"
+	"unipilot/internal/models/document"
 )
 
 // UploadResponse represents the server response
 type UploadResponse struct {
-	Success    bool   `json:"success"`
-	Message    string `json:"message"`
-	FileURL    string `json:"file_url,omitempty"`
-	FileName   string `json:"file_name,omitempty"`
-	Size       int64  `json:"size,omitempty"`
-	DocumentID string `json:"document_id,omitempty"`
+	Success  bool              `json:"success"`
+	Document document.Document `json:"document"`
 }
 
 // sendMultipartFile sends file using multipart/form-data with your authenticated client
-func SendDocument(file *fileops.FileUploadRequest, localID uint) error {
+func SendDocument(document *document.LocalDocument) (string, error) {
 
-	var url string = "https://newsroom.dedyn.io/acc-homework/document/metadata"
+	var url string = "https://newsroom.dedyn.io/acc-homework/document"
 
 	// Create a new client with cookies
 	client, err := NewClientWithCookies()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	// Create a buffer to store the multipart data
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
+	defer writer.Close()
 
 	// Create form file field
-	fileWriter, err := writer.CreateFormFile("file", file.FileName)
+	fileWriter, err := writer.CreateFormFile("file", document.FileName)
 	if err != nil {
-		return fmt.Errorf("error creating form file: %v", err)
+		return "", fmt.Errorf("error creating form file: %v", err)
 	}
 
 	// Open the file
-	fileContent, err := os.Open(file.FilePath)
+	fileContent, err := os.Open(document.FilePath)
 	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
+		return "", fmt.Errorf("failed to open file: %w", err)
 	}
 	defer fileContent.Close()
 
 	// Copy file content to form
 	bytesWritten, err := io.Copy(fileWriter, fileContent)
 	if err != nil {
-		return fmt.Errorf("error copying file content: %v", err)
+		return "", fmt.Errorf("error copying file content: %v", err)
 	}
 
 	log.Printf("bytes written: %d\n", bytesWritten)
 
-	// Add additional metadata fields
-	writer.WriteField("assignment_id", fmt.Sprintf("%d", file.AssignmentID))
-	writer.WriteField("local_id", fmt.Sprintf("%d", localID))
-	writer.WriteField("user_id", fmt.Sprintf("%d", file.UserID))
-	writer.WriteField("type", string(file.Type))
-	writer.WriteField("file_name", file.FileName)
-	writer.WriteField("file_type", fileops.GetMimeType(file.FileName))
-	writer.WriteField("file_size", fmt.Sprintf("%d", file.FileSize))
+	// Add metadata part
+	metadataWriter, err := writer.CreateFormField("metadata")
+	if err != nil {
+		return "", fmt.Errorf("error creating form field: %v", err)
+	}
+
+	metadataJSON, err := json.Marshal(document)
+	if err != nil {
+		return "", fmt.Errorf("error marshalling metadata: %v", err)
+	}
+
+	_, err = metadataWriter.Write(metadataJSON)
+	if err != nil {
+		return "", fmt.Errorf("error writing metadata: %v", err)
+	}
 
 	// Close the writer to finalize the multipart message
 	writer.Close()
@@ -73,7 +77,7 @@ func SendDocument(file *fileops.FileUploadRequest, localID uint) error {
 	// Create HTTP request using your server URL
 	req, err := http.NewRequest("POST", url, &buf)
 	if err != nil {
-		return fmt.Errorf("error creating request: %v", err)
+		return "", fmt.Errorf("error creating request: %v", err)
 	}
 
 	// Set headers - the Content-Type is crucial for multipart
@@ -82,15 +86,17 @@ func SendDocument(file *fileops.FileUploadRequest, localID uint) error {
 	// Send request using your authenticated client with cookies
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("error sending request: %v", err)
+		return "", fmt.Errorf("error sending request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	// Read response
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("error reading response: %v", err)
+		return "", fmt.Errorf("error reading response: %v", err)
 	}
+
+	log.Printf("response: %v", resp.StatusCode)
 
 	// Handle different HTTP status codes
 	switch resp.StatusCode {
@@ -98,23 +104,85 @@ func SendDocument(file *fileops.FileUploadRequest, localID uint) error {
 		// Success - parse response
 		var uploadResp UploadResponse
 		if err := json.Unmarshal(respBody, &uploadResp); err != nil {
-			return fmt.Errorf("error parsing success response: %v", err)
+			return "", fmt.Errorf("error parsing success response: %v", err)
 		}
-		return nil
+		return uploadResp.Document.StorageKey, nil
 
 	case http.StatusUnauthorized:
-		return fmt.Errorf("authentication required. Please login first")
+		return "", fmt.Errorf("authentication required. Please login first")
 
 	case http.StatusForbidden:
-		return fmt.Errorf("access forbidden. You don't have permission to upload files")
+		return "", fmt.Errorf("access forbidden. You don't have permission to upload files")
 
 	case http.StatusRequestEntityTooLarge:
-		return fmt.Errorf("file too large for server")
+		return "", fmt.Errorf("file too large for server")
 
 	case http.StatusUnsupportedMediaType:
-		return fmt.Errorf("file type not supported")
+		return "", fmt.Errorf("file type not supported")
 
 	default:
-		return fmt.Errorf("server error: %s - %s", resp.Status, string(respBody))
+		return "", fmt.Errorf("server error: %s - %s", resp.Status, string(respBody))
 	}
+}
+func DownloadDocument(document *document.LocalDocument) (io.Reader, error) {
+
+	var url string = "https://newsroom.dedyn.io/acc-homework/document/download"
+
+	jsonData, err := json.Marshal(document)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := NewClientWithCookies()
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		// Read the error message from the body
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("server returned %d: %s - %s", resp.StatusCode, resp.Status, string(body))
+	}
+
+	// Check content type
+	contentType := resp.Header.Get("Content-Type")
+	if contentType != "application/octet-stream" {
+		return nil, fmt.Errorf("unexpected content type: %s", contentType)
+	}
+
+	// Read the entire content into a buffer and return it
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, resp.Body); err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	return &buf, nil
+}
+
+func DeleteDocument(documentID uint) error {
+
+	var url string = "https://newsroom.dedyn.io/acc-homework/document/delete"
+
+	client, err := NewClientWithCookies()
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Post(fmt.Sprintf("%s?document_id=%d", url, documentID), "application/json", nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("server returned %d: %s", resp.StatusCode, resp.Status)
+	}
+
+	return nil
 }

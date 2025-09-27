@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"unipilot/internal/models/notifications"
+	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
-	"unipilot/internal/storage"
 
 	"github.com/gen2brain/beeep"
 	"gorm.io/gorm"
@@ -31,7 +31,7 @@ type EventHandler struct {
 func NewEventHandler(userID uint) (*EventHandler, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	db, _, err := storage.GetLocalDB()
+	db, err := utils.GetUserDBWithID(userID)
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("failed to get database: %w", err)

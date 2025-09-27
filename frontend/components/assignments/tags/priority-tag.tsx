@@ -21,7 +21,7 @@ interface PriorityTagProps {
 function PriorityTag({ assignment, onEdit }: PriorityTagProps) {
     const handleEdit = (type: string) => {
 
-        onEdit(assignment, "type_name", type)
+        onEdit(assignment, "priority", type)
     }
 
     return (

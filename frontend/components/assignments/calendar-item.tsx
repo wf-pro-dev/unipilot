@@ -6,6 +6,7 @@ import { assignment } from "@/wailsjs/go/models"
 import { parseDeadline } from "@/lib/date-utils"
 import { StatusTag } from "@/components/assignments/tags/status-tag"
 import { format } from "date-fns"
+import { TypeTag } from "./tags/type-tag"
 
 interface CalendarItemProps {
   assignment: assignment.LocalAssignment
@@ -14,8 +15,8 @@ interface CalendarItemProps {
 }
 
 export function CalendarItem({ assignment, onEdit, onAssignmentClick }: CalendarItemProps) {
-  
-  
+
+
   const [{ isDragging }, drag] = useDrag({
     type: "assignment",
     item: { assignment: assignment },
@@ -33,22 +34,28 @@ export function CalendarItem({ assignment, onEdit, onAssignmentClick }: Calendar
         <CardContent className="p-3">
           <div className="flex flex-col space-y-2">
 
+
             <h4 className={`text-sm font-medium truncate ${assignment.StatusName === "Done" ? "line-through text-gray-500" : "text-white"}`}>
               {assignment.Title}
             </h4>
+            
+            <div className="flex flex-col space-y-2 items-center">
 
-            <div className="flex items-center space-x-2 mt-1">
-              <div className={`w-2 h-2 rounded-full ${assignment.Course?.Color}`} />
-              <span className="text-xs text-gray-400 truncate">{assignment.Course?.Code}</span>
+              <div className="flex items-center space-x-2 mt-1">
+                <div className={`w-2 h-2 rounded-full ${assignment.Course?.Color}`} />
+                <span className="text-xs text-gray-400 truncate">{assignment.Course?.Code}</span>
+              </div>
+
+              <span className="text-xs text-gray-400">
+                <TypeTag assignment={assignment} onEdit={onEdit} />
+              </span>
             </div>
-
-            <span className="text-xs text-gray-400 self-start">
-              {format(deadline, "h:mm a")}
-            </span>
 
             <div className="mx-auto">
               <StatusTag assignment={assignment} onEdit={onEdit} />
             </div>
+
+
 
           </div>
         </CardContent>

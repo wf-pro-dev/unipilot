@@ -12,7 +12,7 @@ import (
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/notifications"
 	"unipilot/internal/models/user"
-	"unipilot/internal/storage"
+	"unipilot/internal/services/utils"
 
 	"github.com/gen2brain/beeep"
 	"github.com/robfig/cron/v3"
@@ -41,7 +41,7 @@ func NewScheduler() (*Scheduler, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Get database connection
-	db, _, err := storage.GetLocalDB()
+	db, err := utils.GetUserDB()
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("failed to get database: %w", err)

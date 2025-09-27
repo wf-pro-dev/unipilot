@@ -3,24 +3,29 @@ package fileops
 import (
 	"fmt"
 	"io"
+	"log"
 	"mime"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"unipilot/internal/models/document"
+	"unipilot/internal/services/utils"
 
 	"gorm.io/gorm"
 )
 
 // FileUploadRequest represents a file upload request
 type FileUploadRequest struct {
-	AssignmentID uint
-	UserID       uint
-	Type         document.DocumentType
-	FileName     string
-	FilePath     string
-	FileSize     int64
+	AssignmentID       uint
+	RemoteAssignmentID uint
+	UserID             uint
+	Type               document.DocumentType
+	FileName           string
+	FilePath           string
+	FileSize           int64
+	FileContent        io.Reader
+	StorageKey         string
 }
 
 // FileUploadResponse represents the result of a file upload
@@ -69,109 +74,43 @@ func GetMimeType(fileName string) string {
 }
 
 // UploadDocument handles the local file upload process
-func UploadDocument(req FileUploadRequest, db *gorm.DB) (*FileUploadResponse, error) {
-	// Validate file type
-	if err := ValidateFileType(req.FileName); err != nil {
-		return &FileUploadResponse{
-			Success: false,
-			Message: "File type not supported",
-		}, fmt.Errorf("unsupported file type")
-	}
-
-	// Validate file size
-	if req.FileSize > document.MaxFileSize {
-		return &FileUploadResponse{
-			Success: false,
-			Message: fmt.Sprintf("File size exceeds limit of %d MB", document.MaxFileSize/(1024*1024)),
-		}, fmt.Errorf("file too large")
-	}
-
-	// Create LocalDocument record
-	localDoc := document.LocalDocument{
-		AssignmentID: req.AssignmentID,
-		UserID:       req.UserID,
-		Type:         req.Type,
-		FileName:     req.FileName,
-		FileType:     GetMimeType(req.FileName),
-		FileSize:     req.FileSize,
-		Version:      1,
-		HasLocalFile: false, // Will be set to true after successful file write
-	}
-
-	// Generate file path
-	appDataPath, err := document.GetAppDataPath()
-	if err != nil {
-		return &FileUploadResponse{
-			Success: false,
-			Message: "Failed to get app data path",
-		}, err
-	}
-
-	// Create unique filename with assignment and user info
-	fileName := fmt.Sprintf("doc_%d_%d_%s", req.AssignmentID, req.UserID, req.FileName)
-	filePath := filepath.Join(appDataPath, "documents", fileName)
-	localDoc.FilePath = filePath
-
-	// Check storage quota
-	var totalSize int64
-	db.Model(&document.LocalDocument{}).
-		Where("user_id = ? AND has_local_file = ?", req.UserID, true).
-		Select("COALESCE(SUM(file_size), 0)").
-		Scan(&totalSize)
-
-	if totalSize+req.FileSize > document.MaxUserQuota {
-		return &FileUploadResponse{
-			Success: false,
-			Message: fmt.Sprintf("Storage quota exceeded. Current: %d MB, Limit: %d MB",
-				totalSize/(1024*1024), document.MaxUserQuota/(1024*1024)),
-		}, fmt.Errorf("storage quota exceeded")
-	}
-
-	// Save to database first
-	if err := db.Create(&localDoc).Error; err != nil {
-		return &FileUploadResponse{
-			Success: false,
-			Message: "Failed to save document record",
-		}, err
-	}
+func WriteDocument(document *document.LocalDocument, fileContent io.Reader, db *gorm.DB) (*FileUploadResponse, error) {
 
 	// Create directory if it doesn't exist
-	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-		// Clean up database record
-		db.Delete(&localDoc)
+	if err := os.MkdirAll(filepath.Dir(document.FilePath), 0755); err != nil {
+
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Failed to create directory",
 		}, err
 	}
 
-	fileContent, err := os.Open(req.FilePath)
-	if err != nil {
-		return &FileUploadResponse{
-			Success: false,
-			Message: "Failed to open file",
-		}, err
-	}
-	defer fileContent.Close()
-
 	// Write file to disk
-	if err := writeFile(filePath, fileContent); err != nil {
+	if err := writeFile(document.FilePath, fileContent); err != nil {
 		// Clean up database record
-		db.Delete(&localDoc)
+		db.Delete(&document)
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Failed to write file",
 		}, err
 	}
+	log.Println("Writing file to disk")
 
 	// Update HasLocalFile to true after successful write
-	localDoc.HasLocalFile = true
-	db.Save(&localDoc)
+	document.HasLocalFile = true
+	if err := db.Save(&document).Error; err != nil {
+		return &FileUploadResponse{
+			Success: false,
+			Message: "Failed to update HasLocalFile",
+		}, err
+	}
+
+	log.Println("Updating HasLocalFile to true")
 
 	// Storage info is now calculated on-demand, no need to update cache
 
 	return &FileUploadResponse{
-		LocalDocument: &localDoc,
+		LocalDocument: document,
 		Success:       true,
 		Message:       "Upload successful",
 	}, nil
@@ -198,20 +137,21 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 
 	// Create new version
 	newVersion := document.LocalDocument{
-		AssignmentID: existingDoc.AssignmentID,
-		UserID:       existingDoc.UserID,
-		Type:         existingDoc.Type,
-		FileName:     req.FileName,
-		FileType:     GetMimeType(req.FileName),
-		FileSize:     req.FileSize,
-		Version:      existingDoc.Version + 1,
-		ParentDocID:  &existingDoc.ID,
-		IsOriginal:   false,
-		HasLocalFile: false,
+		AssignmentID:       existingDoc.AssignmentID,
+		RemoteAssignmentID: existingDoc.RemoteAssignmentID,
+		UserID:             existingDoc.UserID,
+		Type:               existingDoc.Type,
+		FileName:           req.FileName,
+		FileType:           GetMimeType(req.FileName),
+		FileSize:           req.FileSize,
+		Version:            existingDoc.Version + 1,
+		ParentDocID:        &existingDoc.ID,
+		IsOriginal:         false,
+		HasLocalFile:       false,
 	}
 
 	// Generate file path
-	appDataPath, err := document.GetAppDataPath()
+	documentDir, err := utils.GetDocumentDir()
 	if err != nil {
 		return &FileUploadResponse{
 			Success: false,
@@ -220,7 +160,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 	}
 
 	fileName := fmt.Sprintf("doc_%d_%d_v%d_%s", req.AssignmentID, req.UserID, newVersion.Version, req.FileName)
-	filePath := filepath.Join(appDataPath, "documents", fileName)
+	filePath := filepath.Join(documentDir, fileName)
 	newVersion.FilePath = filePath
 
 	// Save to database
@@ -268,34 +208,6 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 		Success:       true,
 		Message:       "New version uploaded successfully",
 	}, nil
-}
-
-// DownloadDocument retrieves a document file for download
-func DownloadDocument(docID uint, userID uint, db *gorm.DB) (*os.File, *document.Document, error) {
-	// Get document record
-	var doc document.Document
-	if err := db.Where("id = ? AND user_id = ?", docID, userID).First(&doc).Error; err != nil {
-		return nil, nil, fmt.Errorf("document not found or access denied")
-	}
-
-	// Check if file exists
-	if !doc.FileExists() {
-		return nil, nil, fmt.Errorf("file not found on disk")
-	}
-
-	// Get full path
-	fullPath, err := doc.GetFullPath()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get file path: %w", err)
-	}
-
-	// Open file for reading
-	file, err := os.Open(fullPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to open file: %w", err)
-	}
-
-	return file, &doc, nil
 }
 
 // DeleteDocument removes a document and its file
