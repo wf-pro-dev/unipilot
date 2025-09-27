@@ -96,8 +96,9 @@ func StartServer() {
 	http.HandleFunc("/acc-homework/course/link/request", DBMiddleware(db, AuthMiddleware(LinkRequestCourseHandler)))
 	http.HandleFunc("/acc-homework/course/link/accept", DBMiddleware(db, AuthMiddleware(AcceptLinkCourseHandler)))
 	
-	http.HandleFunc("/acc-homework/document/metadata", DBMiddleware(db, AuthMiddleware(CreateDocumentMetadataHandler)))
-	http.HandleFunc("/acc-homework/document/metadata/delete", DBMiddleware(db, AuthMiddleware(DeleteDocumentMetadataHandler)))
+	http.HandleFunc("/acc-homework/document", DBMiddleware(db, AuthMiddleware(CreateDocumentHandler)))
+	http.HandleFunc("/acc-homework/document/download", DBMiddleware(db, AuthMiddleware(DownloadDocumentHandler)))
+	http.HandleFunc("/acc-homework/document/delete", DBMiddleware(db, AuthMiddleware(DeleteDocumentHandler)))
 
 	http.HandleFunc("/acc-homework/note", DBMiddleware(db, AuthMiddleware(CreateNoteHandler)))
 	http.HandleFunc("/acc-homework/note/get", DBMiddleware(db, AuthMiddleware(GetNoteHandler)))

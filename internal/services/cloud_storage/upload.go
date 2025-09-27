@@ -93,3 +93,47 @@ func DeleteFile(key string) error {
 	return nil
 }
 
+func CopyFile(oldKey, newKey string) error {
+	
+	// Get S3 client
+	svc, err := S3Client()
+	if err != nil {
+		return err
+	}
+
+	_, err = svc.CopyObject(context.TODO(), &s3.CopyObjectInput{
+		CopySource: aws.String(fmt.Sprintf("%s/%s", Bucket, oldKey)),
+		Bucket:     aws.String(Bucket),
+		Key:        aws.String(newKey),
+    	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+	
+
+}
+
+func DownloadFile(key string) (io.Reader, error) {
+
+	// Get S3 client
+	svc, err := S3Client()
+	if err != nil {
+		return nil, err
+	}
+
+	// Download object
+	result, err := svc.GetObject(context.TODO(), &s3.GetObjectInput{
+		Bucket: aws.String(Bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	
+	return result.Body, nil
+
+}

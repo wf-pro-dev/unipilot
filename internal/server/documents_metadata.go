@@ -34,11 +34,11 @@ type DocumentMetadata struct {
 	CreatedAt    string `json:"created_at"`
 }
 
-// CreateDocumentMetadataHandler stores document metadata remotely
-func CreateDocumentMetadataHandler(w http.ResponseWriter, r *http.Request) {
+// CreateDocumentHandler stores document metadata remotely
+func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
+	
 	db := r.Context().Value("db").(*gorm.DB)
-
-	db = db.Debug()
+	
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
 		PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
@@ -59,103 +59,59 @@ func CreateDocumentMetadataHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.MultipartForm.RemoveAll() // Clean up temp files
 
-	log.Println("New document route called")
-
-	//var req struct {
-	//	AssignmentID uint   	`json:"assignment_id"`
-	//	LocalID      uint   	`json:"local_id"`
-	//	Type         string 	`json:"type"`
-	//	FileName     string 	`json:"file_name"`
-	//	FileContent  os.File 	`json:"file_content"`
-	//	FileType     string 	`json:"file_type"`
-	//	FileSize     int64  	`json:"file_size"`
-	//}
-
-	assignment_id, _ :=  strconv.Atoi(r.FormValue("assignment_id"))
-	local_id, _ :=  strconv.Atoi(r.FormValue("local_id"))
-	doc_type := r.FormValue("type")
-	filename := r.FormValue("file_name")
-	filetype := r.FormValue("file_type")
-	local_filepath := r.FormValue("file_path")
-	filesize, _ := strconv.Atoi(r.FormValue("file_size"))
-
-
-	// Get the file from form
-	file, fileHeader, err := r.FormFile("file")
-	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, "Unable to get file from form: "+err.Error())
+	metadata := r.FormValue("metadata")
+	if metadata == "" {
+		PrintERROR(w, http.StatusBadRequest, "Unable to get metadata from form: "+err.Error())
 		return
 	}
-	defer file.Close()
 
-	fileName := fileHeader.Filename
-	fileSize := fileHeader.Size
-
+	 // Parse metadata directly into LocalDocument
+    	
+	var localDoc document.LocalDocument
+   	err = json.Unmarshal([]byte(metadata), &localDoc)
+	if err != nil {
+        	PrintERROR(w, http.StatusBadRequest, "Invalid metadata format: "+err.Error())
+       		return
+    	}
 	
-	log.Printf("File name: %s, file size: %d, local_id : %d", fileName, fileSize, local_id)
-	// Use configuration directory
-	configDir, err := os.UserConfigDir()
-	if err != nil {
-		return
-	}
-
-	configDir = filepath.Join(configDir,"unipilot")
 
 	// Create user, assignment  directory 
-	assignmentDir := fmt.Sprintf("users_data/user_%d/documents/assign_%d", userID, assignment_id)
+	assignmentDir := fmt.Sprintf("users_data/user_%d/documents/assign_%d", userID, localDoc.RemoteAssignmentID)
 
 	// Generate unique filename
-	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().Unix(), filename)
-	key := fmt.Sprintf("%s/%s", assignmentDir, uniqueFileName)
+	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().Unix(), localDoc.FileName)
 
-	filePath := filepath.Join(configDir, uniqueFileName)
+	newKey := fmt.Sprintf("%s/%s", assignmentDir, uniqueFileName)
 
-	// Save file to disk
-	destFile, err := os.Create(filePath)
-	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, "Unable to create destination file")
-		return
+	if localDoc.HasLocalFile {
+		if err := UploadFile(localDoc, newKey, w, r); err != nil {
+			PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to upload file: %v",err))
+			return
+		}
+	} else {
+
+		// Copy file in aws S3
+		if err := cloudstorage.CopyFile(localDoc.StorageKey, newKey); err != nil {
+			PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to copy file: %v",err))
+			return
+		}
+
 	}
-	defer destFile.Close()
-
-	// Copy file content
-	bytesWritten, err := io.Copy(destFile, file)
-	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, "Error saving file")
-		return
-	}
-
-	log.Printf("File saved: %s (%d bytes)", filePath, bytesWritten)
-
-	// Upload to aws S3
-	if err := cloudstorage.UploadFile(filePath, uniqueFileName, key); err != nil {
-		
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to upload file: %v",err))
-		return
-	}
-
-	// Clean up local file after S3 upload
-	os.Remove(filePath)
-
-	//if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-	//	PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
-	//	return
-	//}
-
 
 	// Create document metadata record
 	doc := &document.Document{
-		AssignmentID: uint(assignment_id),
-		LocalID:      uint(local_id),
+		AssignmentID: localDoc.RemoteAssignmentID,
+		LocalAssignmentID: localDoc.AssignmentID,
+		LocalID:      localDoc.ID,
 		UserID:       userID,
-		Type:         document.DocumentType(doc_type),
-		FileName:     filename,
-		FileType:     filetype,
-		FileSize:     int64(filesize),
-		Version:      1,
-		IsOriginal:   true,
-		FilePath:     local_filepath,
-		StorageKey:   key,
+		Type:         localDoc.Type, 
+		FileName:     localDoc.FileName,
+		FileType:     localDoc.FileType,
+		FileSize:     localDoc.FileSize,
+		Version:      localDoc.Version,
+		IsOriginal:   localDoc.IsOriginal,
+		FilePath:     localDoc.FilePath,
+		StorageKey:   newKey,
 	}
 
 	if err := db.Create(doc).Error; err != nil {
@@ -174,6 +130,130 @@ func CreateDocumentMetadataHandler(w http.ResponseWriter, r *http.Request) {
 		"success":  true,
 		"document": doc,
 	})
+}
+
+func UploadFile(localDoc document.LocalDocument, key string, w http.ResponseWriter, r *http.Request) error  {
+
+	// Get the file from form
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		PrintERROR(w, http.StatusBadRequest, "Unable to get file from form: "+err.Error())
+		return err
+	}
+	defer file.Close()
+
+	log.Printf("File name: %s, file size: %d, local_id : %d", localDoc.FileName, localDoc.FileSize, localDoc.ID)
+	// Use configuration directory
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return err
+	}
+
+	configDir = filepath.Join(configDir,"unipilot")
+	filePath := filepath.Join(configDir, key)
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+	    return fmt.Errorf("failed to create directory: %w", err)
+	}
+	// Save file to disk
+	destFile, err := os.Create(filePath)
+	if err != nil {
+		PrintERROR(w, http.StatusInternalServerError, "Unable to create destination file")
+		return err
+	}
+	defer destFile.Close()
+
+	// Copy file content
+	bytesWritten, err := io.Copy(destFile, file)
+	if err != nil {
+		PrintERROR(w, http.StatusInternalServerError, "Error saving file")
+		return err
+	}
+
+	log.Printf("File saved: %s (%d bytes)", filePath, bytesWritten)
+
+	// Upload to aws S3
+	if err := cloudstorage.UploadFile(filePath, localDoc.FileName, key); err != nil {
+		
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to upload file: %v",err))
+		return err
+	}
+
+	// Clean up local file after S3 upload
+	os.Remove(filePath)
+
+	return nil
+}
+
+// DownloadDocumentHandler stores document metadata remotely
+func DownloadDocumentHandler(w http.ResponseWriter, r *http.Request) {
+	
+	
+/*	userIDVal := r.Context().Value("user_id")
+	if userIDVal == nil {
+		PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
+		return
+	}
+
+	userID, ok := userIDVal.(uint)
+	if !ok {
+		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
+		return
+	}
+*/
+	var err error
+
+	var docData document.LocalDocument
+	if err := json.NewDecoder(r.Body).Decode(&docData); err != nil {
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		return
+	}
+	
+	// 1. Download file content
+	
+	// Donwload from aws S3
+	var fileReader io.Reader
+	if fileReader, err = cloudstorage.DownloadFile(docData.StorageKey); err != nil {
+		
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to downloadfile: %v",err))
+		return
+	}
+	
+	/*filePath := filepath.Join(configDir, uniqueFileName)
+	
+	// Save file to disk
+	destFile, err := os.Create(filePath)
+	if err != nil {
+		PrintERROR(w, http.StatusInternalServerError, "Unable to create destination file")
+		return
+	}
+	defer destFile.Close()
+
+	// Copy file content
+	bytesWritten, err := io.Copy(destFile, file)
+	if err != nil {
+		PrintERROR(w, http.StatusInternalServerError, "Error saving file")
+		return
+	}
+
+	log.Printf("File saved: %s (%d bytes)", filePath, bytesWritten)
+
+	// Clean up local file after S3 upload
+	os.Remove(filePath)*/
+
+	// Set appropriate headers for file download
+    	w.Header().Set("Content-Type", "application/octet-stream")
+    	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", docData.FileName))
+    	w.Header().Set("Content-Length", strconv.FormatInt(docData.FileSize, 10))
+ 	w.WriteHeader(http.StatusOK)
+
+    	// Stream file directly to response
+    	bytesCopied, err := io.Copy(w, fileReader)
+    	if err != nil {
+        log.Printf("Error streaming file: %v", err)
+        	return
+    	}
+    	log.Printf("Successfully streamed file: %s (%d bytes)", docData.FileName, bytesCopied)
+
 }
 
 // GetAssignmentDocumentsHandler retrieves document metadata for an assignment
@@ -241,10 +321,10 @@ func GetAssignmentDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// DeleteDocumentMetadataHandler removes document metadata
-func DeleteDocumentMetadataHandler(w http.ResponseWriter, r *http.Request) {
+// DeleteDocumentHandler removes document metadata
+func DeleteDocumentHandler(w http.ResponseWriter, r *http.Request) {
+	
 	db := r.Context().Value("db").(*gorm.DB)
-	db = db.Debug()
 
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
@@ -273,7 +353,7 @@ func DeleteDocumentMetadataHandler(w http.ResponseWriter, r *http.Request) {
 	// Delete the document on S3
 	if err := cloudstorage.DeleteFile(doc.FilePath); err != nil {
 	
-		PrintERROR(w, http.StatusNotFound, fmt.Sprint("Failed to delete document on AWS/S3i: %v",err))
+		PrintERROR(w, http.StatusNotFound, fmt.Sprintf("Failed to delete document on AWS S3: %v",err))
 		return
 	}
 

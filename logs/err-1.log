@@ -4059,3 +4059,73 @@
 2025-09-25T10:41:24: 2025/09/25 10:41:24 [INFO] user_id %!s(uint=1) course 23 column link_id value c21d8470-d466-4ce0-ad82-397b0427663b
 2025-09-25T10:41:36: 2025/09/25 10:41:36 [INFO] user_id %!s(uint=1) course 23 column link_id value c21d8470-d466-4ce0-ad82-397b0427663b
 2025-09-25T10:47:41: 2025/09/25 10:47:41 [INFO] user_id %!s(uint=1) course 23 column link_id value c21d8470-d466-4ce0-ad82-397b0427663b
+2025-09-25T19:09:58: 2025/09/25 19:09:58 Server listening on :3000...
+2025-09-25T19:10:04: 2025/09/25 19:10:04 Server listening on :3000...
+2025-09-25T19:10:12: 2025/09/25 19:10:12 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-25T19:10:22: 2025/09/25 19:10:22 [INFO] SSE connection attempt from 127.0.0.1:54700
+2025-09-25T19:10:22: 2025/09/25 19:10:22 [INFO] New SSE user id : 1
+2025-09-25T19:10:22: 2025/09/25 19:10:22 [INFO] Active Clients: map[1:0xc000409ce0]
+2025-09-25T19:11:42: 2025/09/25 19:11:42 Error 404, Message: Publisher Model `projects/generativelanguage-ga/locations/us-central1/publishers/google/models/gemini-1.5-flash-002` was not found or your project does not have access to it. Please ensure you are using a valid model version. For more information, see: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions, Status: NOT_FOUND, Details: []
+2025-09-25T19:11:42: 2025/09/25 19:11:42 Server listening on :3000...
+2025-09-25T19:11:43: 2025/09/25 19:11:43 Error 404, Message: Publisher Model `projects/generativelanguage-ga/locations/us-central1/publishers/google/models/gemini-1.5-flash-002` was not found or your project does not have access to it. Please ensure you are using a valid model version. For more information, see: https://cloud.google.com/vertex-ai/generative-ai/docs/learn/model-versions, Status: NOT_FOUND, Details: []
+2025-09-25T19:11:43: 2025/09/25 19:11:43 Server listening on :3000...
+2025-09-25T19:11:47: 2025/09/25 19:11:47 [INFO] SSE connection attempt from 127.0.0.1:40528
+2025-09-25T19:11:47: 2025/09/25 19:11:47 [INFO] New SSE user id : 1
+2025-09-25T19:11:47: 2025/09/25 19:11:47 [INFO] Active Clients: map[1:0xc000392180]
+2025-09-25T19:38:56: 2025/09/25 19:38:56 Server listening on :3000...
+2025-09-25T19:39:01: 2025/09/25 19:39:01 [INFO] SSE connection attempt from 127.0.0.1:58980
+2025-09-25T19:39:01: 2025/09/25 19:39:01 [INFO] New SSE user id : 1
+2025-09-25T19:39:01: 2025/09/25 19:39:01 [INFO] Active Clients: map[1:0xc000392180]
+2025-09-25T23:59:16: 2025/09/25 23:59:16 [INFO] Client 1 disconnected (context canceled)
+2025-09-25T23:59:16: 2025/09/25 23:59:16 [INFO] Removing client 1 (reason: connection closing)
+2025-09-26T00:33:13: 2025/09/26 00:33:13 [INFO] SSE connection attempt from 127.0.0.1:50738
+2025-09-26T00:33:13: 2025/09/26 00:33:13 [INFO] New SSE user id : 1
+2025-09-26T00:33:13: 2025/09/26 00:33:13 [INFO] Active Clients: map[1:0xc000392a80]
+2025-09-26T00:50:32: 2025/09/26 00:50:32 [INFO] Client 1 disconnected (context canceled)
+2025-09-26T00:50:32: 2025/09/26 00:50:32 [INFO] Removing client 1 (reason: connection closing)
+2025-09-26T01:40:42: 2025/09/26 01:40:42 [INFO] SSE connection attempt from 127.0.0.1:48928
+2025-09-26T01:40:42: 2025/09/26 01:40:42 [INFO] New SSE user id : 1
+2025-09-26T01:40:42: 2025/09/26 01:40:42 [INFO] Active Clients: map[1:0xc000393320]
+2025-09-26T01:57:26: 2025/09/26 01:57:26 [INFO] Client 1 disconnected (context canceled)
+2025-09-26T01:57:26: 2025/09/26 01:57:26 [INFO] Removing client 1 (reason: connection closing)
+2025-09-26T02:15:31: 2025/09/26 02:15:31 [INFO] SSE connection attempt from 127.0.0.1:59012
+2025-09-26T02:15:31: 2025/09/26 02:15:31 [INFO] New SSE user id : 1
+2025-09-26T02:15:31: 2025/09/26 02:15:31 [INFO] Active Clients: map[1:0xc000393bc0]
+2025-09-26T02:32:19: 2025/09/26 02:32:19 [INFO] Client 1 disconnected (context canceled)
+2025-09-26T02:32:19: 2025/09/26 02:32:19 [INFO] Removing client 1 (reason: connection closing)
+2025-09-26T03:01:00: 2025/09/26 03:01:00 [INFO] SSE connection attempt from 127.0.0.1:43074
+2025-09-26T03:01:00: 2025/09/26 03:01:00 [INFO] New SSE user id : 1
+2025-09-26T03:01:00: 2025/09/26 03:01:00 [INFO] Active Clients: map[1:0xc0003b64e0]
+2025-09-26T03:17:47: 2025/09/26 03:17:47 [INFO] Client 1 disconnected (context canceled)
+2025-09-26T03:17:47: 2025/09/26 03:17:47 [INFO] Removing client 1 (reason: connection closing)
+2025-09-26T03:45:04: 2025/09/26 03:45:04 [INFO] SSE connection attempt from 127.0.0.1:36774
+2025-09-26T03:45:04: 2025/09/26 03:45:04 [INFO] New SSE user id : 1
+2025-09-26T03:45:04: 2025/09/26 03:45:04 [INFO] Active Clients: map[1:0xc0003b6d80]
+2025-09-26T04:01:57: 2025/09/26 04:01:57 [INFO] Client 1 disconnected (context canceled)
+2025-09-26T04:01:57: 2025/09/26 04:01:57 [INFO] Removing client 1 (reason: connection closing)
+2025-09-26T04:46:00: 2025/09/26 04:46:00 [INFO] SSE connection attempt from 127.0.0.1:55146
+2025-09-26T04:46:00: 2025/09/26 04:46:00 [INFO] New SSE user id : 1
+2025-09-26T04:46:00: 2025/09/26 04:46:00 [INFO] Active Clients: map[1:0xc0003b7620]
+2025-09-26T05:02:55: 2025/09/26 05:02:55 [INFO] Client 1 disconnected (context canceled)
+2025-09-26T05:02:55: 2025/09/26 05:02:55 [INFO] Removing client 1 (reason: connection closing)
+2025-09-26T05:34:37: 2025/09/26 05:34:37 [INFO] SSE connection attempt from 127.0.0.1:33322
+2025-09-26T05:34:37: 2025/09/26 05:34:37 [INFO] New SSE user id : 1
+2025-09-26T05:34:37: 2025/09/26 05:34:37 [INFO] Active Clients: map[1:0xc0003b7ec0]
+2025-09-26T05:52:16: 2025/09/26 05:52:16 [INFO] Client 1 disconnected (context canceled)
+2025-09-26T05:52:16: 2025/09/26 05:52:16 [INFO] Removing client 1 (reason: connection closing)
+2025-09-26T06:00:09: 2025/09/26 06:00:09 [INFO] SSE connection attempt from 127.0.0.1:54226
+2025-09-26T06:00:09: 2025/09/26 06:00:09 [INFO] New SSE user id : 1
+2025-09-26T06:00:09: 2025/09/26 06:00:09 [INFO] Active Clients: map[1:0xc0003da7e0]
+2025-09-26T06:16:59: 2025/09/26 06:16:59 [INFO] Client 1 disconnected (context canceled)
+2025-09-26T06:16:59: 2025/09/26 06:16:59 [INFO] Removing client 1 (reason: connection closing)
+2025-09-26T06:33:55: 2025/09/26 06:33:55 [INFO] SSE connection attempt from 127.0.0.1:35370
+2025-09-26T06:33:55: 2025/09/26 06:33:55 [INFO] New SSE user id : 1
+2025-09-26T06:33:55: 2025/09/26 06:33:55 [INFO] Active Clients: map[1:0xc0003db080]
+2025-09-26T06:50:42: 2025/09/26 06:50:42 [INFO] Client 1 disconnected (context canceled)
+2025-09-26T06:50:42: 2025/09/26 06:50:42 [INFO] Removing client 1 (reason: connection closing)
+2025-09-26T07:30:05: 2025/09/26 07:30:05 [INFO] SSE connection attempt from 127.0.0.1:36110
+2025-09-26T07:30:05: 2025/09/26 07:30:05 [INFO] New SSE user id : 1
+2025-09-26T07:30:05: 2025/09/26 07:30:05 [INFO] Active Clients: map[1:0xc0003db920]
+2025-09-26T08:51:22: 2025/09/26 08:51:22 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-26T10:18:00: 2025/09/26 10:18:00 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-26T13:51:10: 2025/09/26 13:51:10 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
