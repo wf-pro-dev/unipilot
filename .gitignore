@@ -21,7 +21,6 @@ profile.cov
 # vendor/
 
 # logs (server)
-
 logs
 
 # Go workspace file
@@ -35,11 +34,18 @@ go.work.sum
 # .idea/
 # .vscode/
 
-# Wails (frontend)
+# Wails (frontend) /
 node_module
 package*
+build
 
+# frontend/
+ 
 frontend/node_module
 frontend/package*
+frontend/dist
+
+build
+
 
 

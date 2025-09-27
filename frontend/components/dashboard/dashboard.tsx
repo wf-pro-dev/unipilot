@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { StatsCards } from "../dashboard/stats-cards"
-import { WelcomeSection } from "./welcome-section"
 import { useAuthContext } from "../provider/auth-provider"
 import { BookOpen, Calendar, ClipboardList, FileText, MapPin, Users, CheckCircle2, Dot, ChevronLeft, ChevronRight, Clock } from "lucide-react"
-import { getNextCourse } from "@/lib/date-utils"
+import { getDueDescription, getNextCourse, parseDeadline } from "@/lib/date-utils"
 import { useCoursesBySemester } from "@/hooks/use-courses"
 import { Card, CardContent, CardHeader, CardFooter } from "../ui/card"
 import { Button } from "../ui/button"
@@ -20,7 +19,6 @@ import { DndProvider, useDrop } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
 import { useNotes } from "@/hooks/use-notes"
 import useEmblaCarousel from 'embla-carousel-react'
-import Link from "next/link"
 
 
 export function Dashboard() {
@@ -253,10 +251,11 @@ export function Dashboard() {
                                 </CardHeader>
                                 {course ? (
                                     <CardContent className="flex-1 space-y-4">
-                                        <div className="flex flex-row items-center gap-2">
-                                            <div className={`h-2 w-2  rounded-full ${course?.Color}`} />
-                                            <div className="font-semibold truncate">
-                                                {course?.Code}
+                                        <div key={course.ID} className="flex items-center space-x-3">
+                                            <div className={`w-2 h-2 rounded-full ${course.Color}`} />
+                                            <div className="flex-1">
+                                                <p className="text-xs font-medium text-gray-300">{course.Code}</p>
+                                                <p className="text-sm text-white">{course.Name}</p>
                                             </div>
                                         </div>
 
@@ -265,10 +264,15 @@ export function Dashboard() {
                                                 <Clock className="w-4 h-4 text-white" />
 
                                                 <div className="flex flex-row space-x-1 text-xs text-white">
+
+                                                    {!isOn &&
+                                                        <span>In </span>
+                                                    }
+
                                                     {daysUntil > 0 && (
                                                         <div className="flex flex-row space-x-1">
                                                             <span className="font-semibold">{daysUntil}</span>
-                                                            <span>day{daysUntil > 1 ? "s," : ","}</span>
+                                                            <span> d,</span>
                                                         </div>
 
                                                     )}
@@ -276,12 +280,16 @@ export function Dashboard() {
                                                     {hoursUntil > 0 && (
                                                         <div className="flex flex-row space-x-1">
                                                             <span className="font-semibold">{hoursUntil}</span>
-                                                            <span>hour{hoursUntil > 1 ? "s," : ","}</span>
+                                                            <span> h,</span>
                                                         </div>
                                                     )}
-
-                                                    <span className="font-semibold">{minutesUntil}</span>
-                                                    <span>minute{minutesUntil > 1 ? "s" : ""} left{isOn ? " in class" : ""}</span>
+                                                    <div className="flex flex-row space-x-1">
+                                                        <span className="font-semibold">{minutesUntil}</span>
+                                                        <span>min</span>
+                                                    </div>
+                                                    {isOn &&
+                                                        <span> left in class</span>
+                                                    }
 
                                                 </div>
 
@@ -373,27 +381,50 @@ export function Dashboard() {
                                     </p>
                                 </CardHeader>
                                 <CardContent className="flex-1 space-y-4 overflow-scroll">
-                                    {UpcomingExams.length > 0 ? (
-                                        UpcomingExams
-                                            .map((exam) => (
-                                                <div key={exam.ID} className="flex flex-row items-center">
-                                                    <Dot className="h-6 w-6 text-white" />
-                                                    <div className="flex flex-col">
-                                                        <div className="text-xs text-gray-400">
-                                                            {exam.CourseCode}
+                                    <div className="flex flex-col gap-4">
+                                        {UpcomingExams.length > 0 ? (
+                                            UpcomingExams
+                                                .sort((a, b) => {
+                                                    return new Date(a.Deadline).getTime() - new Date(b.Deadline).getTime()
+                                                })
+                                                .slice(0, 3)
+                                                .map((exam) => (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="flex-1 bg-transparent border-gray-600 py-2 text-xs justify-start"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            router.push(`/assignments?view=exam&assignment=${exam.ID}`)
+                                                        }}
+                                                    >
+                                                        <div key={exam.ID} className="flex flex-row items-center space-x-2 w-full">
+                                                            <Dot className="h-6 w-6 text-white" />
+                                                            <div className="flex flex-col items-start w-full">
+
+                                                                <div className="flex flex-row w-full items-center justify-between">
+                                                                    <div className="text-[10px] text-gray-300 font-medium">
+                                                                        {exam.CourseCode}
+                                                                    </div>
+                                                                    <div className="text-[10px] text-gray-300 font-medium">
+                                                                        {getDueDescription(parseDeadline(exam.Deadline), exam.StatusName)}
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="text-xs font-medium text-white">
+                                                                    {exam.Title}
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div className="text-sm font-medium text-white">
-                                                            {exam.Title}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))
-                                    ) : (
-                                        <div className="flex flex-col gap-4 items-center justify-center h-full">
-                                            <Calendar className="h-12 w-12 text-white/20 mx-auto" />
-                                            <p className="text-xs text-gray-400">No exams found</p>
-                                        </div>
-                                    )}
+                                                    </Button>
+                                                ))
+                                        ) : (
+                                            <div className="flex flex-col gap-4 items-center justify-center h-full">
+                                                <Calendar className="h-12 w-12 text-white/20 mx-auto" />
+                                                <p className="text-xs text-gray-400">No exams found</p>
+                                            </div>
+                                        )}
+                                    </div>
                                 </CardContent>
                                 <CardFooter className="flex space-x-2">
                                     <Button

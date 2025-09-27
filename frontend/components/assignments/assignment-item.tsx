@@ -17,7 +17,7 @@ interface AssignmentItemProps {
   assignment: assignment.LocalAssignment
   onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
   onToggleComplete: (assignment: assignment.LocalAssignment) => void
-  onAssignmentClick?: (assignment: assignment.LocalAssignment) => void
+  onAssignmentClick?: (assignment: assignment.LocalAssignment) => void  
   onDelete: (assignment: assignment.LocalAssignment) => void
   onOpenEdit: (assignment: assignment.LocalAssignment) => void
   disabled?: boolean
@@ -39,7 +39,7 @@ export function AssignmentItem({
   onEdit,
   onDelete,
   onToggleComplete,
-  onAssignmentClick,
+  onAssignmentClick,  
   onOpenEdit,
   disabled = false
 }: AssignmentItemProps) {

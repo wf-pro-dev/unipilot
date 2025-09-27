@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AssignmentsCalendar } from "@/components/assignments/assignments-calendar"
@@ -42,7 +42,7 @@ export default function AssignmentsPage() {
   const deleteMutation = useDeleteAssignment()
   const createMutation = useCreateAssignment()
 
-  const [selectedAssignment, setSelectedAssignment] = useState<assignment.LocalAssignment | null>(null)
+  const [selectedAssignmentID, setSelectedAssignmentID] = useState<number | null>(null)
   const [selectedAssignmentEdit, setSelectedAssignmentEdit] = useState<assignment.LocalAssignment | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
 
@@ -59,6 +59,20 @@ export default function AssignmentsPage() {
   const courseFilter = searchParams.get("course") || null
   const statusFilter = searchParams.get("status") || null
   const priorityFilter = searchParams.get("priority") || null
+  const currentAssignment = searchParams.get("assignment") || null
+
+  useEffect(() => {
+    if (currentAssignment) {
+      const assignment = assignments?.find((assignment) => assignment.ID === parseInt(currentAssignment))
+      if (assignment) {
+        setSelectedAssignmentID(assignment.ID)
+      }
+    }
+  }, [currentAssignment, assignments])
+
+  const handleAssignmentClick = (assignment: assignment.LocalAssignment) => {
+    setSelectedAssignmentID(assignment.ID)
+  }
 
   console.log("filter (page)", { courseFilter, statusFilter, priorityFilter })
 
@@ -202,7 +216,7 @@ export default function AssignmentsPage() {
               title="Today's Assignments"
               assignments={todayAssignments}
               onToggleComplete={handleToggleComplete}
-              onAssignmentClick={setSelectedAssignment}
+              onAssignmentClick={handleAssignmentClick}
               onEdit={handleEditAssignment} 
               onDelete={handleDeleteAssignment}
               onOpenEdit={setSelectedAssignmentEdit}
@@ -215,7 +229,7 @@ export default function AssignmentsPage() {
               title="Due This Week"
               assignments={weekAssignments}
               onToggleComplete={handleToggleComplete}
-              onAssignmentClick={setSelectedAssignment}
+              onAssignmentClick={handleAssignmentClick}
               onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               onOpenEdit={setSelectedAssignmentEdit}
@@ -228,7 +242,7 @@ export default function AssignmentsPage() {
               title="Overdue Assignments"
               assignments={overdueAssignments}
               onToggleComplete={handleToggleComplete}
-              onAssignmentClick={setSelectedAssignment}
+              onAssignmentClick={handleAssignmentClick}
               onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               onOpenEdit={setSelectedAssignmentEdit}
@@ -241,7 +255,7 @@ export default function AssignmentsPage() {
               title="Exam Assignments"
               assignments={examAssignments}
               onToggleComplete={handleToggleComplete}
-              onAssignmentClick={setSelectedAssignment}
+              onAssignmentClick={handleAssignmentClick}
               onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               onOpenEdit={setSelectedAssignmentEdit}
@@ -255,7 +269,7 @@ export default function AssignmentsPage() {
               onAddAssignment={() => { }}
               onEdit={handleEditAssignment}
               onMoveAssignment={handleMoveAssignment}
-              onAssignmentClick={setSelectedAssignment}
+              onAssignmentClick={handleAssignmentClick}
               onDateClick={setSelectedDate}
               isLoading={isLoading}
             />
@@ -267,7 +281,7 @@ export default function AssignmentsPage() {
               onToggleComplete={handleToggleComplete}
               onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
-              onAssignmentClick={setSelectedAssignment}
+              onAssignmentClick={handleAssignmentClick}
               onOpenEdit={setSelectedAssignmentEdit}
               filter={{ course: courseFilter || "all", status: statusFilter || "all", priority: priorityFilter || "all" }}
               isLoading={isLoading}
@@ -276,9 +290,9 @@ export default function AssignmentsPage() {
         </Tabs>
 
         <AssignmentDetailsModal
-          isOpen={!!selectedAssignment}
-          onClose={() => setSelectedAssignment(null)}
-          assignment_id={selectedAssignment?.ID}
+          isOpen={!!selectedAssignmentID}
+          onClose={() => setSelectedAssignmentID(null)}
+          assignment_id={selectedAssignmentID!}  
           onOpenEdit={setSelectedAssignmentEdit}
           onEdit={handleEditAssignment}
           onDelete={handleDeleteAssignment}
@@ -293,7 +307,8 @@ export default function AssignmentsPage() {
           onAddAssignment={() => { }}
           onEdit={handleEditAssignment}
           onDelete={handleDeleteAssignment}
-          onAssignmentClick={setSelectedAssignment}
+          onAssignmentClick={handleAssignmentClick}
+          onOpenEdit={setSelectedAssignmentEdit}
           isLoading={updateMutation.isPending}
         />
 

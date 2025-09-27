@@ -18,12 +18,11 @@ type LocalDocument struct {
 	FileType           string       `gorm:"not null"`
 	FilePath           string       // Local file path (only if we have the file)
 	FileSize           int64        `gorm:"not null"`
-	StorageKey         string       `gorm:"unique"` // Only for remote storage
+	StorageKey         string       `gorm:"unique"`
 	Version            int          `gorm:"default:1"`
 	ParentDocID        *uint        `gorm:"index"`
 	IsOriginal         bool         `gorm:"default:true"`
 	HasLocalFile       bool         `gorm:"default:false"` // Do we have the actual file locally?
-	LastSyncAt         *time.Time   // When we last synced metadata from remote
 
 	// Local relationships
 	ParentDoc *LocalDocument  `gorm:"foreignKey:ParentDocID;references:ID"`
@@ -66,8 +65,6 @@ func (ld *LocalDocument) FromRemoteDocument(rd *Document, hasLocalFile bool) {
 	ld.ParentDocID = rd.ParentDocID
 	ld.IsOriginal = rd.IsOriginal
 	ld.HasLocalFile = hasLocalFile
-	now := time.Now()
-	ld.LastSyncAt = &now
 }
 
 // GetLocalDocumentsByAssignment retrieves all local documents for an assignment

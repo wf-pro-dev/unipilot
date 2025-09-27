@@ -3,6 +3,9 @@ module unipilot
 go 1.25
 
 require (
+	github.com/aws/aws-sdk-go-v2 v1.39.0
+	github.com/aws/aws-sdk-go-v2/config v1.31.8
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.1
 	github.com/gen2brain/beeep v0.11.1
 	github.com/gen2brain/malgo v0.11.23
 	github.com/gomarkdown/markdown v0.0.0-20250731182530-5d03d1963446

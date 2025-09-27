@@ -9,6 +9,7 @@ import (
 	"time"
 	"unipilot/internal/client"
 	"unipilot/internal/models/user"
+	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
 	"unipilot/internal/storage"
 )
@@ -67,9 +68,9 @@ func (a *Auth) Register(username, email, password, university, language string) 
 
 	response_user.ID = uint(response.User["id"].(float64))
 
-	// Store credentials first
-	if err := storage.StoreCredentials(response_user); err != nil {
-		return nil, fmt.Errorf("failed to store credentials: %w", err)
+	// Store the user in credentials
+	if err := utils.SetCredentials(&response_user); err != nil {
+		return nil, fmt.Errorf("failed to set credentials: %w", err)
 	}
 
 	// Initialize the SSE connection early to ensure it's never nil
@@ -77,7 +78,7 @@ func (a *Auth) Register(username, email, password, university, language string) 
 
 	// Now try to get the local database and migrate data
 	// But handle the case where it might fail gracefully
-	localDB, _, err := storage.GetLocalDB()
+	localDB, err := utils.GetUserDB()
 	if err != nil {
 		// If we can't get the local database, just log it and continue
 		// This might happen if the database directory doesn't exist yet
@@ -85,9 +86,6 @@ func (a *Auth) Register(username, email, password, university, language string) 
 		fmt.Printf("Login successful, but database operations failed\n")
 		return &response_user, nil // Don't fail the login, just return success
 	}
-
-	a.LocalDB = localDB
-
 	// Initialize the database schema
 	if err := storage.InitializeSchema(localDB); err != nil {
 		fmt.Printf("Warning: Failed to initialize database schema: %v\n", err)

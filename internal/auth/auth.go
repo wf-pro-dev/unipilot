@@ -1,29 +1,42 @@
 package auth
 
 import (
+	"log"
 	"net/http"
+	"unipilot/internal/client"
 	"unipilot/internal/models/user"
+	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
-	"unipilot/internal/storage"
-
-	"gorm.io/gorm"
 )
 
 type Auth struct {
-	Client  *http.Client
-	SSE     *sse.SSE
-	LocalDB *gorm.DB
+	Client *http.Client
+	SSE    *sse.SSE
+	User   *user.User
 }
 
 func NewAuth() *Auth {
+	newAuth := &Auth{
+		Client: nil,
+		SSE:    nil,
+		User:   nil,
+	}
 
-	return &Auth{}
+	currentUser, err := utils.GetUserFromFile()
+	if err == nil {
+		newAuth.User = currentUser
+
+		newAuth.Client, err = client.NewClientWithCookies()
+		if err != nil {
+			log.Println("Error creating client: ", err)
+		}
+
+		log.Printf("Auth: %v", newAuth.Client)
+	}
+
+	return newAuth
 }
 
-func (a *Auth) IsAuthenticated() (*user.User, error) {
-	user, err := storage.GetCurrentUser()
-	if err != nil {
-		return nil, err
-	}
-	return user, nil
+func (a *Auth) IsAuthenticated() bool {
+	return a.User != nil
 }

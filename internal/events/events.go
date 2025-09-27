@@ -5,15 +5,19 @@ import (
 	"log"
 
 	"unipilot/internal/sse"
+
+	"gorm.io/gorm"
 )
 
 type Events struct {
 	stopChan chan struct{}
+	DB       *gorm.DB
 }
 
-func NewEvents() *Events {
+func NewEvents(db *gorm.DB) *Events {
 	return &Events{
 		stopChan: make(chan struct{}),
+		DB:       db,
 	}
 }
 

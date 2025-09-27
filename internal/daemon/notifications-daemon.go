@@ -8,8 +8,8 @@ import (
 	"syscall"
 	"unipilot/internal/client"
 	"unipilot/internal/services/notifications"
+	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
-	"unipilot/internal/storage"
 )
 
 func main() {
@@ -19,7 +19,7 @@ func main() {
 	)
 	flag.Parse()
 
-	user, err := storage.GetCurrentUser()
+	user, err := utils.GetUserFromFile()
 	if err != nil {
 		log.Fatalf("Failed to get current user: %v", err)
 	}
@@ -49,7 +49,7 @@ func main() {
 	}
 
 	// Create and start event handler
-	eventHandler, err := notifications.NewEventHandler(*userID)
+	eventHandler, err := notifications.NewEventHandler(user.ID)
 	if err != nil {
 		log.Fatalf("Failed to create event handler: %v", err)
 	}

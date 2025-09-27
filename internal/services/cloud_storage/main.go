@@ -26,6 +26,7 @@ func S3Client() (*s3.Client, error) {
 
 	// Load default config
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(os.Getenv("AWS_REGION")))
+
 	if err != nil {
 		fmt.Println("Error loading default config:", err)
 		return nil, err
@@ -36,4 +37,3 @@ func S3Client() (*s3.Client, error) {
 
 	return svc, nil
 }
-
