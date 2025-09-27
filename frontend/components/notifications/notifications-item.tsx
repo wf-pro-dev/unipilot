@@ -72,6 +72,12 @@ export function NotificationsItem({ notification }: NotificationsItemProps) {
 
             }
         },
+        "assignment": {
+            ButtonText: "Add", ShowButton: true, OnClick: () => {
+                setIsModalOpen(true)
+
+            }
+        },
     }
 
 

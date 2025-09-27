@@ -258,6 +258,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 	}
 
 	tx.Commit()
+
 	return localAssignment, nil
 }
 

@@ -158,39 +158,23 @@ func (eh *EventHandler) HandleSyncNotification(notification notifications.LocalN
 }
 
 // HandleAssignmentNotification processes real-time assignment events
-func (eh *EventHandler) HandleAssignmentNotification(data json.RawMessage, message string) {
-	log.Printf("[EventHandler] Processing assignment notification: %s", message)
+func (eh *EventHandler) HandleAssignmentNotification(notification notifications.LocalNotification) {
+	log.Printf("[EventHandler] Processing assignment notification: %s", notification.Message)
+	log.Printf("[EventHandler] Data: %s", string(notification.Data))
 
-	var assignmentData struct {
-		ID         uint   `json:"id"`
-		Title      string `json:"title"`
-		CourseCode string `json:"course_code"`
-		Action     string `json:"action"` // create, update, delete
-	}
+	notification.Type = notifications.NotificationAssignment
+	notification.Read = false
+	notification.ExpiresAt = &time.Time{}
 
-	if err := json.Unmarshal(data, &assignmentData); err != nil {
+	if err := eh.db.Create(&notification).Error; err != nil {
 		log.Printf("[EventHandler] Error parsing assignment data: %v", err)
 		return
 	}
 
-	notification := notifications.LocalNotification{
-		Type:      notifications.NotificationAssignment,
-		Title:     "New assignment",
-		Message:   message, // {Sender Name} shared this assignment from {Course Code} : {Assignment Title} with you
-		SenderID:  eh.userID,
-		Read:      false,
-		ExpiresAt: &time.Time{},
-	}
-
-	if err := eh.db.Create(&notification).Error; err != nil {
-		log.Printf("[EventHandler] Error saving notification: %v", err)
-		return
-	}
-
-	if err := beeep.Notify(assignmentData.Title, message, ""); err != nil {
+	if err := beeep.Notify(notification.Title, notification.Message, ""); err != nil {
 		log.Printf("[EventHandler] Error sending system notification: %v", err)
 	} else {
-		log.Printf("[EventHandler] Sent assignment notification: %s", assignmentData.Title)
+		log.Printf("[EventHandler] Sent assignment notification: %s", notification.Title)
 	}
 }
 
@@ -238,8 +222,8 @@ func (eh *EventHandler) routeEvent(event sse.Event) {
 		eh.HandleFollowNotification(notification)
 	case notifications.NotificationSync:
 		eh.HandleSyncNotification(notification)
-	case "assignment":
-		eh.HandleAssignmentNotification(event.Data, notification.Message)
+	case notifications.NotificationAssignment:
+		eh.HandleAssignmentNotification(notification)
 	default:
 		log.Printf("[EventHandler] Unknown entity type: %s", notification.Entity)
 	}
