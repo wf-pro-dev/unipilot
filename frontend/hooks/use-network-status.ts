@@ -7,6 +7,16 @@ interface NetworkStatus {
 }
 
 export function useNetworkStatus() {
+
+  if (typeof window === 'undefined' || !navigator) {
+    return {
+      isOnline: false,
+      lastChecked: 0,
+      isChecking: false,
+      checkNetworkStatus: () => Promise.resolve()
+    }
+  }
+
   const [networkStatus, setNetworkStatus] = useState<NetworkStatus>({
     online: navigator.onLine,
     timestamp: Date.now(),
