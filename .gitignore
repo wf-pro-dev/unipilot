@@ -36,13 +36,11 @@ go.work.sum
 
 # Wails (frontend) /
 node_module
-package.json*
 build
 
 # frontend/
  
 frontend/node_module
-frontend/package.json*
 frontend/dist
 
 build
