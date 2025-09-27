@@ -17,7 +17,7 @@ import (
 
 type LocalAssignment struct {
 	gorm.Model
-	RemoteID   uint
+	RemoteID   uint   `gorm:"unique"`
 	Title      string `gorm:"not null"`
 	Todo       string
 	Deadline   time.Time `gorm:"not null;index"`

@@ -2,19 +2,23 @@ package auth
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 
 	"unipilot/internal/client"
-	"unipilot/internal/storage"
+	"unipilot/internal/services/utils"
 )
 
 func (a *Auth) Logout() error {
 
+	a.User = nil
+
+	log.Printf("Logout: %v", a.Client)
 	// Make POST request to logout endpoint (empty body)
 	resp, err := a.Client.Post(
-		"https://newsroom.dedyn.io/acc-homework/logout", // Note: changed from /login to /logout
+		"https://newsroom.dedyn.io/acc-homework/logout",
 		"application/json",
-		nil, // No body needed for logout
+		nil,
 	)
 	if err != nil {
 		return err
@@ -31,7 +35,8 @@ func (a *Auth) Logout() error {
 		return fmt.Errorf("failed to clear local cookies: %w", err)
 	}
 
-	if err := storage.ClearCredentials(); err != nil {
+	log.Println("Logout: Clearing credentials")
+	if err := utils.ClearCredentials(); err != nil {
 		return fmt.Errorf("failed to clear local credentials: %w", err)
 	}
 

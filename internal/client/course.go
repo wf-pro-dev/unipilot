@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
 	"unipilot/internal/network"
 )
@@ -182,4 +183,54 @@ func RequestLinkCourse(courseCode string, usersID []uint) error {
 	}
 
 	return nil
+}
+
+type AcceptLinkCourseResponse struct {
+	Error       error                   `json:"error,omitempty"`
+	Assignments []assignment.Assignment `json:"assignments"`
+}
+
+func AcceptLinkCourse(c *course.Course) (*AcceptLinkCourseResponse, error) {
+
+	new_client, err := NewClientWithCookies()
+	if err != nil {
+		return nil, err
+	}
+
+	jsonData, _ := json.Marshal(c)
+
+	// Get the  course assignments and documents
+	resp, err := new_client.Post(
+		"https://newsroom.dedyn.io/acc-homework/course/link/accept",
+		"application/json",
+		bytes.NewBuffer(jsonData),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	fmt.Println("Response status code:", resp.StatusCode)
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+	}
+
+	var response AcceptLinkCourseResponse
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if response.Error != nil {
+		return nil, response.Error
+	}
+
+	if response.Assignments == nil {
+		return nil, errors.New("no assignments in response")
+	}
+	log.Println("Assignments:", response.Assignments)
+
+	return &response, nil
 }

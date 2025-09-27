@@ -185,10 +185,26 @@ export function useRequestLinkCourse() {
 
 // Hook for accepting a link request
 export function useAcceptLink() {
+  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async ({ courseData }: { courseData: string }) => {
       return await window.go.main.App.AcceptLink(courseData)
+    },
+
+    onMutate: async () => {
+      // Force refetch for courses, assignments, and documents
+      await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
+      await queryClient.cancelQueries({ queryKey: assignmentKeys.all })
+      await queryClient.cancelQueries({ queryKey: documentKeys.all })
+
+      // Wait for all refetches to complete
+      await queryClient.refetchQueries({ queryKey: courseKeys.lists() })
+      await queryClient.refetchQueries({ queryKey: assignmentKeys.all })
+      await queryClient.refetchQueries({ queryKey: documentKeys.all })
+      
+  
     }
+
   })
 }
 

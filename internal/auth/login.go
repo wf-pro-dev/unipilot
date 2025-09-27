@@ -9,6 +9,7 @@ import (
 	"time"
 	"unipilot/internal/client"
 	"unipilot/internal/models/user"
+	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
 	"unipilot/internal/storage"
 	"unipilot/internal/sync"
@@ -17,13 +18,10 @@ import (
 // Login handles only authentication and saving the session cookie to a file.
 func (a *Auth) Login(username, password string) (*user.User, error) {
 
-	httpClient, err := client.NewClientWithCookies() // Changed from NewClient()
-	if err != nil {
-		return nil, fmt.Errorf("could not create http client: %w", err)
+	// Cet a authenticated client
+	httpClient := http.Client{
+		Jar: &client.CookieJar{},
 	}
-
-	// Set the client to the auth struct
-	a.Client = httpClient
 
 	loginData := map[string]string{"username": username, "password": password}
 	jsonData, _ := json.Marshal(loginData)
@@ -39,11 +37,6 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 		return nil, fmt.Errorf("login failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	if err := client.SaveCookies(httpClient); err != nil {
-		return nil, fmt.Errorf("failed to save cookies: %w", err)
-	}
-
-	// Parse the response to get user ID
 	// Parse the response to get user ID
 	var response struct {
 		User map[string]interface{} `json:"user"`
@@ -66,27 +59,45 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 	response_user.UpdatedAt, _ = time.Parse(time.RFC3339, response.User["updated_at"].(string))
 
 	response_user.ID = uint(response.User["id"].(float64))
-	// Store credentials first
-	if err := storage.StoreCredentials(response_user); err != nil {
-		return nil, fmt.Errorf("failed to store credentials: %w", err)
+
+	//Store the user in credentials
+	if err := utils.SetCredentials(&response_user); err != nil {
+		return nil, fmt.Errorf("failed to set credentials: %w", err)
 	}
+
+	if err := client.SaveCookies(&httpClient); err != nil {
+		return nil, fmt.Errorf("failed to save cookies: %w", err)
+	}
+
+	httpUserClient, err := client.NewClientWithCookies()
+	if err != nil {
+		return nil, fmt.Errorf("could not create authenticated http client: %w", err)
+	}
+
+	a.Client = httpUserClient
 
 	// Initialize the SSE connection early to ensure it's never nil
 	a.SSE = sse.NewSSE()
 
 	// Now try to get the local database and migrate data
 	// But handle the case where it might fail gracefully
-	localDB, _, err := storage.GetLocalDB()
+
+	if err := PostLogin(); err != nil {
+		return &response_user, err
+	}
+
+	return &response_user, nil
+}
+
+func PostLogin() error {
+	localDB, err := utils.GetUserDB()
 	if err != nil {
 		// If we can't get the local database, just log it and continue
 		// This might happen if the database directory doesn't exist yet
 		fmt.Printf("Warning: Could not get local database: %v\n", err)
 		fmt.Printf("Login successful, but database operations failed\n")
-		return &response_user, nil // Don't fail the login, just return success
+		// Don't fail the login, just return success
 	}
-
-	a.LocalDB = localDB
-
 	// Initialize the database schema
 	if err := storage.InitializeSchema(localDB); err != nil {
 		fmt.Printf("Warning: Failed to initialize database schema: %v\n", err)
@@ -107,6 +118,5 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 		fmt.Printf("Warning: Failed to migrate assignments: %v\n", err)
 		// Don't rollback, continue with the transaction
 	}
-
-	return &response_user, nil
+	return err
 }

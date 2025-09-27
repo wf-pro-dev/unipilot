@@ -21,8 +21,9 @@ interface TypeTagProps {
 
 
 function TypeTag({ assignment, onEdit }: TypeTagProps) {
-    const handleEdit = (type: string) => {
-
+   
+    const handleEdit = (e: React.MouseEvent<HTMLButtonElement>, type: string) => {
+        e.stopPropagation()
         onEdit(assignment, "type_name", type)
     }
 
@@ -41,7 +42,7 @@ function TypeTag({ assignment, onEdit }: TypeTagProps) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="glass border-gray-600">
                 {Object.keys(typeColors).map((type) => (
-                    <DropdownMenuItem key={type} onClick={() => handleEdit(type)}>
+                    <DropdownMenuItem key={type} onClick={(e) => handleEdit(e, type)}>
                         <Badge variant="outline" className={`text-xs flex flex-row gap-1 ${typeColors[type as keyof typeof typeColors]}`}>
                             <BookOpen className="h-3 w-3" />
                             {type}
