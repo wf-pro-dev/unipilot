@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"unipilot/internal/models/document"
-	"unipilot/internal/services/fileops"
 )
 
 // UploadResponse represents the server response
@@ -20,9 +19,9 @@ type UploadResponse struct {
 }
 
 // sendMultipartFile sends file using multipart/form-data with your authenticated client
-func SendDocument(document *document.LocalDocument, localID uint) (string, error) {
+func SendDocument(document *document.LocalDocument) (string, error) {
 
-	var url string = "https://newsroom.dedyn.io/acc-homework/document/metadata"
+	var url string = "https://newsroom.dedyn.io/acc-homework/document"
 
 	// Create a new client with cookies
 	client, err := NewClientWithCookies()
@@ -33,6 +32,7 @@ func SendDocument(document *document.LocalDocument, localID uint) (string, error
 	// Create a buffer to store the multipart data
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
+	defer writer.Close()
 
 	// Create form file field
 	fileWriter, err := writer.CreateFormFile("file", document.FileName)
@@ -55,15 +55,21 @@ func SendDocument(document *document.LocalDocument, localID uint) (string, error
 
 	log.Printf("bytes written: %d\n", bytesWritten)
 
-	// Add additional metadata fields
-	writer.WriteField("assignment_id", fmt.Sprintf("%d", document.AssignmentID))
-	writer.WriteField("local_id", fmt.Sprintf("%d", localID))
-	writer.WriteField("user_id", fmt.Sprintf("%d", document.UserID))
-	writer.WriteField("type", string(document.Type))
-	writer.WriteField("file_name", document.FileName)
-	writer.WriteField("file_type", fileops.GetMimeType(document.FileName))
-	writer.WriteField("file_size", fmt.Sprintf("%d", document.FileSize))
-	writer.WriteField("file_path", document.FilePath)
+	// Add metadata part
+	metadataWriter, err := writer.CreateFormField("metadata")
+	if err != nil {
+		return "", fmt.Errorf("error creating form field: %v", err)
+	}
+
+	metadataJSON, err := json.Marshal(document)
+	if err != nil {
+		return "", fmt.Errorf("error marshalling metadata: %v", err)
+	}
+
+	_, err = metadataWriter.Write(metadataJSON)
+	if err != nil {
+		return "", fmt.Errorf("error writing metadata: %v", err)
+	}
 
 	// Close the writer to finalize the multipart message
 	writer.Close()
@@ -117,6 +123,46 @@ func SendDocument(document *document.LocalDocument, localID uint) (string, error
 	default:
 		return "", fmt.Errorf("server error: %s - %s", resp.Status, string(respBody))
 	}
+}
+func DownloadDocument(document *document.LocalDocument) (io.Reader, error) {
+
+	var url string = "https://newsroom.dedyn.io/acc-homework/document/download"
+
+	jsonData, err := json.Marshal(document)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := NewClientWithCookies()
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		// Read the error message from the body
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("server returned %d: %s - %s", resp.StatusCode, resp.Status, string(body))
+	}
+
+	// Check content type
+	contentType := resp.Header.Get("Content-Type")
+	if contentType != "application/octet-stream" {
+		return nil, fmt.Errorf("unexpected content type: %s", contentType)
+	}
+
+	// Read the entire content into a buffer and return it
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, resp.Body); err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	return &buf, nil
 }
 
 func DeleteDocument(documentID uint) error {

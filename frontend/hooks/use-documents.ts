@@ -12,7 +12,8 @@ import {
   UploadNewDocumentVersion,
   OpenDocument,
   SaveDocumentAs,
-  DeleteDocument
+  DeleteDocument,
+  DownloadDocument
 } from "@/wailsjs/go/main/App"
 
 // Query keys for consistent cache management
@@ -124,7 +125,6 @@ export function useUploadDocument() {
       await queryClient.cancelQueries({ queryKey: documentKeys.submissions(assignmentId) })
       
       // Note: We don't do optimistic updates for uploads since we need the actual file data
-      // Instead, we just prepare for the refetch
     },
     
     onSuccess: (newDocument, { assignmentId, documentType }) => {
@@ -204,6 +204,33 @@ export function useUploadDocumentVersion() {
     
     onError: (err) => {
       LogError("Failed to upload document version: " + err)
+    },
+  })
+}
+
+// Hook for downloading documents
+export function useDownloadDocument() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async (document: document.LocalDocument) => {
+      return await DownloadDocument(document)
+    },
+    onMutate: async (document) => { 
+      
+     // Change HasLocalFile to true
+     document.HasLocalFile = true
+     queryClient.setQueryData<document.LocalDocument[]>(documentKeys.list(document.AssignmentID), (old) => {
+      return old ? [document, ...old] : [document]
+     })
+     
+    },
+    onError: (err) => {
+      LogError("Failed to download document: " + err)
+    },
+    onSettled: () => {
+      // Invalidate all queries
+      queryClient.invalidateQueries({ queryKey: documentKeys.all })
     },
   })
 }

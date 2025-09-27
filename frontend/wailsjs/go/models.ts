@@ -237,8 +237,6 @@ export namespace document {
 	    ParentDocID?: number;
 	    IsOriginal: boolean;
 	    HasLocalFile: boolean;
-	    // Go type: time
-	    LastSyncAt?: any;
 	    ParentDoc?: LocalDocument;
 	    Versions: LocalDocument[];
 	
@@ -265,7 +263,6 @@ export namespace document {
 	        this.ParentDocID = source["ParentDocID"];
 	        this.IsOriginal = source["IsOriginal"];
 	        this.HasLocalFile = source["HasLocalFile"];
-	        this.LastSyncAt = this.convertValues(source["LastSyncAt"], null);
 	        this.ParentDoc = this.convertValues(source["ParentDoc"], LocalDocument);
 	        this.Versions = this.convertValues(source["Versions"], LocalDocument);
 	    }

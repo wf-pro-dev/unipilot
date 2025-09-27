@@ -29,6 +29,8 @@ export function DeleteNote(arg1:note.LocalNote):Promise<void>;
 
 export function DeleteNotification(arg1:notifications.LocalNotification):Promise<void>;
 
+export function DownloadDocument(arg1:document.LocalDocument):Promise<void>;
+
 export function Follow(arg1:number):Promise<boolean>;
 
 export function GetAssignment(arg1:number):Promise<assignment.LocalAssignment>;
@@ -89,7 +91,7 @@ export function RequestLinkCourse(arg1:string,arg2:Array<number>):Promise<void>;
 
 export function SaveDocumentAs(arg1:number):Promise<void>;
 
-export function SendDocument(arg1:fileops.FileUploadResponse,arg2:boolean):Promise<document.LocalDocument>;
+export function SendDocument(arg1:fileops.FileUploadResponse):Promise<document.LocalDocument>;
 
 export function StartNotificationDaemon():Promise<void>;
 

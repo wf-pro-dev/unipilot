@@ -76,7 +76,6 @@ func GetMimeType(fileName string) string {
 // UploadDocument handles the local file upload process
 func WriteDocument(document *document.LocalDocument, fileContent io.Reader, db *gorm.DB) (*FileUploadResponse, error) {
 
-	log.Println("Creating directory")
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(filepath.Dir(document.FilePath), 0755); err != nil {
 
@@ -209,34 +208,6 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 		Success:       true,
 		Message:       "New version uploaded successfully",
 	}, nil
-}
-
-// DownloadDocument retrieves a document file for download
-func DownloadDocument(docID uint, userID uint, db *gorm.DB) error {
-	// Get document record
-	var doc document.Document
-	if err := db.Where("id = ? AND user_id = ?", docID, userID).First(&doc).Error; err != nil {
-		return fmt.Errorf("document not found or access denied")
-	}
-
-	// Check if file exists
-	if !doc.FileExists() {
-		return fmt.Errorf("file not found on disk")
-	}
-
-	// Get full path
-	fullPath, err := doc.GetFullPath()
-	if err != nil {
-		return fmt.Errorf("failed to get file path: %w", err)
-	}
-
-	// Open file for reading
-	_, err = os.Open(fullPath)
-	if err != nil {
-		return fmt.Errorf("failed to open file: %w", err)
-	}
-
-	return nil
 }
 
 // DeleteDocument removes a document and its file

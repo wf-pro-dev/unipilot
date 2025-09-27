@@ -125,7 +125,9 @@ func (h *Database) DeleteNotification(notification *notifications.LocalNotificat
 	return h.db.Delete(notification).Error
 }
 
-func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUploadRequest, writeFile bool) (*fileops.FileUploadResponse, error) {
+func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUploadRequest, hasLocalFile bool) (*fileops.FileUploadResponse, error) {
+
+	runtime.LogInfof(ctx, "DB CreateDocument: %v", uploadReq.FileName)
 
 	tx := h.db.Begin()
 	defer func() {
@@ -134,16 +136,22 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 		}
 	}()
 
+	runtime.LogInfo(ctx, "STEP 1")
+
 	// Validate file type
 	if err := fileops.ValidateFileType(uploadReq.FileName); err != nil {
 		return nil, fmt.Errorf("unsupported file type")
 	}
+
+	runtime.LogInfo(ctx, "STEP 2")
 
 	// Validate file size
 	if uploadReq.FileSize > document.MaxFileSize {
 
 		return nil, fmt.Errorf("file size exceeds limit of %d MB", document.MaxFileSize/(1024*1024))
 	}
+
+	runtime.LogInfo(ctx, "STEP 3")
 
 	// Create LocalDocument record
 	localDoc := document.LocalDocument{
@@ -156,8 +164,10 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 		FileSize:           uploadReq.FileSize,
 		StorageKey:         uploadReq.StorageKey,
 		Version:            1,
-		HasLocalFile:       false, // Will be set to true after successful file write
+		HasLocalFile:       hasLocalFile, // Will be set to true after successful file write
 	}
+
+	runtime.LogInfo(ctx, "STEP 4")
 
 	// Generate file path
 	documentDir, err := utils.GetDocumentDir()
@@ -169,6 +179,8 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 	fileName := fmt.Sprintf("doc_%d_%d_%s", uploadReq.AssignmentID, uploadReq.UserID, uploadReq.FileName)
 	filePath := filepath.Join(documentDir, fileName)
 	localDoc.FilePath = filePath
+
+	runtime.LogInfo(ctx, "STEP 5")
 
 	//Check storage quota
 	var totalSize int64
@@ -182,16 +194,22 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 			totalSize/(1024*1024), document.MaxUserQuota/(1024*1024))
 	}
 
+	runtime.LogInfo(ctx, "STEP 6")
+
 	// Save to database first
 	if err := tx.Create(&localDoc).Error; err != nil {
 		return nil, fmt.Errorf("failed to save document record")
 	}
 
+	runtime.LogInfo(ctx, "STEP 7")
+
 	runtime.LogInfof(ctx, "Document Creation: %s", localDoc.FileName)
 
 	var response *fileops.FileUploadResponse
 
-	if writeFile {
+	runtime.LogInfo(ctx, "STEP 8")
+
+	if hasLocalFile {
 		runtime.LogInfof(ctx, "Writing document to disk")
 		// Upload the document locally
 		response, err = fileops.WriteDocument(&localDoc, uploadReq.FileContent, tx)
@@ -207,8 +225,9 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 		}
 	}
 
+	runtime.LogInfo(ctx, "STEP 9")
+
 	if !response.Success {
-		//tx.Rollback()
 		return nil, fmt.Errorf("upload failed: %s", response.Message)
 	}
 
@@ -217,5 +236,6 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 	// Also store metadata remotely for sharing
 
 	tx.Commit()
+
 	return response, nil
 }

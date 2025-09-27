@@ -22,7 +22,7 @@ interface DocumentUploadDialogProps {
   onUploadComplete: () => void
   assignmentId: number
   remoteAssignmentId: number
-  documentType: "support" | "submission"
+  documentType: "support" | "submission" | "all"
 }
 
 export function DocumentUploadDialog({

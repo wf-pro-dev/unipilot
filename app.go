@@ -439,6 +439,9 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 
 // UploadDocument opens a file dialog and uploads a document to an assignment
 func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documentType string) (*document.LocalDocument, error) {
+
+	runtime.LogInfof(a.ctx, "UploadDocument: %v", assignmentID)
+
 	if a.DB == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
@@ -451,13 +454,6 @@ func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documen
 	if documentType != string(document.DocumentTypeSupport) && documentType != string(document.DocumentTypeSubmission) {
 		return nil, fmt.Errorf("invalid document type: %s", documentType)
 	}
-
-	tx := a.DB.GetDB().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
 
 	// Open file dialog
 	filters := []runtime.FileFilter{
@@ -515,24 +511,23 @@ func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documen
 
 	document, err := a.CreateDocument(uploadReq, true)
 	if err != nil {
-		tx.Rollback()
 		return nil, fmt.Errorf("failed to create document: %w", err)
 	}
-
-	//tx.Commit()
 
 	return document, nil
 
 }
 
-func (a *App) CreateDocument(uploadReq fileops.FileUploadRequest, writeFile bool) (*document.LocalDocument, error) {
+func (a *App) CreateDocument(uploadReq fileops.FileUploadRequest, hasLocalFile bool) (*document.LocalDocument, error) {
 
-	uploadResp, err := a.DB.CreateDocument(a.ctx, uploadReq, writeFile)
+	runtime.LogInfof(a.ctx, "CreateDocument: %v", uploadReq.FileName)
+
+	uploadResp, err := a.DB.CreateDocument(a.ctx, uploadReq, hasLocalFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create document: %w", err)
 	}
 
-	response, err := a.SendDocument(uploadResp, writeFile)
+	response, err := a.SendDocument(uploadResp)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send document: %w", err)
 	}
@@ -541,13 +536,15 @@ func (a *App) CreateDocument(uploadReq fileops.FileUploadRequest, writeFile bool
 
 }
 
-func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse, writeFile bool) (*document.LocalDocument, error) {
+func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse) (*document.LocalDocument, error) {
+
+	runtime.LogInfof(a.ctx, "SendDocument: %v", uploadResp.LocalDocument.FileName)
 
 	if a.DB == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if a.Auth.IsAuthenticated() && a.Auth.Client != nil && writeFile {
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
 
 		db := a.DB.GetDB()
 		tx := db.Begin()
@@ -565,11 +562,10 @@ func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse, writeFile boo
 		if err != nil {
 			return nil, fmt.Errorf("failed to get assignment: %w", err)
 		}
-		uploadResp.LocalDocument.AssignmentID = assignment.RemoteID
 
 		runtime.LogInfof(a.ctx, "sending document to remote: %v", uploadResp.LocalDocument.AssignmentID)
 
-		storageKey, clientErr := client.SendDocument(uploadResp.LocalDocument, uploadResp.LocalDocument.ID)
+		storageKey, clientErr := client.SendDocument(uploadResp.LocalDocument)
 		if clientErr != nil {
 			return nil, fmt.Errorf("failed to send document: %w", clientErr)
 		} else {
@@ -589,6 +585,34 @@ func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse, writeFile boo
 
 	return uploadResp.LocalDocument, nil
 
+}
+
+// DownloadDocument retrieves a document file for download
+func (a *App) DownloadDocument(doc *document.LocalDocument) error {
+
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	db := a.DB.GetDB()
+
+	// Send document to Server to create remote document & download from cloud
+	downloadResp, err := client.DownloadDocument(doc)
+	if err != nil {
+		return fmt.Errorf("failed to download document: %w", err)
+	}
+
+	// test if file is empty
+	if downloadResp == nil {
+		return fmt.Errorf("file not found")
+	}
+
+	// write file to disk
+	if _, err := fileops.WriteDocument(doc, downloadResp, db); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
 }
 
 // ========================================
@@ -1113,14 +1137,8 @@ func (a *App) DeleteDocument(documentID uint) error {
 	// Also store metadata remotely for sharing
 	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
 
-		resp, _ := a.Auth.Client.Post(fmt.Sprintf("https://newsroom.dedyn.io/acc-homework/document/metadata/delete?document_id=%d", documentID),
-			"application/json", nil)
-		if resp.StatusCode == 200 {
-			defer resp.Body.Close()
-		}
-
-		if resp.StatusCode != 200 {
-			return fmt.Errorf("failed to delete document metadata: %s", resp.Status)
+		if err := client.DeleteDocument(documentID); err != nil {
+			return fmt.Errorf("failed to delete document metadata: %w", err)
 		}
 
 	}
@@ -1760,7 +1778,7 @@ func (a *App) AcceptLink(courseData string) error {
 				FileSize:           document.FileSize,
 				StorageKey:         document.StorageKey,
 			}
-			_, err := a.DB.CreateDocument(a.ctx, uploadReq, false)
+			_, err := a.CreateDocument(uploadReq, false)
 			if err != nil {
 				return err
 			}

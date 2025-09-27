@@ -42,6 +42,10 @@ export function DeleteNotification(arg1) {
   return window['go']['main']['App']['DeleteNotification'](arg1);
 }
 
+export function DownloadDocument(arg1) {
+  return window['go']['main']['App']['DownloadDocument'](arg1);
+}
+
 export function Follow(arg1) {
   return window['go']['main']['App']['Follow'](arg1);
 }
@@ -162,8 +166,8 @@ export function SaveDocumentAs(arg1) {
   return window['go']['main']['App']['SaveDocumentAs'](arg1);
 }
 
-export function SendDocument(arg1, arg2) {
-  return window['go']['main']['App']['SendDocument'](arg1, arg2);
+export function SendDocument(arg1) {
+  return window['go']['main']['App']['SendDocument'](arg1);
 }
 
 export function StartNotificationDaemon() {
