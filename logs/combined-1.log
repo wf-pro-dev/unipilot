@@ -24103,3 +24103,118 @@
 2025-09-26T13:51:10: 
 2025-09-26T13:51:10: 2025/09/26 13:51:10 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
 2025-09-26T13:51:10: [0m[33m[1.088ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 1 AND "follows"."deleted_at" IS NULL
+2025-09-26T22:47:07: 2025/09/26 22:47:07 Server listening on :3000...
+2025-09-26T22:47:12: 2025/09/26 22:47:12 [INFO] SSE connection attempt from 127.0.0.1:44214
+2025-09-26T22:47:12: 2025/09/26 22:47:12 [INFO] New SSE user id : 1
+2025-09-26T22:47:12: 2025/09/26 22:47:12 [INFO] Active Clients: map[1:0xc0003941e0]
+2025-09-26T22:47:24: 2025/09/26 22:47:24 [INFO] Client 1 disconnected (context canceled)
+2025-09-26T22:47:24: 2025/09/26 22:47:24 [INFO] Removing client 1 (reason: connection closing)
+2025-09-26T23:35:25: 2025/09/26 23:35:25 [INFO] SSE connection attempt from 127.0.0.1:39230
+2025-09-26T23:35:25: 2025/09/26 23:35:25 [INFO] New SSE user id : 1
+2025-09-26T23:35:25: 2025/09/26 23:35:25 [INFO] Active Clients: map[1:0xc000394ae0]
+2025-09-26T23:37:20: 
+2025-09-26T23:37:20: 2025/09/26 23:37:20 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-09-26T23:37:20: [0m[33m[13.320ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-09-26T23:37:20: 
+2025-09-26T23:37:20: 2025/09/26 23:37:20 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-09-26T23:37:20: [0m[33m[2.051ms] [34;1m[rows:4][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-09-26T23:37:20: 
+2025-09-26T23:37:20: 2025/09/26 23:37:20 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-09-26T23:37:20: [0m[33m[0.721ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-09-26T23:37:20: 
+2025-09-26T23:37:20: 2025/09/26 23:37:20 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-09-26T23:37:20: [0m[33m[2.931ms] [34;1m[rows:2][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."semester","users"."year","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-09-26T23:37:20: 
+2025-09-26T23:37:20: 2025/09/26 23:37:20 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-09-26T23:37:20: [0m[33m[8.886ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 1 AND "follows"."deleted_at" IS NULL
+2025-09-26T23:37:20: 2025/09/26 23:37:20 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-26T23:37:20: 
+2025-09-26T23:37:20: 2025/09/26 23:37:20 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-09-26T23:37:20: [0m[33m[40.362ms] [34;1m[rows:1][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."semester","users"."year","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-09-26T23:37:20: 
+2025-09-26T23:37:20: 2025/09/26 23:37:20 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-09-26T23:37:20: [0m[33m[2.069ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 1 AND "follows"."deleted_at" IS NULL
+2025-09-26T23:39:31: 
+2025-09-26T23:39:31: 2025/09/26 23:39:31 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-09-26T23:39:31: [0m[33m[2.301ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-09-26T23:39:31: 
+2025-09-26T23:39:31: 2025/09/26 23:39:31 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-09-26T23:39:31: [0m[33m[1.931ms] [34;1m[rows:4][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-09-26T23:39:31: 
+2025-09-26T23:39:31: 2025/09/26 23:39:31 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-09-26T23:39:31: [0m[33m[0.712ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-09-26T23:41:26: 2025/09/26 23:41:26 [INFO] user_id 1 column deleted_at value 2025-09-26T23:41:26-05:00
+2025-09-26T23:41:33: 
+2025-09-26T23:41:33: 2025/09/26 23:41:33 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-09-26T23:41:33: [0m[33m[2.954ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-09-26T23:41:33: 
+2025-09-26T23:41:33: 2025/09/26 23:41:33 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-09-26T23:41:33: [0m[33m[0.888ms] [34;1m[rows:4][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-09-26T23:41:33: 
+2025-09-26T23:41:33: 2025/09/26 23:41:33 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-09-26T23:41:33: [0m[33m[1.607ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-09-26T23:41:48: 
+2025-09-26T23:41:48: 2025/09/26 23:41:48 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-09-26T23:41:48: [0m[33m[1.366ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-09-26T23:41:48: 
+2025-09-26T23:41:48: 2025/09/26 23:41:48 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-09-26T23:41:48: [0m[33m[2.685ms] [34;1m[rows:1][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."semester","users"."year","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-09-26T23:41:48: 
+2025-09-26T23:41:48: 2025/09/26 23:41:48 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-09-26T23:41:48: [0m[33m[1.702ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 1 AND "follows"."deleted_at" IS NULL
+2025-09-26T23:41:48: 
+2025-09-26T23:41:48: 2025/09/26 23:41:48 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-09-26T23:41:48: [0m[33m[2.038ms] [34;1m[rows:4][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-09-26T23:41:48: 
+2025-09-26T23:41:48: 2025/09/26 23:41:48 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-09-26T23:41:48: [0m[33m[2.267ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-09-26T23:41:48: 
+2025-09-26T23:41:48: 2025/09/26 23:41:48 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-09-26T23:41:48: [0m[33m[29.105ms] [34;1m[rows:2][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."semester","users"."year","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 1 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-09-26T23:41:48: 
+2025-09-26T23:41:48: 2025/09/26 23:41:48 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-09-26T23:41:48: [0m[33m[1.483ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 1 AND "follows"."deleted_at" IS NULL
+2025-09-26T23:41:48: 2025/09/26 23:41:48 [INFO] User ID : 1, Total : 2, Followers : [{{19 2025-08-06 19:38:56.30408 -0500 CDT 2025-08-06 19:38:56.30408 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} Will wfotso21@gmail.com $2a$10$C0/9rF6Az4nlFFea5gZYXuFbpggw4ZSzJ6kJnxGz70gbVerFuKbbS  Austin Community College FALL 2025 junior false en [] <nil> [] []} {{3 2025-07-11 03:34:59.874003 -0500 CDT 2025-07-11 03:34:59.874003 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} testuser test@example.com $2a$10$hSXbMB48sBxxdyhmnV65BeoYOBTFmzZLHSMa0iv7W1Rttl62vUS7G  Austin Community College FALL 2025 junior false  [] <nil> [] []}]
+2025-09-26T23:42:19: 
+2025-09-26T23:42:19: 2025/09/26 23:42:19 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-09-26T23:42:19: [0m[33m[1.842ms] [34;1m[rows:0][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."semester","users"."year","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-09-26T23:42:19: 
+2025-09-26T23:42:19: 2025/09/26 23:42:19 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-09-26T23:42:19: [0m[33m[0.938ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 19 AND "follows"."deleted_at" IS NULL
+2025-09-26T23:42:19: 2025/09/26 23:42:19 [INFO] User ID : 19, Total : 0, Followers : []
+2025-09-26T23:42:19: 
+2025-09-26T23:42:19: 2025/09/26 23:42:19 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-09-26T23:42:19: [0m[33m[3.468ms] [34;1m[rows:1][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."semester","users"."year","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 3 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-09-26T23:42:19: 
+2025-09-26T23:42:19: 2025/09/26 23:42:19 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:108
+2025-09-26T23:42:19: [0m[33m[3.515ms] [34;1m[rows:1][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."semester","users"."year","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.followed_id WHERE (follows.follower_id = 19 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-09-26T23:42:19: 
+2025-09-26T23:42:19: 2025/09/26 23:42:19 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-09-26T23:42:19: [0m[33m[1.943ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 3 AND "follows"."deleted_at" IS NULL
+2025-09-26T23:42:19: 
+2025-09-26T23:42:19: 2025/09/26 23:42:19 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:64
+2025-09-26T23:42:19: [0m[33m[1.093ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE follower_id = 19 AND "follows"."deleted_at" IS NULL
+2025-09-26T23:42:19: 
+2025-09-26T23:42:19: 2025/09/26 23:42:19 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:98
+2025-09-26T23:42:19: [0m[33m[29.310ms] [34;1m[rows:1][0m SELECT "users"."id","users"."created_at","users"."updated_at","users"."deleted_at","users"."username","users"."email","users"."password_hash","users"."avatar","users"."university","users"."semester","users"."year","users"."is_verified","users"."language","users"."last_sync" FROM "public"."users" JOIN follows ON users.id = follows.follower_id WHERE (follows.followed_id = 3 AND follows.deleted_at is NULL) AND "users"."deleted_at" IS NULL LIMIT 20
+2025-09-26T23:42:19: 
+2025-09-26T23:42:19: 2025/09/26 23:42:19 [32m/home/ubuntu/unipilot/internal/models/user/follow.go:57
+2025-09-26T23:42:19: [0m[33m[1.821ms] [34;1m[rows:1][0m SELECT count(*) FROM "public"."follows" WHERE followed_id = 3 AND "follows"."deleted_at" IS NULL
+2025-09-26T23:42:19: 2025/09/26 23:42:19 [INFO] User ID : 3, Total : 1, Followers : [{{1 2025-07-11 02:42:41.05966 -0500 CDT 2025-08-22 23:14:28 -0500 CDT {0001-01-01 00:00:00 +0000 UTC false}} William Fotso will.fotso.pro@gmail.com $2a$10$kfJAlQS41p5pyo8ly5PDw..LKEuKWj0Op3agBHZNRq9SsdVJPgnQe  Austin Community College FALL 2025 Sophomore false  [] <nil> [] []}]
+2025-09-26T23:49:11: 
+2025-09-26T23:49:11: 2025/09/26 23:49:11 [32m/home/ubuntu/unipilot/internal/server/users.go:46
+2025-09-26T23:49:11: [0m[33m[1.753ms] [34;1m[rows:2][0m SELECT * FROM "public"."users" WHERE NOT id = 1 AND "users"."deleted_at" IS NULL
+2025-09-26T23:49:11: 
+2025-09-26T23:49:11: 2025/09/26 23:49:11 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-09-26T23:49:11: [0m[33m[0.683ms] [34;1m[rows:4][0m SELECT "code" FROM "public"."courses" WHERE user_id = 3  AND "courses"."deleted_at" IS NULL
+2025-09-26T23:49:11: 
+2025-09-26T23:49:11: 2025/09/26 23:49:11 [32m/home/ubuntu/unipilot/internal/server/users.go:57
+2025-09-26T23:49:11: [0m[33m[1.739ms] [34;1m[rows:0][0m SELECT "code" FROM "public"."courses" WHERE user_id = 19  AND "courses"."deleted_at" IS NULL
+2025-09-27T00:28:25: 2025/09/27 00:28:25 Server listening on :3000...
+2025-09-27T00:28:29: 2025/09/27 00:28:29 [INFO] SSE connection attempt from 127.0.0.1:53616
+2025-09-27T00:28:29: 2025/09/27 00:28:29 [INFO] New SSE user id : 1
+2025-09-27T00:28:29: 2025/09/27 00:28:29 [INFO] Active Clients: map[1:0xc00039a1e0]
+2025-09-27T02:52:02: 2025/09/27 02:52:02 Server listening on :3000...
+2025-09-27T02:52:05: 2025/09/27 02:52:05 [INFO] SSE connection attempt from 127.0.0.1:56898
+2025-09-27T02:52:05: 2025/09/27 02:52:05 [INFO] New SSE user id : 1
+2025-09-27T02:52:05: 2025/09/27 02:52:05 [INFO] Active Clients: map[1:0xc000359da0]
