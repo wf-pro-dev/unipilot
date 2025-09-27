@@ -272,3 +272,4 @@ func UpdateStorageInfo(userID uint, db *gorm.DB) error {
 
 	return nil
 }
+

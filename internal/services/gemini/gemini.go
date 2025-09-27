@@ -61,7 +61,7 @@ func GenerateNote(request *GeminiRequest) (*GeminiResponse, error) {
 
 	result, err := client.Models.GenerateContent(
 		ctx,
-		"gemini-1.5-flash",
+		"gemini-2.0-flash-lite",
 		genai.Text(prompt),
 		config,
 	)
