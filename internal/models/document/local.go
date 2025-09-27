@@ -10,18 +10,19 @@ import (
 // This is for local operations and caching remote metadata
 type LocalDocument struct {
 	gorm.Model
-	AssignmentID uint         `gorm:"not null;index"`
-	UserID       uint         `gorm:"not null;index"` // Original uploader
-	Type         DocumentType `gorm:"not null;index"`
-	FileName     string       `gorm:"not null"`
-	FileType     string       `gorm:"not null"`
-	FilePath     string       // Local file path (only if we have the file)
-	FileSize     int64        `gorm:"not null"`
-	Version      int          `gorm:"default:1"`
-	ParentDocID  *uint        `gorm:"index"`
-	IsOriginal   bool         `gorm:"default:true"`
-	HasLocalFile bool         `gorm:"default:false"` // Do we have the actual file locally?
-	LastSyncAt   *time.Time   // When we last synced metadata from remote
+	RemoteAssignmentID uint
+	AssignmentID       uint         `gorm:"not null;index"`
+	UserID             uint         `gorm:"not null;index"` // Original uploader
+	Type               DocumentType `gorm:"not null;index"`
+	FileName           string       `gorm:"not null"`
+	FileType           string       `gorm:"not null"`
+	FilePath           string       // Local file path (only if we have the file)
+	FileSize           int64        `gorm:"not null"`
+	StorageKey         string       `gorm:"unique"`
+	Version            int          `gorm:"default:1"`
+	ParentDocID        *uint        `gorm:"index"`
+	IsOriginal         bool         `gorm:"default:true"`
+	HasLocalFile       bool         `gorm:"default:false"` // Do we have the actual file locally?
 
 	// Local relationships
 	ParentDoc *LocalDocument  `gorm:"foreignKey:ParentDocID;references:ID"`
@@ -39,7 +40,7 @@ type StorageInfo struct {
 func (ld *LocalDocument) ToRemoteDocument() *Document {
 	return &Document{
 		Model:        ld.Model,
-		AssignmentID: ld.AssignmentID,
+		AssignmentID: ld.RemoteAssignmentID,
 		UserID:       ld.UserID,
 		Type:         ld.Type,
 		FileName:     ld.FileName,
@@ -64,8 +65,6 @@ func (ld *LocalDocument) FromRemoteDocument(rd *Document, hasLocalFile bool) {
 	ld.ParentDocID = rd.ParentDocID
 	ld.IsOriginal = rd.IsOriginal
 	ld.HasLocalFile = hasLocalFile
-	now := time.Now()
-	ld.LastSyncAt = &now
 }
 
 // GetLocalDocumentsByAssignment retrieves all local documents for an assignment
@@ -139,3 +138,4 @@ func GetUserStorageInfo(userID uint, db *gorm.DB) (*StorageInfo, error) {
 		CalculatedAt:  time.Now(),
 	}, nil
 }
+

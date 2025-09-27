@@ -10,6 +10,7 @@ import { useCourses } from "@/hooks/use-courses"
 import { useAssignments } from "@/hooks/use-assignments"
 import { useNotes } from "@/hooks/use-notes"
 import { useNotifications } from "@/hooks/use-notifications"
+import { LogInfo } from "@/wailsjs/runtime/runtime"
 
 
 interface AuthContextType {
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         refetchNotes()
         refetchNotifications()
     }
+    LogInfo("AuthProvider: Refetching data for user: \n" + user)
   }, [user])
   
   if (isLoading) {

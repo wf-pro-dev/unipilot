@@ -10,6 +10,8 @@ import { format } from "date-fns"
 import { useDeleteNotification } from "@/hooks/use-notifications"
 import { toast } from "sonner"
 import { useAcceptLink } from "@/hooks/use-courses"
+import { useState } from "react"
+import { LinkAcceptModal } from "../community/link-accept-modal"
 
 interface NotificationsItemProps {
     notification: notifications.LocalNotification
@@ -24,17 +26,36 @@ export function NotificationsItem({ notification }: NotificationsItemProps) {
     const acceptLinkMutation = useAcceptLink()
     const deleteMutation = useDeleteNotification()
 
+    const [isModalOpen, setIsModalOpen] = useState(false)
+
+    const handleAccept = () => {
+        setIsModalOpen(false)
+        acceptLinkMutation.mutate({ courseData: notification.data }, {
+            onSuccess: () => {
+                toast.success("Course successfully linked")
+            },
+            onError: (error: any) => {
+                LogError("Failed to accept link request: " + error)
+                toast.error("Failed to link course")
+            }
+        })
+    }
+
+    const handleClose = () => {
+        setIsModalOpen(false)
+    }
+
     const handleFollow = () => {
         const message = "following " + notification.title
         LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-        followMutation.mutate(notification.sender!), {
+        followMutation.mutate(notification.sender!, {
             onSuccess: () => {
                 toast.success("You are now following " + notification.title)
             },
             onError: () => {
                 toast.error("Failed to follow " + notification.title)
             }
-        }
+        })
     }
 
     const handleDelete = () => {
@@ -43,21 +64,14 @@ export function NotificationsItem({ notification }: NotificationsItemProps) {
         deleteMutation.mutate(notification)
     }
 
-    const NotificationProps: { [key: string]: { ButtonText: string, ShowButton: boolean, OnClick: () => void     } } = {
+    const NotificationProps: { [key: string]: { ButtonText: string, ShowButton: boolean, OnClick: () => void } } = {
         "follow": { ButtonText: "Follow", ShowButton: !isFollowed, OnClick: handleFollow },
-        "sync": { ButtonText: "Link", ShowButton: true, OnClick: () => {
-            LogInfo("Accepting link request " + notification.data)
-            acceptLinkMutation.mutate({ courseData: notification.data }),
-            {
-                onSuccess: () => {
-                    toast.success("Couse successfully linked")
-                },
-                onError: (error: any) => {
-                    LogError("Failed to accept link request: " + error)
-                    toast.error("Failed to link course")
-                }
+        "sync": {
+            ButtonText: "Link", ShowButton: true, OnClick: () => {
+                setIsModalOpen(true)
+
             }
-        } },
+        },
     }
 
 
@@ -85,7 +99,7 @@ export function NotificationsItem({ notification }: NotificationsItemProps) {
                             onClick={(e) => {
                                 e.stopPropagation()
                                 NotificationProps[notification.type].OnClick()
-                                handleDelete()
+
                             }}>
                             <Check className="w-4 h-4" />
                             {NotificationProps[notification.type].ButtonText}
@@ -105,9 +119,15 @@ export function NotificationsItem({ notification }: NotificationsItemProps) {
                         <X className="w-4 h-4" />
                         Ignore
                     </Button>
-                    
+
                 </div>
             </CardContent>
+            <LinkAcceptModal
+                isOpen={isModalOpen}
+                onAccept={handleAccept}
+                onClose={handleClose}
+                courseData={notification.data}
+            />
         </Card>
     )
 }

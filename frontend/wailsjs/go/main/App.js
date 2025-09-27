@@ -14,6 +14,10 @@ export function CreateCourse(arg1) {
   return window['go']['main']['App']['CreateCourse'](arg1);
 }
 
+export function CreateDocument(arg1, arg2) {
+  return window['go']['main']['App']['CreateDocument'](arg1, arg2);
+}
+
 export function CreateNote(arg1) {
   return window['go']['main']['App']['CreateNote'](arg1);
 }
@@ -36,6 +40,10 @@ export function DeleteNote(arg1) {
 
 export function DeleteNotification(arg1) {
   return window['go']['main']['App']['DeleteNotification'](arg1);
+}
+
+export function DownloadDocument(arg1) {
+  return window['go']['main']['App']['DownloadDocument'](arg1);
 }
 
 export function Follow(arg1) {
@@ -64,6 +72,10 @@ export function GetCourseAssignments(arg1) {
 
 export function GetCourses() {
   return window['go']['main']['App']['GetCourses']();
+}
+
+export function GetCurrentUser() {
+  return window['go']['main']['App']['GetCurrentUser']();
 }
 
 export function GetFollowers(arg1) {
@@ -118,10 +130,6 @@ export function InstallNotificationDaemon() {
   return window['go']['main']['App']['InstallNotificationDaemon']();
 }
 
-export function IsAuthenticated() {
-  return window['go']['main']['App']['IsAuthenticated']();
-}
-
 export function IsNotificationDaemonInstalled() {
   return window['go']['main']['App']['IsNotificationDaemonInstalled']();
 }
@@ -158,6 +166,10 @@ export function SaveDocumentAs(arg1) {
   return window['go']['main']['App']['SaveDocumentAs'](arg1);
 }
 
+export function SendDocument(arg1) {
+  return window['go']['main']['App']['SendDocument'](arg1);
+}
+
 export function StartNotificationDaemon() {
   return window['go']['main']['App']['StartNotificationDaemon']();
 }
@@ -190,8 +202,8 @@ export function UpdateUser(arg1, arg2) {
   return window['go']['main']['App']['UpdateUser'](arg1, arg2);
 }
 
-export function UploadDocument(arg1, arg2) {
-  return window['go']['main']['App']['UploadDocument'](arg1, arg2);
+export function UploadDocument(arg1, arg2, arg3) {
+  return window['go']['main']['App']['UploadDocument'](arg1, arg2, arg3);
 }
 
 export function UploadNewDocumentVersion(arg1) {

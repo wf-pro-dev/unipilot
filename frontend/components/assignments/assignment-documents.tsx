@@ -218,7 +218,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
                     key={pageIndex}
                     className="flex-none w-full min-w-0"
                   >
-                    <div className="grid grid-cols-2 gap-4 p-4">
+                    <div className="grid grid-cols-2 gap-4">
                       {page.map((document) => (
                         <div key={document.ID}>
                           <DocumentItem
@@ -288,6 +288,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
         onClose={() => setUploadDialogOpen(false)}
         onUploadComplete={handleUploadComplete}
         assignmentId={assignment.ID}
+        remoteAssignmentId={assignment.RemoteID}
         documentType={uploadType}
       />
     </div>

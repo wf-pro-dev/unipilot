@@ -12,9 +12,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unipilot/internal/app"
 	"unipilot/internal/auth"
 	"unipilot/internal/client"
+	"unipilot/internal/database"
 	"unipilot/internal/events"
 	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
@@ -26,7 +26,7 @@ import (
 	"unipilot/internal/network"
 	"unipilot/internal/services/daemon"
 	"unipilot/internal/services/fileops"
-	"unipilot/internal/storage"
+	"unipilot/internal/services/utils"
 	"unipilot/internal/sync"
 
 	"gorm.io/gorm"
@@ -36,18 +36,31 @@ import (
 
 // App struct
 type App struct {
-	ctx       context.Context
-	Auth      *auth.Auth
-	Events    *events.Events
-	DB        *app.DatabaseHelper
-	DaemonMgr *daemon.Manager
+	ctx    context.Context
+	Auth   *auth.Auth
+	DB     *database.Database
+	Events *events.Events
+	Daemon *daemon.Manager
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
+	authService := auth.NewAuth()
+
+	var dbService *database.Database
+	if authService.User != nil {
+		dbService = database.NewDatabase(authService.User)
+	}
+
+	var eventsService *events.Events
+	if dbService != nil {
+		eventsService = events.NewEvents(dbService.GetDB())
+	}
+
 	return &App{
-		Auth:   auth.NewAuth(),
-		Events: events.NewEvents(),
+		Auth:   authService,
+		DB:     dbService,
+		Events: eventsService,
 	}
 }
 
@@ -56,61 +69,69 @@ func NewApp() *App {
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// Initialize database helper
-	dbHelper, err := app.NewDatabaseHelper()
-	if err != nil {
-		fmt.Printf("Warning: Could not initialize database helper: %v\n", err)
-	} else {
-		a.DB = dbHelper
+	user, _ := utils.GetUserFromFile()
+	// if err != nil {
+	// 	log.Printf("Warning: Could not get user from file: %v", err)
+	// }
+
+	if user != nil {
+		a.Auth.User = user
+		// Initialize authenticated client
+		httpClient, err := client.NewClientWithCookies()
+		if err != nil {
+			log.Printf("Warning: Could not create http client from stored cookies: %v", err)
+		}
+
+		a.Auth.Client = httpClient
+		log.Println("[App] HTTP client initialized from stored cookies")
+
 	}
 
 	// Initialize daemon manager
-	if a.DB != nil {
-		userID := a.DB.GetCurrentUserID()
-		if userID > 0 {
-			daemonMgr, err := daemon.NewManager(userID, ctx)
-			if err != nil {
-				log.Printf("Warning: Could not initialize daemon manager: %v", err)
+
+	if a.Auth.User != nil && a.Auth.User.ID > 0 {
+		daemon, err := daemon.NewManager(a.Auth.User.ID, a.ctx)
+		if err != nil {
+			log.Printf("Warning: Could not initialize daemon manager: %v", err)
+		} else {
+			a.Daemon = daemon
+
+			// Auto-install daemon if not already installed
+			if !daemon.IsDaemonInstalled() {
+				log.Printf("[App] Installing notification daemon...")
+				if err := daemon.InstallDaemon(); err != nil {
+					log.Printf("Warning: Could not install notification daemon: %v", err)
+					runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
+						Type:    runtime.ErrorDialog,
+						Title:   "Notification Setup",
+						Message: "Failed to set up background notifications. Notifications will only work when the app is running.",
+					})
+				} else {
+					log.Printf("[App] Notification daemon installed successfully")
+				}
 			} else {
-				a.DaemonMgr = daemonMgr
+				log.Printf("[App] Notification daemon already installed")
+			}
 
-				// Auto-install daemon if not already installed
-				if !daemonMgr.IsDaemonInstalled() {
-					log.Printf("[App] Installing notification daemon...")
-					if err := daemonMgr.InstallDaemon(); err != nil {
-						log.Printf("Warning: Could not install notification daemon: %v", err)
-						runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
-							Type:    runtime.ErrorDialog,
-							Title:   "Notification Setup",
-							Message: "Failed to set up background notifications. Notifications will only work when the app is running.",
-						})
-					} else {
-						log.Printf("[App] Notification daemon installed successfully")
-					}
+			// Start daemon if not running
+			if !daemon.IsDaemonRunning() {
+				log.Printf("[App] Starting notification daemon...")
+				if err := daemon.StartDaemon(); err != nil {
+					log.Printf("Warning: Could not start notification daemon: %v", err)
 				} else {
-					log.Printf("[App] Notification daemon already installed")
+					log.Printf("[App] Notification daemon started successfully")
 				}
-
-				// Start daemon if not running
-				if !daemonMgr.IsDaemonRunning() {
-					log.Printf("[App] Starting notification daemon...")
-					if err := daemonMgr.StartDaemon(); err != nil {
-						log.Printf("Warning: Could not start notification daemon: %v", err)
-					} else {
-						log.Printf("[App] Notification daemon started successfully")
-					}
-				} else {
-					log.Printf("[App] Notification daemon already running")
-				}
+			} else {
+				log.Printf("[App] Notification daemon already running")
 			}
 		}
 	}
 
 	// Check if user is already authenticated and initialize HTTP client if needed
-	if _, err := a.Auth.IsAuthenticated(); err == nil {
+	if a.Auth.IsAuthenticated() {
 		log.Println("[App] User already authenticated, initializing HTTP client...")
-		if err := a.initializeAuthenticatedClient(); err != nil {
-			log.Printf("[App] Failed to initialize authenticated client: %v", err)
+		if a.Auth.Client != nil {
+			log.Printf("[App] Failed to initialize authenticated client: %v", a.Auth.Client)
 		} else {
 			if network.IsOnline() {
 				// Start background sync manager
@@ -129,26 +150,15 @@ func (a *App) Startup(ctx context.Context) {
 	}
 }
 
-// initializeAuthenticatedClient creates HTTP client from stored cookies when user is already authenticated
-func (a *App) initializeAuthenticatedClient() error {
-	httpClient, err := client.NewClientWithCookies()
-	if err != nil {
-		return fmt.Errorf("could not create http client from stored cookies: %w", err)
-	}
-
-	a.Auth.Client = httpClient
-	log.Println("[App] HTTP client initialized from stored cookies")
-	return nil
-}
-
 // ========================================
 // CREATE OPERATIONS
 // ========================================
 
 // CreateAssignment creates a new assignment
-func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error {
+func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*assignment.LocalAssignment, error) {
+
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return nil, fmt.Errorf("database not initialized")
 	}
 
 	tx := a.DB.GetDB().Begin()
@@ -166,16 +176,18 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 		TypeName:   assignmentData.TypeName,
 		StatusName: assignmentData.StatusName,
 		Priority:   assignmentData.Priority,
+		Link:       assignmentData.Link,
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
-		return fmt.Errorf("user not authenticated")
+	if !a.Auth.IsAuthenticated() {
+		return nil, fmt.Errorf("user not authenticated")
 	}
 
 	// Create the assignment locally first
 	if err := tx.Create(localAssignment).Error; err != nil {
 		tx.Rollback()
-		return err
+		runtime.LogInfof(a.ctx, "Error creating assignment: %v", err)
+		return nil, err
 	}
 
 	// Always try to sync with server
@@ -188,7 +200,10 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 		TypeName:   localAssignment.TypeName,
 		StatusName: localAssignment.StatusName,
 		Priority:   localAssignment.Priority,
+		Link:       localAssignment.Link,
 	}
+
+	//Online operation
 
 	isOnline := network.IsOnline()
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
@@ -197,6 +212,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 	if isOnline {
 		responseAssignment, clientErr = client.CreateAssignment(remoteAssignment)
 	} else {
+
 		clientErr = fmt.Errorf("user is offline")
 	}
 
@@ -212,37 +228,37 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) error
 			clientErr,
 		); syncErr != nil {
 			tx.Rollback()
-			return fmt.Errorf("failed to create sync log: %w", syncErr)
+			return nil, fmt.Errorf("failed to create sync log: %w", syncErr)
 		}
 
 		// Commit the transaction with the sync log
-		tx.Commit()
+		//tx.Commit()
 
-		return nil
+		return nil, nil
 	}
 
 	// Server operation succeeded
 	str_remote_id, ok := responseAssignment["id"].(string)
 	if !ok {
 		tx.Rollback()
-		return fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"])
+		return nil, fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"])
 	}
 
 	remote_id, err := strconv.Atoi(str_remote_id)
 	if err != nil {
 		tx.Rollback()
-		return fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"])
+		return nil, fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"])
 	}
 
 	localAssignment.RemoteID = uint(remote_id)
 
 	if err := tx.Save(localAssignment).Error; err != nil {
 		tx.Rollback()
-		return err
+		return nil, err
 	}
 
 	tx.Commit()
-	return nil
+	return localAssignment, nil
 }
 
 // CreateCourse creates a new course
@@ -272,7 +288,7 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 		EndDate:         courseData.EndDate,
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -383,7 +399,7 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 		CourseCode: noteData.CourseCode,
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -422,12 +438,15 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 }
 
 // UploadDocument opens a file dialog and uploads a document to an assignment
-func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.LocalDocument, error) {
+func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documentType string) (*document.LocalDocument, error) {
+
+	runtime.LogInfof(a.ctx, "UploadDocument: %v", assignmentID)
+
 	if a.DB == nil {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -471,58 +490,129 @@ func (a *App) UploadDocument(assignmentID uint, documentType string) (*document.
 		return nil, fmt.Errorf("failed to get file info: %w", err)
 	}
 
-	// Open the file
-	file, err := os.Open(filePath)
+	fileContent, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
-
-	// Get current user ID
-	userID := a.DB.GetCurrentUserID()
+	defer fileContent.Close()
 
 	// Create upload request
 	uploadReq := fileops.FileUploadRequest{
-		AssignmentID: assignmentID,
-		UserID:       userID,
-		Type:         document.DocumentType(documentType),
-		FileName:     filepath.Base(filePath),
-		FileContent:  file,
-		FileSize:     fileInfo.Size(),
+		AssignmentID:       assignmentID,
+		RemoteAssignmentID: remoteAssignmentID,
+		UserID:             a.Auth.User.ID,
+		Type:               document.DocumentType(documentType),
+		FileName:           filepath.Base(filePath),
+		FilePath:           filePath,
+		FileSize:           fileInfo.Size(),
+		FileContent:        fileContent,
+		StorageKey:         "",
 	}
 
-	// Upload the document locally
-	response, err := fileops.UploadDocument(uploadReq, a.DB.GetDB())
+	document, err := a.CreateDocument(uploadReq, true)
 	if err != nil {
-		return nil, fmt.Errorf("upload failed: %w", err)
+		return nil, fmt.Errorf("failed to create document: %w", err)
 	}
 
-	if !response.Success {
-		return nil, fmt.Errorf("upload failed: %s", response.Message)
+	return document, nil
+
+}
+
+func (a *App) CreateDocument(uploadReq fileops.FileUploadRequest, hasLocalFile bool) (*document.LocalDocument, error) {
+
+	runtime.LogInfof(a.ctx, "CreateDocument: %v", uploadReq.FileName)
+
+	uploadResp, err := a.DB.CreateDocument(a.ctx, uploadReq, hasLocalFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create document: %w", err)
 	}
 
-	// Also store metadata remotely for sharing
-	if _, err := a.Auth.IsAuthenticated(); err == nil && a.Auth.Client != nil {
-		metadataReq := map[string]interface{}{
-			"assignment_id": assignmentID,
-			"local_id":      response.LocalDocument.ID,
-			"type":          documentType,
-			"file_name":     filepath.Base(filePath),
-			"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
-			"file_size":     fileInfo.Size(),
+	response, err := a.SendDocument(uploadResp)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send document: %w", err)
+	}
+
+	return response, nil
+
+}
+
+func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse) (*document.LocalDocument, error) {
+
+	runtime.LogInfof(a.ctx, "SendDocument: %v", uploadResp.LocalDocument.FileName)
+
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
+
+		db := a.DB.GetDB()
+		tx := db.Begin()
+		defer func() {
+			if r := recover(); r != nil {
+				tx.Rollback()
+			}
+		}()
+
+		runtime.LogInfof(a.ctx, "sending document to remote: %v", uploadResp.LocalDocument.ID)
+
+		// Switch local to remote
+		var assignment assignment.LocalAssignment
+		err := tx.Where("id = ?", uploadResp.LocalDocument.AssignmentID).First(&assignment).Error
+		if err != nil {
+			return nil, fmt.Errorf("failed to get assignment: %w", err)
 		}
 
-		jsonData, _ := json.Marshal(metadataReq)
-		resp, _ := a.Auth.Client.Post("https://newsroom.dedyn.io/acc-homework/document/metadata",
-			"application/json", strings.NewReader(string(jsonData)))
-		if resp.StatusCode == 200 {
-			defer resp.Body.Close()
+		runtime.LogInfof(a.ctx, "sending document to remote: %v", uploadResp.LocalDocument.AssignmentID)
+
+		storageKey, clientErr := client.SendDocument(uploadResp.LocalDocument)
+		if clientErr != nil {
+			return nil, fmt.Errorf("failed to send document: %w", clientErr)
+		} else {
+			runtime.LogInfof(a.ctx, "remote upload response: %v", "success")
 		}
-		// We don't block on this - local file upload is the priority
+
+		runtime.LogInfof(a.ctx, "remote upload response: %v", storageKey)
+
+		uploadResp.LocalDocument.StorageKey = storageKey
+		if err := tx.Save(uploadResp.LocalDocument).Error; err != nil {
+			return nil, fmt.Errorf("failed to save document: %w", err)
+		}
+
+		tx.Commit()
 
 	}
 
-	return response.LocalDocument, nil
+	return uploadResp.LocalDocument, nil
+
+}
+
+// DownloadDocument retrieves a document file for download
+func (a *App) DownloadDocument(doc *document.LocalDocument) error {
+
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	db := a.DB.GetDB()
+
+	// Send document to Server to create remote document & download from cloud
+	downloadResp, err := client.DownloadDocument(doc)
+	if err != nil {
+		return fmt.Errorf("failed to download document: %w", err)
+	}
+
+	// test if file is empty
+	if downloadResp == nil {
+		return fmt.Errorf("file not found")
+	}
+
+	// write file to disk
+	if _, err := fileops.WriteDocument(doc, downloadResp, db); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return nil
 }
 
 // ========================================
@@ -702,11 +792,11 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
-	userID := a.DB.GetCurrentUserID()
+	userID := a.Auth.User.ID
 
 	// Verify the existing document belongs to the user
 	var existingDoc document.LocalDocument
@@ -750,20 +840,21 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 	}
 
 	// Open the file
-	file, err := os.Open(filePath)
+	fileContent, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+	defer fileContent.Close()
 
 	// Create new version request
 	uploadReq := fileops.FileUploadRequest{
-		AssignmentID: existingDoc.AssignmentID,
-		UserID:       userID,
-		Type:         existingDoc.Type,
-		FileName:     filepath.Base(filePath),
-		FileContent:  file,
-		FileSize:     fileInfo.Size(),
+		AssignmentID:       existingDoc.AssignmentID,
+		RemoteAssignmentID: existingDoc.RemoteAssignmentID,
+		UserID:             userID,
+		Type:               existingDoc.Type,
+		FileName:           filepath.Base(filePath),
+		FilePath:           filePath,
+		FileSize:           fileInfo.Size(),
 	}
 
 	// Upload new version locally
@@ -777,7 +868,7 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 	}
 
 	// Also update metadata remotely for sharing (async)
-	if _, err := a.Auth.IsAuthenticated(); err == nil && a.Auth.Client != nil {
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
 		metadataReq := map[string]interface{}{
 			"assignment_id": existingDoc.AssignmentID,
 			"local_id":      existingDoc.ID,
@@ -803,40 +894,39 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 
 func (a *App) UpdateUser(column, value string) (*user.User, error) {
 	// Get the current user from storage
-	u, err := storage.GetCurrentUser()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get current user: %w", err)
+	currentUser := a.Auth.User
+
+	if currentUser == nil {
+		return nil, fmt.Errorf("current user not found")
 	}
 
 	// Update the specific field
 	switch column {
 	case "email":
-		u.Email = value
+		currentUser.Email = value
 	case "username":
-		u.Username = value
+		currentUser.Username = value
 	case "university":
-		u.University = value
+		currentUser.University = value
 	case "semester":
-		u.Semester = value
+		currentUser.Semester = value
 	case "year":
-		u.Year = value
+		currentUser.Year = value
 	case "language":
-		u.Language = value
+		currentUser.Language = value
 	case "avatar":
-		u.Avatar = value
+		currentUser.Avatar = value
 	default:
 		return nil, fmt.Errorf("unknown column: %s", column)
 	}
 
 	// Update the timestamp
-	u.UpdatedAt = time.Now()
+	currentUser.UpdatedAt = time.Now()
 
-	runtime.LogInfof(a.ctx, "Updated user: %v", u.ToMap())
+	runtime.LogInfof(a.ctx, "Updated user: %v", currentUser.ToMap())
 
-	// Store the updated user in the credentials file
-	if err := storage.StoreCredentials(*u); err != nil {
-		return nil, fmt.Errorf("failed to store credentials: %w", err)
-	}
+	// Set the user to the auth struct
+	a.Auth.User = currentUser
 
 	isOnline := network.IsOnline()
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
@@ -850,11 +940,11 @@ func (a *App) UpdateUser(column, value string) (*user.User, error) {
 	if clientErr != nil {
 		db := a.DB.GetDB()
 		sm := sync.NewSyncManager(db)
-		syncLog, err := sm.GetSyncLog(models.EntityUser, u.ID, "update", column)
+		syncLog, err := sm.GetSyncLog(models.EntityUser, currentUser.ID, "update", column)
 		if err != nil {
 			if syncErr := sm.CreateSyncLog(
 				models.EntityUser,
-				u.ID,
+				currentUser.ID,
 				"update",
 				column,
 				value,
@@ -862,17 +952,17 @@ func (a *App) UpdateUser(column, value string) (*user.User, error) {
 			); syncErr != nil {
 				return nil, fmt.Errorf("failed to create sync log: %w", syncErr)
 			}
-			return u, nil
+			return currentUser, nil
 		}
 		syncLog.Value = value
 
 		if err := db.Save(&syncLog).Error; err != nil {
 			return nil, fmt.Errorf("failed to save sync log: %w", err)
 		}
-		return u, nil
+		return currentUser, nil
 	}
 
-	return u, nil
+	return currentUser, nil
 }
 
 // ========================================
@@ -1017,11 +1107,11 @@ func (a *App) DeleteDocument(documentID uint) error {
 		return fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return fmt.Errorf("user not authenticated")
 	}
 
-	userID := a.DB.GetCurrentUserID()
+	userID := a.Auth.User.ID
 
 	// Get local document record
 	var doc document.LocalDocument
@@ -1045,16 +1135,10 @@ func (a *App) DeleteDocument(documentID uint) error {
 	// Storage info is now calculated on-demand, no need to update cache
 
 	// Also store metadata remotely for sharing
-	if _, err := a.Auth.IsAuthenticated(); err == nil && a.Auth.Client != nil {
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
 
-		resp, _ := a.Auth.Client.Post(fmt.Sprintf("https://newsroom.dedyn.io/acc-homework/document/metadata/delete?document_id=%d", documentID),
-			"application/json", nil)
-		if resp.StatusCode == 200 {
-			defer resp.Body.Close()
-		}
-
-		if resp.StatusCode != 200 {
-			return fmt.Errorf("failed to delete document metadata: %s", resp.Status)
+		if err := client.DeleteDocument(documentID); err != nil {
+			return fmt.Errorf("failed to delete document metadata: %w", err)
 		}
 
 	}
@@ -1132,13 +1216,10 @@ func (a *App) Register(username, email, password, university, language string) (
 		return nil, err
 	}
 
-	// Reinitialize database helper after registration
-	dbHelper, err := app.NewDatabaseHelper()
-	if err != nil {
-		fmt.Printf("Warning: Could not initialize database helper after registration: %v\n", err)
-	} else {
-		a.DB = dbHelper
-	}
+	// Set the user to the auth struct
+	a.Auth.User = user
+	a.DB = database.NewDatabase(user)
+	a.Events = events.NewEvents(a.DB.GetDB())
 
 	return user, nil
 }
@@ -1150,13 +1231,10 @@ func (a *App) Login(username, password string) (*user.User, error) {
 		return nil, err
 	}
 
-	// Reinitialize database helper after login
-	dbHelper, err := app.NewDatabaseHelper()
-	if err != nil {
-		fmt.Printf("Warning: Could not initialize database helper after login: %v\n", err)
-	} else {
-		a.DB = dbHelper
-	}
+	// Set the user to the auth struct
+	a.Auth.User = user
+	a.DB = database.NewDatabase(user)
+	a.Events = events.NewEvents(a.DB.GetDB())
 
 	return user, nil
 }
@@ -1167,22 +1245,28 @@ func (a *App) Logout() error {
 		return err
 	}
 
-	a.DB = nil
+	authService := auth.NewAuth()
+
+	var dbService *database.Database
+	if authService.User != nil {
+		dbService = database.NewDatabase(authService.User)
+	}
+
+	var eventsService *events.Events
+	if dbService != nil {
+		eventsService = events.NewEvents(dbService.GetDB())
+	}
+
+	a.Auth = authService
+	a.DB = dbService
+	a.Events = eventsService
 
 	return nil
 }
 
 // IsAuthenticated checks if the user is currently authenticated
-func (a *App) IsAuthenticated() (*user.User, error) {
-	user, err := storage.GetCurrentUser()
-	if err != nil {
-		// When no credentials exist, return a LocalCredentials object with IsAuthenticated = false
-		// instead of an error, so frontend can properly handle the unauthenticated state
-		log.Printf("[App] No credentials found: %v", err)
-		return nil, nil
-	}
-
-	return user, nil
+func (a *App) GetCurrentUser() (*user.User, error) {
+	return a.Auth.User, nil
 }
 
 // Sync performs synchronization of local changes with the remote server
@@ -1192,7 +1276,7 @@ func (a *App) Sync() error {
 	}
 
 	// Check if user is authenticated
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -1273,14 +1357,14 @@ func (a *App) GetAssignmentDocuments(assignmentID uint) ([]document.LocalDocumen
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 	// Use LocalDocument and only return documents we have locally
 	var documents []document.LocalDocument
 	err := a.DB.GetDB().Where(
-		"assignment_id = ? AND has_local_file = ?",
-		assignmentID, true,
+		"assignment_id = ?",
+		assignmentID,
 	).Order("created_at DESC").Find(&documents).Error
 
 	return documents, err
@@ -1292,7 +1376,7 @@ func (a *App) GetSupportDocuments(assignmentID uint) ([]document.LocalDocument, 
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -1311,7 +1395,7 @@ func (a *App) GetSubmissionDocuments(assignmentID uint) ([]document.LocalDocumen
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -1330,7 +1414,7 @@ func (a *App) OpenDocument(documentID uint) error {
 		return fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -1363,7 +1447,7 @@ func (a *App) SaveDocumentAs(documentID uint) error {
 		return fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return fmt.Errorf("user not authenticated")
 	}
 
@@ -1426,11 +1510,11 @@ func (a *App) GetUserStorageInfo() (*document.StorageInfo, error) {
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
-	userID := a.DB.GetCurrentUserID()
+	userID := a.Auth.User.ID
 
 	// Calculate storage info on-demand
 	storageInfo, err := document.GetUserStorageInfo(userID, a.DB.GetDB())
@@ -1447,7 +1531,7 @@ func (a *App) GetRemoteDocumentMetadata(assignmentID uint) ([]map[string]interfa
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -1488,7 +1572,7 @@ func (a *App) GetCourseAssignments(course *course.LocalCourse) ([]assignment.Loc
 		return nil, fmt.Errorf("database not initialized")
 	}
 
-	if _, err := a.Auth.IsAuthenticated(); err != nil {
+	if !a.Auth.IsAuthenticated() {
 		return nil, fmt.Errorf("user not authenticated")
 	}
 
@@ -1550,55 +1634,55 @@ func (a *App) GetNetworkStatus() map[string]interface{} {
 
 // InstallNotificationDaemon installs the notification daemon
 func (a *App) InstallNotificationDaemon() error {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return fmt.Errorf("daemon manager not initialized")
 	}
-	return a.DaemonMgr.InstallDaemon()
+	return a.Daemon.InstallDaemon()
 }
 
 // UninstallNotificationDaemon uninstalls the notification daemon
 func (a *App) UninstallNotificationDaemon() error {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return fmt.Errorf("daemon manager not initialized")
 	}
-	return a.DaemonMgr.UninstallDaemon()
+	return a.Daemon.UninstallDaemon()
 }
 
 // IsNotificationDaemonInstalled checks if the daemon is installed
 func (a *App) IsNotificationDaemonInstalled() bool {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return false
 	}
-	return a.DaemonMgr.IsDaemonInstalled()
+	return a.Daemon.IsDaemonInstalled()
 }
 
 // IsNotificationDaemonRunning checks if the daemon is running
 func (a *App) IsNotificationDaemonRunning() bool {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return false
 	}
-	return a.DaemonMgr.IsDaemonRunning()
+	return a.Daemon.IsDaemonRunning()
 }
 
 // StartNotificationDaemon starts the daemon
 func (a *App) StartNotificationDaemon() error {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return fmt.Errorf("daemon manager not initialized")
 	}
-	return a.DaemonMgr.StartDaemon()
+	return a.Daemon.StartDaemon()
 }
 
 // StopNotificationDaemon stops the daemon
 func (a *App) StopNotificationDaemon() error {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return fmt.Errorf("daemon manager not initialized")
 	}
-	return a.DaemonMgr.StopDaemon()
+	return a.Daemon.StopDaemon()
 }
 
 // GetNotificationDaemonStatus returns the daemon status
 func (a *App) GetNotificationDaemonStatus() map[string]interface{} {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return map[string]interface{}{
 			"installed": false,
 			"running":   false,
@@ -1607,18 +1691,18 @@ func (a *App) GetNotificationDaemonStatus() map[string]interface{} {
 	}
 
 	return map[string]interface{}{
-		"installed": a.DaemonMgr.IsDaemonInstalled(),
-		"running":   a.DaemonMgr.IsDaemonRunning(),
+		"installed": a.Daemon.IsDaemonInstalled(),
+		"running":   a.Daemon.IsDaemonRunning(),
 		"error":     nil,
 	}
 }
 
 // Add method to rebuild daemon (for updates)
 func (a *App) RebuildNotificationDaemon() error {
-	if a.DaemonMgr == nil {
+	if a.Daemon == nil {
 		return fmt.Errorf("daemon manager not initialized")
 	}
-	return a.DaemonMgr.RebuildDaemon()
+	return a.Daemon.RebuildDaemon()
 }
 
 // LinkCourse links a course to a list of users
@@ -1629,25 +1713,77 @@ func (a *App) RequestLinkCourse(courseCode string, usersID []uint) error {
 func (a *App) AcceptLink(courseData string) error {
 
 	// Unmarshal the course data
-	var c course.LocalCourse
-	if err := json.Unmarshal([]byte(courseData), &c); err != nil {
+	var localC course.LocalCourse
+	if err := json.Unmarshal([]byte(courseData), &localC); err != nil {
 		return err
 	}
 
-	runtime.LogInfof(a.ctx, "AcceptLink: %v", c)
+	runtime.LogInfof(a.ctx, "AcceptLink: %v", courseData)
 
 	//Determine if the course already exists
 	var existingCourse course.LocalCourse
-	err := a.DB.GetDB().Where("code = ?", c.Code).First(&existingCourse).Error
+	err := a.DB.GetDB().Where("code = ?", localC.Code).First(&existingCourse).Error
 	if err != nil {
 		// If the course doesn't exist, create it
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			a.CreateCourse(&c)
+			a.CreateCourse(&localC)
 		}
 		return err
 	}
 	// Update the course with the new link ID
-	a.UpdateCourse(&existingCourse, "link_id", c.LinkID.String())
+	a.UpdateCourse(&existingCourse, "link_id", localC.LinkID.String())
+
+	var c course.Course
+	if err := json.Unmarshal([]byte(courseData), &c); err != nil {
+		return err
+	}
+
+	runtime.LogInfo(a.ctx, "send request to accept link course")
+	response, err := client.AcceptLinkCourse(&c)
+
+	if err != nil {
+		return err
+	}
+
+	// Create the assignments
+	for _, remoteAssignment := range response.Assignments {
+
+		localAssignment := assignment.LocalAssignment{
+			Title:      remoteAssignment.Title,
+			Todo:       remoteAssignment.Todo,
+			Deadline:   remoteAssignment.Deadline,
+			CourseCode: remoteAssignment.CourseCode,
+			TypeName:   remoteAssignment.TypeName,
+			StatusName: "Not started",
+			Priority:   remoteAssignment.Priority,
+			Link:       remoteAssignment.Link,
+		}
+
+		var newAssignment *assignment.LocalAssignment
+		if newAssignment, err = a.CreateAssignment(&localAssignment); err != nil {
+			runtime.LogInfof(a.ctx, "Error creating assignment: %v", err)
+			return err
+		}
+
+		runtime.LogInfof(a.ctx, "Documents: %v", remoteAssignment.Documents)
+
+		for _, document := range remoteAssignment.Documents {
+			runtime.LogInfof(a.ctx, "Creating document: %v", document)
+			uploadReq := fileops.FileUploadRequest{
+				AssignmentID:       newAssignment.ID, // Update to new assignment ID
+				RemoteAssignmentID: newAssignment.RemoteID,
+				UserID:             a.Auth.User.ID, // Update to new user ID
+				Type:               document.Type,
+				FileName:           document.FileName,
+				FileSize:           document.FileSize,
+				StorageKey:         document.StorageKey,
+			}
+			_, err := a.CreateDocument(uploadReq, false)
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	return nil
 }

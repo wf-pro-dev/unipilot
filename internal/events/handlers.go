@@ -9,7 +9,6 @@ import (
 
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/notifications"
-	"unipilot/internal/storage"
 )
 
 type AssignmentResponse struct {
@@ -28,10 +27,7 @@ type AssignmentResponse struct {
 
 func (h *Events) HandleAssignmentCreate(data json.RawMessage, message string) {
 
-	db, _, err := storage.GetLocalDB()
-	if err != nil {
-		return
-	}
+	db := h.DB
 
 	tx := db.Begin()
 	defer func() {
@@ -81,10 +77,7 @@ func (h *Events) HandleAssignmentCreate(data json.RawMessage, message string) {
 func (h *Events) HandleAssignmentUpdate(data json.RawMessage, message string) {
 	// Similar to handleAssignmentCreate but with update logic
 
-	db, _, err := storage.GetLocalDB()
-	if err != nil {
-		return
-	}
+	db := h.DB
 
 	tx := db.Begin()
 	defer func() {
@@ -111,7 +104,7 @@ func (h *Events) HandleAssignmentUpdate(data json.RawMessage, message string) {
 	}
 
 	var a assignment.LocalAssignment
-	err = tx.Model(&assignment.LocalAssignment{}).Where("remote_id = ?", update.ID).First(&a).Error
+	err := tx.Model(&assignment.LocalAssignment{}).Where("remote_id = ?", update.ID).First(&a).Error
 	if err != nil {
 		log.Printf("Error getting assignment: %v", err)
 		return
@@ -124,10 +117,7 @@ func (h *Events) HandleAssignmentUpdate(data json.RawMessage, message string) {
 func (h *Events) HandleAssignmentDelete(data json.RawMessage, message string) {
 	// Similar to handleAssignmentCreate but with delete logic
 
-	db, _, err := storage.GetLocalDB()
-	if err != nil {
-		return
-	}
+	db := h.DB
 
 	tx := db.Begin()
 	defer func() {
@@ -161,10 +151,7 @@ func (h *Events) HandleAssignmentDelete(data json.RawMessage, message string) {
 
 func (h *Events) HandleFollow(data json.RawMessage, message string) {
 
-	db, _, err := storage.GetLocalDB()
-	if err != nil {
-		return
-	}
+	db := h.DB
 
 	tx := db.Begin()
 	defer func() {

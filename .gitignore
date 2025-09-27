@@ -20,8 +20,7 @@ profile.cov
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-# logsi (server)
-
+# logs (server)
 logs
 
 # Go workspace file
@@ -35,11 +34,18 @@ go.work.sum
 # .idea/
 # .vscode/
 
-# Wails (frontend)
+# Wails (frontend) /
 node_module
 package*
+build
 
+# frontend/
+ 
 frontend/node_module
 frontend/package*
+frontend/dist
+
+build
+
 
 

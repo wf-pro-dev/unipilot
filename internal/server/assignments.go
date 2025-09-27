@@ -97,6 +97,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		TypeName   string `json:"type"`
 		StatusName string `json:"status"`
 		Priority   string `json:"priority"`
+		Link	   string `json:"link"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -139,6 +140,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		TypeName:   input.TypeName,
 		StatusName: input.StatusName,
 		Priority:   input.Priority,
+		Link:	    input.Link,
 	}
 
 	result := tx.Create(&aVal)
