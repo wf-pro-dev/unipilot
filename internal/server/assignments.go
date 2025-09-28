@@ -214,20 +214,22 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	PrintLog(fmt.Sprintf("link users : %v, sseServer : %v", link_users, sseServer != nil))
 	if sseServer != nil {
 		// 2. Send link info to users via SSE (field data)
-		for _,sendeeID := range link_users {
-			PrintLog(fmt.Sprintf("sending to : %d ",sendeeID))
-			sseServer.SendNotification(
-				uint(sendeeID),
-				userID,
-				models.EntityAssignment,
-				c.ID,
-				notifications.NotificationAssignment,
-				a.Title,
-				fmt.Sprintf("%s shared a new assignment on %s", currentUser.Username, c.Code),
-				"assignment",
-				string(aJson),
+		for _,sendeeID := range link_users; uint(sendeeID) {
+			if sendeeID != userID {
+				PrintLog(fmt.Sprintf("sending to : %d ",sendeeID))
+				sseServer.SendNotification(
+					uint(sendeeID),
+					userID,
+					models.EntityAssignment,
+					c.ID,
+					notifications.NotificationAssignmentUpdate,
+					a.Title,
+					fmt.Sprintf("%s shared a new assignment on %s", currentUser.Username, c.Code),
+					"assignment",
+					string(aJson),
 
-			)
+				)
+			}
 		}
 	}
 
