@@ -117,7 +117,7 @@ func (h *Database) GetNotifications() ([]notifications.LocalNotification, error)
 	err := h.db.
 		Where("type = ?", notifications.NotificationFollow).
 		Or("type = ?", notifications.NotificationSync).
-		Or("type = ?", notifications.NotificationAssignment).
+		Or("type = ?", notifications.NotificationAssignmentUpdate).
 		Find(&LocalNotification).
 		Order("created_at DESC").Error
 	return LocalNotification, err

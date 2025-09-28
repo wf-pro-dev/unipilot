@@ -39,6 +39,7 @@ declare global {
           DeleteNotification: (notification: notifications.LocalNotification) => Promise<void>
           RequestLinkCourse: (courseCode: string, usersID: number[]) => Promise<void>
           AcceptLink: (courseData: string) => Promise<void>
+          AcceptAssignment: (assignmentData: string) => Promise<assignment.LocalAssignment>
         }
       }
     }

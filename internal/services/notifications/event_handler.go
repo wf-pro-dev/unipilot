@@ -162,7 +162,7 @@ func (eh *EventHandler) HandleAssignmentNotification(notification notifications.
 	log.Printf("[EventHandler] Processing assignment notification: %s", notification.Message)
 	log.Printf("[EventHandler] Data: %s", string(notification.Data))
 
-	notification.Type = notifications.NotificationAssignment
+	notification.Type = notifications.NotificationAssignmentUpdate
 	notification.Read = false
 	notification.ExpiresAt = &time.Time{}
 
@@ -222,7 +222,7 @@ func (eh *EventHandler) routeEvent(event sse.Event) {
 		eh.HandleFollowNotification(notification)
 	case notifications.NotificationSync:
 		eh.HandleSyncNotification(notification)
-	case notifications.NotificationAssignment:
+	case notifications.NotificationAssignmentUpdate:
 		eh.HandleAssignmentNotification(notification)
 	default:
 		log.Printf("[EventHandler] Unknown entity type: %s", notification.Entity)

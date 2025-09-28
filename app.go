@@ -1719,8 +1719,6 @@ func (a *App) AcceptLink(courseData string) error {
 		return err
 	}
 
-	runtime.LogInfof(a.ctx, "AcceptLink: %v", courseData)
-
 	//Determine if the course already exists
 	var existingCourse course.LocalCourse
 	err := a.DB.GetDB().Where("code = ?", localC.Code).First(&existingCourse).Error
@@ -1784,6 +1782,20 @@ func (a *App) AcceptLink(courseData string) error {
 				return err
 			}
 		}
+	}
+
+	return nil
+}
+
+func (a *App) AcceptAssignment(assignmentData string) error {
+
+	var localAssignment assignment.LocalAssignment
+	if err := json.Unmarshal([]byte(assignmentData), &localAssignment); err != nil {
+		return err
+	}
+
+	if _, err := a.CreateAssignment(&localAssignment); err != nil {
+		return err
 	}
 
 	return nil

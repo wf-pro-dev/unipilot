@@ -9,6 +9,8 @@ import {notifications} from '../models';
 import {user} from '../models';
 import {main} from '../models';
 
+export function AcceptAssignment(arg1:string):Promise<void>;
+
 export function AcceptLink(arg1:string):Promise<void>;
 
 export function CreateAssignment(arg1:assignment.LocalAssignment):Promise<assignment.LocalAssignment>;

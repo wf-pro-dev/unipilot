@@ -12,6 +12,8 @@ import { toast } from "sonner"
 import { useAcceptLink } from "@/hooks/use-courses"
 import { useState } from "react"
 import { LinkAcceptModal } from "../community/link-accept-modal"
+import { useAcceptAssignment } from "@/hooks/use-assignments"
+import { AssignmentAcceptModal } from "../community/assignment-accept-modal"
 
 interface NotificationsItemProps {
     notification: notifications.LocalNotification
@@ -24,9 +26,11 @@ export function NotificationsItem({ notification }: NotificationsItemProps) {
     const isFollowed = following?.some((following) => following.ID === notification.sender_id)
     const followMutation = useFollow(currentUser!, false)
     const acceptLinkMutation = useAcceptLink()
+    const acceptAssignmentMutation = useAcceptAssignment()
     const deleteMutation = useDeleteNotification()
 
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false)
 
     const handleAccept = () => {
         setIsModalOpen(false)
@@ -41,8 +45,26 @@ export function NotificationsItem({ notification }: NotificationsItemProps) {
         })
     }
 
+    const handleAcceptAssignment = () => {
+        setIsModalOpen(false)
+        acceptAssignmentMutation.mutate(notification.data, {
+            onSuccess: () => {
+                toast.success("Assignment successfully accepted")
+                setIsAssignmentModalOpen(false)
+            },
+            onError: (error: any) => {
+                LogError("Failed to accept assignment: " + error)
+                toast.error("Failed to accept assignment")
+            }
+        })
+    }
+
     const handleClose = () => {
         setIsModalOpen(false)
+    }
+
+    const handleCloseAssignment = () => {
+        setIsAssignmentModalOpen(false)
     }
 
     const handleFollow = () => {
@@ -72,10 +94,9 @@ export function NotificationsItem({ notification }: NotificationsItemProps) {
 
             }
         },
-        "assignment": {
+        "assignment_update": {
             ButtonText: "Add", ShowButton: true, OnClick: () => {
-                setIsModalOpen(true)
-
+                setIsAssignmentModalOpen(true)
             }
         },
     }
@@ -133,6 +154,12 @@ export function NotificationsItem({ notification }: NotificationsItemProps) {
                 onAccept={handleAccept}
                 onClose={handleClose}
                 courseData={notification.data}
+            />
+            <AssignmentAcceptModal
+                isOpen={isAssignmentModalOpen}
+                onAccept={handleAcceptAssignment}
+                onClose={handleCloseAssignment}
+                assignmentData={notification.data}
             />
         </Card>
     )

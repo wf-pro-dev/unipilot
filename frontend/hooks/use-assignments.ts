@@ -34,42 +34,42 @@ export function useAssignments() {
 // Hook for updating assignments with optimistic updates
 export function useUpdateAssignment() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      assignment, 
-      column, 
-      value 
-    }: { 
+    mutationFn: async ({
+      assignment,
+      column,
+      value
+    }: {
       assignment: assignment.LocalAssignment
       column: string
-      value: string 
+      value: string
     }) => {
       LogInfo("[Frontend] update mutation is called")
       return await window.go.main.App.UpdateAssignment(assignment, column, value)
     },
-    
+
     // Optimistic update for instant UI feedback
     onMutate: async ({ assignment, column, value }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: assignmentKeys.lists() })
-      
+
       // Snapshot the previous value
       const previousAssignments = queryClient.getQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists())
-      
+
       // Optimistically update the cache
       queryClient.setQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
         if (!old) return []
-        return old.map(a => 
-          a.ID === assignment.ID 
+        return old.map(a =>
+          a.ID === assignment.ID
             ? { ...a, [column]: value, UpdatedAt: new Date() } as assignment.LocalAssignment
             : a
         )
       })
-      
+
       return { previousAssignments }
     },
-    
+
     // If the mutation fails, rollback
     onError: (err, variables, context) => {
       if (context?.previousAssignments) {
@@ -77,7 +77,7 @@ export function useUpdateAssignment() {
       }
       LogError("Failed to update assignment: " + err)
     },
-    
+
     // Always refetch after error or success to ensure consistency
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: assignmentKeys.lists() })
@@ -88,69 +88,70 @@ export function useUpdateAssignment() {
 // Hook for creating new assignments
 export function useCreateAssignment() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (newAssignment: assignment.LocalAssignment) => {
       return await window.go.main.App.CreateAssignment(newAssignment)
     },
-    
+
     // Optimistically add the new assignment
     onMutate: async (newAssignment) => {
       await queryClient.cancelQueries({ queryKey: assignmentKeys.lists() })
-      
+
       const previousAssignments = queryClient.getQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists())
-      
+
       queryClient.setQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
         if (!old) return [newAssignment]
         return [newAssignment, ...old]
       })
-      
+
       return { previousAssignments }
     },
-    
+
     onError: (err, variables, context) => {
       if (context?.previousAssignments) {
         queryClient.setQueryData(assignmentKeys.lists(), context.previousAssignments)
       }
       LogError("Failed to create assignment: " + err)
     },
-    
+
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: assignmentKeys.lists() })
     },
   })
 }
 
+
 // Hook for deleting assignments
 export function useDeleteAssignment() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (assignment: assignment.LocalAssignment) => {
       return await window.go.main.App.DeleteAssignment(assignment)
     },
-    
+
     // Optimistically remove the assignment
     onMutate: async (assignment) => {
       await queryClient.cancelQueries({ queryKey: assignmentKeys.lists() })
-      
+
       const previousAssignments = queryClient.getQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists())
-      
+
       queryClient.setQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
         if (!old) return []
         return old.filter(a => a.ID !== assignment.ID)
       })
-      
+
       return { previousAssignments }
     },
-    
+
     onError: (err, variables, context) => {
       if (context?.previousAssignments) {
         queryClient.setQueryData(assignmentKeys.lists(), context.previousAssignments)
       }
       LogError("Failed to delete assignment: " + err)
     },
-    
+
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: assignmentKeys.lists() })
     },
@@ -177,12 +178,12 @@ export function useCourseAssignments(course: course.LocalCourse) {
 
 export function useOverdueAssignments() {
   const { data: assignments, ...rest } = useAssignments()
-  
+
   const overdueAssignments = assignments?.filter(assignment => {
     if (!assignment.Deadline) return false
     return new Date(assignment.Deadline) < addDays(new Date(), -1) && assignment.StatusName !== 'Done'
   }) || []
-  
+
   return {
     data: overdueAssignments,
     ...rest
@@ -191,14 +192,14 @@ export function useOverdueAssignments() {
 
 export function useTodayAssignments() {
   const { data: assignments, ...rest } = useAssignments()
-  
+
   const todayAssignments = assignments?.filter(assignment => {
     if (!assignment.Deadline) return false
     const today = new Date()
     const deadline = new Date(assignment.Deadline)
     return deadline.toDateString() === today.toDateString()
   }) || []
-  
+
   return {
     data: todayAssignments,
     ...rest
@@ -207,11 +208,11 @@ export function useTodayAssignments() {
 
 export function useAssignmentsByCourse(courseId?: number) {
   const { data: assignments, ...rest } = useAssignments()
-  
-  const courseAssignments = assignments?.filter(assignment => 
+
+  const courseAssignments = assignments?.filter(assignment =>
     assignment.Course?.ID === courseId
   ) || []
-  
+
   return {
     data: courseAssignments,
     ...rest
@@ -221,13 +222,13 @@ export function useAssignmentsByCourse(courseId?: number) {
 // Weekly assignments
 export function useWeekAssignments() {
   const { data: assignments, ...rest } = useAssignments()
-  
+
   const weekAssignments = assignments?.filter(assignment => {
     if (!assignment.Deadline) return false
     const deadline = new Date(assignment.Deadline)
     return isWithinInterval(deadline, { start: startOfWeek(new Date()), end: endOfWeek(new Date()) })
   }) || []
-  
+
   return {
     data: weekAssignments,
     ...rest
@@ -237,11 +238,11 @@ export function useWeekAssignments() {
 // Completed assignments
 export function useCompletedAssignments() {
   const { data: assignments, ...rest } = useAssignments()
-  
-  const completedAssignments = assignments?.filter(assignment => 
+
+  const completedAssignments = assignments?.filter(assignment =>
     assignment.StatusName === 'Done' || assignment.Completed
   ) || []
-  
+
   return {
     data: completedAssignments,
     ...rest
@@ -251,16 +252,47 @@ export function useCompletedAssignments() {
 // Completed assignments
 export function useExamAssignments() {
   const { data: assignments, ...rest } = useAssignments()
-  
-  const examAssignments = assignments?.filter(assignment => 
-    assignment.TypeName === 'Exam' 
+
+  const examAssignments = assignments?.filter(assignment =>
+    assignment.TypeName === 'Exam'
   ) || []
-  
+
   return {
     data: examAssignments,
     ...rest
   }
 }
+export function useAcceptAssignment() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (assignmentData: string) => {
+      return await window.go.main.App.AcceptAssignment(assignmentData)
+    },
+
+    onSuccess: async (newAssignment) => {
+      await queryClient.cancelQueries({ queryKey: assignmentKeys.lists() })
+
+      const previousAssignments = queryClient.getQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists())
+
+      queryClient.setQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
+        if (!old) return [newAssignment]
+        return [newAssignment, ...old]
+      })
+
+      return { previousAssignments }
+    },
+
+    onError: (err) => {
+      LogError("Failed to accept assignment: " + err)
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: assignmentKeys.lists() })
+    },
+  })
+}
+
 
 // Legacy support - keep the same interface for existing components
 export { useAssignments as useAssignmentsLegacy } 
