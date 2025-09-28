@@ -1,7 +1,7 @@
 module.exports = {
   apps: [{
     name: 'unipilot-server',
-    script: './unipilot-server',
+    script: '/usr/local/bin/unipilot-server',
     cwd: '/home/ubuntu/unipilot',
     instances: 1,
     autorestart: true,
