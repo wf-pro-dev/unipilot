@@ -32,13 +32,15 @@ type Assignment struct {
 	TypeName   string `gorm:"not null"`
 	StatusName string `gorm:"not null"`
 	Priority   string `gorm:"default:medium"`
-	Completed  bool   `gorm:"default:false"`
+	ParentID   uint      `gorm:"default:0"`
 
 	User      user.User               `gorm:"foreignKey:UserID;references:ID"`
 	Course    course.Course           `gorm:"foreignKey:CourseCode;references:Code"`
 	Type      models.AssignmentType   `gorm:"foreignKey:TypeName;references:Name"`
 	Status    models.AssignmentStatus `gorm:"foreignKey:StatusName;references:Name"`
 	Documents []document.Document     `gorm:"foreignKey:AssignmentID;references:ID"`
+	Parent    *Assignment             `gorm:"foreignKey:ParentID;references:ID"`
+	Children  []*Assignment           `gorm:"foreignKey:ParentID;references:ID"`
 }
 
 type Filter struct {
@@ -146,6 +148,7 @@ func (a *Assignment) ToMap() map[string]string {
 		"id":          strconv.Itoa(int(a.ID)),
 		"user_id":     strconv.Itoa(int(a.UserID)),
 		"local_id":    strconv.Itoa(int(a.LocalID)),
+		"parent_id":   strconv.Itoa(int(a.ParentID)),
 		"notion_id":   a.NotionID,
 		"type":        a.TypeName,
 		"deadline":    a.Deadline.Format(time.DateOnly),
@@ -155,7 +158,6 @@ func (a *Assignment) ToMap() map[string]string {
 		"status":      a.StatusName,
 		"link":        a.Link,
 		"priority":    a.Priority,
-		"completed":   strconv.FormatBool(a.Completed),
 		"created_at":  a.CreatedAt.Format(time.RFC3339),
 		"updated_at":  a.UpdatedAt.Format(time.RFC3339),
 	}
@@ -213,4 +215,14 @@ func (a *Assignment) GetDocumentStorageUsage(db *gorm.DB) (int64, error) {
 	}
 
 	return totalSize, nil
+}
+
+func (a *Assignment) GetChildren(db *gorm.DB) ([]Assignment, error) {
+	var children []Assignment
+	err := db.Where("parent_id = ? OR id = ?", a.ID, a.ID).
+	Find(&children).Error
+	if err != nil {
+		return nil, err
+	}
+	return children, nil
 }

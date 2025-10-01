@@ -25,6 +25,7 @@ const (
 	NotificationNoteUpdate NotificationType = "note_update"
 
 	NotificationDocument NotificationType = "document"
+	NotificationDocumentUpdate NotificationType = "document_update"
 
 	NotificationFollow NotificationType = "follow"
 
