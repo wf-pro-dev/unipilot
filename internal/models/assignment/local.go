@@ -26,12 +26,14 @@ type LocalAssignment struct {
 	TypeName   string    `gorm:"not null"`
 	StatusName string    `gorm:"not null"`
 	Priority   string    `gorm:"default:medium"`
-	Completed  bool      `gorm:"default:false"`
+	ParentID   uint      `gorm:"default:0"`
 
 	Course    course.LocalCourse           `gorm:"foreignKey:CourseCode;references:Code"`
 	Type      models.LocalAssignmentType   `gorm:"foreignKey:TypeName;references:Name"`
 	Status    models.LocalAssignmentStatus `gorm:"foreignKey:StatusName;references:Name"`
 	Documents []document.LocalDocument     `gorm:"foreignKey:AssignmentID;references:ID"`
+	Parent    *LocalAssignment             `gorm:"foreignKey:ParentID;references:ID"`
+	Children  []*LocalAssignment           `gorm:"foreignKey:ParentID;references:ID"`
 }
 
 func (a *LocalAssignment) ToMap() map[string]string {
@@ -46,7 +48,6 @@ func (a *LocalAssignment) ToMap() map[string]string {
 		"status_name": a.StatusName,
 		"link":        a.Link,
 		"priority":    a.Priority,
-		"completed":   strconv.FormatBool(a.Completed),
 	}
 }
 

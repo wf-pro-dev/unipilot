@@ -11,7 +11,6 @@ import (
 // RemoteNote represents the note stored in the remote database (Notion)
 type Note struct {
 	gorm.Model
-	LocalID    uint   `json:"local_id"`
 	UserID     uint   `json:"user_id"`
 	CourseCode string `json:"course_code"`
 	Title      string `json:"title"`
@@ -27,7 +26,6 @@ type Note struct {
 func (n *Note) ToMap() map[string]string {
 	return map[string]string{
 		"id":          strconv.Itoa(int(n.ID)),
-		"local_id":    strconv.Itoa(int(n.LocalID)),
 		"user_id":     strconv.Itoa(int(n.UserID)),
 		"title":       n.Title,
 		"subject":     n.Subject,
@@ -42,20 +40,6 @@ func Get_Note_byID(id, user_id uint, db *gorm.DB) (*Note, error) {
 	err := db.Preload("User").
 		Preload("Course", "user_id = ?", user_id).
 		Where("id = ?", id).
-		First(note).Error
-
-	if err != nil {
-		return nil, err
-	}
-	return note, nil
-}
-
-func Get_Note_byLocalID(id, user_id uint, db *gorm.DB) (*Note, error) {
-
-	note := &Note{}
-	err := db.Preload("User").
-		Preload("Course", "user_id = ?", user_id).
-		Where("local_id = ? AND user_id = ?", id, user_id).
 		First(note).Error
 
 	if err != nil {

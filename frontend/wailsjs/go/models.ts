@@ -18,11 +18,13 @@ export namespace assignment {
 	    TypeName: string;
 	    StatusName: string;
 	    Priority: string;
-	    Completed: boolean;
+	    ParentID: number;
 	    Course: course.LocalCourse;
 	    Type: models.LocalAssignmentType;
 	    Status: models.LocalAssignmentStatus;
 	    Documents: document.LocalDocument[];
+	    Parent?: LocalAssignment;
+	    Children: LocalAssignment[];
 	
 	    static createFrom(source: any = {}) {
 	        return new LocalAssignment(source);
@@ -43,11 +45,13 @@ export namespace assignment {
 	        this.TypeName = source["TypeName"];
 	        this.StatusName = source["StatusName"];
 	        this.Priority = source["Priority"];
-	        this.Completed = source["Completed"];
+	        this.ParentID = source["ParentID"];
 	        this.Course = this.convertValues(source["Course"], course.LocalCourse);
 	        this.Type = this.convertValues(source["Type"], models.LocalAssignmentType);
 	        this.Status = this.convertValues(source["Status"], models.LocalAssignmentStatus);
 	        this.Documents = this.convertValues(source["Documents"], document.LocalDocument);
+	        this.Parent = this.convertValues(source["Parent"], LocalAssignment);
+	        this.Children = this.convertValues(source["Children"], LocalAssignment);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -478,7 +482,7 @@ export namespace note {
 	    UpdatedAt: any;
 	    // Go type: gorm
 	    DeletedAt: any;
-	    RemoteID: string;
+	    RemoteID: number;
 	    CourseCode: string;
 	    Title: string;
 	    Subject: string;

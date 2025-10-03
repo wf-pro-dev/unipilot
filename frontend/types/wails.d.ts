@@ -1,5 +1,5 @@
 import { User } from './models'
-import { assignment, course, note, user, main, notifications } from '@/wailsjs/go/models'
+import { assignment, course, note, user, main, notifications, document } from '@/wailsjs/go/models'
 
 
 declare global {
@@ -39,6 +39,9 @@ declare global {
           DeleteNotification: (notification: notifications.LocalNotification) => Promise<void>
           RequestLinkCourse: (courseCode: string, usersID: number[]) => Promise<void>
           AcceptLink: (courseData: string) => Promise<void>
+          AcceptAssignment: (assignmentData: string) => Promise<assignment.LocalAssignment>
+          AcceptDocument: (documentData: string) => Promise<document.LocalDocument>
+          AcceptNote: (noteData: string) => Promise<note.LocalNote>
         }
       }
     }
