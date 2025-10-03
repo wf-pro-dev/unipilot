@@ -10,7 +10,6 @@ import (
 
 	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
-	"unipilot/internal/models/user"
 	"unipilot/internal/models/notifications"
 
 	"gorm.io/gorm"
@@ -131,11 +130,15 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating local_id : %s", err))
 		return 
 	}
+
+	var parent_id = 0
+	if input.ParentID != "" {
 	
-	parent_id, err := strconv.Atoi(input.ParentID)
-	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating parent_id : %s", err))
-		return
+		parent_id, err = strconv.Atoi(input.ParentID)
+		if err != nil {
+			PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating parent_id : %s", err))
+			return
+		}
 	}
 
 
@@ -178,8 +181,6 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	tx.Commit()
 	
-	db = db.Debug()
-
 	// Send a notification to all the users linked
 	
 	newA, err := assignment.Get_Assignment_byID(aObj.ID, userID, db)
@@ -193,23 +194,8 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("[Error] error marshalling notification : %v ",err)
 	}
 
-
-	PrintLog(fmt.Sprintf("notification data %v :", string(aJson)))
-
-
-	var currentUser user.User
-	if err := db.First(&currentUser, userID).Error; err != nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database error")
-		return
-	}
-
-	c, err := a.GetCourseAssignment(db)
-	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting course assignment: %s", err))
-		return
-	}
 	
-	link_users, err :=  c.Get_Link_Users(db)
+	link_users, err :=  newA.Course.GetLinkUsers(db)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting users link to course assignment: %s", err))
 		return
@@ -227,10 +213,10 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 					uint(sendeeID),
 					userID,
 					models.EntityAssignment,
-					c.ID,
+					newA.Course.ID,
 					notifications.NotificationAssignmentUpdate,
-					a.Title,
-					fmt.Sprintf("%s shared a new assignment on %s", currentUser.Username, c.Code),
+					newA.Title,
+					fmt.Sprintf("%s shared a new assignment on %s", newA.User.Username, newA.CourseCode),
 					"assignment",
 					string(aJson),
 
