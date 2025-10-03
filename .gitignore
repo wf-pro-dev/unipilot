@@ -16,12 +16,13 @@
 coverage.*
 *.coverprofile
 profile.cov
+.DS_Store
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
 # logs (server)
-logs
+logs/
 
 # Go workspace file
 go.work

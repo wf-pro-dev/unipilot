@@ -11,6 +11,10 @@ import (
 	"io"
 	"log"
 
+	"unipilot/internal/models"
+	"unipilot/internal/models/user"
+	"unipilot/internal/models/notifications"
+	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/document"
 	"unipilot/internal/services/cloud_storage"
 
@@ -36,7 +40,9 @@ type DocumentMetadata struct {
 
 // CreateDocumentHandler stores document metadata remotely
 func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
-	
+	PrintLog("document request received")
+
+
 	db := r.Context().Value("db").(*gorm.DB)
 	
 	userIDVal := r.Context().Value("user_id")
@@ -48,6 +54,12 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	userID, ok := userIDVal.(uint)
 	if !ok {
 		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
+		return
+	}
+	
+	var currentUser user.User
+	if err := db.First(&currentUser, userID).Error; err != nil {
+		PrintERROR(w, http.StatusInternalServerError, "Database error")
 		return
 	}
 
@@ -122,8 +134,56 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	// Update remote storage info for the user
 	if err := document.UpdateStorageInfo(userID, db); err != nil {
 		// Log warning but don't fail the request
-		fmt.Printf("Warning: Failed to update remote storage info for user %d: %v\n", userID, err)
+		
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Warning: Failed to update remote storage info for user %d: %v \n", userID, err))
 	}
+
+	db = db.Debug()
+
+	// Get document assignment
+	var a assignment.Assignment
+	if err := db.Where("id = ?", doc.AssignmentID).First(&a).Error; err != nil {
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get assignment: %v", err))
+		return
+	}
+	
+	// Get linked assignments
+	var linkedAssignments []assignment.Assignment
+	if linkedAssignments, err = a.GetChildren(db); err != nil {
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get linked assignments: %v", err))
+		return
+	}
+
+	// Marshal document
+	doc.User = currentUser // Link the creator data with the document
+	dJson, err := json.Marshal(doc)
+	if err != nil {
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to marshal document: %v", err))
+		return
+	}
+	
+	if sseServer != nil  && localDoc.HasLocalFile {
+	// Send notification to linked assignments
+
+		for _, linkedAssignment := range linkedAssignments {
+			if linkedAssignment.UserID != userID {
+				PrintLog(fmt.Sprintf("sending to : %d ",linkedAssignment.UserID))
+				sseServer.SendNotification(
+					uint(linkedAssignment.UserID),
+					userID,
+					models.EntityDocument,
+					linkedAssignment.ID,
+					notifications.NotificationDocumentUpdate,
+					linkedAssignment.Title,
+					fmt.Sprintf("%s shared a new document on %s", currentUser.Username, doc.FileName),
+					"document",
+					string(dJson),
+				)
+			}
+			
+		}
+	}
+
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
