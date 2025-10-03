@@ -87,7 +87,6 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
       DeletedAt: null,
       RemoteID: 0,
       NotionID: "",
-      Completed: false,
       SyncStatus: "pending",
       Course: null as any,
       Type: null as any,

@@ -387,34 +387,32 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 		return fmt.Errorf("database not initialized")
 	}
 
-	tx := a.DB.GetDB().Begin()
+	tx := a.DB.GetDB().Debug().Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
 		}
 	}()
 
-	localNote := &note.LocalNote{
-		Title:      noteData.Title,
-		Subject:    noteData.Subject,
-		CourseCode: noteData.CourseCode,
-	}
-
 	if !a.Auth.IsAuthenticated() {
 		return fmt.Errorf("user not authenticated")
 	}
 
+	runtime.LogInfof(a.ctx, "Accepting note: %v \n ------------- \n", noteData.Content)
+
 	// Create the note within the transaction
-	if err := tx.Create(localNote).Error; err != nil {
+	if err := tx.Create(noteData).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
 
 	remoteNote := &note.Note{
-		LocalID:    localNote.ID,
-		Title:      localNote.Title,
-		Subject:    localNote.Subject,
-		CourseCode: localNote.CourseCode,
+		Title:      noteData.Title,
+		Subject:    noteData.Subject,
+		CourseCode: noteData.CourseCode,
+		Keywords:   noteData.Keywords,
+		Content:    noteData.Content,
+		Videos:     noteData.Videos,
 	}
 
 	responseNote, err := client.CreateNote(remoteNote)
@@ -423,11 +421,24 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 		fmt.Println("Error creating remote note:", err)
 		return err
 	}
-	localNote.RemoteID = responseNote["id"]
-	localNote.Keywords = responseNote["keywords"]
-	localNote.Content = responseNote["content"]
 
-	if err := tx.Save(&localNote).Error; err != nil {
+	isMissingData := noteData.RemoteID == 0 || noteData.Keywords == "" || noteData.Content == ""
+	isResponseNoteEmpty := responseNote == nil || responseNote["keywords"] == "" || responseNote["content"] == ""
+	if isMissingData && !isResponseNoteEmpty {
+		runtime.LogInfof(a.ctx, "Response note is empty: %v", responseNote)
+		noteData.Keywords = responseNote["keywords"]
+		noteData.Content = responseNote["content"]
+	}
+
+	int_remote_id, err := strconv.Atoi(responseNote["id"])
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("invalid remote note ID %v", responseNote["id"])
+	}
+
+	noteData.RemoteID = uint(int_remote_id)
+
+	if err := tx.Save(&noteData).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
@@ -530,6 +541,7 @@ func (a *App) CreateDocument(uploadReq fileops.FileUploadRequest, hasLocalFile b
 
 	response, err := a.SendDocument(uploadResp)
 	if err != nil {
+		runtime.LogInfof(a.ctx, "failed to send document: %v", err)
 		return nil, fmt.Errorf("failed to send document: %w", err)
 	}
 
@@ -556,15 +568,6 @@ func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse) (*document.Lo
 		}()
 
 		runtime.LogInfof(a.ctx, "sending document to remote: %v", uploadResp.LocalDocument.ID)
-
-		// Switch local to remote
-		var assignment assignment.LocalAssignment
-		err := tx.Where("id = ?", uploadResp.LocalDocument.AssignmentID).First(&assignment).Error
-		if err != nil {
-			return nil, fmt.Errorf("failed to get assignment: %w", err)
-		}
-
-		runtime.LogInfof(a.ctx, "sending document to remote: %v", uploadResp.LocalDocument.AssignmentID)
 
 		storageKey, clientErr := client.SendDocument(uploadResp.LocalDocument)
 		if clientErr != nil {
@@ -748,7 +751,7 @@ func (a *App) UpdateNote(LocalNote *note.LocalNote, column, value string) error 
 		return err
 	}
 
-	note_id_int := int(LocalNote.ID)
+	note_id_int := int(LocalNote.RemoteID)
 
 	note_id := strconv.Itoa(note_id_int)
 
@@ -763,11 +766,11 @@ func (a *App) UpdateNote(LocalNote *note.LocalNote, column, value string) error 
 
 	if clientErr != nil {
 		sm := sync.NewSyncManager(db)
-		syncLog, err := sm.GetSyncLog(models.EntityNote, LocalNote.ID, "update", column)
+		syncLog, err := sm.GetSyncLog(models.EntityNote, LocalNote.RemoteID, "update", column)
 		if err != nil {
 			if syncErr := sm.CreateSyncLog(
 				models.EntityNote,
-				LocalNote.ID,
+				LocalNote.RemoteID,
 				"update",
 				column,
 				value,
@@ -1158,7 +1161,7 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 		return err
 	}
 
-	note_id_str := strconv.Itoa(int(note.ID))
+	note_id_str := strconv.Itoa(int(note.RemoteID))
 
 	deleted_at := time.Now().Format(time.RFC3339)
 
@@ -1172,12 +1175,12 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 	}
 	if clientErr != nil {
 		sm := sync.NewSyncManager(db)
-		_, err := sm.GetSyncLog(models.EntityNote, note.ID, "create", "")
+		_, err := sm.GetSyncLog(models.EntityNote, note.RemoteID, "create", "")
 
 		if err != nil {
 			if syncErr := sm.CreateSyncLog(
 				models.EntityNote,
-				note.ID,
+				note.RemoteID,
 				"delete",
 				"deleted_at",
 				deleted_at,
@@ -1188,7 +1191,7 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 			return nil
 		}
 
-		if err := sm.Undo(models.EntityNote, note.ID); err != nil {
+		if err := sm.Undo(models.EntityNote, note.RemoteID); err != nil {
 			return fmt.Errorf("failed to save sync log: %w", err)
 		}
 
@@ -1799,4 +1802,64 @@ func (a *App) AcceptAssignment(assignmentData string) error {
 	}
 
 	return nil
+}
+
+func (a *App) AcceptDocument(documentData string) error {
+
+	var localDocument document.Document
+	if err := json.Unmarshal([]byte(documentData), &localDocument); err != nil {
+		return err
+	}
+
+	runtime.LogInfof(a.ctx, "Accepting document: %v", localDocument.AssignmentID)
+
+	var assignment *assignment.LocalAssignment
+	err := a.DB.GetDB().Where("parent_id = ?", localDocument.AssignmentID).First(&assignment).Error
+	if err != nil {
+		return err
+	}
+
+	runtime.LogInfof(a.ctx, "Assignment: %v", assignment)
+
+	uploadReq := fileops.FileUploadRequest{
+		AssignmentID:       assignment.ID,
+		RemoteAssignmentID: assignment.RemoteID,
+		UserID:             a.Auth.User.ID,
+		Type:               localDocument.Type,
+		FileName:           localDocument.FileName,
+		FileSize:           localDocument.FileSize,
+		StorageKey:         localDocument.StorageKey,
+	}
+
+	if _, err := a.CreateDocument(uploadReq, false); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *App) AcceptNote(noteData string) error {
+
+	var n note.LocalNote
+	if err := json.Unmarshal([]byte(noteData), &n); err != nil {
+		return err
+	}
+
+	runtime.LogInfof(a.ctx, "Accepting note: %v \n ------------- \n", n.Content)
+
+	localNote := note.LocalNote{
+		CourseCode: n.Course.Code,
+		Title:      n.Title,
+		Subject:    n.Subject,
+		Keywords:   n.Keywords,
+		Content:    n.Content,
+		Videos:     n.Videos,
+	}
+
+	if err := a.CreateNote(&localNote); err != nil {
+		return fmt.Errorf("failed to create note: %w", err)
+	}
+
+	return nil
+
 }

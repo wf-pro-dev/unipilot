@@ -69,6 +69,7 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
     }
   }, [filter])
 
+
   return (
     <div className="space-y-4">
       {/* Search and Filters */}

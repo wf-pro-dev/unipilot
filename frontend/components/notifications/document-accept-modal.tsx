@@ -1,49 +1,49 @@
-import { Badge, Calendar, Check, FileText, User, X } from "lucide-react";
-import { useAuthContext } from "../provider/auth-provider";
+import { Calendar, Check, FileText, User, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "../ui/card";
 import { Dialog, DialogContent } from "../ui/dialog";
-import { assignment, course } from "@/wailsjs/go/models";
-import { calculateDaysDifference, getDueDescription, isOverdue, parseDeadline } from "@/lib/date-utils";
-import { format } from "date-fns";
+import { document } from "@/wailsjs/go/models";
+import { useAuthContext } from "../provider/auth-provider";
 
-interface AssignmentAcceptModalProps {
+
+interface DocumentAcceptModalProps {
     isOpen: boolean
     onAccept: () => void
     onClose: () => void
-    assignmentData: string | undefined
+    documentData: string | undefined
 }
 
-export function AssignmentAcceptModal({
+export function DocumentAcceptModal({
     isOpen,
     onAccept,
     onClose,
-    assignmentData
-}: AssignmentAcceptModalProps) {
+    documentData
+}: DocumentAcceptModalProps) {
     // unmarshal the course dat
-    if (!assignmentData || assignmentData === undefined) {
+    if (!documentData || documentData === undefined) {
         return null
     }
-    const fulldAssignmentData = JSON.parse(assignmentData) 
-    const assignment = JSON.parse(assignmentData) as assignment.LocalAssignment
-    const deadline = parseDeadline(assignment.Deadline)
 
-    console.log("@ssignment", assignment)
+    const { assignments } = useAuthContext()
+
+    const fulldDocumentData = JSON.parse(documentData)
+    const document = JSON.parse(documentData) as document.LocalDocument
+    const assignment = assignments?.find((assignment) => assignment.ParentID === fulldDocumentData.AssignmentID)
+
+    const formatFileSize = (bytes: number): string => {
+        if (bytes === 0) return "0 B"
+        const k = 1024
+        const sizes = ["B", "KB", "MB", "GB"]
+        const i = Math.floor(Math.log(bytes) / Math.log(k))
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i]
+      }
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="glass border-0 text-white max-w-l max-h-[50vh] overflow-y-auto">
                 <Card className="bg-transparent p-0 border-0 space-y-4">
                     <CardHeader>
-                        <div className="flex justify-between items-start">
-                            <div className="flex items-center space-x-4">
-
-                                <div >
-                                    <p className="text-lg font-medium">{assignment?.Title}</p>
-                                    <p className="text-sm text-gray-400">{assignment?.Course?.Name}</p>
-                                </div>
-                            </div>
-                        </div>
+                        <p className="text-lg font-medium">{document.FileName}</p>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid grid-cols-2 space-x-4">
@@ -55,7 +55,7 @@ export function AssignmentAcceptModal({
                                     </div>
                                 </div>
                                 <div className="bg-gray-800/50 border border-gray-600 p-2 rounded-lg max-h-[200px] overflow-y-auto">
-                                    <p className={`whitespace-pre-wrap leading-relaxed text-sm text-white block`}>{fulldAssignmentData.User?.Username}</p>
+                                    <p className={`whitespace-pre-wrap leading-relaxed text-sm text-white block`}>{fulldDocumentData.User?.Username}</p>
                                 </div>
                             </div>
 
@@ -64,12 +64,12 @@ export function AssignmentAcceptModal({
                                 <div className="flex items-center space-x-4 text-sm">
                                     <div className="flex items-center space-x-2 text-gray-400">
                                         <Calendar className="w-4 h-4" />
-                                        <span>Deadline</span>
+                                        <span>Size</span>
                                     </div>
-                                   
+
                                 </div>
                                 <div className="bg-gray-800/50 border border-gray-600 p-2 rounded-lg max-h-[200px] overflow-y-auto">
-                                    <p className={`whitespace-pre-wrap leading-relaxed text-sm text-white block`}>{format(deadline,"PPP")}</p>
+                                    <p className={`whitespace-pre-wrap leading-relaxed text-sm text-white block`}>{formatFileSize(document.FileSize)}</p>
                                 </div>
                             </div>
 
@@ -79,14 +79,14 @@ export function AssignmentAcceptModal({
                             <div className="flex justify-between items-center">
                                 <div className="flex items-center space-x-2 text-sm text-gray-400">
                                     <FileText className="w-4 h-4" />
-                                    <span>Description</span>
+                                    <span>Assignment</span>
                                 </div>
                             </div>
                             <div className="bg-gray-800/50 border border-gray-600 p-3 rounded-lg max-h-[200px] overflow-y-auto">
-                                <p className={`whitespace-pre-wrap leading-relaxed text-sm text-white block`}>{assignment.Todo}</p>
+                                <p className={`whitespace-pre-wrap leading-relaxed text-sm text-white block`}>{assignment?.Title}</p>
                             </div>
                         </div>
-                        <p className="text-xs text-gray-400">It will be added to your assignments. Make sure to check for similar assignments.</p>
+                        <p className="text-xs text-gray-400">It will be added to your documents. Make sure to check for similar assignments.</p>
                     </CardContent>
                     <CardFooter className="flex space-x-4">
                         <Button

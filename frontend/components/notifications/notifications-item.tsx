@@ -9,63 +9,24 @@ import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
 import { useDeleteNotification } from "@/hooks/use-notifications"
 import { toast } from "sonner"
-import { useAcceptLink } from "@/hooks/use-courses"
 import { useState } from "react"
-import { LinkAcceptModal } from "../community/link-accept-modal"
-import { useAcceptAssignment } from "@/hooks/use-assignments"
-import { AssignmentAcceptModal } from "../community/assignment-accept-modal"
 
 interface NotificationsItemProps {
     notification: notifications.LocalNotification
+    setSelectedNotification: (notification: notifications.LocalNotification | null) => void
 }
 
-export function NotificationsItem({ notification }: NotificationsItemProps) {
+export function NotificationsItem({ notification, setSelectedNotification }: NotificationsItemProps) {
 
     const { user: currentUser, following } = useAuthContext()
     // Check if current user is following this user by checking if current user is in the followers list
     const isFollowed = following?.some((following) => following.ID === notification.sender_id)
     const followMutation = useFollow(currentUser!, false)
-    const acceptLinkMutation = useAcceptLink()
-    const acceptAssignmentMutation = useAcceptAssignment()
+
     const deleteMutation = useDeleteNotification()
 
-    const [isModalOpen, setIsModalOpen] = useState(false)
-    const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false)
+   
 
-    const handleAccept = () => {
-        setIsModalOpen(false)
-        acceptLinkMutation.mutate({ courseData: notification.data }, {
-            onSuccess: () => {
-                toast.success("Course successfully linked")
-            },
-            onError: (error: any) => {
-                LogError("Failed to accept link request: " + error)
-                toast.error("Failed to link course")
-            }
-        })
-    }
-
-    const handleAcceptAssignment = () => {
-        setIsModalOpen(false)
-        acceptAssignmentMutation.mutate(notification.data, {
-            onSuccess: () => {
-                toast.success("Assignment successfully accepted")
-                setIsAssignmentModalOpen(false)
-            },
-            onError: (error: any) => {
-                LogError("Failed to accept assignment: " + error)
-                toast.error("Failed to accept assignment")
-            }
-        })
-    }
-
-    const handleClose = () => {
-        setIsModalOpen(false)
-    }
-
-    const handleCloseAssignment = () => {
-        setIsAssignmentModalOpen(false)
-    }
 
     const handleFollow = () => {
         const message = "following " + notification.title
@@ -73,6 +34,7 @@ export function NotificationsItem({ notification }: NotificationsItemProps) {
         followMutation.mutate(notification.sender!, {
             onSuccess: () => {
                 toast.success("You are now following " + notification.title)
+                setSelectedNotification(null)
             },
             onError: () => {
                 toast.error("Failed to follow " + notification.title)
@@ -90,19 +52,25 @@ export function NotificationsItem({ notification }: NotificationsItemProps) {
         "follow": { ButtonText: "Follow", ShowButton: !isFollowed, OnClick: handleFollow },
         "sync": {
             ButtonText: "Link", ShowButton: true, OnClick: () => {
-                setIsModalOpen(true)
-
+                setSelectedNotification(notification)
             }
         },
         "assignment_update": {
             ButtonText: "Add", ShowButton: true, OnClick: () => {
-                setIsAssignmentModalOpen(true)
+                setSelectedNotification(notification)
             }
         },
+        "document_update": {
+            ButtonText: "Add", ShowButton: true, OnClick: () => {
+                setSelectedNotification(notification)
+            }
+        },
+        "note_update": {
+            ButtonText: "Add", ShowButton: true, OnClick: () => {
+                setSelectedNotification(notification)
+            }
+        }
     }
-
-
-
     return (
         <Card
             key={notification.ID}
@@ -149,18 +117,8 @@ export function NotificationsItem({ notification }: NotificationsItemProps) {
 
                 </div>
             </CardContent>
-            <LinkAcceptModal
-                isOpen={isModalOpen}
-                onAccept={handleAccept}
-                onClose={handleClose}
-                courseData={notification.data}
-            />
-            <AssignmentAcceptModal
-                isOpen={isAssignmentModalOpen}
-                onAccept={handleAcceptAssignment}
-                onClose={handleCloseAssignment}
-                assignmentData={notification.data}
-            />
+            
+
         </Card>
     )
 }

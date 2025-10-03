@@ -178,6 +178,48 @@ func (eh *EventHandler) HandleAssignmentNotification(notification notifications.
 	}
 }
 
+// handleDocumentNotification processes real-time document events
+func (eh *EventHandler) handleDocumentNotification(notification notifications.LocalNotification) {
+	log.Printf("[EventHandler] Processing document notification: %s", notification.Message)
+	log.Printf("[EventHandler] Data: %s", string(notification.Data))
+
+	notification.Type = notifications.NotificationDocumentUpdate
+	notification.Read = false
+	notification.ExpiresAt = &time.Time{}
+
+	if err := eh.db.Create(&notification).Error; err != nil {
+		log.Printf("[EventHandler] Error parsing document data: %v", err)
+		return
+	}
+
+	if err := beeep.Notify(notification.Title, notification.Message, ""); err != nil {
+		log.Printf("[EventHandler] Error sending system notification: %v", err)
+	} else {
+		log.Printf("[EventHandler] Sent document notification: %s", notification.Title)
+	}
+}
+
+// handleNoteNotification processes real-time note events
+func (eh *EventHandler) handleNoteNotification(notification notifications.LocalNotification) {
+	log.Printf("[EventHandler] Processing document notification: %s", notification.Message)
+	log.Printf("[EventHandler] Data: %s", string(notification.Data))
+
+	notification.Type = notifications.NotificationNoteUpdate
+	notification.Read = false
+	notification.ExpiresAt = &time.Time{}
+
+	if err := eh.db.Create(&notification).Error; err != nil {
+		log.Printf("[EventHandler] Error parsing note data: %v", err)
+		return
+	}
+
+	if err := beeep.Notify(notification.Title, notification.Message, ""); err != nil {
+		log.Printf("[EventHandler] Error sending system notification: %v", err)
+	} else {
+		log.Printf("[EventHandler] Sent note notification: %s", notification.Title)
+	}
+}
+
 // processEvents processes incoming SSE events
 func (eh *EventHandler) processEvents() {
 	log.Printf("[EventHandler] Starting event processing loop")
@@ -224,6 +266,10 @@ func (eh *EventHandler) routeEvent(event sse.Event) {
 		eh.HandleSyncNotification(notification)
 	case notifications.NotificationAssignmentUpdate:
 		eh.HandleAssignmentNotification(notification)
+	case notifications.NotificationDocumentUpdate:
+		eh.handleDocumentNotification(notification)
+	case notifications.NotificationNoteUpdate:
+		eh.handleNoteNotification(notification)
 	default:
 		log.Printf("[EventHandler] Unknown entity type: %s", notification.Entity)
 	}

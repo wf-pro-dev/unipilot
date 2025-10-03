@@ -240,7 +240,7 @@ export function useCompletedAssignments() {
   const { data: assignments, ...rest } = useAssignments()
 
   const completedAssignments = assignments?.filter(assignment =>
-    assignment.StatusName === 'Done' || assignment.Completed
+    assignment.StatusName === 'Done'
   ) || []
 
   return {

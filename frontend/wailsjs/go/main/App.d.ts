@@ -11,7 +11,11 @@ import {main} from '../models';
 
 export function AcceptAssignment(arg1:string):Promise<void>;
 
+export function AcceptDocument(arg1:string):Promise<void>;
+
 export function AcceptLink(arg1:string):Promise<void>;
+
+export function AcceptNote(arg1:string):Promise<void>;
 
 export function CreateAssignment(arg1:assignment.LocalAssignment):Promise<assignment.LocalAssignment>;
 
