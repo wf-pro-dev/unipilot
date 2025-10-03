@@ -15,6 +15,7 @@ import {
   DeleteDocument,
   DownloadDocument
 } from "@/wailsjs/go/main/App"
+import { assignmentKeys } from './use-assignments'
 
 // Query keys for consistent cache management
 export const documentKeys = {
@@ -218,16 +219,28 @@ export function useDownloadDocument() {
     },
     onMutate: async (document) => { 
       
-     // Change HasLocalFile to true
-     document.HasLocalFile = true
-     queryClient.setQueryData<document.LocalDocument[]>(documentKeys.list(document.AssignmentID), (old) => {
-      return old ? [document, ...old] : [document]
+      await queryClient.cancelQueries({ queryKey: documentKeys.list(document.AssignmentID) })
+     
+      // Change HasLocalFile to true
+    const previousDocuments = queryClient.getQueryData<document.LocalDocument[]>(documentKeys.list(document.AssignmentID))
+    
+    queryClient.setQueryData<document.LocalDocument[]>(documentKeys.list(document.AssignmentID), (old) => {
+      if (!old) return []
+      return old.map(d => d.ID === document.ID ?  {
+        ...d,
+        HasLocalFile: true
+      } : d) as document.LocalDocument[]
      })
      
+     return { previousDocuments }
     },
-    onError: (err) => {
-      LogError("Failed to download document: " + err)
-    },
+   // If the mutation fails, rollback
+   onError: (err, variables, context) => {
+    if (context?.previousDocuments) {
+      queryClient.setQueryData(documentKeys.list(variables.AssignmentID), context.previousDocuments)
+    }
+    LogError("Failed to update document: " + err)
+  },
     onSettled: () => {
       // Invalidate all queries
       queryClient.invalidateQueries({ queryKey: documentKeys.all })
@@ -236,7 +249,7 @@ export function useDownloadDocument() {
 }
 
 // Hook for deleting documents
-export function useDeleteDocument() {
+export function  useDeleteDocument() {
   const queryClient = useQueryClient()
   
   return useMutation({
@@ -316,6 +329,38 @@ export function useSaveDocumentAs() {
     },
   })
 }
+
+export function useAcceptDocument() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (documentData: string) => {
+      return await window.go.main.App.AcceptDocument(documentData)
+    },
+
+    onSuccess: async (newDocument) => {
+      await queryClient.cancelQueries({ queryKey: documentKeys.lists() })
+
+      const previousAssignments = queryClient.getQueryData<document.LocalDocument[]>(documentKeys.lists())
+
+      queryClient.setQueryData<document.LocalDocument[]>(documentKeys.lists(), (old) => {
+        if (!old) return [newDocument]
+        return [newDocument, ...old]
+      })
+
+      return { previousAssignments }
+    },
+
+    onError: (err) => {
+      LogError("Failed to accept document: " + err)
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: documentKeys.lists() })
+    },
+  })
+}
+
 
 // Utility hook to get all document-related data for an assignment
 export function useAssignmentDocumentData(assignmentId: number) {

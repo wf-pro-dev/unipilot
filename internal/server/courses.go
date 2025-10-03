@@ -3,18 +3,20 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
-	"log"
+
 	"github.com/google/uuid"
 
 	"unipilot/internal/models"
-	"unipilot/internal/models/course"
 	"unipilot/internal/models/assignment"
+	"unipilot/internal/models/course"
+
 	//"unipilot/internal/models/document"
-	"unipilot/internal/models/user"
 	"unipilot/internal/models/notifications"
+	"unipilot/internal/models/user"
 
 	"gorm.io/gorm"
 )
@@ -316,7 +318,7 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request){
+func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
@@ -347,10 +349,10 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request){
 		PrintERROR(w, http.StatusInternalServerError, "Database error")
 		return
 	}
-	
+
 	var linkRequestData struct {
 		CourseCode string `json:"course_code"`
-		UsersID []uint `json:"users_id"`
+		UsersID    []uint `json:"users_id"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&linkRequestData)
@@ -358,17 +360,17 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request){
 		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
 		return
 	}
-	
+
 	// 1. Get send course informations
 	c, err := course.Get_Course_byCode(linkRequestData.CourseCode, userID, db)
 
 	//2. Create an uuid for the link
 
-	var linkId uuid.UUID 
+	var linkId uuid.UUID
 	if c.LinkID == uuid.Nil {
 		linkId = uuid.New()
 		c.LinkID = linkId
-		if err = db.Save(&c).Error ; err != nil {
+		if err = db.Save(&c).Error; err != nil {
 			PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Could not save uuid %s", err))
 			return
 
@@ -377,18 +379,17 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request){
 		linkId = c.LinkID
 	}
 
-
-	PrintLog(fmt.Sprintf(" link uuid :",linkId))
+	PrintLog(fmt.Sprintf(" link uuid : %s", linkId))
 
 	cJson, err := json.Marshal(c)
 	if err != nil {
-		log.Printf("[Error] error marshalling notification : %v ",err)
-		
+		log.Printf("[Error] error marshalling notification : %v ", err)
+
 	}
 	if sseServer != nil {
 
 		// 2. Send link info to users via SSE (field data)
-		for _,sendeeID := range linkRequestData.UsersID { 
+		for _, sendeeID := range linkRequestData.UsersID {
 			sseServer.SendNotification(
 				uint(sendeeID),
 				userID,
@@ -396,20 +397,19 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request){
 				c.ID,
 				notifications.NotificationSync,
 				c.Name,
-				fmt.Sprintf("%s shared a course with you : %s", currentUser.Username , c.Code),
+				fmt.Sprintf("%s shared a course with you : %s", currentUser.Username, c.Code),
 				"sync",
 				string(cJson),
-
 			)
 		}
 	}
 	// Infos : Course All except user_id, Sender (name)
 
-	PrintLog(fmt.Sprintf("Course ID : %v, Users ID : %v",linkRequestData.CourseCode, linkRequestData.UsersID))
-	
+	PrintLog(fmt.Sprintf("Course ID : %v, Users ID : %v", linkRequestData.CourseCode, linkRequestData.UsersID))
+
 }
 
-func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request){
+func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
@@ -440,7 +440,7 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request){
 		PrintERROR(w, http.StatusInternalServerError, "Database error")
 		return
 	}
-	
+
 	var c course.Course
 	err := json.NewDecoder(r.Body).Decode(&c)
 	if err != nil {
@@ -448,16 +448,13 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	
 	//1. Get Course assignments
 	var courseAssignments []assignment.Assignment
-	err = db.Where("user_id = ? AND course_code = ?",c.UserID ,c.Code).Order("created_at").Find(&courseAssignments).Error
+	err = db.Where("user_id = ? AND course_code = ?", c.UserID, c.Code).Order("created_at").Find(&courseAssignments).Error
 	if err != nil {
 		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error getting course assignments with course code : %v ", err))
 		return
 	}
-
-
 
 	// 2. list assignments id
 	var responseAssignments []assignment.Assignment
@@ -473,7 +470,7 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request){
 		assignment.Documents = assignmentDocuments
 		responseAssignments = append(responseAssignments, assignment)
 	}
-	
+
 	/*2. Get Assignments documents
 	var assignmentDocuments []document.Document
 	err = db.Preload("Docmuents")..Where("assignment_id IN ?", assignmentIDs).Find(&assignmentDocuments).Error
@@ -481,10 +478,10 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request){
 		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error getting assignments documents :%v", err))
 		return
 	}*/
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"Error": err  ,
+		"Error":       err,
 		"assignments": responseAssignments,
 		//"documents": assignmentDocuments,
 	})
@@ -492,7 +489,7 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request){
 	/*if sseServer != nil {
 
 		// 2. Send link info to users via SSE (field data)
-		for _,sendeeID := range linkRequestData.UsersID { 
+		for _,sendeeID := range linkRequestData.UsersID {
 			sseServer.SendNotification(
 				uint(sendeeID),
 				userID,
@@ -509,6 +506,6 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request){
 	}
 	// Infos : Course All except user_id, Sender (name)*/
 
-	PrintLog(fmt.Sprintf("Course ID : %v, From : %v, To: %v", c.Code, c.UserID, userID ))
-	
+	PrintLog(fmt.Sprintf("Course ID : %v, From : %v, To: %v", c.Code, c.UserID, userID))
+
 }

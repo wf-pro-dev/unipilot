@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Calendar, Edit, Trash2,  FileText, ExternalLink, Info } from "lucide-react"
+import { Calendar, Edit, Trash2, FileText, ExternalLink, Info } from "lucide-react"
 import { format } from "date-fns"
 import { assignment } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
@@ -133,7 +133,6 @@ export function AssignmentDetailsModal({
                   </div>
                   <div className="flex items-center space-x-4">
                     <p className="font-medium text-white text-sm">{format(deadline, "EEEE, MMMM d, yyyy")}</p>
-
                   </div>
                 </div>
 

@@ -1,21 +1,93 @@
 "use client"
-import { AddNoteDialog } from "@/components/notes/note-add-dialog"
-import { NoteView } from "@/components/notes/note-view"
-import { NoteDetailModal } from "@/components/notes/note-detail-modal"
-import { useNotes, useDeleteNote, useUpdateNote, useCreateNote } from "@/hooks/use-notes"
-import { note } from "@/wailsjs/go/models"
 import { useState } from "react"
 import { toast } from "sonner"
-import { LogInfo } from "@/wailsjs/runtime/runtime"
+import { LogError } from "@/wailsjs/runtime/runtime"
 import { addDays, isSameDay, isBefore } from "date-fns"
 
 import { useAuthContext } from "@/components/provider/auth-provider"
 import { Card } from "@/components/ui/card"
 import { NotificationsItem } from "@/components/notifications/notifications-item"
 import { BellOff } from "lucide-react"
+import { DocumentAcceptModal } from "@/components/notifications/document-accept-modal"
+import { LinkAcceptModal } from "@/components/community/link-accept-modal"
+import { AssignmentAcceptModal } from "@/components/community/assignment-accept-modal"
+import { useAcceptLink } from "@/hooks/use-courses"
+import { useAcceptAssignment } from "@/hooks/use-assignments"
+import { useAcceptDocument } from "@/hooks/use-documents"
+import { notifications } from "@/wailsjs/go/models"
+import { useDeleteNotification } from "@/hooks/use-notifications"
+import { NoteAcceptModal } from "@/components/notifications/note-accept-modal"
+import { useAcceptNote } from "@/hooks/use-notes"
 
 export default function NotificationsPage() {
   const { notifications } = useAuthContext()
+  const [selectedNotification, setSelectedNotification] = useState<notifications.LocalNotification | null>(null)
+  const deleteNotificationMutation = useDeleteNotification()
+  const acceptLinkMutation = useAcceptLink()
+  const acceptAssignmentMutation = useAcceptAssignment()
+  const acceptDocumentMutation = useAcceptDocument()
+  const acceptNoteMutation = useAcceptNote()
+  
+  const handleAcceptLink = () => {
+    setSelectedNotification(null)
+    acceptLinkMutation.mutate({ courseData: selectedNotification?.data! }, {
+      onSuccess: () => {
+        toast.success("Course successfully linked")
+        setSelectedNotification(null)
+        deleteNotificationMutation.mutate(selectedNotification!)
+      },
+      onError: (error: any) => {
+        LogError("Failed to accept link request: " + error)
+        toast.error("Failed to link course")
+      }
+    })
+  }
+
+  const handleAcceptAssignment = () => {
+    acceptAssignmentMutation.mutate(selectedNotification?.data!, {
+      onSuccess: () => {
+        toast.success("Assignment successfully accepted")
+        setSelectedNotification(null)
+        deleteNotificationMutation.mutate(selectedNotification!)
+      },
+      onError: (error: any) => {
+        LogError("Failed to accept assignment: " + error)
+        toast.error("Failed to accept assignment")
+      }
+    })
+  }
+
+  const handleAcceptDocument = () => {
+    acceptDocumentMutation.mutate(selectedNotification?.data!, {
+      onSuccess: () => {
+        toast.success("Document successfully accepted")
+        setSelectedNotification(null)
+        deleteNotificationMutation.mutate(selectedNotification!)
+      },
+      onError: (error: any) => {
+        LogError("Failed to accept document: " + error)
+        toast.error("Failed to accept document")
+      }
+    })
+  }
+
+  const handleAcceptNote = () => {
+    acceptNoteMutation.mutate(selectedNotification?.data!, {
+      onSuccess: () => {
+        toast.success("Note successfully accepted")
+        setSelectedNotification(null)
+        deleteNotificationMutation.mutate(selectedNotification!)
+      },
+      onError: (error: any) => {
+        LogError("Failed to accept note: " + error)
+        toast.error("Failed to accept note")
+      }
+    })
+  }
+  const handleClose = () => {
+    setSelectedNotification(null)
+  }
+
   var categories = [
     {
       label: "Today",
@@ -72,7 +144,11 @@ export default function NotificationsPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {category.notifications?.map((notification) => (
-                      <NotificationsItem key={notification.ID} notification={notification} />
+                      <NotificationsItem
+                        key={notification.ID}
+                        notification={notification}
+                        setSelectedNotification={setSelectedNotification}
+                      />
                     ))}
                   </div>
                 </div>
@@ -81,6 +157,35 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
+
+
+      <LinkAcceptModal
+        isOpen={selectedNotification !== null && selectedNotification.type === "sync"}
+        onAccept={handleAcceptLink}
+        onClose={handleClose}
+        courseData={selectedNotification?.data}
+      />
+      <AssignmentAcceptModal
+        isOpen={selectedNotification !== null && selectedNotification.type === "assignment_update"}
+        onAccept={handleAcceptAssignment}
+        onClose={handleClose}
+        assignmentData={selectedNotification?.data}
+      />
+
+      <DocumentAcceptModal
+        isOpen={selectedNotification !== null && selectedNotification.type === "document_update"}
+        onAccept={handleAcceptDocument}
+        onClose={handleClose}
+        documentData={selectedNotification?.data}
+      />
+
+      <NoteAcceptModal
+        isOpen={selectedNotification !== null && selectedNotification.type === "note_update"}
+        onAccept={handleAcceptNote}
+        onClose={handleClose}
+        noteData={selectedNotification?.data}
+      />
+
     </div>
   )
 }

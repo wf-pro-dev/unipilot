@@ -85,9 +85,9 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
     }
   }
 
-  const handleDelete = async () => {
+  const handleDelete = async (documentId: number) => {
     try {
-      await deleteDocument.mutateAsync(doc.ID)
+      await deleteDocument.mutateAsync(documentId)
       setDeleteDialogOpen(false)
     } catch (error) {
       console.error("Failed to delete document:", error)
@@ -228,7 +228,7 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
+              onClick={()=>handleDelete(doc.ID)}
               className="bg-red-600 hover:bg-red-700"
               disabled={isLoading}
             >

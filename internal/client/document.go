@@ -40,20 +40,23 @@ func SendDocument(document *document.LocalDocument) (string, error) {
 		return "", fmt.Errorf("error creating form file: %v", err)
 	}
 
-	// Open the file
-	fileContent, err := os.Open(document.FilePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
-	}
-	defer fileContent.Close()
+	if document.HasLocalFile {
 
-	// Copy file content to form
-	bytesWritten, err := io.Copy(fileWriter, fileContent)
-	if err != nil {
-		return "", fmt.Errorf("error copying file content: %v", err)
-	}
+		// Open the file
+		fileContent, err := os.Open(document.FilePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to open file: %w", err)
+		}
+		defer fileContent.Close()
 
-	log.Printf("bytes written: %d\n", bytesWritten)
+		// Copy file content to form
+		bytesWritten, err := io.Copy(fileWriter, fileContent)
+		if err != nil {
+			return "", fmt.Errorf("error copying file content: %v", err)
+		}
+
+		log.Printf("bytes written: %d\n", bytesWritten)
+	}
 
 	// Add metadata part
 	metadataWriter, err := writer.CreateFormField("metadata")

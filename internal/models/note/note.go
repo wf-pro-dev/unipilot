@@ -47,4 +47,3 @@ func Get_Note_byID(id, user_id uint, db *gorm.DB) (*Note, error) {
 	}
 	return note, nil
 }
-

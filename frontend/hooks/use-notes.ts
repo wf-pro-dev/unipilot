@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogError } from "@/wailsjs/runtime/runtime"
 import { note, course } from '@/wailsjs/go/models'
+import { assignmentKeys } from './use-assignments'
 
 // Query keys for consistent cache management
 export const noteKeys = {
@@ -156,6 +157,40 @@ export function useDeleteNote() {
     },
   })
 }
+
+// Hook for accepting notes
+export function useAcceptNote() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (noteData: string) => {
+      return await window.go.main.App.AcceptNote(noteData)
+    },
+
+    onSuccess: async (newNote) => {
+      await queryClient.cancelQueries({ queryKey: noteKeys.lists() })
+
+      const previousNotes = queryClient.getQueryData<note.LocalNote[]>(noteKeys.lists())
+
+      queryClient.setQueryData<note.LocalNote[]>(noteKeys.lists(), (old) => {
+        if (!old) return [newNote]
+        return [newNote, ...old]
+      })
+
+      return { previousNotes }
+    },
+
+    onError: (err) => {
+      LogError("Failed to accept note: " + err)
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: noteKeys.lists() })
+    },
+  })
+}
+
+
 
 export function useCourseNotes(course: course.LocalCourse) {
   const { data: notes } = useNotes()

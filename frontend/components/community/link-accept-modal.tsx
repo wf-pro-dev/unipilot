@@ -1,5 +1,4 @@
 import { Check, X } from "lucide-react";
-import { useAuthContext } from "../provider/auth-provider";
 import { Button } from "../ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "../ui/card";
 import { Dialog, DialogContent } from "../ui/dialog";
@@ -9,7 +8,7 @@ interface LinkAcceptModalProps {
     isOpen: boolean
     onAccept: () => void
     onClose: () => void
-    courseData: string
+    courseData: string | undefined
 }
 
 export function LinkAcceptModal({
@@ -18,6 +17,10 @@ export function LinkAcceptModal({
     onClose,
     courseData
 }: LinkAcceptModalProps) {
+
+    if (!courseData || courseData === undefined) {
+        return null
+    }
     // unmarshal the course data
     const course = JSON.parse(courseData) as course.Course
     
