@@ -6,13 +6,12 @@ import (
 	"net/http"
 	"strconv"
 
-	"unipilot/internal/models/user"
-
-	"github.com/spf13/viper"
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
-
 	"gorm.io/gorm"
+	
+	"unipilot/internal/models/user"
+	"unipilot/internal/secrets"
 )
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
@@ -67,13 +66,11 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create session
-	viper.SetConfigFile(".env")
-	err = viper.ReadInConfig()
+	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("error reading config file: %w", err))
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Register: %w", err))
+		return
 	}
-
-	SESSION_KEY := viper.GetString("SESSION_KEY")
 
 	var store = sessions.NewCookieStore([]byte(SESSION_KEY))
 
