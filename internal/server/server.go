@@ -6,13 +6,11 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/spf13/viper"
-
-	"unipilot/internal/storage"
-
 	"github.com/gorilla/sessions"
-
 	"gorm.io/gorm"
+	
+	"unipilot/internal/storage"
+	"unipilot/internal/secrets"
 )
 
 var sseServer *SSEServer
@@ -30,14 +28,11 @@ func DBMiddleware(db *gorm.DB, next http.HandlerFunc) http.HandlerFunc {
 func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		viper.SetConfigFile(".env")
-		err := viper.ReadInConfig()
+		SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 		if err != nil {
-			PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("error reading config file: %w", err))
+			PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Register: %w", err))
 			return
 		}
-
-		SESSION_KEY := viper.GetString("SESSION_KEY")
 
 		var store = sessions.NewCookieStore([]byte(SESSION_KEY))
 
@@ -66,6 +61,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func StartServer() {
+
 
 	db, err := storage.GetRemoteDB()
 	if err != nil {

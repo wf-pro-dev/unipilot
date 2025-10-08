@@ -40,6 +40,7 @@ func (a *LocalAssignment) ToMap() map[string]string {
 	return map[string]string{
 		"id":          strconv.Itoa(int(a.ID)),
 		"remote_id":   strconv.Itoa(int(a.RemoteID)),
+		"parent_id":   strconv.Itoa(int(a.ParentID)),
 		"course_code": a.CourseCode,
 		"title":       a.Title,
 		"type_name":   a.TypeName,

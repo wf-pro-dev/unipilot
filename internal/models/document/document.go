@@ -97,6 +97,7 @@ func (d *Document) ValidateFileSize(db *gorm.DB) error {
 	return nil
 }
 
+
 // GetAppDataPath returns the application data directory for file storage
 func GetAppDataPath() (string, error) {
 	homeDir, err := os.UserHomeDir()
@@ -268,8 +269,8 @@ func UpdateStorageInfo(userID uint, db *gorm.DB) error {
 	err = db.Save(storageInfo).Error
 	if err != nil {
 		return fmt.Errorf("failed to update storage info: %w", err)
+
 	}
 
 	return nil
 }
-
