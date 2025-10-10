@@ -3,15 +3,13 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
-	"log"
 
 	"unipilot/internal/models"
 	"unipilot/internal/models/notifications"
-
-	"gorm.io/gorm"
 )
 
 type SSEClient struct {
@@ -24,13 +22,11 @@ type SSEClient struct {
 type SSEServer struct {
 	clients map[uint]*SSEClient
 	mu      sync.RWMutex
-	db      *gorm.DB
 }
 
-func NewSSEServer(db *gorm.DB) *SSEServer {
+func NewSSEServer() *SSEServer {
 	return &SSEServer{
 		clients: make(map[uint]*SSEClient),
-		db:      db,
 	}
 }
 
@@ -183,21 +179,20 @@ func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity
 		SenderID: senderID,
 		Entity:   entity,
 		EntityID: entityID,
-		Type:	  nType,
+		Type:     nType,
 		Action:   action,
 		Title:    title,
 		Message:  message,
-		Data:	  data,
+		Data:     data,
 	}
 	//PrintLog(fmt.Sprintf("notification : %v",notification))
 
 	jsonData, err := json.Marshal(notification)
 	if err != nil {
-		log.Printf("[Error] error marshalling notification : %v ",err)
+		log.Printf("[Error] error marshalling notification : %v ", err)
 		return
 	}
 
 	//PrintLog(fmt.Sprintf("jsonData : %v", jsonData))
 	s.SendToUser(userID, jsonData)
 }
-

@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/gorilla/sessions"
 	"gorm.io/gorm"
-	
-	"unipilot/internal/storage"
+
 	"unipilot/internal/secrets"
+	"unipilot/internal/storage"
 )
 
 var sseServer *SSEServer
@@ -60,8 +62,17 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func StartServer() {
+func GetRouteName(name ...string) string {
+	return fmt.Sprintf("/unipilot/api/v1/%s", strings.Join(name, "/"))
+}
 
+func HealthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status": "healthy", "timestamp": "` + time.Now().Format(time.RFC3339) + `"}`))
+}
+
+func StartServer() {
 
 	db, err := storage.GetRemoteDB()
 	if err != nil {
@@ -69,42 +80,43 @@ func StartServer() {
 		return
 	}
 
-	sseServer = NewSSEServer(db)
+	sseServer = NewSSEServer()
 
-	http.HandleFunc("/acc-homework/events", AuthMiddleware(sseServer.SSEHandler))
+	http.HandleFunc("/unipilot/events/v1", AuthMiddleware(sseServer.SSEHandler))
+	http.HandleFunc("/health", HealthHandler)
 
-	http.HandleFunc("/acc-homework/register", DBMiddleware(db, RegisterHandler))
-	http.HandleFunc("/acc-homework/login", DBMiddleware(db, LoginHandler))
-	http.HandleFunc("/acc-homework/logout", AuthMiddleware(LogoutHandler))
-	
-	http.HandleFunc("/acc-homework/user", DBMiddleware(db, AuthMiddleware(GetUserHandler)))
-	http.HandleFunc("/acc-homework/user/update", DBMiddleware(db, AuthMiddleware(UpdateUserHandler)))
+	http.HandleFunc(GetRouteName("register"), DBMiddleware(db, RegisterHandler))
+	http.HandleFunc(GetRouteName("login"), DBMiddleware(db, LoginHandler))
+	http.HandleFunc(GetRouteName("logout"), AuthMiddleware(LogoutHandler))
 
-	http.HandleFunc("/acc-homework/users", DBMiddleware(db, AuthMiddleware(GetUsersHandler)))
-	
-	http.HandleFunc("/acc-homework/assignment", DBMiddleware(db, AuthMiddleware(CreateAssignmentHandler)))
-	http.HandleFunc("/acc-homework/assignment/get", DBMiddleware(db, AuthMiddleware(GetAssignmentHandler)))
-	http.HandleFunc("/acc-homework/assignment/update", DBMiddleware(db, AuthMiddleware(UpdateAssignmentHandler)))
+	http.HandleFunc(GetRouteName("user"), DBMiddleware(db, AuthMiddleware(GetUserHandler)))
+	http.HandleFunc(GetRouteName("user", "update"), DBMiddleware(db, AuthMiddleware(UpdateUserHandler)))
 
-	http.HandleFunc("/acc-homework/course", DBMiddleware(db, AuthMiddleware(CreateCourseHandler)))
-	http.HandleFunc("/acc-homework/course/get", DBMiddleware(db, AuthMiddleware(GetCourseHandler)))
-	http.HandleFunc("/acc-homework/course/update", DBMiddleware(db, AuthMiddleware(UpdateCourseHandler)))
-	http.HandleFunc("/acc-homework/course/link/request", DBMiddleware(db, AuthMiddleware(LinkRequestCourseHandler)))
-	http.HandleFunc("/acc-homework/course/link/accept", DBMiddleware(db, AuthMiddleware(AcceptLinkCourseHandler)))
-	
-	http.HandleFunc("/acc-homework/document", DBMiddleware(db, AuthMiddleware(CreateDocumentHandler)))
-	http.HandleFunc("/acc-homework/document/download", DBMiddleware(db, AuthMiddleware(DownloadDocumentHandler)))
-	http.HandleFunc("/acc-homework/document/delete", DBMiddleware(db, AuthMiddleware(DeleteDocumentHandler)))
+	http.HandleFunc(GetRouteName("users"), DBMiddleware(db, AuthMiddleware(GetUsersHandler)))
 
-	http.HandleFunc("/acc-homework/note", DBMiddleware(db, AuthMiddleware(CreateNoteHandler)))
-	http.HandleFunc("/acc-homework/note/get", DBMiddleware(db, AuthMiddleware(GetNoteHandler)))
-	http.HandleFunc("/acc-homework/note/update", DBMiddleware(db, AuthMiddleware(UpdateNoteHandler)))
+	http.HandleFunc(GetRouteName("assignment"), DBMiddleware(db, AuthMiddleware(CreateAssignmentHandler)))
+	http.HandleFunc(GetRouteName("assignments"), DBMiddleware(db, AuthMiddleware(GetAssignmentHandler)))
+	http.HandleFunc(GetRouteName("assignment", "update"), DBMiddleware(db, AuthMiddleware(UpdateAssignmentHandler)))
 
-	http.HandleFunc("/acc-homework/follow", DBMiddleware(db, AuthMiddleware(HandleFollow)))
-	http.HandleFunc("/acc-homework/followers", DBMiddleware(db, AuthMiddleware(HandleGetFollowers)))
-	http.HandleFunc("/acc-homework/following", DBMiddleware(db, AuthMiddleware(HandleGetFollowing)))
-	http.HandleFunc("/acc-homework/follow-status", DBMiddleware(db, AuthMiddleware(HandleGetFollowStatus)))
-	
+	http.HandleFunc(GetRouteName("course"), DBMiddleware(db, AuthMiddleware(CreateCourseHandler)))
+	http.HandleFunc(GetRouteName("course", "get"), DBMiddleware(db, AuthMiddleware(GetCourseHandler)))
+	http.HandleFunc(GetRouteName("course", "update"), DBMiddleware(db, AuthMiddleware(UpdateCourseHandler)))
+	http.HandleFunc(GetRouteName("course", "link", "request"), DBMiddleware(db, AuthMiddleware(LinkRequestCourseHandler)))
+	http.HandleFunc(GetRouteName("course", "link", "accept"), DBMiddleware(db, AuthMiddleware(AcceptLinkCourseHandler)))
+
+	http.HandleFunc(GetRouteName("document"), DBMiddleware(db, AuthMiddleware(CreateDocumentHandler)))
+	http.HandleFunc(GetRouteName("document", "download"), DBMiddleware(db, AuthMiddleware(DownloadDocumentHandler)))
+	http.HandleFunc(GetRouteName("document", "delete"), DBMiddleware(db, AuthMiddleware(DeleteDocumentHandler)))
+
+	http.HandleFunc(GetRouteName("note"), DBMiddleware(db, AuthMiddleware(CreateNoteHandler)))
+	http.HandleFunc(GetRouteName("note", "get"), DBMiddleware(db, AuthMiddleware(GetNoteHandler)))
+	http.HandleFunc(GetRouteName("note", "update"), DBMiddleware(db, AuthMiddleware(UpdateNoteHandler)))
+
+	http.HandleFunc(GetRouteName("follow"), DBMiddleware(db, AuthMiddleware(HandleFollow)))
+	http.HandleFunc(GetRouteName("followers"), DBMiddleware(db, AuthMiddleware(HandleGetFollowers)))
+	http.HandleFunc(GetRouteName("following"), DBMiddleware(db, AuthMiddleware(HandleGetFollowing)))
+	http.HandleFunc(GetRouteName("follow-status"), DBMiddleware(db, AuthMiddleware(HandleGetFollowStatus)))
+
 	log.Println("Server listening on :3000...")
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }
