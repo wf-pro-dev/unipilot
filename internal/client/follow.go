@@ -21,7 +21,7 @@ type FollowResponse struct {
 
 func Follow(followedID uint) (bool, error) {
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 		return false, err
 	}
@@ -64,7 +64,7 @@ type FollowingResponse struct {
 
 func GetFollowers(userID uint) ([]user.User, int, error) {
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -91,7 +91,7 @@ func GetFollowers(userID uint) ([]user.User, int, error) {
 
 func GetFollowing(userID uint) ([]user.User, int, error) {
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 		return nil, 0, err
 	}

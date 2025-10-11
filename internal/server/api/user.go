@@ -2,38 +2,39 @@ package server
 
 import (
 	"encoding/json"
-	"net/http"
 	"fmt"
+	"net/http"
 	"time"
 
-	"unipilot/internal/models/user"
-
 	"gorm.io/gorm"
+
+	"unipilot/internal/models/user"
+	"unipilot/internal/server"
 )
 
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	// Safely get context values
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
+		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
 		return
 	}
 
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
-		PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
+		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
 		return
 	}
 
 	db, ok := dbVal.(*gorm.DB)
 	if !ok {
-		PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
+		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
 		return
 	}
 
 	userID, ok := userIDVal.(uint)
 	if !ok {
-		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
+		server.PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
 		return
 	}
 
@@ -41,9 +42,9 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	var userObj user.User
 	if err := db.First(&userObj, userID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			PrintERROR(w, http.StatusNotFound, "User not found")
+			server.PrintERROR(w, http.StatusNotFound, "User not found")
 		} else {
-			PrintERROR(w, http.StatusInternalServerError, "Database error")
+			server.PrintERROR(w, http.StatusInternalServerError, "Database error")
 		}
 		return
 	}
@@ -51,7 +52,7 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	// Convert to map safely
 	userMap := userObj.ToMap()
 	if userMap == nil {
-		PrintERROR(w, http.StatusInternalServerError, "Failed to process user data")
+		server.PrintERROR(w, http.StatusInternalServerError, "Failed to process user data")
 		return
 	}
 
@@ -67,29 +68,28 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	// Safely get context values
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
+		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
 		return
 	}
 
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
-		PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
+		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
 		return
 	}
 
 	db, ok := dbVal.(*gorm.DB)
 	if !ok {
-		PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
+		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
 		return
 	}
 
 	userID, ok := userIDVal.(uint)
 	if !ok {
-		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
+		server.PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
 		return
 	}
 
-	
 	var updateData struct {
 		Value  string `json:"value"`
 		Column string `json:"column`
@@ -97,25 +97,25 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&updateData)
 	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
+		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
 		return
 	}
-	
-	if err := db.Exec(fmt.Sprintf("UPDATE users SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),	
+
+	if err := db.Exec(fmt.Sprintf("UPDATE users SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), userID).Error; err != nil {
 
-		PrintERROR(w, http.StatusInternalServerError,
+		server.PrintERROR(w, http.StatusInternalServerError,
 			fmt.Sprintf("Error updating assignment in database: %s", err))
 		return
 	}
-	
+
 	// Query user
 	var userObj user.User
 	if err := db.First(&userObj, userID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			PrintERROR(w, http.StatusNotFound, "User not found")
+			server.PrintERROR(w, http.StatusNotFound, "User not found")
 		} else {
-			PrintERROR(w, http.StatusInternalServerError, "Database error")
+			server.PrintERROR(w, http.StatusInternalServerError, "Database error")
 		}
 		return
 	}
@@ -123,12 +123,9 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	// Convert to map safely
 	userMap := userObj.ToMap()
 	if userMap == nil {
-		PrintERROR(w, http.StatusInternalServerError, "Failed to process user data")
+		server.PrintERROR(w, http.StatusInternalServerError, "Failed to process user data")
 		return
 	}
-	
-	PrintLog(fmt.Sprintf("user_id %d column %s value %s",
-		userIDVal, updateData.Column, updateData.Value))
 
 	// Return response
 	w.Header().Set("Content-Type", "application/json")
@@ -136,4 +133,7 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "User retrieved successfully",
 		"user":    userMap,
 	})
+
+	server.PrintLOG([]string{"SUCCESS", "UPDATE", "USER"}, fmt.Sprintf("user_id %d column %s value %s",
+		userIDVal, updateData.Column, updateData.Value))
 }

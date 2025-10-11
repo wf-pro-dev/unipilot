@@ -16,7 +16,7 @@ func GetRemoteUsers() ([]user.User, error) {
 		Error   string                   `json:"error,omitempty"`
 	}
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 		return nil, err
 	}

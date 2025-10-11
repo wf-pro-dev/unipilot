@@ -55,7 +55,7 @@ func main() {
 	}
 
 	// Try to get authenticated HTTP client from stored credentials
-	httpClient, err := client.NewClientWithCookies()
+	httpClient, err := client.NewSSEClient()
 	if err != nil {
 		log.Printf("Warning: Could not create authenticated HTTP client: %v", err)
 		log.Printf("Event handler will not receive real-time notifications")

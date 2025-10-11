@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"unipilot/internal/models"
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/user"
-	"unipilot/internal/models/notifications"
+	"unipilot/internal/server"
 
 	"gorm.io/gorm"
 )
@@ -84,22 +83,20 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
+		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
 		return
 	}
 
 	db, ok := dbVal.(*gorm.DB)
 	if !ok {
-		PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
+		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
 		return
 	}
-
-	db = db.Debug()
 
 	// Check if already following
 	isFollowing, err := user.IsFollowing(userID, req.FollowedID, db)
 	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database error")
+		server.PrintERROR(w, http.StatusInternalServerError, "Database error")
 		return
 	}
 
@@ -107,17 +104,17 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 	if isFollowing {
 		// Unfollow
 		if err := user.RemoveFollow(userID, req.FollowedID, db); err != nil {
-			PrintERROR(w, http.StatusInternalServerError, "Database error")
+			server.PrintERROR(w, http.StatusInternalServerError, "Database error")
 			return
 		}
 
 		// Update stats for both users
 		if err := user.UpdateFollowStats(userID, db); err != nil {
-			PrintERROR(w, http.StatusInternalServerError, "Database error")
+			server.PrintERROR(w, http.StatusInternalServerError, "Database error")
 			return
 		}
 		if err := user.UpdateFollowStats(req.FollowedID, db); err != nil {
-			PrintERROR(w, http.StatusInternalServerError, "Database error")
+			server.PrintERROR(w, http.StatusInternalServerError, "Database error")
 			return
 		}
 
@@ -128,17 +125,17 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// Follow
 		if err := user.CreateFollow(userID, req.FollowedID, db); err != nil {
-			PrintERROR(w, http.StatusInternalServerError, "Database error")
+			server.PrintERROR(w, http.StatusInternalServerError, "Database error")
 			return
 		}
 
 		// Update stats for both users
 		if err := user.UpdateFollowStats(userID, db); err != nil {
-			PrintERROR(w, http.StatusInternalServerError, "Database error")
+			server.PrintERROR(w, http.StatusInternalServerError, "Database error")
 			return
 		}
 		if err := user.UpdateFollowStats(req.FollowedID, db); err != nil {
-			PrintERROR(w, http.StatusInternalServerError, "Database error")
+			server.PrintERROR(w, http.StatusInternalServerError, "Database error")
 			return
 		}
 
@@ -147,23 +144,26 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 			Message: "Followed successfully",
 		}
 
-		PrintLog(fmt.Sprintf("Sending notification to user %d", req.FollowedID))
-    
 		var currentUser user.User
 		if err := db.First(&currentUser, userID).Error; err != nil {
-			PrintERROR(w, http.StatusInternalServerError, "Database error")
+			server.PrintERROR(w, http.StatusInternalServerError, "Database error")
 			return
 		}
 		var followedUser user.User
 		if err := db.First(&followedUser, req.FollowedID).Error; err != nil {
-			PrintERROR(w, http.StatusInternalServerError, "Database error")
+			server.PrintERROR(w, http.StatusInternalServerError, "Database error")
 			return
 		}
 
 		var sharedCoursesCount int64
-		db.Model(&course.Course{}).Where("user_id = ? AND code IN (SELECT code FROM courses WHERE user_id = ?)", userID, req.FollowedID).Count(&sharedCoursesCount)
+		if err := db.Model(&course.Course{}).
+			Where("user_id = ? AND code IN (SELECT code FROM courses WHERE user_id = ?)", userID, req.FollowedID).
+			Count(&sharedCoursesCount).Error; err != nil {
+			server.PrintERROR(w, http.StatusInternalServerError, "Database error")
+			return
+		}
 
-		if sseServer != nil {
+		/*if sseServer != nil {
 			sseServer.SendNotification(
 				req.FollowedID,
 				userID,
@@ -175,11 +175,13 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 				"create",
 				"",
 			)
-		}
+		}*/
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+
+	server.PrintLOG([]string{"SUCCESS", "FOLLOW"}, fmt.Sprintf("User ID : %v, Followed ID : %v", userID, req.FollowedID))
 }
 
 // HandleGetFollowers handles getting followers list
@@ -218,17 +220,15 @@ func HandleGetFollowers(w http.ResponseWriter, r *http.Request) {
 
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
+		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
 		return
 	}
 
 	db, ok := dbVal.(*gorm.DB)
 	if !ok {
-		PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
+		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
 		return
 	}
-
-	db = db.Debug()
 
 	followers, err := user.GetFollowers(uint(userID), limit, offset, db)
 	if err != nil {
@@ -242,8 +242,6 @@ func HandleGetFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	PrintLog(fmt.Sprintf("User ID : %d, Total : %d, Followers : %v", userID, total, followers))
-
 	response := FollowersResponse{
 		Followers: followers,
 		Total:     total,
@@ -251,6 +249,8 @@ func HandleGetFollowers(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+
+	server.PrintLOG([]string{"SUCCESS", "GET", "FOLLOW"}, fmt.Sprintf("User ID : %d, Total : %d, Followers : %v", userID, total, followers))
 }
 
 // HandleGetFollowing handles getting following list
@@ -289,17 +289,15 @@ func HandleGetFollowing(w http.ResponseWriter, r *http.Request) {
 
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
+		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
 		return
 	}
 
 	db, ok := dbVal.(*gorm.DB)
 	if !ok {
-		PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
+		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
 		return
 	}
-
-	db = db.Debug()
 
 	following, err := user.GetFollowing(uint(userID), limit, offset, db)
 	if err != nil {
@@ -320,6 +318,8 @@ func HandleGetFollowing(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+
+	server.PrintLOG([]string{"SUCCESS", "GET", "FOLLOW"}, fmt.Sprintf("User ID : %d, Total : %d, Following : %v", userID, total, following))
 }
 
 // HandleGetFollowStatus handles getting follow status between two users
@@ -349,13 +349,13 @@ func HandleGetFollowStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
+		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
 		return
 	}
 
 	db, ok := dbVal.(*gorm.DB)
 	if !ok {
-		PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
+		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
 		return
 	}
 
@@ -385,4 +385,6 @@ func HandleGetFollowStatus(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+
+	server.PrintLOG([]string{"SUCCESS", "GET", "FOLLOW"}, fmt.Sprintf("User ID : %d, Target User ID : %d, Is Following : %v, Followers Count : %d, Following Count : %d", currentUserID, targetUserID, isFollowing, followersCount, followingCount))
 }

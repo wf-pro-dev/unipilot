@@ -25,7 +25,7 @@ func GetCourses() ([]map[string]string, error) {
 
 	if isOnline {
 
-		client, err := NewClientWithCookies()
+		client, err := NewAuthClient()
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +66,7 @@ func CreateCourse(c *course.Course) (map[string]interface{}, error) {
 
 	courseData := c.ToMap()
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func CreateCourse(c *course.Course) (map[string]interface{}, error) {
 
 func SendCourseUpdate(id, column, value string) error {
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 
 		return err
@@ -153,7 +153,7 @@ func SendCourseUpdate(id, column, value string) error {
 
 func RequestLinkCourse(courseCode string, usersID []uint) error {
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 		return err
 	}
@@ -192,7 +192,7 @@ type AcceptLinkCourseResponse struct {
 
 func AcceptLinkCourse(c *course.Course) (*AcceptLinkCourseResponse, error) {
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 		return nil, err
 	}

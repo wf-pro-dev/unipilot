@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
+	"log"
 	"net/http"
 	"time"
 	"unipilot/internal/client"
@@ -33,13 +33,13 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("login failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("login failed with status %d", resp.StatusCode)
 	}
 
 	// Parse the response to get user ID
 	var response struct {
-		User map[string]interface{} `json:"user"`
+		User  map[string]interface{} `json:"user"`
+		Token string                 `json:"token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
@@ -65,11 +65,17 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 		return nil, fmt.Errorf("failed to set credentials: %w", err)
 	}
 
+	/* DEPRECATED
 	if err := client.SaveCookies(&httpClient); err != nil {
 		return nil, fmt.Errorf("failed to save cookies: %w", err)
+	}*/
+
+	log.Printf("Saving token: %s", response.Token)
+	if err := client.SaveToken(response.Token); err != nil {
+		return nil, fmt.Errorf("failed to save token: %w", err)
 	}
 
-	httpUserClient, err := client.NewClientWithCookies()
+	httpUserClient, err := client.NewAuthClient()
 	if err != nil {
 		return nil, fmt.Errorf("could not create authenticated http client: %w", err)
 	}

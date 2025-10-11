@@ -10,6 +10,7 @@ import (
 
 	"unipilot/internal/models"
 	"unipilot/internal/models/notifications"
+	"unipilot/internal/server"
 )
 
 type SSEClient struct {
@@ -30,6 +31,14 @@ func NewSSEServer() *SSEServer {
 	}
 }
 
+func StartSSEServer() {
+	sseServer := NewSSEServer()
+	http.HandleFunc("/unipilot/sse/v1", server.AuthMiddleware(sseServer.SSEHandler))
+	log.Println("SSE server listening on :3000...")
+	log.Fatal(http.ListenAndServe(":3000", nil))
+
+}
+
 func (s *SSEServer) AddClient(userID uint) *SSEClient {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -40,7 +49,7 @@ func (s *SSEServer) AddClient(userID uint) *SSEClient {
 		Connected: true,
 	}
 
-	PrintLog(fmt.Sprintf("New SSE user id : %d\n", userID))
+	server.PrintLOG([]string{"SSE"}, fmt.Sprintf("New SSE user id : %d\n", userID))
 	s.clients[userID] = client
 	return client
 }
@@ -63,7 +72,7 @@ func (s *SSEServer) SendToUser(userID uint, message []byte) bool {
 	if client, ok := s.clients[userID]; ok {
 		select {
 		case client.Messages <- message:
-			PrintLog(fmt.Sprintf("new SSE message for user id : %d", userID))
+			server.PrintLOG([]string{"SSE"}, fmt.Sprintf("new SSE message for user id : %d", userID))
 			return true
 		default:
 			// Channel full, client might be slow
@@ -89,7 +98,7 @@ func (s *SSEServer) Broadcast(message []byte) {
 func (s *SSEServer) logActiveClients() {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	PrintLog(fmt.Sprintf("Active Clients: %v", s.clients))
+	server.PrintLOG([]string{"SSE"}, fmt.Sprintf("Active Clients: %v", s.clients))
 }
 
 type noTimeoutWriter struct {
@@ -107,7 +116,7 @@ func (w *noTimeoutWriter) Write(p []byte) (int, error) {
 
 func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 
-	PrintLog(fmt.Sprintf("SSE connection attempt from %s", r.RemoteAddr))
+	server.PrintLOG([]string{"SSE"}, fmt.Sprintf("SSE connection attempt from %s", r.RemoteAddr))
 
 	// Get user from context (set by AuthMiddleware)
 	userIDVal := r.Context().Value("user_id")
@@ -141,7 +150,7 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 	s.logActiveClients()
 
 	defer func() {
-		PrintLog(fmt.Sprintf("Removing client %d (reason: connection closing)", int(userID)))
+		server.PrintLOG([]string{"SSE"}, fmt.Sprintf("Removing client %d (reason: connection closing)", int(userID)))
 		s.RemoveClient(userID)
 	}()
 
@@ -169,7 +178,7 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, ": heartbeat\n\n")
 			flusher.Flush()
 		case <-r.Context().Done():
-			PrintLog(fmt.Sprintf("Client %d disconnected (context canceled)", userID))
+			server.PrintLOG([]string{"SSE"}, fmt.Sprintf("Client %d disconnected (context canceled)", userID))
 			return
 		}
 	}
@@ -185,7 +194,6 @@ func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity
 		Message:  message,
 		Data:     data,
 	}
-	//PrintLog(fmt.Sprintf("notification : %v",notification))
 
 	jsonData, err := json.Marshal(notification)
 	if err != nil {
@@ -193,6 +201,5 @@ func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity
 		return
 	}
 
-	//PrintLog(fmt.Sprintf("jsonData : %v", jsonData))
 	s.SendToUser(userID, jsonData)
 }
