@@ -9,6 +9,7 @@ import (
 	"time"
 	"unipilot/internal/client"
 	"unipilot/internal/models/user"
+	"unipilot/internal/secrets"
 	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
 	"unipilot/internal/storage"
@@ -28,7 +29,12 @@ func (a *Auth) Register(username, email, password, university, language string) 
 	loginData := map[string]string{"username": username, "password": password, "email": email, "university": university, "language": language}
 	jsonData, _ := json.Marshal(loginData)
 
-	resp, err := httpClient.Post("https://newsroom.dedyn.io/acc-homework/register", "application/json", bytes.NewBuffer(jsonData))
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get api url: %w", err)
+	}
+
+	resp, err := httpClient.Post(fmt.Sprintf("%s/register", api_url), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("http post failed: %w", err)
 	}

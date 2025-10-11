@@ -11,6 +11,7 @@ import (
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
 	"unipilot/internal/network"
+	"unipilot/internal/secrets"
 )
 
 func GetCourses() ([]map[string]string, error) {
@@ -30,7 +31,12 @@ func GetCourses() ([]map[string]string, error) {
 			return nil, err
 		}
 
-		resp, err := client.Get("https://newsroom.dedyn.io/acc-homework/course/get")
+		api_url, err := secrets.GetEnvVar("API_URL")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get api url: %w", err)
+		}
+
+		resp, err := client.Get(fmt.Sprintf("%s/course/get", api_url))
 
 		if err != nil {
 			return nil, err
@@ -64,6 +70,11 @@ func GetCourses() ([]map[string]string, error) {
 
 func CreateCourse(c *course.Course) (map[string]interface{}, error) {
 
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get api url: %w", err)
+	}
+
 	courseData := c.ToMap()
 
 	new_client, err := NewClientWithCookies()
@@ -76,7 +87,7 @@ func CreateCourse(c *course.Course) (map[string]interface{}, error) {
 	fmt.Println("Creating course:", courseData["code"])
 
 	resp, err := new_client.Post(
-		"https://newsroom.dedyn.io/acc-homework/course",
+		fmt.Sprintf("%s/course", api_url),
 		"application/json",
 		bytes.NewBuffer(jsonData),
 	)
@@ -131,8 +142,13 @@ func SendCourseUpdate(id, column, value string) error {
 
 	jsonData, _ := json.Marshal(updateData)
 
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return fmt.Errorf("failed to get api url: %w", err)
+	}
+
 	resp, err := new_client.Post(
-		"https://newsroom.dedyn.io/acc-homework/course/update",
+		fmt.Sprintf("%s/course/update", api_url),
 		"application/json",
 		bytes.NewBuffer(jsonData),
 	)
@@ -165,8 +181,13 @@ func RequestLinkCourse(courseCode string, usersID []uint) error {
 
 	jsonData, _ := json.Marshal(linkData)
 
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return fmt.Errorf("failed to get api url: %w", err)
+	}
+
 	resp, err := new_client.Post(
-		"https://newsroom.dedyn.io/acc-homework/course/link/request",
+		fmt.Sprintf("%s/course/link/request", api_url),
 		"application/json",
 		bytes.NewBuffer(jsonData),
 	)
@@ -199,9 +220,14 @@ func AcceptLinkCourse(c *course.Course) (*AcceptLinkCourseResponse, error) {
 
 	jsonData, _ := json.Marshal(c)
 
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get api url: %w", err)
+	}
+
 	// Get the  course assignments and documents
 	resp, err := new_client.Post(
-		"https://newsroom.dedyn.io/acc-homework/course/link/accept",
+		fmt.Sprintf("%s/course/link/accept", api_url),
 		"application/json",
 		bytes.NewBuffer(jsonData),
 	)

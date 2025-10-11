@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
 	"unipilot/internal/auth"
 	"unipilot/internal/client"
 	"unipilot/internal/database"
@@ -24,6 +25,7 @@ import (
 	"unipilot/internal/models/notifications"
 	"unipilot/internal/models/user"
 	"unipilot/internal/network"
+	"unipilot/internal/secrets"
 	"unipilot/internal/services/daemon"
 	"unipilot/internal/services/fileops"
 	"unipilot/internal/services/utils"
@@ -883,9 +885,14 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 			"version":       response.LocalDocument.Version,
 		}
 
+		api_url, err := secrets.GetEnvVar("API_URL")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get api url: %w", err)
+		}
+
 		go func() {
 			jsonData, _ := json.Marshal(metadataReq)
-			resp, err := a.Auth.Client.Post("https://newsroom.dedyn.io/acc-homework/documents/metadata",
+			resp, err := a.Auth.Client.Post(fmt.Sprintf("%s/documents/metadata", api_url),
 				"application/json", strings.NewReader(string(jsonData)))
 			if err == nil {
 				defer resp.Body.Close()
@@ -1527,48 +1534,6 @@ func (a *App) GetUserStorageInfo() (*document.StorageInfo, error) {
 	}
 
 	return storageInfo, nil
-}
-
-// GetRemoteDocumentMetadata retrieves document metadata from remote server (for shared assignments)
-func (a *App) GetRemoteDocumentMetadata(assignmentID uint) ([]map[string]interface{}, error) {
-	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
-	}
-
-	if !a.Auth.IsAuthenticated() {
-		return nil, fmt.Errorf("user not authenticated")
-	}
-
-	if a.Auth.Client == nil {
-		return nil, fmt.Errorf("not connected to server")
-	}
-
-	// Make API call to get remote metadata
-	url := fmt.Sprintf("https://newsroom.dedyn.io/acc-homework/documents?assignment_id=%d", assignmentID)
-	resp, err := a.Auth.Client.Get(url)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get remote metadata: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("server returned status %d", resp.StatusCode)
-	}
-
-	var result struct {
-		Success   bool                     `json:"success"`
-		Documents []map[string]interface{} `json:"documents"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	if !result.Success {
-		return nil, fmt.Errorf("server request failed")
-	}
-
-	return result.Documents, nil
 }
 
 func (a *App) GetCourseAssignments(course *course.LocalCourse) ([]assignment.LocalAssignment, error) {

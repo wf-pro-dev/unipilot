@@ -6,11 +6,17 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"unipilot/internal/secrets"
 )
 
 func (a *Auth) GetUser() (map[string]interface{}, error) {
 
-	resp, err := a.Client.Get("https://newsroom.dedyn.io/acc-homework/user")
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get api url: %w", err)
+	}
+
+	resp, err := a.Client.Get(fmt.Sprintf("%s/user", api_url))
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
