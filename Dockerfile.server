@@ -39,9 +39,6 @@ WORKDIR /app
 # COPY THE BINARY FROM BUILDER STAGE - THIS WAS MISSING!
 COPY --from=builder --chown=app:app /app/server .
 
-# Copy configuration files if any
-COPY --chown=app:app ecosystem.config.js ./
-
 # Switch to non-root user
 USER app
 

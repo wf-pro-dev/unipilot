@@ -15,7 +15,7 @@ func CreateNote(n *note.Note) (map[string]string, error) {
 
 	noteData := n.ToMap()
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func CreateNote(n *note.Note) (map[string]string, error) {
 
 func SendNoteUpdate(id, column, value string) error {
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 
 		return err

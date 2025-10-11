@@ -26,7 +26,7 @@ func NewAuth() *Auth {
 	if err == nil {
 		newAuth.User = currentUser
 
-		newAuth.Client, err = client.NewClientWithCookies()
+		newAuth.Client, err = client.NewAuthClient()
 		if err != nil {
 			log.Println("Error creating client: ", err)
 		}

@@ -77,7 +77,7 @@ func (a *App) Startup(ctx context.Context) {
 	if user != nil {
 		a.Auth.User = user
 		// Initialize authenticated client
-		httpClient, err := client.NewClientWithCookies()
+		httpClient, err := client.NewAuthClient()
 		if err != nil {
 			log.Printf("Warning: Could not create http client from stored cookies: %v", err)
 		}

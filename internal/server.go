@@ -1,7 +1,7 @@
 package main
 
 import (
-	"unipilot/internal/server"
+	server "unipilot/internal/server/api"
 )
 
 func main() {

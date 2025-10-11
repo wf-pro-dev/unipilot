@@ -24,7 +24,7 @@ func GetAssignments() ([]map[string]string, error) {
 
 	if isOnline {
 
-		client, err := NewClientWithCookies()
+		client, err := NewAuthClient()
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +64,7 @@ func CreateAssignment(a *assignment.Assignment) (map[string]interface{}, error) 
 
 	assignmentData := a.ToMap()
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func CreateAssignment(a *assignment.Assignment) (map[string]interface{}, error) 
 
 func SendAssignmentUpdate(id, column, value string) error {
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 
 		return err

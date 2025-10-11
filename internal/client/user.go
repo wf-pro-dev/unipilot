@@ -10,7 +10,7 @@ import (
 
 func SendUserUpdate(column, value string) error {
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 
 		return err

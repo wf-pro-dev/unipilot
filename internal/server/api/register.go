@@ -9,9 +9,10 @@ import (
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
-	
+
 	"unipilot/internal/models/user"
 	"unipilot/internal/secrets"
+	"unipilot/internal/server"
 )
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
@@ -21,17 +22,16 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var registrationData struct {
-		Username     string `json:"username"`
-		Email        string `json:"email"`
-		Password     string `json:"password"`
-		University   string `json:"university"`
-		Language     string `json:"language"`
-
+		Username   string `json:"username"`
+		Email      string `json:"email"`
+		Password   string `json:"password"`
+		University string `json:"university"`
+		Language   string `json:"language"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&registrationData)
 	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
+		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
 		return
 	}
 
@@ -39,36 +39,36 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Validate input
 	if registrationData.Username == "" || registrationData.Email == "" || registrationData.Password == "" || registrationData.University == "" || registrationData.Language == "" {
-		PrintERROR(w, http.StatusBadRequest, "Username, email, and password are required")
+		server.PrintERROR(w, http.StatusBadRequest, "Username, email, and password are required")
 		return
 	}
 
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(registrationData.Password), bcrypt.DefaultCost)
 	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, "Could not process password")
+		server.PrintERROR(w, http.StatusInternalServerError, "Could not process password")
 		return
 	}
 
 	// Create user
 	user := user.User{
-		Username:        registrationData.Username,
-		Email:           registrationData.Email,
-		PasswordHash:    string(hashedPassword),
-		University:	 registrationData.University,
-		Language:	 registrationData.Language,
+		Username:     registrationData.Username,
+		Email:        registrationData.Email,
+		PasswordHash: string(hashedPassword),
+		University:   registrationData.University,
+		Language:     registrationData.Language,
 	}
 
 	result := db.Create(&user)
 	if result.Error != nil {
-		PrintERROR(w, http.StatusConflict, "Username or email already exists")
+		server.PrintERROR(w, http.StatusConflict, "Username or email already exists")
 		return
 	}
 
 	// Create session
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Register: %w", err))
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Register: %w", err))
 		return
 	}
 
@@ -78,19 +78,18 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	session.Values["user_id"] = user.ID
 	session.Values["authenticated"] = true
 	if err := session.Save(r, w); err != nil {
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create session: %w", err))
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create session: %w", err))
 		return
 	}
 
-
 	id := strconv.Itoa(int(user.ID))
-	
-	PrintLog(fmt.Sprintf("%v",id))
-	
+
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "User registered successfully",
-		"id" : id,
-		"user": user.ToMap(),
+		"id":      id,
+		"user":    user.ToMap(),
 	})
+
+	server.PrintLOG([]string{"SUCCESS", "REGISTER"}, fmt.Sprintf("User ID : %v, Username : %v", id, user.Username))
 }

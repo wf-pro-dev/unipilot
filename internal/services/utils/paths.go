@@ -26,7 +26,7 @@ func getMainDir() (string, error) {
 	return fileDir, nil
 }
 
-func getUserDir() (string, error) {
+func GetUserDir() (string, error) {
 
 	credentials, err := GetUserFromFile()
 	if err != nil {
@@ -64,7 +64,7 @@ func getUserDirWithID(userID uint) (string, error) {
 
 func GetDocumentDir() (string, error) {
 
-	fileDir, err := getUserDir()
+	fileDir, err := GetUserDir()
 	if err != nil {
 		return "", err
 	}
@@ -80,7 +80,7 @@ func GetDocumentDir() (string, error) {
 
 func GetDBPath() (string, error) {
 
-	fileDir, err := getUserDir()
+	fileDir, err := GetUserDir()
 	if err != nil {
 		return "", err
 	}
@@ -119,7 +119,7 @@ func GetDBPathWithID(userID uint) (string, error) {
 // getCookieFilePath returns the canonical path for the cookie file.
 func GetCookieFilePath() (string, error) {
 
-	fileDir, err := getUserDir()
+	fileDir, err := GetUserDir()
 	if err != nil {
 		return "", err
 	}

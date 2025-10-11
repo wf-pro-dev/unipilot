@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/gorilla/sessions"
-	
 	"unipilot/internal/secrets"
+	"unipilot/internal/server"
+
+	"github.com/gorilla/sessions"
 )
 
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Logout: %w",err))
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Logout: %w", err))
 		return
 	}
 
@@ -24,7 +25,7 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Check if user was actually logged in
 	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
-		PrintERROR(w, http.StatusUnauthorized, "Not logged in")
+		server.PrintERROR(w, http.StatusUnauthorized, "Not logged in")
 		return
 	}
 
@@ -36,7 +37,7 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	session.Options.MaxAge = -1
 
 	if err := session.Save(r, w); err != nil {
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create session: %w", err))
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create session: %w", err))
 		return
 	}
 

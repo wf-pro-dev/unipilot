@@ -24,7 +24,7 @@ func SendDocument(document *document.LocalDocument) (string, error) {
 	var url string = "https://newsroom.dedyn.io/acc-homework/document"
 
 	// Create a new client with cookies
-	client, err := NewClientWithCookies()
+	client, err := NewAuthClient()
 	if err != nil {
 		return "", err
 	}
@@ -136,7 +136,7 @@ func DownloadDocument(document *document.LocalDocument) (io.Reader, error) {
 		return nil, err
 	}
 
-	client, err := NewClientWithCookies()
+	client, err := NewAuthClient()
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +172,7 @@ func DeleteDocument(documentID uint) error {
 
 	var url string = "https://newsroom.dedyn.io/acc-homework/document/delete"
 
-	client, err := NewClientWithCookies()
+	client, err := NewAuthClient()
 	if err != nil {
 		return err
 	}

@@ -10,13 +10,13 @@ import (
 
 	"github.com/google/uuid"
 
-	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
 
 	//"unipilot/internal/models/document"
-	"unipilot/internal/models/notifications"
+
 	"unipilot/internal/models/user"
+	"unipilot/internal/server"
 
 	"gorm.io/gorm"
 )
@@ -24,31 +24,31 @@ import (
 func GetCourseHandler(w http.ResponseWriter, r *http.Request) {
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
-		PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
+		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
 		return
 	}
 
 	userID, ok := userIDVal.(uint)
 	if !ok {
-		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
+		server.PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
 		return
 	}
 
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
+		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
 		return
 	}
 
 	db, ok := dbVal.(*gorm.DB)
 	if !ok {
-		PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
+		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
 		return
 	}
 
 	var courses []course.Course
 	if err := db.Where("user_id = ?", userID).Find(&courses).Error; err != nil {
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error getting assignment for user id = %d : %s", userID, err))
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error getting assignment for user id = %d : %s", userID, err))
 		return
 	}
 
@@ -68,25 +68,25 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
-		PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
+		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
 		return
 	}
 
 	userID, ok := userIDVal.(uint)
 	if !ok {
-		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
+		server.PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
 		return
 	}
 
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
+		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
 		return
 	}
 
 	db, ok := dbVal.(*gorm.DB)
 	if !ok {
-		PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
+		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
 		return
 	}
 
@@ -113,40 +113,37 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
 		return
 	}
 
-	PrintLog(fmt.Sprintf("course input data local ID : %s Title: %s : Course code: %s Type : %s Deadline : %s \n", input.LocalID, input.Instructor, input.EndDate, input.Semester, input.StartDate))
-	PrintLog(fmt.Sprintf("course input data local ID : %s \n", input.Code))
-
 	// Validate all required fields
 	if input.LocalID == "" || input.Code == "" || input.Semester == "" || input.Instructor == "" || input.StartDate == "" || input.EndDate == "" {
-		PrintERROR(w, http.StatusBadRequest, "Missing required fields")
+		server.PrintERROR(w, http.StatusBadRequest, "Missing required fields")
 		return
 	}
 
 	start_date, err := time.Parse(time.DateOnly, input.StartDate)
 	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, "Invalid start date format")
+		server.PrintERROR(w, http.StatusBadRequest, "Invalid start date format")
 		return
 	}
 
 	end_date, err := time.Parse(time.DateOnly, input.EndDate)
 	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, "Invalid start date format")
+		server.PrintERROR(w, http.StatusBadRequest, "Invalid start date format")
 		return
 	}
 
 	credits, err := strconv.Atoi(input.Credits)
 	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating credits : %s", err))
+		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating credits : %s", err))
 
 		return
 	}
 	local_id, err := strconv.Atoi(input.LocalID)
 	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating local_id : %s", err))
+		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating local_id : %s", err))
 
 		return
 	}
@@ -169,7 +166,7 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	result := tx.Create(&cVal)
 	if result.Error != nil {
-		PrintERROR(w, http.StatusConflict, fmt.Sprintf("Error creating assignment in database", err))
+		server.PrintERROR(w, http.StatusConflict, fmt.Sprintf("Error creating assignment in database", err))
 		return
 	}
 
@@ -177,29 +174,15 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	c, err := course.Get_Course_byId(cObj.ID, tx)
 	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting course: %s", err))
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting course: %s", err))
 		return
 	}
-	/*notion_id, err := a.Add_Notion()
-	if err != nil {
-		tx.Rollback()
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error creating assignment in notion", err))
-		return
-	}
-
-	a.NotionID = notion_id
-	err = tx.Save(&a).Error
-	if err != nil {
-		tx.Rollback()
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error updating new assignment", err))
-		return
-	}*/
 
 	// Convert to map safely
 	courseMap := c.ToMap()
 	if courseMap == nil {
 		tx.Rollback()
-		PrintERROR(w, http.StatusInternalServerError, "Failed to process course data")
+		server.PrintERROR(w, http.StatusInternalServerError, "Failed to process course data")
 		return
 	}
 
@@ -212,32 +195,28 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 		"course":  courseMap,
 	})
 
+	server.PrintLOG([]string{"SUCCESS", "CREATE", "COURSE"}, fmt.Sprintf("course created successfully : %v", courseMap))
+
 }
 func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
+		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
 		return
 	}
 
 	db, ok := dbVal.(*gorm.DB)
 	if !ok {
-		PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
+		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
 		return
 	}
 
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
-		PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
+		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
 		return
 	}
-
-	/*userID, ok := userIDVal.(uint)
-	if !ok {
-		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
-		return
-	}*/
 
 	tx := db.Begin()
 	defer func() {
@@ -254,64 +233,30 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&updateData)
 	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
+		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
 		return
 	}
 
 	int_id, err := strconv.Atoi(updateData.ID)
 	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to convert assignment ID to int: %s", err))
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to convert assignment ID to int: %s", err))
 		return
 	}
 
 	c, err := course.Get_Course_byId(uint(int_id), tx)
 	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting course: %s", err))
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting course: %s", err))
 		return
 	}
 
 	if err := tx.Exec(fmt.Sprintf("UPDATE courses SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), c.ID).Error; err != nil {
-		PrintERROR(w, http.StatusInternalServerError,
+		server.PrintERROR(w, http.StatusInternalServerError,
 			fmt.Sprintf("Error updating assignment in database: %s", err))
 		return
 	}
 
-	/*value := updateData.Value
-
-	//PrintLog(fmt.Sprintf("column : %s, value :%s, user id:%s", updateData.Column, value, dbVal.(string) ))
-	if updateData.Column == "course_code" {
-		//PrintLog(fmt.Sprintf("column : %s, value :%s, user id:%s", updateData.Column, value, dbVal.(string) ))
-
-		c, err := course.Get_Course_byCode(value, strconv.Itoa(int(userID)), tx)
-		if err != nil {
-			PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting new course: %s", err))
-			return
-		}
-		PrintLog(fmt.Sprintf("Course %s", c.ToMap()))
-
-		value = c.NotionID
-		PrintLog(fmt.Sprintf("Course notion id: %s", value))
-	}
-
-	var obj map[string]string
-
-	if updateData.Column == "status_name" {
-		var status = models.Get_AssignmentStatus_byName(value, tx)
-		obj = status.ToMap()
-	} else if updateData.Column == "type_name" {
-		var t = models.Get_AssignmentType_byName(value, tx)
-		obj = t.ToMap()
-	}
-
-	err = a.Update_Notion(updateData.Column, value, obj)
-	if err != nil {
-		tx.Rollback()
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error updating assignment in notion", err))
-		return
-	}*/
-
-	PrintLog(fmt.Sprintf("user_id %s course %d column %s value %s",
+	server.PrintLOG([]string{"SUCCESS", "UPDATE", "COURSE"}, fmt.Sprintf("user_id %s course %d column %s value %s",
 		userIDVal, c.ID, updateData.Column, updateData.Value))
 
 	tx.Commit()
@@ -322,31 +267,31 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
+		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
 		return
 	}
 
 	db, ok := dbVal.(*gorm.DB)
 	if !ok {
-		PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
+		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
 		return
 	}
 
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
-		PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
+		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
 		return
 	}
 
 	userID, ok := userIDVal.(uint)
 	if !ok {
-		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
+		server.PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
 		return
 	}
 
 	var currentUser user.User
 	if err := db.First(&currentUser, userID).Error; err != nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database error")
+		server.PrintERROR(w, http.StatusInternalServerError, "Database error")
 		return
 	}
 
@@ -357,7 +302,7 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&linkRequestData)
 	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
+		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
 		return
 	}
 
@@ -371,7 +316,7 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request) {
 		linkId = uuid.New()
 		c.LinkID = linkId
 		if err = db.Save(&c).Error; err != nil {
-			PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Could not save uuid %s", err))
+			server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Could not save uuid %s", err))
 			return
 
 		}
@@ -379,14 +324,16 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request) {
 		linkId = c.LinkID
 	}
 
-	PrintLog(fmt.Sprintf(" link uuid : %s", linkId))
+	// gRPC -> SSE logic : TO BE MOVE IN DOCKER
 
-	cJson, err := json.Marshal(c)
+	// cJson, err := json.Marshal(c)
+	_, err = json.Marshal(c)
 	if err != nil {
 		log.Printf("[Error] error marshalling notification : %v ", err)
 
 	}
-	if sseServer != nil {
+
+	/*if sseServer != nil {
 
 		// 2. Send link info to users via SSE (field data)
 		for _, sendeeID := range linkRequestData.UsersID {
@@ -402,10 +349,10 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request) {
 				string(cJson),
 			)
 		}
-	}
+	}*/
 	// Infos : Course All except user_id, Sender (name)
 
-	PrintLog(fmt.Sprintf("Course ID : %v, Users ID : %v", linkRequestData.CourseCode, linkRequestData.UsersID))
+	server.PrintLOG([]string{"SUCCESS", "LINK", "COURSE"}, fmt.Sprintf("Course ID : %v, Users length : %v, Link ID : %v", linkRequestData.CourseCode, len(linkRequestData.UsersID), linkId))
 
 }
 
@@ -413,38 +360,38 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	dbVal := r.Context().Value("db")
 	if dbVal == nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
+		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
 		return
 	}
 
 	db, ok := dbVal.(*gorm.DB)
 	if !ok {
-		PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
+		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
 		return
 	}
 
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
-		PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
+		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
 		return
 	}
 
 	userID, ok := userIDVal.(uint)
 	if !ok {
-		PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
+		server.PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
 		return
 	}
 
 	var currentUser user.User
 	if err := db.First(&currentUser, userID).Error; err != nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database error")
+		server.PrintERROR(w, http.StatusInternalServerError, "Database error")
 		return
 	}
 
 	var c course.Course
 	err := json.NewDecoder(r.Body).Decode(&c)
 	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
+		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
 		return
 	}
 
@@ -452,7 +399,7 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request) {
 	var courseAssignments []assignment.Assignment
 	err = db.Where("user_id = ? AND course_code = ?", c.UserID, c.Code).Order("created_at").Find(&courseAssignments).Error
 	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error getting course assignments with course code : %v ", err))
+		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error getting course assignments with course code : %v ", err))
 		return
 	}
 
@@ -462,10 +409,9 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request) {
 		assignmentDocuments, err := assignment.GetDocuments(db.Debug())
 
 		if err != nil {
-			PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error getting assignment %v documents: %v ", assignment.ID, err))
+			server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error getting assignment %v documents: %v ", assignment.ID, err))
 			return
 		}
-		PrintLog(fmt.Sprintf("assignment id : %v documents: %v", assignment.ID, assignmentDocuments))
 
 		assignment.Documents = assignmentDocuments
 		responseAssignments = append(responseAssignments, assignment)
@@ -475,7 +421,7 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request) {
 	var assignmentDocuments []document.Document
 	err = db.Preload("Docmuents")..Where("assignment_id IN ?", assignmentIDs).Find(&assignmentDocuments).Error
 	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error getting assignments documents :%v", err))
+		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error getting assignments documents :%v", err))
 		return
 	}*/
 
@@ -506,6 +452,6 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Infos : Course All except user_id, Sender (name)*/
 
-	PrintLog(fmt.Sprintf("Course ID : %v, From : %v, To: %v", c.Code, c.UserID, userID))
+	server.PrintLOG([]string{"SUCCESS", "ACCEPT", "COURSE"}, fmt.Sprintf("Course ID : %v, From : %v, To: %v", c.Code, c.UserID, userID))
 
 }
