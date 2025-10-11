@@ -1,0 +1,56 @@
+# Build stage
+FROM golang:1.25-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    git
+
+WORKDIR /app
+
+# Copy Go module files first for better caching
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy ALL source code
+COPY internal/ ./internal/
+
+# Build the server application
+RUN go build -v -o server ./internal/server.go
+
+# Final stage
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    ca-certificates \
+    tzdata \
+    shadow \
+    && update-ca-certificates
+
+# Create non-root user and directories
+RUN groupadd -r app && useradd -r -g app app \
+    && mkdir -p /app/data /app/logs /app/uploads \
+    && chown -R app:app /app
+
+WORKDIR /app
+
+# COPY THE BINARY FROM BUILDER STAGE - THIS WAS MISSING!
+COPY --from=builder --chown=app:app /app/server .
+
+# Copy configuration files if any
+COPY --chown=app:app ecosystem.config.js ./
+
+# Switch to non-root user
+USER app
+
+# Expose the port your server uses
+EXPOSE 3000
+
+# Health check - FIXED PORT (3000 instead of 8080)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+
+# Start the server
+CMD ["./server"]

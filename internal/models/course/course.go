@@ -121,7 +121,7 @@ func Get_Course_byNotionID(notion_id string, db *gorm.DB) *Course {
 	return course
 }
 
-func (c *Course) Get_Link_Users(db *gorm.DB) ([]uint, error) {
+func (c *Course) GetLinkUsers(db *gorm.DB) ([]uint, error) {
 	var link_users []uint
 	err := db.Model(&Course{}).Where("link_id = ?", c.LinkID.String()).Pluck("user_id", &link_users).Error
 	if err != nil {
@@ -151,4 +151,3 @@ func (c *Course) ToMap() map[string]string {
 		"updated_at":       c.UpdatedAt.Format(time.DateOnly),
 	}
 }
-

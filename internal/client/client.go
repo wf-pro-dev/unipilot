@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"time"
+	"unipilot/internal/secrets"
 	"unipilot/internal/services/utils"
 
 	"golang.org/x/net/publicsuffix"
@@ -58,8 +59,13 @@ func SaveCookies(client *http.Client) error {
 		return err
 	}
 
+	base_url, err := secrets.GetEnvVar("BASE_URL")
+	if err != nil {
+		return err
+	}
+
 	// Use proper URL instead of nil to avoid nil pointer dereference
-	targetURL, _ := url.Parse("https://newsroom.dedyn.io")
+	targetURL, _ := url.Parse(base_url)
 	cookies := client.Jar.Cookies(targetURL)
 
 	data, err := json.MarshalIndent(cookies, "", "  ")
@@ -111,7 +117,11 @@ func NewClientWithCookies() (*http.Client, error) {
 	if len(cookies) > 0 {
 		// We need a URL to set cookies in the jar.
 		// This should be the base URL of your service.
-		url, _ := url.Parse("https://newsroom.dedyn.io")
+		base_url, err := secrets.GetEnvVar("BASE_URL")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get base url: %w", err)
+		}
+		url, _ := url.Parse(base_url)
 		jar.SetCookies(url, cookies)
 	}
 
@@ -184,7 +194,11 @@ func NewSSEClient() (*http.Client, error) {
 		if err == nil {
 			var cookies []*http.Cookie
 			if err := json.Unmarshal(data, &cookies); err == nil && len(cookies) > 0 {
-				url, _ := url.Parse("https://newsroom.dedyn.io")
+				base_url, err := secrets.GetEnvVar("BASE_URL")
+				if err != nil {
+					return nil, fmt.Errorf("failed to get base url: %w", err)
+				}
+				url, _ := url.Parse(base_url)
 				jar.SetCookies(url, cookies)
 			}
 		}

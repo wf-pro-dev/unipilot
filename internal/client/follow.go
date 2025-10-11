@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"unipilot/internal/models/user"
+	"unipilot/internal/secrets"
 )
 
 // FollowRequest represents a follow request
@@ -29,7 +30,12 @@ func Follow(followedID uint) (bool, error) {
 	followData := map[string]uint{"followed_id": followedID}
 	jsonData, _ := json.Marshal(followData)
 
-	resp, err := new_client.Post("https://newsroom.dedyn.io/acc-homework/follow", "application/json", bytes.NewBuffer(jsonData))
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return false, fmt.Errorf("failed to get api url: %w", err)
+	}
+
+	resp, err := new_client.Post(fmt.Sprintf("%s/follow", api_url), "application/json", bytes.NewBuffer(jsonData))
 
 	if err != nil {
 		return false, err
@@ -69,8 +75,12 @@ func GetFollowers(userID uint) ([]user.User, int, error) {
 		return nil, 0, err
 	}
 
-	resp, err := new_client.Get(fmt.Sprintf("https://newsroom.dedyn.io/acc-homework/followers?user_id=%d", userID))
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get api url: %w", err)
+	}
 
+	resp, err := new_client.Get(fmt.Sprintf("%s/followers?user_id=%d", api_url, userID))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -96,8 +106,12 @@ func GetFollowing(userID uint) ([]user.User, int, error) {
 		return nil, 0, err
 	}
 
-	resp, err := new_client.Get(fmt.Sprintf("https://newsroom.dedyn.io/acc-homework/following?user_id=%d", userID))
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get api url: %w", err)
+	}
 
+	resp, err := new_client.Get(fmt.Sprintf("%s/following?user_id=%d", api_url, userID))
 	if err != nil {
 		return nil, 0, err
 	}

@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { assignment } from "@/wailsjs/go/models"
 import { Button } from "@/components/ui/button"
+import { useState, memo, useEffect } from "react"
 
 
 const statusColors = {
@@ -17,9 +18,17 @@ interface StatusTagProps {
 
 
 
-function StatusTag({ assignment, onEdit }: StatusTagProps) {
+function BaseStatusTag({ assignment, onEdit }: StatusTagProps) {
+    const [status, setStatus] = useState(assignment.StatusName)
+
+
+    useEffect(() => {
+        setStatus(assignment.StatusName)
+    }, [assignment.StatusName])
+
     const handleEdit = (e: React.MouseEvent<HTMLButtonElement>, status: string) => {
         e.stopPropagation()
+        setStatus(status)
         onEdit(assignment, "status_name", status)
     }
 
@@ -27,8 +36,8 @@ function StatusTag({ assignment, onEdit }: StatusTagProps) {
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm" className="p-0 w-fit rounded-full">
-                    <Badge variant="outline" className={`text-xs ${statusColors[assignment.StatusName as keyof typeof statusColors]}`}>
-                        {assignment.StatusName}
+                    <Badge variant="outline" className={`text-xs ${statusColors[status as keyof typeof statusColors]}`}>
+                        {status}
                     </Badge>
                 </Button>
             </DropdownMenuTrigger>
@@ -45,4 +54,7 @@ function StatusTag({ assignment, onEdit }: StatusTagProps) {
     )
 }
 
-export { StatusTag }
+export const StatusTag = memo(BaseStatusTag, (prevProps, nextProps) => {
+    console.log("StatusTag memo", prevProps.assignment.StatusName, nextProps.assignment.StatusName)
+    return prevProps.assignment.StatusName === nextProps.assignment.StatusName
+})

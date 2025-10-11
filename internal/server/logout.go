@@ -5,21 +5,18 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/spf13/viper"
-
 	"github.com/gorilla/sessions"
+	
+	"unipilot/internal/secrets"
 )
 
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
-	viper.SetConfigFile(".env")
-	err := viper.ReadInConfig()
+	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("error reading config file: %w", err))
+		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Logout: %w",err))
 		return
 	}
-
-	SESSION_KEY := viper.GetString("SESSION_KEY")
 
 	var store = sessions.NewCookieStore([]byte(SESSION_KEY))
 

@@ -3,14 +3,13 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
-	"log"
 
 	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
-	"unipilot/internal/models/user"
 	"unipilot/internal/models/notifications"
 
 	"gorm.io/gorm"
@@ -93,7 +92,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	var input struct {
-		LocalID	   string `json:"local_id"`	
+		LocalID    string `json:"local_id"`
 		Title      string `json:"title"`
 		Todo       string `json:"todo"`
 		Deadline   string `json:"deadline"`
@@ -101,7 +100,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		TypeName   string `json:"type"`
 		StatusName string `json:"status"`
 		Priority   string `json:"priority"`
-		Link	   string `json:"link"`
+		Link       string `json:"link"`
 		ParentID   string `json:"parent_id"`
 	}
 
@@ -110,9 +109,8 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	PrintLog(fmt.Sprintf("assignment input data local ID : %s Title: %s : Course code: %s Type : %s Deadline : %s \n", input.LocalID, input.Title, input.CourseCode, input.TypeName, input.Deadline))
-	PrintLog(fmt.Sprintf("assignment input : %v\n",input))
+	PrintLog(fmt.Sprintf("assignment input : %v\n", input))
 
 	// Validate all required fields
 	if input.LocalID == "" || input.CourseCode == "" || input.Title == "" || input.TypeName == "" || input.Deadline == "" {
@@ -125,19 +123,22 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		PrintERROR(w, http.StatusBadRequest, "Invalid deadline format")
 		return
 	}
-	
+
 	local_id, err := strconv.Atoi(input.LocalID)
 	if err != nil {
 		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating local_id : %s", err))
-		return 
-	}
-	
-	parent_id, err := strconv.Atoi(input.ParentID)
-	if err != nil {
-		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating parent_id : %s", err))
 		return
 	}
 
+	var parent_id = 0
+	if input.ParentID != "" {
+
+		parent_id, err = strconv.Atoi(input.ParentID)
+		if err != nil {
+			PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating parent_id : %s", err))
+			return
+		}
+	}
 
 	aVal := assignment.Assignment{
 		Title:      input.Title,
@@ -149,7 +150,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		TypeName:   input.TypeName,
 		StatusName: input.StatusName,
 		Priority:   input.Priority,
-		Link:	    input.Link,
+		Link:       input.Link,
 		ParentID:   uint(parent_id),
 	}
 
@@ -175,70 +176,47 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	tx.Commit()
-	
-	db = db.Debug()
 
 	// Send a notification to all the users linked
-	
+
 	newA, err := assignment.Get_Assignment_byID(aObj.ID, userID, db)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
 		return
 	}
-	
+
 	aJson, err := json.Marshal(newA)
 	if err != nil {
-		log.Printf("[Error] error marshalling notification : %v ",err)
+		log.Printf("[Error] error marshalling notification : %v ", err)
 	}
 
-
-	PrintLog(fmt.Sprintf("notification data %v :", string(aJson)))
-
-
-	var currentUser user.User
-	if err := db.First(&currentUser, userID).Error; err != nil {
-		PrintERROR(w, http.StatusInternalServerError, "Database error")
-		return
-	}
-
-	c, err := a.GetCourseAssignment(db)
-	if err != nil {
-		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting course assignment: %s", err))
-		return
-	}
-	
-	link_users, err :=  c.Get_Link_Users(db)
+	link_users, err := newA.Course.GetLinkUsers(db)
 	if err != nil {
 		PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting users link to course assignment: %s", err))
 		return
 	}
 
-	
-	
 	PrintLog(fmt.Sprintf("link users : %v, sseServer : %v", link_users, sseServer != nil))
 	if sseServer != nil {
 		// 2. Send link info to users via SSE (field data)
-		for _,sendeeID := range link_users {
+		for _, sendeeID := range link_users {
 			if sendeeID != userID {
-				PrintLog(fmt.Sprintf("sending to : %d ",sendeeID))
+				PrintLog(fmt.Sprintf("sending to : %d ", sendeeID))
 				sseServer.SendNotification(
 					uint(sendeeID),
 					userID,
 					models.EntityAssignment,
-					c.ID,
+					newA.Course.ID,
 					notifications.NotificationAssignmentUpdate,
-					a.Title,
-					fmt.Sprintf("%s shared a new assignment on %s", currentUser.Username, c.Code),
+					newA.Title,
+					fmt.Sprintf("%s shared a new assignment on %s", newA.User.Username, newA.CourseCode),
 					"assignment",
 					string(aJson),
-
 				)
 			}
 		}
 	}
-
 
 	// Return response
 	w.Header().Set("Content-Type", "application/json")
@@ -305,7 +283,7 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := tx.Exec(fmt.Sprintf("UPDATE assignments SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),	
+	if err := tx.Exec(fmt.Sprintf("UPDATE assignments SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), a.ID).Error; err != nil {
 
 		PrintERROR(w, http.StatusInternalServerError,
