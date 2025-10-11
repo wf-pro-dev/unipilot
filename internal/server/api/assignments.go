@@ -16,6 +16,7 @@ import (
 )
 
 func GetAssignmentHandler(w http.ResponseWriter, r *http.Request) {
+
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
 		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
