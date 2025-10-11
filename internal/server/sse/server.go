@@ -116,18 +116,10 @@ func (w *noTimeoutWriter) Write(p []byte) (int, error) {
 
 func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 
-	server.PrintLOG([]string{"SSE"}, fmt.Sprintf("SSE connection attempt from %s", r.RemoteAddr))
-
 	// Get user from context (set by AuthMiddleware)
-	userIDVal := r.Context().Value("user_id")
-	if userIDVal == nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	userID, ok := userIDVal.(uint)
+	userID, ok := r.Context().Value("user_id").(uint)
 	if !ok {
-		http.Error(w, "Invalid user ID", http.StatusInternalServerError)
+		server.PrintERROR(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
@@ -141,14 +133,12 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 	// Create a flusher
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+		server.PrintERROR(w, http.StatusInternalServerError, "Streaming not supported")
 		return
 	}
 
 	// Add client to server
 	client := s.AddClient(userID)
-	s.logActiveClients()
-
 	defer func() {
 		server.PrintLOG([]string{"SSE"}, fmt.Sprintf("Removing client %d (reason: connection closing)", int(userID)))
 		s.RemoveClient(userID)
@@ -169,11 +159,6 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		case <-heartbeatTicker.C:
 			// Send heartbeat to keep connection alive
-			// Verify client is still active
-			/*if time.Since(client.LastActive) > 90*time.Second {
-			    PrintLog(fmt.Sprintf("Client %d timed out", userID))
-			    return
-			}*/
 			client.LastActive = time.Now()
 			fmt.Fprintf(w, ": heartbeat\n\n")
 			flusher.Flush()
