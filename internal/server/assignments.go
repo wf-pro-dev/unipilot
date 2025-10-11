@@ -102,6 +102,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		StatusName string `json:"status"`
 		Priority   string `json:"priority"`
 		Link	   string `json:"link"`
+		ParentID   string `json:"parent_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -128,10 +129,14 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	local_id, err := strconv.Atoi(input.LocalID)
 	if err != nil {
 		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating local_id : %s", err))
-
 		return 
 	}
 	
+	parent_id, err := strconv.Atoi(input.ParentID)
+	if err != nil {
+		PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating parent_id : %s", err))
+		return
+	}
 
 
 	aVal := assignment.Assignment{
@@ -145,6 +150,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		StatusName: input.StatusName,
 		Priority:   input.Priority,
 		Link:	    input.Link,
+		ParentID:   uint(parent_id),
 	}
 
 	result := tx.Create(&aVal)
@@ -214,7 +220,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	PrintLog(fmt.Sprintf("link users : %v, sseServer : %v", link_users, sseServer != nil))
 	if sseServer != nil {
 		// 2. Send link info to users via SSE (field data)
-		for _,sendeeID := range link_users; uint(sendeeID) {
+		for _,sendeeID := range link_users {
 			if sendeeID != userID {
 				PrintLog(fmt.Sprintf("sending to : %d ",sendeeID))
 				sseServer.SendNotification(
