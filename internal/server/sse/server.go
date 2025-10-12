@@ -1,4 +1,4 @@
-package server
+package sse
 
 import (
 	"encoding/json"
@@ -31,12 +31,17 @@ func NewSSEServer() *SSEServer {
 	}
 }
 
-func StartSSEServer() {
+func StartSSEServer() *SSEServer {
 	sseServer := NewSSEServer()
 	http.HandleFunc("/unipilot/sse/v1", server.AuthMiddleware(sseServer.SSEHandler))
 	log.Println("SSE server listening on :3000...")
-	log.Fatal(http.ListenAndServe(":3000", nil))
+	go func() {
+		if err := http.ListenAndServe(":3000", nil); err != nil {
+			log.Fatalf("SSE server error: %v", err)
+		}
+	}()
 
+	return sseServer
 }
 
 func (s *SSEServer) AddClient(userID uint) *SSEClient {
@@ -168,7 +173,7 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity, entityID uint, nType notifications.NotificationType, title, message, action, data string) {
+func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity, entityID uint, nType notifications.NotificationType, title, message, action, data string) error {
 	notification := notifications.LocalNotification{
 		SenderID: senderID,
 		Entity:   entity,
@@ -183,8 +188,9 @@ func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity
 	jsonData, err := json.Marshal(notification)
 	if err != nil {
 		log.Printf("[Error] error marshalling notification : %v ", err)
-		return
+		return err
 	}
 
 	s.SendToUser(userID, jsonData)
+	return nil
 }
