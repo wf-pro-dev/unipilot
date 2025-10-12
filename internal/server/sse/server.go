@@ -31,8 +31,15 @@ func NewSSEServer() *SSEServer {
 	}
 }
 
+func HealthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status": "healthy", "timestamp": "` + time.Now().Format(time.RFC3339) + `"}`))
+}
+
 func StartSSEServer() *SSEServer {
 	sseServer := NewSSEServer()
+	http.HandleFunc("/health", HealthHandler)
 	http.HandleFunc("/unipilot/sse/v1", server.AuthMiddleware(sseServer.SSEHandler))
 	log.Println("SSE server listening on :3000...")
 	go func() {
@@ -77,7 +84,6 @@ func (s *SSEServer) SendToUser(userID uint, message []byte) bool {
 	if client, ok := s.clients[userID]; ok {
 		select {
 		case client.Messages <- message:
-			server.PrintLOG([]string{"SSE"}, fmt.Sprintf("new SSE message for user id : %d", userID))
 			return true
 		default:
 			// Channel full, client might be slow

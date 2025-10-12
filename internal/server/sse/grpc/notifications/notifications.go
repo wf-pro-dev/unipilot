@@ -29,10 +29,12 @@ func (s *Server) SendNotification(ctx context.Context, notification *Notificatio
 		notification.Action,
 		notification.Data,
 	)
+	server.PrintLOG([]string{"SSE", "GRPC"},
+		fmt.Sprintf("Notification %s sent from %v to %v", notification.Title, notification.SenderId, notification.UserId))
 	return &NotificationResponse{Success: err == nil}, err
 }
 
 func (s *Server) Heartbeat(ctx context.Context, message *Message) (*Message, error) {
-	server.PrintLOG([]string{"SSE"}, fmt.Sprintf("Heartbeat from client: %s", message.Body))
+	server.PrintLOG([]string{"GRPC"}, fmt.Sprintf("Heartbeat from client: %s", message.Body))
 	return &Message{Body: "heartbeat received"}, nil
 }
