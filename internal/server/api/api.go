@@ -34,6 +34,7 @@ func StartServer() {
 	}
 
 	GrpcClient = *grpc.NewGRPCClient()
+	defer grpc.CloseGRPCClient()
 	//GrpcClient.Heartbeat(context.Background(), &notifications.Message{Body: "heartbeat"})
 
 	http.HandleFunc("/health", HealthHandler)

@@ -44,6 +44,7 @@ USER app
 
 # Expose the port your server uses
 EXPOSE 3000
+EXPOSE 9000
 
 # Health check - FIXED PORT (3000 instead of 8080)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
