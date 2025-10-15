@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,8 +11,11 @@ import (
 
 	"github.com/google/uuid"
 
+	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
+	notif "unipilot/internal/models/notifications"
+	"unipilot/internal/server/sse/grpc/notifications"
 
 	//"unipilot/internal/models/document"
 
@@ -324,32 +328,31 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request) {
 		linkId = c.LinkID
 	}
 
-	// gRPC -> SSE logic : TO BE MOVE IN DOCKER
-
-	// cJson, err := json.Marshal(c)
-	_, err = json.Marshal(c)
+	cJson, err := json.Marshal(c)
 	if err != nil {
 		log.Printf("[Error] error marshalling notification : %v ", err)
 
 	}
 
-	/*if sseServer != nil {
+	if GrpcClient != nil {
 
 		// 2. Send link info to users via SSE (field data)
 		for _, sendeeID := range linkRequestData.UsersID {
-			sseServer.SendNotification(
-				uint(sendeeID),
-				userID,
-				models.EntityCourse,
-				c.ID,
-				notifications.NotificationSync,
-				c.Name,
-				fmt.Sprintf("%s shared a course with you : %s", currentUser.Username, c.Code),
-				"sync",
-				string(cJson),
+			GrpcClient.SendNotification(context.Background(),
+				&notifications.Notification{
+					UserId:   uint32(sendeeID),
+					SenderId: uint32(userID),
+					Entity:   string(models.EntityCourse),
+					EntityId: uint32(c.ID),
+					Type:     string(notif.NotificationSync),
+					Title:    c.Name,
+					Message:  fmt.Sprintf("%s shared a course with you : %s", currentUser.Username, c.Code),
+					Action:   "sync",
+					Data:     string(cJson),
+				},
 			)
 		}
-	}*/
+	}
 	// Infos : Course All except user_id, Sender (name)
 
 	server.PrintLOG([]string{"SUCCESS", "LINK", "COURSE"}, fmt.Sprintf("Course ID : %v, Users length : %v, Link ID : %v", linkRequestData.CourseCode, len(linkRequestData.UsersID), linkId))
@@ -417,14 +420,6 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request) {
 		responseAssignments = append(responseAssignments, assignment)
 	}
 
-	/*2. Get Assignments documents
-	var assignmentDocuments []document.Document
-	err = db.Preload("Docmuents")..Where("assignment_id IN ?", assignmentIDs).Find(&assignmentDocuments).Error
-	if err != nil {
-		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error getting assignments documents :%v", err))
-		return
-	}*/
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"Error":       err,
@@ -432,25 +427,24 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request) {
 		//"documents": assignmentDocuments,
 	})
 
-	/*if sseServer != nil {
+	if GrpcClient != nil {
 
 		// 2. Send link info to users via SSE (field data)
-		for _,sendeeID := range linkRequestData.UsersID {
-			sseServer.SendNotification(
-				uint(sendeeID),
-				userID,
-				models.EntityCourse,
-				c.ID,
-				notifications.NotificationSync,
-				c.Name,
-				fmt.Sprintf("%s shared a course with you : %s", currentUser.Username , c.Code),
-				"sync",
-				string(cJson),
+		GrpcClient.SendNotification(context.Background(),
+			&notifications.Notification{
+				UserId:   uint32(c.UserID),
+				SenderId: uint32(userID),
+				Entity:   string(models.EntityCourse),
+				EntityId: uint32(c.ID),
+				Type:     string(notif.NotificationSync),
+				Title:    c.Name,
+				Message:  fmt.Sprintf("%s is now linked to your course : %s", currentUser.Username, c.Code),
+				Action:   "sync",
+				Data:     string(""),
+			},
+		)
 
-			)
-		}
 	}
-	// Infos : Course All except user_id, Sender (name)*/
 
 	server.PrintLOG([]string{"SUCCESS", "ACCEPT", "COURSE"}, fmt.Sprintf("Course ID : %v, From : %v, To: %v", c.Code, c.UserID, userID))
 

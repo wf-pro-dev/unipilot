@@ -16,8 +16,12 @@ import (
 	"unipilot/internal/models/document"
 
 	//"unipilot/internal/models/notifications"
+	"context"
+	"unipilot/internal/models"
+	notif "unipilot/internal/models/notifications"
 	"unipilot/internal/models/user"
 	"unipilot/internal/server"
+	"unipilot/internal/server/sse/grpc/notifications"
 	cloudstorage "unipilot/internal/services/cloud_storage"
 
 	"gorm.io/gorm"
@@ -136,8 +140,6 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Warning: Failed to update remote storage info for user %d: %v \n", userID, err))
 	}
 
-	// gRPC -> SSE logic : TO BE MOVE IN DOCKER
-
 	// Get document assignment
 	var a assignment.Assignment
 	if err := db.Where("id = ?", doc.AssignmentID).First(&a).Error; err != nil {
@@ -146,43 +148,43 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get linked assignments
-	// var linkedAssignments []assignment.Assignment
-	if _, err = a.GetChildren(db); err != nil {
+	var linkedAssignments []assignment.Assignment
+	if linkedAssignments, err = a.GetChildren(db); err != nil {
 		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to get linked assignments: %v", err))
 		return
 	}
 
 	// Marshal document
 	doc.User = currentUser // Link the creator data with the document
-	// dJson, err := json.Marshal(doc)
-	_, err = json.Marshal(doc)
+	dJson, err := json.Marshal(doc)
 	if err != nil {
 		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to marshal document: %v", err))
 		return
 	}
 
-	/*
-		if sseServer != nil && localDoc.HasLocalFile {
-			// Send notification to linked assignments
+	if GrpcClient != nil && localDoc.HasLocalFile {
+		// Send notification to linked assignments
 
-			for _, linkedAssignment := range linkedAssignments {
-				if linkedAssignment.UserID != userID {
-					PrintLog(fmt.Sprintf("sending to : %d ", linkedAssignment.UserID))
-					sseServer.SendNotification(
-						uint(linkedAssignment.UserID),
-						userID,
-						models.EntityDocument,
-						linkedAssignment.ID,
-						notifications.NotificationDocumentUpdate,
-						linkedAssignment.Title,
-						fmt.Sprintf("%s shared a new document on %s", currentUser.Username, doc.FileName),
-						"document",
-						string(dJson),
-					)
-				}
-
+		for _, linkedAssignment := range linkedAssignments {
+			if linkedAssignment.UserID != userID {
+				server.PrintLOG([]string{"SSE", "GRPC"}, fmt.Sprintf("sending to : %d ", linkedAssignment.UserID))
+				GrpcClient.SendNotification(context.Background(),
+					&notifications.Notification{
+						UserId:   uint32(linkedAssignment.UserID),
+						SenderId: uint32(userID),
+						Entity:   string(models.EntityDocument),
+						EntityId: uint32(linkedAssignment.ID),
+						Type:     string(notif.NotificationDocumentUpdate),
+						Title:    linkedAssignment.Title,
+						Message:  fmt.Sprintf("%s shared a new document on %s", currentUser.Username, doc.FileName),
+						Action:   "document",
+						Data:     string(dJson),
+					},
+				)
 			}
-		}*/
+
+		}
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{

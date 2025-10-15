@@ -162,7 +162,7 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	tx.Commit()
 
-	// gRPC -> SSE logic : TO BE MOVE IN DOCKER
+	// gRPC -> c : TO BE MOVE IN DOCKER
 
 	// Send a notification to all the users linked
 
