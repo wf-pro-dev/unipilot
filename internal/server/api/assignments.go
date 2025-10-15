@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -8,7 +9,10 @@ import (
 	"strconv"
 	"time"
 
+	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
+	notif "unipilot/internal/models/notifications"
+	"unipilot/internal/server/sse/grpc/notifications"
 
 	"unipilot/internal/server"
 
@@ -16,6 +20,7 @@ import (
 )
 
 func GetAssignmentHandler(w http.ResponseWriter, r *http.Request) {
+
 	userIDVal := r.Context().Value("user_id")
 	if userIDVal == nil {
 		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
@@ -182,42 +187,36 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// gRPC -> SSE logic : TO BE MOVE IN DOCKER
-
-	// aJson, err := json.Marshal(newA)
-	_, err = json.Marshal(newA)
+	aJson, err := json.Marshal(newA)
 	if err != nil {
 		log.Printf("[Error] error marshalling notification : %v ", err)
 	}
 
-	// link_users, err := newA.Course.GetLinkUsers(db)
-	_, err = newA.Course.GetLinkUsers(db)
+	link_users, err := newA.Course.GetLinkUsers(db)
 	if err != nil {
 		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting users link to course assignment: %s", err))
 		return
 	}
 
-	// PrintLog(fmt.Sprintf("link users : %v, sseServer : %v", link_users, sseServer != nil))
-	// if sseServer != nil {
-	// 	// 2. Send link info to users via SSE (field data)
-	// 	for _,sendeeID := range link_users {
-	// 		if sendeeID != userID {
-	// 			PrintLog(fmt.Sprintf("sending to : %d ",sendeeID))
-	// 			sseServer.SendNotification(
-	// 				uint(sendeeID),
-	// 				userID,
-	// 				models.EntityAssignment,
-	// 				newA.Course.ID,
-	// 				notifications.NotificationAssignmentUpdate,
-	// 				newA.Title,
-	// 				fmt.Sprintf("%s shared a new assignment on %s", newA.User.Username, newA.CourseCode),
-	// 				"assignment",
-	// 				string(aJson),
-
-	// 			)
-	// 		}
-	// 	}
-	// }
+	if GrpcClient != nil {
+		for _, sendeeID := range link_users {
+			if sendeeID != userID {
+				GrpcClient.SendNotification(context.Background(),
+					&notifications.Notification{
+						UserId:   uint32(sendeeID),
+						SenderId: uint32(userID),
+						Entity:   string(models.EntityAssignment),
+						EntityId: uint32(newA.Course.ID),
+						Type:     string(notif.NotificationAssignmentUpdate),
+						Title:    newA.Title,
+						Message:  fmt.Sprintf("%s shared a new assignment on %s", newA.User.Username, newA.CourseCode),
+						Action:   "assignment",
+						Data:     string(aJson),
+					},
+				)
+			}
+		}
+	}
 
 	// Return response
 	w.Header().Set("Content-Type", "application/json")

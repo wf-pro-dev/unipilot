@@ -8,6 +8,7 @@ services:
     container_name: server
     ports:
       - "3000:3000"
+      - "9000:9000"
     environment:
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}
@@ -20,6 +21,7 @@ services:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
+      - GRPC_SSE_ADDRESS=${GRPC_SSE_ADDRESS}
     volumes:
       - server_data:/app/data
       - server_uploads:/app/uploads

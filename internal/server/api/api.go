@@ -8,8 +8,12 @@ import (
 	"time"
 
 	"unipilot/internal/server"
+	grpc "unipilot/internal/server/api/grpc"
+	"unipilot/internal/server/sse/grpc/notifications"
 	"unipilot/internal/storage"
 )
+
+var GrpcClient notifications.NotificationsServiceClient
 
 func GetRouteName(name ...string) string {
 	return fmt.Sprintf("/unipilot/api/v1/%s", strings.Join(name, "/"))
@@ -28,6 +32,10 @@ func StartServer() {
 		log.Println("Error getting database", err)
 		return
 	}
+
+	GrpcClient = *grpc.NewGRPCClient()
+	defer grpc.CloseGRPCClient()
+	//GrpcClient.Heartbeat(context.Background(), &notifications.Message{Body: "heartbeat"})
 
 	http.HandleFunc("/health", HealthHandler)
 
