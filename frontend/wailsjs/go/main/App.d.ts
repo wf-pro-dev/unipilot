@@ -65,8 +65,6 @@ export function GetNotificationDaemonStatus():Promise<Record<string, any>>;
 
 export function GetNotifications():Promise<Array<notifications.LocalNotification>>;
 
-export function GetRemoteDocumentMetadata(arg1:number):Promise<Array<Record<string, any>>>;
-
 export function GetRemoteUsers():Promise<Array<user.User>>;
 
 export function GetSubmissionDocuments(arg1:number):Promise<Array<document.LocalDocument>>;

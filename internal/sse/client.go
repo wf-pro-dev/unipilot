@@ -12,10 +12,13 @@ func NewSSEClient() (*http.Client, error) {
 	transport := &http.Transport{
 		MaxIdleConns:          50,
 		MaxIdleConnsPerHost:   2,
-		IdleConnTimeout:       30 * time.Second,
-		ResponseHeaderTimeout: 10 * time.Second,
+		IdleConnTimeout:       90 * time.Second,
+		ResponseHeaderTimeout: 30 * time.Second, // Increased from 10s
 		DisableKeepAlives:     false,
 		ForceAttemptHTTP2:     false,
+		// Add these for better connection handling
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
 	}
 
 	// Create client with JWT authentication

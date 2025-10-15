@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"unipilot/internal/client"
+	"unipilot/internal/secrets"
 	"unipilot/internal/services/utils"
 )
 
@@ -13,10 +14,14 @@ func (a *Auth) Logout() error {
 
 	a.User = nil
 
-	log.Printf("Logout: %v", a.Client)
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return fmt.Errorf("failed to get api url: %w", err)
+	}
+
 	// Make POST request to logout endpoint (empty body)
 	resp, err := a.Client.Post(
-		"https://newsroom.dedyn.io/acc-homework/logout",
+		fmt.Sprintf("%s/logout", api_url),
 		"application/json",
 		nil,
 	)

@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"unipilot/internal/models/note"
+	"unipilot/internal/secrets"
 )
 
 func CreateNote(n *note.Note) (map[string]string, error) {
@@ -22,8 +23,13 @@ func CreateNote(n *note.Note) (map[string]string, error) {
 
 	jsonData, _ := json.Marshal(noteData)
 
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get api url: %w", err)
+	}
+
 	resp, err := new_client.Post(
-		"https://newsroom.dedyn.io/acc-homework/note",
+		fmt.Sprintf("%s/note", api_url),
 		"application/json",
 		bytes.NewBuffer(jsonData),
 	)
@@ -78,8 +84,13 @@ func SendNoteUpdate(id, column, value string) error {
 
 	jsonData, _ := json.Marshal(updateData)
 
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return fmt.Errorf("failed to get api url: %w", err)
+	}
+
 	resp, err := new_client.Post(
-		"https://newsroom.dedyn.io/acc-homework/note/update",
+		fmt.Sprintf("%s/note/update", api_url),
 		"application/json",
 		bytes.NewBuffer(jsonData),
 	)
