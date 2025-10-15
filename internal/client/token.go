@@ -22,9 +22,7 @@ type TokenData struct {
 func SaveToken(token string) error {
 	// Parse token to get expiration
 	claims := &jwt.RegisteredClaims{}
-	_, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte("dummy"), nil // We just want to parse, not validate
-	})
+	_, _, err := jwt.NewParser().ParseUnverified(token, claims)
 
 	if err != nil {
 		return fmt.Errorf("failed to parse token: %w", err)
@@ -98,9 +96,7 @@ func IsTokenValid() bool {
 
 	// Parse token to check expiration
 	claims := &jwt.RegisteredClaims{}
-	_, err = jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte("dummy"), nil
-	})
+	_, _, err = jwt.NewParser().ParseUnverified(token, claims)
 
 	if err != nil {
 		return false

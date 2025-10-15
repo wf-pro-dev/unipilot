@@ -114,10 +114,6 @@ export function GetNotifications() {
   return window['go']['main']['App']['GetNotifications']();
 }
 
-export function GetRemoteDocumentMetadata(arg1) {
-  return window['go']['main']['App']['GetRemoteDocumentMetadata'](arg1);
-}
-
 export function GetRemoteUsers() {
   return window['go']['main']['App']['GetRemoteUsers']();
 }

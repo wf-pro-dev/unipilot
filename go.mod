@@ -9,10 +9,10 @@ require (
 	github.com/aws/smithy-go v1.23.0
 	github.com/gen2brain/beeep v0.11.1
 	github.com/gen2brain/malgo v0.11.23
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/gomarkdown/markdown v0.0.0-20250731182530-5d03d1963446
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/sessions v1.4.0
-	github.com/joho/godotenv v1.5.1
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/viper v1.20.1
 	github.com/wailsapp/wails/v2 v2.10.2

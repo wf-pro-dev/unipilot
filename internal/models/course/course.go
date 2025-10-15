@@ -151,4 +151,3 @@ func (c *Course) ToMap() map[string]string {
 		"updated_at":       c.UpdatedAt.Format(time.DateOnly),
 	}
 }
-

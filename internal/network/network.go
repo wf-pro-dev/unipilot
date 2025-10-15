@@ -1,8 +1,10 @@
 package network
 
 import (
+	"fmt"
 	"net/http"
 	"time"
+	"unipilot/internal/secrets"
 )
 
 var onlineStatus bool
@@ -13,9 +15,15 @@ func IsOnline() bool {
 	if time.Since(lastChecked) < 5*time.Second {
 		return onlineStatus
 	}
+
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return false
+	}
+
 	// Simple check - adjust as needed
 	client := http.Client{Timeout: 3 * time.Second}
-	_, err := client.Get("https://newsroom.dedyn.io")
+	_, err = client.Get(fmt.Sprintf("%s/health", api_url))
 
 	onlineStatus = err == nil
 	lastChecked = time.Now()

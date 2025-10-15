@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"unipilot/internal/client"
 	"unipilot/internal/services/notifications"
 	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
@@ -55,7 +54,7 @@ func main() {
 	}
 
 	// Try to get authenticated HTTP client from stored credentials
-	httpClient, err := client.NewSSEClient()
+	httpClient, err := sse.NewSSEClient()
 	if err != nil {
 		log.Printf("Warning: Could not create authenticated HTTP client: %v", err)
 		log.Printf("Event handler will not receive real-time notifications")

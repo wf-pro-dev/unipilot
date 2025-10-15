@@ -328,6 +328,12 @@ func (m *Manager) createPlistFile() error {
         <key>PATH</key>
         <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
     </dict>
+
+	<key>EnvironmentVariables</key>
+    <dict>
+        <key>BASE_URL</key>
+        <string>https://wwwill.dedyn.io</string>
+    </dict>
 </dict>
 </plist>`, m.daemonPath, m.userID, userHome, userHome, userHome, userHome)
 
