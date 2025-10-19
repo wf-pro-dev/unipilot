@@ -288,11 +288,11 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                                         )}
                                     >
                                         <CalendarIcon className="mr-2 w-4 h-4" />
-                                        {startDate ? format(startDate, "PPP") : <span>Pick a start date</span>}
+                                        {startDate ? format(startDate, "MMM do, yyyy") : <span>Pick a start date</span>}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="p-0 w-auto border-gray-600 glass">
-                                    <Calendar mode="single" selected={startDate} onSelect={setStartDate} required />
+                                    <Calendar mode="single" className="glass" selected={startDate} onSelect={setStartDate} required />
                                 </PopoverContent>
                             </Popover>
                         </div>
@@ -310,11 +310,11 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                                         )}
                                     >
                                         <CalendarIcon className="mr-2 w-4 h-4" />
-                                        {endDate ? format(endDate, "PPP") : <span>Pick a end date</span>}
+                                        {endDate ? format(endDate, "MMM do, yyyy") : <span>Pick a end date</span>}
                                     </Button>
                                 </PopoverTrigger>
                                 <PopoverContent className="p-0 w-auto border-gray-600 glass">
-                                    <Calendar mode="single" selected={endDate} onSelect={setEndDate} required />
+                                    <Calendar mode="single" className="glass" selected={endDate} onSelect={setEndDate} required />
                                 </PopoverContent>
                             </Popover>
                         </div>

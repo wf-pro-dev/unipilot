@@ -68,13 +68,14 @@
   }
 }
 
+
 /* Custom styles */
 .glass {
   @apply bg-gray-900/40 backdrop-blur-xl border border-white/10;
 }
 
 .glass-dark {
-  @apply bg-gray-800/60 backdrop-blur-xl border border-white/5;
+  @apply bg-gray-900/60 backdrop-blur-xl border border-white/5;
 }
 
 .glass-hover {

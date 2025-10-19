@@ -64,7 +64,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
   const [selectedNoteID, setSelectedNoteID] = useState<number | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
- 
+
 
   const { data: assignments, isLoading } = useAssignments()
   const notes = useCourseNotes(course)
@@ -188,85 +188,83 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="glass border-0 text-white max-w-xl max-h-[90vh] overflow-y-auto">
 
-          <div className="space-y-6">
+          <div className="space-y-4">
             {/* Course Header */}
             <div className="flex justify-between items-start">
               <div className="flex items-center space-x-4">
 
                 <div className={`w-6 h-6 rounded-full ${courseData.Color}`} />
                 <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-400">{courseData.Code}</p>
                   <h2 className="text-xl font-bold text-white">{courseData.Name}</h2>
-                  <p className="text-sm font-medium text-gray-300">{courseData.Code}</p>
                 </div>
               </div>
             </div>
 
-            <Tabs value={activeView} onValueChange={setActiveView} className="w-full space-y-4">
+            <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
 
-              <TabsList className="flex flex-row self-start glass border-0 w-fit bg-gray-800/50 rounded-lg">
-                <TabsTrigger value="info" className="flex items-center space-x-1 p-2 py-1 bg-gray-800/50">
+              <TabsList className="flex flex-row border-0 w-full">
+                <TabsTrigger value="info" className="flex w-full justify-center items-center space-y-1 space-x-1 py-2 text-gray-400 hover:text-white data-[state=active]:text-white">
                   <Info className="w-4 h-4" />
                   <span className="text-sm">Information</span>
                 </TabsTrigger>
-                <TabsTrigger value="documents" className="flex items-center space-x-1 p-2 py-1 bg-gray-800/50">
+                <TabsTrigger value="assignments" className="flex w-full justify-center items-center space-y-1 border-x-[1px] border-gray-700 space-x-1 py-2 text-gray-400 hover:text-white data-[state=active]:text-white">
                   <FileText className="w-4 h-4" />
                   <span className="text-sm">Assignment</span>
                 </TabsTrigger>
-                <TabsTrigger value="notes" className="flex items-center space-x-1 p-2 py-1 bg-gray-800/50">
+                <TabsTrigger value="notes" className="flex w-full justify-center items-center space-y-1 border-gray-700 space-x-1 py-2 text-gray-400 hover:text-white data-[state=active]:text-white">
                   <FileText className="w-4 h-4" />
                   <span className="text-sm">Notes</span>
                 </TabsTrigger>
               </TabsList>
 
-              <Separator className="bg-gray-700" />
+              <Separator className="bg-gray-700 mt-3 mb-6" />
 
               <TabsContent value="info" className="space-y-4">
                 {/* Course Info Grid */}
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 py-2">
-                  {/* Left Column */}
-                  <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
 
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2 text-sm text-gray-400">
-                        <Users className="w-4 h-4 text-blue-400" />
-                        <span>Instructor</span>
-                      </div>
-                      <p className="text-white text-sm">{courseData.Instructor}</p>
+
+
+                  <div className="flex flex-col items-center space-y-2 border border-gray-700 p-2 rounded-lg bg-gray-800/50">
+                    <div className="flex items-center space-x-2 text-sm text-gray-400">
+                      <Users className="w-4 h-4 text-blue-400" />
+                      <span>Instructor</span>
                     </div>
-
-
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2 text-sm text-gray-400">
-                        <Calendar className="w-4 h-4 text-purple-400" />
-                        <span>Schedule</span>
-                      </div>
-                      <p className="text-white text-sm">{courseData.Schedule}</p>
-                    </div>
-
-
+                    <p className="text-white text-sm">{courseData.Instructor}</p>
                   </div>
 
-                  {/* Right Column */}
-                  <div className="space-y-6">
 
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2 text-sm text-gray-400">
-                        <Mail className="w-4 h-4 text-orange-400" />
-                        <span>Email</span>
-                      </div>
-                      <p className="text-white text-sm">{courseData.InstructorEmail}</p>
+                  <div className="flex flex-col items-center space-y-2 border border-gray-700 p-2 rounded-lg bg-gray-800/50">
+                    <div className="flex items-center space-x-2 text-sm text-gray-400">
+                      <Mail className="w-4 h-4 text-orange-400" />
+                      <span>Email</span>
                     </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2 text-sm text-gray-400">
-                        <MapPin className="w-4 h-4 text-green-400" />
-                        <span>Location</span>
-                      </div>
-                      <p className="text-white text-sm">{courseData.Location || "No location"}</p>
-                    </div>
-
+                    <p className="text-white text-sm">{courseData.InstructorEmail}</p>
                   </div>
+
+
+                  <div className="flex flex-col items-center space-y-2 border border-gray-700 p-2 rounded-lg bg-gray-800/50">
+                    <div className="flex items-center space-x-2 text-sm text-gray-400">
+                      <Calendar className="w-4 h-4 text-purple-400" />
+                      <span>Schedule</span>
+                    </div>
+                    <p className="text-white text-sm">{courseData.Schedule}</p>
+                  </div>
+
+
+                  <div className="flex flex-col items-center space-y-2 border border-gray-700 p-2 rounded-lg bg-gray-800/50">
+                    <div className="flex items-center space-x-2 text-sm text-gray-400">
+                      <MapPin className="w-4 h-4 text-green-400" />
+                      <span>Location</span>
+                    </div>
+                    <p className="text-white text-sm">{courseData.Location || "No location"}</p>
+                  </div>
+
                 </div>
+
+
+
 
                 <Separator className="bg-gray-700 w-[80%] mx-auto" />
 
@@ -286,7 +284,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
 
                   <div className="flex flex-col items-center space-y-2 border border-gray-700 p-2 rounded-lg bg-gray-800/50">
                     <span className="text-sm text-gray-400">Semester</span>
-                    <p className="font-medium text-white text-sm text-center">{courseData.Semester}</p>
+                    <p className="font-medium text-white text-xs text-center">{courseData.Semester}</p>
                   </div>
 
                   <div className="flex flex-col items-center space-y-2 border border-gray-700 p-2 rounded-lg bg-gray-800/50">
@@ -294,7 +292,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                       <Calendar className="w-4 h-4 text-green-400" />
                       <span>Start Date</span>
                     </div>
-                    <p className="font-medium text-white text-sm">{format(courseData.StartDate, "MMM d, yyyy")}</p>
+                    <p className="font-medium text-white text-xs">{format(courseData.StartDate, "MMM d, yyyy")}</p>
                   </div>
 
                   <div className="flex flex-col items-center space-y-2 border border-gray-700 p-2 rounded-lg bg-gray-800/50">
@@ -302,31 +300,17 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                       <Calendar className="w-4 h-4 text-green-400" />
                       <span>End Date</span>
                     </div>
-                    <p className="font-medium text-white text-sm">{format(courseData.EndDate, "MMM d, yyyy")}</p>
+                    <p className="font-medium text-white text-xs">{format(courseData.EndDate, "MMM d, yyyy")}</p>
                   </div>
+
                 </div>
+
               </TabsContent>
 
-              <TabsContent value="documents" className="space-y-4">
+              <TabsContent value="assignments" className="space-y-4">
                 {course_assignments.length > 0 ? (
-                  <div>
-
-                    <div>
-                      <label className="block mb-4 text-sm font-medium text-gray-400">Assignment Progress</label>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center space-x-2">
-                            <TrendingUp className="w-4 h-4 text-green-400" />
-                            <span className={`${isCompleted ? "text-green-400" : "text-white"}`}>
-                              {completed_assignments_count} of {course_assignments.length} assignments completed
-                            </span>
-                          </div>
-                          <span className="text-sm text-gray-400">{Math.round(completionPercentage)}%</span>
-                        </div>
-                        <Progress color={isCompleted ? "green" : "white"} value={completionPercentage} className="h-2" />
-                      </div>
-                    </div>
-
+                  <div className="space-y-4">
+                  
                     <div>
                       <div className="flex justify-between items-center">
                         <label className="block mb-3 text-sm font-medium text-gray-400">Recent Assignments</label>
@@ -336,8 +320,6 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                             View All
                           </Button>
                         </Link>
-
-
                       </div>
 
                       <div className="grid gap-2 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2">
@@ -353,6 +335,23 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                         ))}
                       </div>
 
+                    </div>
+
+                    <Separator className="bg-gray-700 w-[80%] mx-auto" />
+
+                    <div className="p-4 border border-gray-700 bg-gray-800/50 rounded-lg">
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center space-x-2 text-sm">
+                            <TrendingUp className="w-4 h-4 text-green-400" />
+                            <span className={`${isCompleted ? "text-green-400" : "text-white"}`}>
+                              {completed_assignments_count} of {course_assignments.length} assignments completed
+                            </span>
+                          </div>
+                          <span className="text-sm text-gray-400">{Math.round(completionPercentage)}%</span>
+                        </div>
+                        <Progress color={isCompleted ? "green" : "white"} value={completionPercentage} className="h-1.5" />
+                      </div>
                     </div>
                   </div>
 
@@ -442,6 +441,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
 
 
               </TabsContent>
+            
             </Tabs>
 
             <Separator className="bg-gray-700" />
@@ -504,7 +504,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
         onEdit={handleEditNote}
         onDelete={handleDeleteNote}
       />
-     
+
     </div>
   )
 }

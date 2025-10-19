@@ -20,6 +20,7 @@ import { assignment, document } from "@/wailsjs/go/models"
 import { useAssignmentDocumentData } from "@/hooks/use-documents"
 import useEmblaCarousel from 'embla-carousel-react'
 
+
 interface AssignmentDocumentsProps {
   assignment: assignment.LocalAssignment
 }
@@ -146,140 +147,148 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
   return (
     <div className="space-y-4 ">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div className="flex gap-2 items-center">
-          <FileText className="w-5 h-5 text-muted-foreground" />
-          <h3 className="text-lg font-medium">Documents</h3>
-        </div>
-        <div className="flex gap-2 items-center">
-          <Button variant="outline"
-            size="sm"
-            className="flex-1 bg-transparent border-gray-600"
-            onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}>
-            <Upload className="w-4 h-4" />
-          </Button>
-          <DocumentStorageInfo />
-        </div>
-      </div>
 
-      <div className="flex justify-between items-center">
-        {/* Filter Tabs */}
-        <div className="flex gap-2 items-center">
-          <Button
-            variant={filter === "all" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter("all")}
-            className="h-7 text-xs font-normal"
-          >
-            <Folder className="mr-1 w-4 h-4" />
-            All ({allDocuments.data?.length || 0})
-          </Button>
-          <Button
-            variant={filter === "support" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter("support")}
-            className="h-7 text-xs font-normal"
-          >
-            <FileCheck className="mr-1 w-4 h-4" />
-            Support ({supportDocuments.data?.length || 0})
-          </Button>
-          <Button
-            variant={filter === "submission" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setFilter("submission")}
-            className="h-7 text-xs font-normal"
-          >
-            <Send className="mr-1 w-4 h-4" />
-            Submissions ({submissionDocuments.data?.length || 0})
-          </Button>
-        </div>
-
-        {/* Page indicators */}
-
-        {documentPages.length > 1 && (
-          <Badge variant="outline" className="flex items-center p-2 bg-gray-800/50 border border-gray-600 rounded-full">
-            <p className="text-sm text-muted-foreground">{selectedIndex + 1} / <span className="text-white">{documentPages.length}</span></p>
-          </Badge>
-        )}
-      </div>
-
-      <Separator />
-
-      {/* Documents List */}
-      <div className="flex flex-col">
-        {filteredDocs.length > 0 ? (
-          <div className="relative">
-
-            {/* Carousel container */}
-            <div className="overflow-hidden" ref={emblaRef}>
-              <div className="flex">
-                {documentPages.map((page, pageIndex) => (
-                  <div
-                    key={pageIndex}
-                    className="flex-none w-full min-w-0"
-                  >
-                    <div className="grid grid-cols-2 gap-4">
-                      {page.map((document) => (
-                        <div key={document.ID}>
-                          <DocumentItem
-                            document={document}
-                          />
-                        </div>
-                      ))}
-
-
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Navigation buttons */}
-            {documentPages.length > 1 && (
-              <>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="left-0 absolute rounded-full top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-gray-800/50 border border-gray-600"
-                  onClick={scrollPrev}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="right-0 absolute rounded-full top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-gray-800/50 border border-gray-600"
-                  onClick={scrollNext}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-
-          </div>
-        ) : (
-          <div className="flex flex-col justify-center items-center py-8 text-center">
-            <FileText className="mb-2 w-12 h-12 text-muted-foreground" strokeWidth={1} />
-            <p className="text-sm text-muted-foreground">
-              {filter === "all"
-                ? "No documents uploaded yet"
-                : filter === "support"
-                  ? "No support documents uploaded yet"
-                  : "No submissions uploaded yet"
-              }
-            </p>
+      <div
+        className="
+          bg-gray-800/50 
+          border border-gray-600 
+          p-4
+          rounded-lg
+          space-y-4"
+      >
+        <div className="flex items-center space-x-2">
+          {/* Filter Tabs */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
             <Button
+              variant={filter === "all" ? "default" : "outline"}
               size="sm"
-              variant="outline"
-              onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}
-              className="mt-4 py-2 px-3 gap-2 flex-1 text-blue-400 bg-transparent border-blue-600 hover:bg-blue-600/10"
+              onClick={() => setFilter("all")}
+              className={`flex-1 text-sm  border-gray-600 flex items-center space-x-2 ${filter === "all" ? "bg-white text-black" : "bg-gray-800/50"}`}
             >
-              <Upload className="w-4 h-4"  />
-              Upload
+              <Folder className="mr-1 w-4 h-4" />
+              All ({allDocuments.data?.length || 0})
+            </Button>
+            <Button
+              variant={filter === "support" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilter("support")}
+              className={`flex-1 text-sm  border-gray-600 flex items-center space-x-2 ${filter === "support" ? "bg-white text-black" : "bg-gray-800/50"}`}
+            >
+              <FileCheck className="mr-1 w-4 h-4" />
+              Support ({supportDocuments.data?.length || 0})
+            </Button>
+            <Button
+              variant={filter === "submission" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setFilter("submission")}
+              className={`flex-1 text-sm  border-gray-600 flex items-center space-x-2 ${filter === "submission" ? "bg-white text-black" : "bg-gray-800/50"}`}
+            >
+              <Send className="mr-1 w-4 h-4" />
+              Submissions ({submissionDocuments.data?.length || 0})
             </Button>
           </div>
-        )}
+
+          {/* Page indicators */}
+
+          {documentPages.length > 1 && (
+            <Badge variant="outline" className="flex items-center p-2 bg-gray-800/50 border border-gray-600 rounded-full">
+              <p className="text-sm text-muted-foreground">{selectedIndex + 1} / <span className="text-white">{documentPages.length}</span></p>
+            </Badge>
+          )}
+        </div>
+
+        <Separator className="bg-gray-600" />
+
+        {/* Documents List */}
+        <div className="flex flex-col">
+          {filteredDocs.length > 0 ? (
+            <div className="relative">
+
+              {/* Carousel container */}
+              <div className="overflow-hidden" ref={emblaRef}>
+                <div className="flex">
+                  {documentPages.map((page, pageIndex) => (
+                    <div
+                      key={pageIndex}
+                      className="flex-none w-full min-w-0"
+                    >
+                      <div className="grid grid-cols-2 gap-4">
+                        {page.map((document) => (
+                          <div key={document.ID}>
+                            <DocumentItem
+                              document={document}
+                            />
+                          </div>
+                        ))}
+
+
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Navigation buttons */}
+              {documentPages.length > 1 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="left-0 absolute rounded-full top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-gray-800/50 border border-gray-600"
+                    onClick={scrollPrev}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="right-0 absolute rounded-full top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-gray-800/50 border border-gray-600"
+                    onClick={scrollNext}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+
+            </div>
+          ) : (
+            <div className="flex flex-col justify-center items-center py-8 text-center">
+              <FileText className="mb-2 w-12 h-12 text-muted-foreground" strokeWidth={1} />
+              <p className="text-sm text-muted-foreground">
+                {filter === "all"
+                  ? "No documents uploaded yet"
+                  : filter === "support"
+                    ? "No support documents uploaded yet"
+                    : "No submissions uploaded yet"
+                }
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}
+                className="mt-4 py-2 px-3 gap-2 flex-1 text-blue-400 bg-transparent border-blue-600 hover:bg-blue-600/10"
+              >
+                <Upload className="w-4 h-4" />
+                Upload
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <Separator className="bg-gray-700 w-[80%] mx-auto" />
+
+      <div className="w-full grid grid-cols-1 gap-2 md:grid-cols-2">
+        <Button variant="outline"
+          size="sm"
+          className="flex-1 bg-transparent border-gray-600 flex items-center space-x-2"
+          onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}>
+
+          <Upload className="w-4 h-4" />
+          <span className="text-sm text-gray-400">Upload</span>
+        </Button>
+        <DocumentStorageInfo />
       </div>
 
       {/* Upload Dialog */}

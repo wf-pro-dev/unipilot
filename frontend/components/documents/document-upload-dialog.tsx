@@ -7,10 +7,10 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Upload, 
-  FileText, 
-  CheckCircle2, 
+import {
+  Upload,
+  FileText,
+  CheckCircle2,
   AlertCircle,
   Info
 } from "lucide-react"
@@ -44,12 +44,12 @@ export function DocumentUploadDialog({
     setSuccess(null)
 
     try {
-      const result = await uploadDocument.mutateAsync({ 
-        assignmentId, 
+      const result = await uploadDocument.mutateAsync({
+        assignmentId,
         remoteAssignmentId,
-        documentType: selectedType 
+        documentType: selectedType
       })
-      
+
       if (result) {
         setSuccess(`Successfully uploaded "${result.FileName}"`)
         setTimeout(() => {
@@ -84,7 +84,7 @@ export function DocumentUploadDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="glass border-0 text-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
@@ -100,11 +100,12 @@ export function DocumentUploadDialog({
               value={selectedType}
               onValueChange={(value: "support" | "submission") => setSelectedType(value)}
               disabled={uploadDocument.isPending}
+
             >
-              <SelectTrigger>
+              <SelectTrigger className="bg-gray-800/50 border-gray-600">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="glass border-gray-600">
                 <SelectItem value="support">
                   <div className="flex items-center gap-2">
                     <FileText className="h-4 w-4" />
@@ -122,7 +123,7 @@ export function DocumentUploadDialog({
           </div>
 
           {/* Type Description */}
-          <div className="text-sm text-muted-foreground">
+          <div className="text-xs text-muted-foreground">
             {selectedType === "support" ? (
               <p>Support documents are reference materials, instructions, or resources related to this assignment.</p>
             ) : (
@@ -131,7 +132,7 @@ export function DocumentUploadDialog({
           </div>
 
           {/* File Size Limits */}
-          <div className="rounded-lg border p-3 bg-muted/50">
+          <div className="bg-gray-800/50 border border-gray-600 p-3 rounded-lg">
             <div className="flex items-start gap-2">
               <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
               <div className="space-y-1 text-xs">
@@ -184,11 +185,22 @@ export function DocumentUploadDialog({
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={uploadDocument.isPending}>
+        <DialogFooter className="grid grid-cols-2 gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 text-red-400 bg-transparent border-red-600 hover:bg-red-600/10"
+            onClick={handleClose}
+          >
             Cancel
           </Button>
-          <Button onClick={handleUpload} disabled={uploadDocument.isPending}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="flex-1 bg-transparent border-gray-600"
+            onClick={handleUpload}
+            disabled={uploadDocument.isPending}
+          >
             {uploadDocument.isPending ? (
               <>
                 <Upload className="h-4 w-4 mr-2 animate-spin" />

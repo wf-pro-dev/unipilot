@@ -8,6 +8,7 @@ import { Search, Filter, X } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAssignments } from "@/hooks/use-assignments"
 import { assignment } from "@/wailsjs/go/models"
+import { CoursesSelect } from "../courses/courses-select"
 
 
 interface Filter {
@@ -71,7 +72,17 @@ export function AssignmentFilters({
         </div>
 
         <div className="flex gap-2">
-          <Select value={filter.course || "all"} onValueChange={(value) => handleFilterChange({ ...filter, course: value === "all" ? null : value })}>
+
+          <CoursesSelect
+            value={filter.course || "all"}
+            onValueChange={(value) => 
+              handleFilterChange({ 
+                ...filter, course: value === "all" ? null : value 
+              })
+            }
+          />
+
+          {/* <Select value={filter.course || "all"} onValueChange={(value) => handleFilterChange({ ...filter, course: value === "all" ? null : value })}>
             <SelectTrigger className="w-40 bg-gray-800/50 border-gray-600">
               <SelectValue />
             </SelectTrigger>
@@ -83,7 +94,7 @@ export function AssignmentFilters({
                 </SelectItem>
               ))}
             </SelectContent>
-          </Select>
+          </Select> */}
 
             <Select value={filter.status || "all"} onValueChange={(value) => handleFilterChange({ ...filter, status: value === "all" ? null : value })}>
             <SelectTrigger className="w-36 bg-gray-800/50 border-gray-600">

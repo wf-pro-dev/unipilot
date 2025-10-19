@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils"
 import { useCourses } from "@/hooks/use-courses"
 import { assignment } from "@/wailsjs/go/models"
 import { Textarea } from "../ui/textarea"
+import { CoursesSelect } from "../courses/courses-select"
 
 const priorities = [
   { value: "low", label: "Low" },
@@ -44,7 +45,7 @@ interface AddAssignmentDialogProps {
 export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
   const [open, setOpen] = useState(false)
   const [deadline, setDeadline] = useState<Date>(new Date())
-  const [formData, setFormData] = useState({
+  const intitialFormData = {
     title: "",
     course_color: "",
     course_code: "",
@@ -54,7 +55,8 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
     priority: "low",
     todo: "",
     link: "",
-  })
+  }
+  const [formData, setFormData] = useState(intitialFormData)
 
   const key_to_column = {
     title: "Title",
@@ -106,8 +108,16 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
     })
   }
 
+  const handleOpenChange = (open: boolean) => {
+    setOpen(open)
+    if (!open) {
+      setFormData(intitialFormData)
+      setDeadline(new Date())
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
           <Plus className="h-4 w-4 mr-2" />
@@ -138,28 +148,18 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
               <Label htmlFor="course" className="text-gray-300">
                 Course
               </Label>
-              <Select
+              <CoursesSelect
                 value={formData.course_code}
-                onValueChange={(value) => {
-                  const course = courses?.find((course) => course.Code === value)
-                  setFormData({ ...formData, course_code: value, course_name: course?.Name || "", course_color: course?.Color || "" })
-                }}
-              >
-                <SelectTrigger className="bg-gray-800/50 border-gray-600">
-                  <SelectValue placeholder="Select course" />
-                </SelectTrigger>
-                <SelectContent className="glass border-gray-600">
-                  {courses?.map((course) => (
-                    <SelectItem key={course.Code} value={course.Code}>
-                      <div className="flex items-center gap-2">
-                        <div className={` h-2 w-2 rounded-full ${course.Color}`} />
-                        {course.Code}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    course_code: value,
+                  })
+                }
+              />
             </div>
+           
+
 
             <div>
               <Label htmlFor="type" className="text-gray-300">
@@ -183,6 +183,7 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
             </div>
           </div>
 
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="text-gray-300">Due Date</Label>
@@ -196,11 +197,11 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {deadline ? format(deadline, "PPP") : <span>Pick a date</span>}
+                    {deadline ? format(deadline, "MMM do, yyyy"): <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0 glass border-gray-600">
-                  <Calendar mode="single" selected={deadline} onSelect={setDeadline} required />
+                  <Calendar className="glass" mode="single" selected={deadline} onSelect={setDeadline} required />
                 </PopoverContent>
               </Popover>
             </div>
@@ -214,7 +215,7 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
                 onValueChange={(value) => setFormData({ ...formData, status_name: value })}
               >
                 <SelectTrigger className="bg-gray-800/50 border-gray-600">
-                <SelectValue />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="glass border-gray-600">
                   {statuses.map((status) => (
@@ -298,6 +299,6 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
 
         </form>
       </DialogContent>
-    </Dialog>
+    </Dialog >
   )
 }
