@@ -89,7 +89,7 @@ export function AssignmentDetailsModal({
 
 
             {/* Status and Priority */}
-            <TabsContent value="info" className="space-y-4">
+              <TabsContent value="info" className="space-y-4">
 
               {/* Course and Type */}
               <div className="flex flex-col space-y-2">
