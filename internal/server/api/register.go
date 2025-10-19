@@ -1,12 +1,14 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
-	"github.com/gorilla/sessions"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
@@ -16,6 +18,7 @@ import (
 )
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
+
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -59,18 +62,47 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		Language:     registrationData.Language,
 	}
 
-	result := db.Create(&user)
-	if result.Error != nil {
-		server.PrintERROR(w, http.StatusConflict, "Username or email already exists")
+	if err := db.Create(&user).Error; err != nil {
+		server.PrintERROR(w, http.StatusConflict, fmt.Sprintf("Error creating user: %s", err))
 		return
 	}
+
+	userMap := user.ToMap()
 
 	// Create session
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Register: %w", err))
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Register: %s", err.Error()))
 		return
 	}
+
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, server.Claims{
+		User: user,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
+		},
+	}).SignedString([]byte(SESSION_KEY))
+	if err != nil {
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Register: %s", err.Error()))
+		return
+	}
+
+	// Cache the new user in redis
+	userJSON, err := json.Marshal(userMap)
+	if err != nil {
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error marshalling user to json: %v", err))
+		return
+	}
+
+	if err := RedisClient.HSet(context.Background(), "users", strconv.Itoa(int(user.ID)), userJSON).Err(); err != nil {
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error caching user in redis: %v", err))
+		return
+	}
+
+	server.PrintLOG([]string{"INFO", "USER", "REGISTER", "REDIS"}, fmt.Sprintf("User cached successfully for user id: %d", user.ID))
+
+	/* DEPRECATED
 
 	var store = sessions.NewCookieStore([]byte(SESSION_KEY))
 
@@ -81,6 +113,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create session: %w", err))
 		return
 	}
+	*/
 
 	id := strconv.Itoa(int(user.ID))
 
@@ -88,8 +121,9 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "User registered successfully",
 		"id":      id,
-		"user":    user.ToMap(),
+		"user":    userMap,
+		"token":   token,
 	})
 
-	server.PrintLOG([]string{"SUCCESS", "REGISTER"}, fmt.Sprintf("User ID : %v, Username : %v", id, user.Username))
+	server.PrintLOG([]string{"SUCCESS", "USER", "REGISTER"}, fmt.Sprintf("User ID : %v, Username : %v", id, user.Username))
 }
