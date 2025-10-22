@@ -111,6 +111,7 @@ func LoadToken() (string, error) {
 
 func LoadRefreshToken() (string, error) {
 	refreshTokenFile, err := getRefreshTokenFilePath()
+
 	if err != nil {
 		return "", err
 	}
