@@ -34,8 +34,9 @@ func NewAuthClient() (*http.Client, error) {
 
 // JWTRoundTripper adds JWT token to requests
 type JWTRoundTripper struct {
-	Base  http.RoundTripper
-	Token string
+	Base         http.RoundTripper
+	Token        string
+	RefreshToken string
 }
 
 func (rt *JWTRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -47,18 +48,30 @@ func (rt *JWTRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 		}
 	}
 
+	if rt.RefreshToken == "" {
+		refreshToken, err := LoadRefreshToken()
+		if err == nil && refreshToken != "" {
+			rt.RefreshToken = refreshToken
+		}
+	}
+
 	// Refresh token if it is about to expire
 	if !IsTokenValid() {
+
 		// call /refresh-token endpoint to get a new token
-		newToken, err := RefreshToken(rt.Token)
+		newToken, newRefreshToken, err := RefreshToken(rt.RefreshToken)
 		if err != nil {
 			return nil, fmt.Errorf("failed to refresh token: %w", err)
 		}
-		log.Printf("Token refreshed: %s", newToken)
 		rt.Token = newToken
 		if err := SaveToken(newToken); err != nil {
 			return nil, fmt.Errorf("failed to save token: %w", err)
 		}
+		rt.RefreshToken = newRefreshToken
+		if err := SaveRefreshToken(newRefreshToken); err != nil {
+			return nil, fmt.Errorf("failed to save refresh token: %w", err)
+		}
+		log.Println("Token refreshed")
 
 	}
 
