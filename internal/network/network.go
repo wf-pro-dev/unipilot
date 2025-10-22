@@ -22,7 +22,7 @@ func IsOnline() bool {
 	}
 
 	// Simple check - adjust as needed
-	client := http.Client{Timeout: 3 * time.Second}
+	client := http.Client{Timeout: 1 * time.Second}
 	_, err = client.Get(fmt.Sprintf("%s/health", api_url))
 
 	onlineStatus = err == nil

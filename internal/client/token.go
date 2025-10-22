@@ -3,11 +3,15 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
 	"unipilot/internal/services/utils"
+
+	"unipilot/internal/secrets"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -78,6 +82,40 @@ func LoadToken() (string, error) {
 	return tokenData.Token, nil
 }
 
+func RefreshToken(oldToken string) (string, error) {
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return "", fmt.Errorf("failed to get api url: %w", err)
+	}
+	// Set Authorization header
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/token/refresh", api_url), nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+oldToken)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to refresh token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to refresh token: %d", resp.StatusCode)
+	}
+	var response struct {
+		Message string `json:"message"`
+		Token   string `json:"token"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+	log.Printf("Request token refreshed: %s", response.Token)
+
+	return response.Token, nil
+}
+
 // ClearToken removes the token file
 func ClearToken() error {
 	tokenFile, err := getTokenFilePath()
@@ -102,7 +140,7 @@ func IsTokenValid() bool {
 		return false
 	}
 
-	return claims.ExpiresAt != nil && claims.ExpiresAt.After(time.Now())
+	return claims.ExpiresAt != nil && claims.ExpiresAt.After(time.Now().Add(-5*time.Minute))
 }
 
 // getTokenFilePath returns the path for the token file
