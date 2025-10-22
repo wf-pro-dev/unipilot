@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.server
+      tags:
+        - unipilot-server:${IMAGE_TAG:-latest}
     container_name: server
     ports:
       - "3000:3000"
