@@ -2,44 +2,38 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
-
-	"unipilot/internal/secrets"
-	"unipilot/internal/server"
-
-	"github.com/gorilla/sessions"
 )
 
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
-	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
-	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Logout: %w", err))
-		return
-	}
+	// SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
+	// if err != nil {
+	// 	server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Logout: %w", err))
+	// 	return
+	// }
 
-	var store = sessions.NewCookieStore([]byte(SESSION_KEY))
+	// var store = sessions.NewCookieStore([]byte(SESSION_KEY))
 
-	session, _ := store.Get(r, "session-auth")
+	// session, _ := store.Get(r, "session-auth")
 
-	// Check if user was actually logged in
-	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
-		server.PrintERROR(w, http.StatusUnauthorized, "Not logged in")
-		return
-	}
+	// // Check if user was actually logged in
+	// if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+	// 	server.PrintERROR(w, http.StatusUnauthorized, "Not logged in")
+	// 	return
+	// }
 
-	// Clear session values
-	session.Values["authenticated"] = false
-	delete(session.Values, "user_id")
+	// // Clear session values
+	// session.Values["authenticated"] = false
+	// delete(session.Values, "user_id")
 
-	// Optionally, expire the session cookie immediately
-	session.Options.MaxAge = -1
+	// // Optionally, expire the session cookie immediately
+	// session.Options.MaxAge = -1
 
-	if err := session.Save(r, w); err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create session: %w", err))
-		return
-	}
+	// if err := session.Save(r, w); err != nil {
+	// 	server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create session: %w", err))
+	// 	return
+	// }
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{

@@ -51,19 +51,31 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Login: %w", err))
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Login: %s", err.Error()))
 		return
 	}
 
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, server.Claims{
+	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, server.Claims{
 		User: user,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 15)),
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Login: %w", err))
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Login: %s", err.Error()))
+		return
+	}
+
+	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, server.Claims{
+		User: user,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 30)),
+		},
+	}).SignedString([]byte(SESSION_KEY))
+	if err != nil {
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Login: %s", err.Error()))
 		return
 	}
 
@@ -80,9 +92,10 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"message": "Login successful",
-		"user":    user.ToMap(),
-		"token":   token,
+		"message":       "Login successful",
+		"user":          user.ToMap(),
+		"token":         accessToken,
+		"refresh_token": refreshToken,
 	})
 
 	server.PrintLOG([]string{"SUCCESS", "LOGIN"}, fmt.Sprintf("User ID : %v, Username : %v", user.ID, user.Username))

@@ -11,9 +11,16 @@ import (
 	grpc "unipilot/internal/server/api/grpc"
 	"unipilot/internal/server/sse/grpc/notifications"
 	"unipilot/internal/storage"
+
+	"unipilot/internal/server/api/redis"
+
+	Redis "github.com/redis/go-redis/v9"
 )
 
-var GrpcClient notifications.NotificationsServiceClient
+var (
+	GrpcClient  notifications.NotificationsServiceClient
+	RedisClient *Redis.Client
+)
 
 func GetRouteName(name ...string) string {
 	return fmt.Sprintf("/unipilot/api/v1/%s", strings.Join(name, "/"))
@@ -35,13 +42,21 @@ func StartServer() {
 
 	GrpcClient = *grpc.NewGRPCClient()
 	defer grpc.CloseGRPCClient()
-	//GrpcClient.Heartbeat(context.Background(), &notifications.Message{Body: "heartbeat"})
+
+	RedisClient, err = redis.NewRedisClient()
+	if err != nil {
+		log.Println("Error getting redis client", err)
+		return
+	}
+	defer RedisClient.Close()
 
 	http.HandleFunc("/health", HealthHandler)
 
 	http.HandleFunc(GetRouteName("register"), server.DBMiddleware(db, RegisterHandler))
 	http.HandleFunc(GetRouteName("login"), server.DBMiddleware(db, LoginHandler))
 	http.HandleFunc(GetRouteName("logout"), server.AuthMiddleware(LogoutHandler))
+
+	http.HandleFunc(GetRouteName("token", "refresh"), server.AuthMiddleware(HandleRefreshToken))
 
 	http.HandleFunc(GetRouteName("user"), server.DBMiddleware(db, server.AuthMiddleware(GetUserHandler)))
 	http.HandleFunc(GetRouteName("user", "update"), server.DBMiddleware(db, server.AuthMiddleware(UpdateUserHandler)))
