@@ -9,7 +9,13 @@ import {notifications} from '../models';
 import {user} from '../models';
 import {main} from '../models';
 
+export function AcceptAssignment(arg1:string):Promise<void>;
+
+export function AcceptDocument(arg1:string):Promise<void>;
+
 export function AcceptLink(arg1:string):Promise<void>;
+
+export function AcceptNote(arg1:string):Promise<void>;
 
 export function CreateAssignment(arg1:assignment.LocalAssignment):Promise<assignment.LocalAssignment>;
 
@@ -58,8 +64,6 @@ export function GetNotes():Promise<Array<note.LocalNote>>;
 export function GetNotificationDaemonStatus():Promise<Record<string, any>>;
 
 export function GetNotifications():Promise<Array<notifications.LocalNotification>>;
-
-export function GetRemoteDocumentMetadata(arg1:number):Promise<Array<Record<string, any>>>;
 
 export function GetRemoteUsers():Promise<Array<user.User>>;
 

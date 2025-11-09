@@ -50,12 +50,6 @@ export function NoteItem({
     (note.Videos.startsWith('[') ? JSON.parse(note.Videos) : []) :
     []
 
-  // Truncate content for preview
-  const contentPreview = note.Content ?
-    note.Content.length > 150 ?
-      note.Content.substring(0, 150) + "..." :
-      note.Content :
-    "No content"
 
   return (
     <div>

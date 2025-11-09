@@ -13,6 +13,7 @@ import { Badge } from "../ui/badge"
 import { useRouter } from "next/navigation"
 import { useCoursesBySemester } from "@/hooks/use-courses"
 import { useAuthContext } from "../provider/auth-provider"
+import { CoursesSelect } from "../courses/courses-select"
 
 interface Filter {
   course: string | null
@@ -119,25 +120,22 @@ export function AssignmentsTable({
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-4">
 
-                <Select value={selectedCourse} onValueChange={onCourseChange}>
-                  <SelectTrigger className="w-32 bg-gray-800/50 border-gray-600">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="glass border-gray-600">
+
+
+                <div className="w-36">
+                  <CoursesSelect
+                    value={selectedCourse}
+                    onValueChange={onCourseChange}
+                  >
                     <SelectItem value="all">All Courses</SelectItem>
-                    {courseCodes.map((courseCode) => (
-                      <SelectItem key={courseCode} value={courseCode}>
-                        {courseCode}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  </CoursesSelect>
+                </div>
 
 
                 <Select value={selectedStatus} onValueChange={onStatusChange}>
-                  <SelectTrigger className="w-32 bg-gray-800/50 border-gray-600">
+                  <SelectTrigger className="w-36 bg-gray-800/50 border-gray-600">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="glass border-gray-600">
@@ -152,7 +150,7 @@ export function AssignmentsTable({
 
 
                 <Select value={selectedPriority} onValueChange={onPriorityChange}>
-                  <SelectTrigger className="w-32 bg-gray-800/50 border-gray-600">
+                  <SelectTrigger className="w-36 bg-gray-800/50 border-gray-600">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="glass border-gray-600">

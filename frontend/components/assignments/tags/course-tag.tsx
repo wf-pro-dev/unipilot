@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { assignment } from "@/wailsjs/go/models"
 import { Button } from "@/components/ui/button"
-import { useCourses } from "@/hooks/use-courses"
+import { useCourses, useCoursesBySemester } from "@/hooks/use-courses"
 
 interface CourseTagProps {
     assignment: assignment.LocalAssignment
@@ -11,8 +11,7 @@ interface CourseTagProps {
 
 
 function CourseTag({ assignment, onEdit }: CourseTagProps) {
-    const { data: courses } = useCourses()
-
+    const { data: coursesSemester } = useCoursesBySemester(assignment.Course?.Semester || "")
     const handleEdit = (code: string) => {
 
         onEdit(assignment, "course_code", code)
@@ -29,7 +28,7 @@ function CourseTag({ assignment, onEdit }: CourseTagProps) {
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="glass border-gray-600 grid grid-cols-2">
-                {courses?.map((course) => (
+                {coursesSemester?.map((course) => (
                     <DropdownMenuItem key={course.Code} onClick={() => handleEdit(course.Code)}>
                         <Badge variant="secondary" className={`text-xs flex flex-row gap-2`}>
                             <div className={`h-2 w-2  rounded-full ${course.Color}`} />

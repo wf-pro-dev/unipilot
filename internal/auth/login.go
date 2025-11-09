@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 	"unipilot/internal/client"
 	"unipilot/internal/models/user"
+	"unipilot/internal/secrets"
 	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
 	"unipilot/internal/storage"
@@ -26,20 +26,26 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 	loginData := map[string]string{"username": username, "password": password}
 	jsonData, _ := json.Marshal(loginData)
 
-	resp, err := httpClient.Post("https://newsroom.dedyn.io/acc-homework/login", "application/json", bytes.NewBuffer(jsonData))
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get api url: %w", err)
+	}
+
+	resp, err := httpClient.Post(fmt.Sprintf("%s/login", api_url), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("http post failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("login failed with status %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("login failed with status %d", resp.StatusCode)
 	}
 
 	// Parse the response to get user ID
 	var response struct {
-		User map[string]interface{} `json:"user"`
+		User         map[string]interface{} `json:"user"`
+		Token        string                 `json:"token"`
+		RefreshToken string                 `json:"refresh_token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
@@ -65,11 +71,20 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 		return nil, fmt.Errorf("failed to set credentials: %w", err)
 	}
 
+	/* DEPRECATED
 	if err := client.SaveCookies(&httpClient); err != nil {
 		return nil, fmt.Errorf("failed to save cookies: %w", err)
+	}*/
+
+	if err := client.SaveToken(response.Token); err != nil {
+		return nil, fmt.Errorf("failed to save token: %w", err)
 	}
 
-	httpUserClient, err := client.NewClientWithCookies()
+	if err := client.SaveRefreshToken(response.RefreshToken); err != nil {
+		return nil, fmt.Errorf("failed to save refresh token: %w", err)
+	}
+
+	httpUserClient, err := client.NewAuthClient()
 	if err != nil {
 		return nil, fmt.Errorf("could not create authenticated http client: %w", err)
 	}

@@ -1,17 +1,16 @@
-package server
+package sse
 
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 	"time"
-	"log"
 
 	"unipilot/internal/models"
 	"unipilot/internal/models/notifications"
-
-	"gorm.io/gorm"
+	"unipilot/internal/server"
 )
 
 type SSEClient struct {
@@ -24,14 +23,32 @@ type SSEClient struct {
 type SSEServer struct {
 	clients map[uint]*SSEClient
 	mu      sync.RWMutex
-	db      *gorm.DB
 }
 
-func NewSSEServer(db *gorm.DB) *SSEServer {
+func NewSSEServer() *SSEServer {
 	return &SSEServer{
 		clients: make(map[uint]*SSEClient),
-		db:      db,
 	}
+}
+
+func HealthHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status": "healthy", "timestamp": "` + time.Now().Format(time.RFC3339) + `"}`))
+}
+
+func StartSSEServer() *SSEServer {
+	sseServer := NewSSEServer()
+	http.HandleFunc("/health", HealthHandler)
+	http.HandleFunc("/unipilot/sse/v1", server.AuthMiddleware(sseServer.SSEHandler))
+	log.Println("SSE server listening on :3000...")
+	go func() {
+		if err := http.ListenAndServe(":3000", nil); err != nil {
+			log.Fatalf("SSE server error: %v", err)
+		}
+	}()
+
+	return sseServer
 }
 
 func (s *SSEServer) AddClient(userID uint) *SSEClient {
@@ -44,7 +61,7 @@ func (s *SSEServer) AddClient(userID uint) *SSEClient {
 		Connected: true,
 	}
 
-	PrintLog(fmt.Sprintf("New SSE user id : %d\n", userID))
+	server.PrintLOG([]string{"SSE"}, fmt.Sprintf("New SSE user id : %d\n", userID))
 	s.clients[userID] = client
 	return client
 }
@@ -67,7 +84,6 @@ func (s *SSEServer) SendToUser(userID uint, message []byte) bool {
 	if client, ok := s.clients[userID]; ok {
 		select {
 		case client.Messages <- message:
-			PrintLog(fmt.Sprintf("new SSE message for user id : %d", userID))
 			return true
 		default:
 			// Channel full, client might be slow
@@ -93,7 +109,7 @@ func (s *SSEServer) Broadcast(message []byte) {
 func (s *SSEServer) logActiveClients() {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	PrintLog(fmt.Sprintf("Active Clients: %v", s.clients))
+	server.PrintLOG([]string{"SSE"}, fmt.Sprintf("Active Clients: %v", s.clients))
 }
 
 type noTimeoutWriter struct {
@@ -111,18 +127,10 @@ func (w *noTimeoutWriter) Write(p []byte) (int, error) {
 
 func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 
-	PrintLog(fmt.Sprintf("SSE connection attempt from %s", r.RemoteAddr))
-
 	// Get user from context (set by AuthMiddleware)
-	userIDVal := r.Context().Value("user_id")
-	if userIDVal == nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	userID, ok := userIDVal.(uint)
+	userID, ok := r.Context().Value("user_id").(uint)
 	if !ok {
-		http.Error(w, "Invalid user ID", http.StatusInternalServerError)
+		server.PrintERROR(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
@@ -136,16 +144,14 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 	// Create a flusher
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, "Streaming not supported", http.StatusInternalServerError)
+		server.PrintERROR(w, http.StatusInternalServerError, "Streaming not supported")
 		return
 	}
 
 	// Add client to server
 	client := s.AddClient(userID)
-	s.logActiveClients()
-
 	defer func() {
-		PrintLog(fmt.Sprintf("Removing client %d (reason: connection closing)", int(userID)))
+		server.PrintLOG([]string{"SSE"}, fmt.Sprintf("Removing client %d (reason: connection closing)", int(userID)))
 		s.RemoveClient(userID)
 	}()
 
@@ -164,40 +170,33 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		case <-heartbeatTicker.C:
 			// Send heartbeat to keep connection alive
-			// Verify client is still active
-			/*if time.Since(client.LastActive) > 90*time.Second {
-			    PrintLog(fmt.Sprintf("Client %d timed out", userID))
-			    return
-			}*/
 			client.LastActive = time.Now()
 			fmt.Fprintf(w, ": heartbeat\n\n")
 			flusher.Flush()
 		case <-r.Context().Done():
-			PrintLog(fmt.Sprintf("Client %d disconnected (context canceled)", userID))
+			server.PrintLOG([]string{"SSE"}, fmt.Sprintf("Client %d disconnected (context canceled)", userID))
 			return
 		}
 	}
 }
-func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity, entityID uint, nType notifications.NotificationType, title, message, action, data string) {
+func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity, entityID uint, nType notifications.NotificationType, title, message, action, data string) error {
 	notification := notifications.LocalNotification{
 		SenderID: senderID,
 		Entity:   entity,
 		EntityID: entityID,
-		Type:	  nType,
+		Type:     nType,
 		Action:   action,
 		Title:    title,
 		Message:  message,
-		Data:	  data,
+		Data:     data,
 	}
-	//PrintLog(fmt.Sprintf("notification : %v",notification))
 
 	jsonData, err := json.Marshal(notification)
 	if err != nil {
-		log.Printf("[Error] error marshalling notification : %v ",err)
-		return
+		log.Printf("[Error] error marshalling notification : %v ", err)
+		return err
 	}
 
-	//PrintLog(fmt.Sprintf("jsonData : %v", jsonData))
 	s.SendToUser(userID, jsonData)
+	return nil
 }
-

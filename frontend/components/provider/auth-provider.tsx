@@ -57,7 +57,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         refetchNotes()
         refetchNotifications()
     }
-    LogInfo("AuthProvider: Refetching data for user: \n" + user)
   }, [user])
   
   if (isLoading) {

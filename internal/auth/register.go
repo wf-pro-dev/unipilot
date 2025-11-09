@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 	"unipilot/internal/client"
 	"unipilot/internal/models/user"
+	"unipilot/internal/secrets"
 	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
 	"unipilot/internal/storage"
@@ -17,18 +19,20 @@ import (
 // Login handles only authentication and saving the session cookie to a file.
 func (a *Auth) Register(username, email, password, university, language string) (*user.User, error) {
 
-	httpClient, err := client.NewClientWithCookies() // Changed from NewClient()
+	httpClient, err := client.NewAuthClient()
 	if err != nil {
 		return nil, fmt.Errorf("could not create http client: %w", err)
 	}
 
-	// Set the client to the auth struct
-	a.Client = httpClient
-
 	loginData := map[string]string{"username": username, "password": password, "email": email, "university": university, "language": language}
 	jsonData, _ := json.Marshal(loginData)
 
-	resp, err := httpClient.Post("https://newsroom.dedyn.io/acc-homework/register", "application/json", bytes.NewBuffer(jsonData))
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get api url: %w", err)
+	}
+
+	resp, err := httpClient.Post(fmt.Sprintf("%s/register", api_url), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("http post failed: %w", err)
 	}
@@ -41,13 +45,16 @@ func (a *Auth) Register(username, email, password, university, language string) 
 		return nil, fmt.Errorf("register failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
+	/* DEPRECATED
 	if err := client.SaveCookies(httpClient); err != nil {
 		return nil, fmt.Errorf("failed to save cookies: %w", err)
 	}
+	*/
 
 	// Parse the response to get user ID
 	var response struct {
-		User map[string]interface{} `json:"user"`
+		User  map[string]interface{} `json:"user"`
+		Token string                 `json:"token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
@@ -71,6 +78,11 @@ func (a *Auth) Register(username, email, password, university, language string) 
 	// Store the user in credentials
 	if err := utils.SetCredentials(&response_user); err != nil {
 		return nil, fmt.Errorf("failed to set credentials: %w", err)
+	}
+
+	log.Printf("Saving token: %s", response.Token)
+	if err := client.SaveToken(response.Token); err != nil {
+		return nil, fmt.Errorf("failed to save token: %w", err)
 	}
 
 	// Initialize the SSE connection early to ensure it's never nil

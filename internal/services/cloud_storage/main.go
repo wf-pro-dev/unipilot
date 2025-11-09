@@ -1,13 +1,13 @@
 package cloudstorage
 
 import (
-	"os"
 	"context"
 	"fmt"
-	"log"
+
+	"unipilot/internal/secrets"
+
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/joho/godotenv"
 )
 
 const (
@@ -17,15 +17,13 @@ const (
 
 func S3Client() (*s3.Client, error) {
 
-	// Load .env file
-	err := godotenv.Load()
+	region, err := secrets.GetEnvVar("AWS_REGION")
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		return nil, err
 	}
 
-
 	// Load default config
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(os.Getenv("AWS_REGION")))
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
 
 	if err != nil {
 		fmt.Println("Error loading default config:", err)

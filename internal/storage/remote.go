@@ -3,27 +3,26 @@ package storage
 import (
 	"fmt"
 
-	"github.com/spf13/viper"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
+
+	"unipilot/internal/secrets"
 )
 
 func GetRemoteDB() (*gorm.DB, error) {
-	viper.SetConfigFile(".env")
-	err := viper.ReadInConfig()
+
+	host, err := secrets.GetEnvVar("DB_HOST")
+	port, err := secrets.GetEnvVar("DB_PORT")
+	user, err := secrets.GetEnvVar("DB_USER")
+	password, err := secrets.GetEnvVar("DB_PASSWORD")
+	dbname, err := secrets.GetEnvVar("DB_NAME")
+
 	if err != nil {
-		return nil, fmt.Errorf("error reading config file: %w", err)
+		return nil, err
 	}
-
-	host := viper.GetString("DB_HOST")
-	port := viper.GetInt("DB_PORT")
-	user := viper.GetString("DB_USER")
-	password := viper.GetString("DB_PASSWORD")
-	dbname := viper.GetString("DB_NAME")
-
 	// Updated connection string with SSL
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=require",
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
 		host, port, user, password, dbname)
 
 	db, err := gorm.Open(postgres.Open(psqlInfo), &gorm.Config{
@@ -37,3 +36,4 @@ func GetRemoteDB() (*gorm.DB, error) {
 
 	return db, nil
 }
+

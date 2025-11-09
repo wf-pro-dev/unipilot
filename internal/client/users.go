@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 	"unipilot/internal/models/user"
+	"unipilot/internal/secrets"
 )
 
 func GetRemoteUsers() ([]user.User, error) {
@@ -16,13 +17,17 @@ func GetRemoteUsers() ([]user.User, error) {
 		Error   string                   `json:"error,omitempty"`
 	}
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := new_client.Get("https://newsroom.dedyn.io/acc-homework/users")
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get api url: %w", err)
+	}
 
+	resp, err := new_client.Get(fmt.Sprintf("%s/users", api_url))
 	if err != nil {
 		return nil, err
 	}

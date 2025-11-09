@@ -1,0 +1,30 @@
+syntax = "proto3";
+package notifications;
+
+option go_package = "unipilot/internal/server/sse/notifications";
+
+message Notification {
+    uint32 user_id = 1;
+    uint32 sender_id = 2;
+    string entity = 3;
+    uint32 entity_id = 4;
+    string type = 5;
+    string title = 6;
+    string action = 7;
+    string message = 8;
+    string data = 9;
+}
+
+message NotificationResponse {
+    bool success = 1;
+}
+
+message Message { 
+    string body = 1;
+}
+
+
+service NotificationsService {
+    rpc SendNotification(Notification) returns (NotificationResponse) {}
+    rpc Heartbeat(Message) returns (Message) {}
+}

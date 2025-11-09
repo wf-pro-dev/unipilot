@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"unipilot/internal/models/document"
+	"unipilot/internal/secrets"
 )
 
 // UploadResponse represents the server response
@@ -21,10 +22,15 @@ type UploadResponse struct {
 // sendMultipartFile sends file using multipart/form-data with your authenticated client
 func SendDocument(document *document.LocalDocument) (string, error) {
 
-	var url string = "https://newsroom.dedyn.io/acc-homework/document"
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return "", fmt.Errorf("failed to get api url: %w", err)
+	}
+
+	var url string = fmt.Sprintf("%s/document", api_url)
 
 	// Create a new client with cookies
-	client, err := NewClientWithCookies()
+	client, err := NewAuthClient()
 	if err != nil {
 		return "", err
 	}
@@ -40,20 +46,23 @@ func SendDocument(document *document.LocalDocument) (string, error) {
 		return "", fmt.Errorf("error creating form file: %v", err)
 	}
 
-	// Open the file
-	fileContent, err := os.Open(document.FilePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
-	}
-	defer fileContent.Close()
+	if document.HasLocalFile {
 
-	// Copy file content to form
-	bytesWritten, err := io.Copy(fileWriter, fileContent)
-	if err != nil {
-		return "", fmt.Errorf("error copying file content: %v", err)
-	}
+		// Open the file
+		fileContent, err := os.Open(document.FilePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to open file: %w", err)
+		}
+		defer fileContent.Close()
 
-	log.Printf("bytes written: %d\n", bytesWritten)
+		// Copy file content to form
+		bytesWritten, err := io.Copy(fileWriter, fileContent)
+		if err != nil {
+			return "", fmt.Errorf("error copying file content: %v", err)
+		}
+
+		log.Printf("bytes written: %d\n", bytesWritten)
+	}
 
 	// Add metadata part
 	metadataWriter, err := writer.CreateFormField("metadata")
@@ -126,14 +135,19 @@ func SendDocument(document *document.LocalDocument) (string, error) {
 }
 func DownloadDocument(document *document.LocalDocument) (io.Reader, error) {
 
-	var url string = "https://newsroom.dedyn.io/acc-homework/document/download"
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get api url: %w", err)
+	}
+
+	var url string = fmt.Sprintf("%s/document/download", api_url)
 
 	jsonData, err := json.Marshal(document)
 	if err != nil {
 		return nil, err
 	}
 
-	client, err := NewClientWithCookies()
+	client, err := NewAuthClient()
 	if err != nil {
 		return nil, err
 	}
@@ -167,9 +181,14 @@ func DownloadDocument(document *document.LocalDocument) (io.Reader, error) {
 
 func DeleteDocument(documentID uint) error {
 
-	var url string = "https://newsroom.dedyn.io/acc-homework/document/delete"
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return fmt.Errorf("failed to get api url: %w", err)
+	}
 
-	client, err := NewClientWithCookies()
+	var url string = fmt.Sprintf("%s/document/delete", api_url)
+
+	client, err := NewAuthClient()
 	if err != nil {
 		return err
 	}

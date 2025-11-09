@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Calendar, Edit, Trash2,  FileText, ExternalLink, Info } from "lucide-react"
+import { Calendar, Edit, Trash2, FileText, ExternalLink, Info } from "lucide-react"
 import { format } from "date-fns"
 import { assignment } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
@@ -25,24 +25,6 @@ interface AssignmentDetailsModalProps {
   onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
   onDelete: (assignment: assignment.LocalAssignment) => void
   isLoading?: boolean
-}
-
-const priorityColors = {
-  low: "text-green-400 border-green-400 bg-green-500/10",
-  medium: "text-yellow-400 border-yellow-400 bg-yellow-500/10",
-  high: "text-red-400 border-red-400 bg-red-500/10",
-}
-
-const statusColors = {
-  pending: "bg-gray-500/20 text-gray-400",
-  "in-progress": "bg-blue-500/20 text-blue-400",
-  completed: "bg-green-500/20 text-green-400",
-  overdue: "bg-red-500/20 text-red-400",
-}
-
-const typeColors = {
-  "HW": "bg-blue-500/20 text-blue-400",
-  "Exam": "bg-red-500/20 text-red-400",
 }
 
 export function AssignmentDetailsModal({
@@ -71,9 +53,10 @@ export function AssignmentDetailsModal({
     BrowserOpenURL(assignment.Link)
   }
 
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="glass border-0 text-white max-w-xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="glass border-0 text-white max-w-xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex justify-between items-start">
             <DialogTitle className="text-xl font-semibold text-white">
@@ -83,16 +66,17 @@ export function AssignmentDetailsModal({
         </DialogHeader>
 
 
-        <div className="relative z-10 space-y-6" >
+        <div className="relative z-10 space-y-4" >
 
           <Tabs value={activeView} onValueChange={setActiveView} className="w-full space-y-4">
 
-            <TabsList className="flex flex-row self-start glass border-0 w-fit bg-gray-800/50 rounded-lg">
-              <TabsTrigger value="info" className="flex items-center space-x-1 p-2 py-1 bg-gray-800/50">
+            <TabsList className="flex flex-row border-0 w-full">
+              <TabsTrigger value="info" className="flex w-full justify-center items-center space-y-1 space-x-1 py-2 text-gray-400 hover:text-white data-[state=active]:text-white">
                 <Info className="w-4 h-4" />
                 <span className="text-sm">Information</span>
               </TabsTrigger>
-              <TabsTrigger value="documents" className="flex items-center space-x-1 p-2 py-1 bg-gray-800/50">
+              <Separator orientation="vertical" className="bg-gray-700 W-1 h-full" />
+              <TabsTrigger value="documents" className="flex w-full justify-center items-center space-y-1 space-x-1 py-2 text-gray-400 hover:text-white data-[state=active]:text-white">
                 <FileText className="w-4 h-4" />
                 <span className="text-sm">Documents</span>
               </TabsTrigger>
@@ -102,77 +86,74 @@ export function AssignmentDetailsModal({
 
 
             {/* Status and Priority */}
-            <TabsContent value="info" className="space-y-4">
-
-
-              {/* <div className="flex items-center space-x-2">
-                <Info className="w-5 h-5 text-muted-foreground" />
-                <h3 className="text-lg font-medium">Information</h3>
-              </div> */}
-
-
+              <TabsContent value="info" className="space-y-4">
 
               {/* Course and Type */}
-              <div className="grid grid-cols-2">
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2 text-sm text-gray-400">
-                    <div className={`w-2 h-2 rounded-full ${assignment.Course?.Color}`} />
-                    <span>Course</span>
-                  </div>
-                  <p className="font-medium text-white text-sm">{assignment.Course?.Name}</p>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-4 text-sm">
-                    <div className="flex items-center space-x-2 text-gray-400">
-                      <Calendar className="w-4 h-4" />
-                      <span>Deadline</span>
-                    </div>
-                    <Badge variant="outline" className={`${isOverdueStatus ? "text-red-400" : daysUntilDue < 0 ? "text-gray-400" : "text-yellow-400"}`}>
-                      {getDueDescription(deadline, assignment.StatusName)}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <p className="font-medium text-white text-sm">{format(deadline, "EEEE, MMMM d, yyyy")}</p>
-
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Description */}
-              {assignment.Todo && (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
+              <div className="flex flex-col space-y-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <div className="flex items-center space-x-2 text-sm text-gray-400">
-                      <FileText className="w-4 h-4" />
-                      <span>Description</span>
+                      <div className={`w-2 h-2 rounded-full ${assignment.Course?.Color}`} />
+                      <span>Course</span>
+                    </div>
+                    <div className="bg-gray-800/50 border border-gray-600 p-3 rounded-lg">
+                      <p className="font-medium text-white text-sm">{assignment.Course?.Name}</p>
                     </div>
                   </div>
-                  <div className="bg-gray-800/50 border border-gray-600 p-3 rounded-lg max-h-[200px] overflow-y-auto">
-                    <p className={`whitespace-pre-wrap leading-relaxed text-sm text-white block`}>{assignment.Todo}</p>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-4 text-sm">
+                      <div className="flex items-center space-x-2 text-gray-400">
+                        <Calendar className="w-4 h-4" />
+                        <span>Deadline</span>
+                      </div>
+                      <Badge variant="outline" className={`${isOverdueStatus ? "text-red-400" : daysUntilDue < 0 ? "text-gray-400" : "text-yellow-400"}`}>
+                        {getDueDescription(deadline, assignment.StatusName)}
+                      </Badge>
+                    </div>
+                    <div className="bg-gray-800/50 border border-gray-600 p-3 rounded-lg">
+                      <p className="font-medium text-white text-sm">{format(deadline, "EEEE, MMMM d, yyyy")}</p>
+                    </div>
                   </div>
+
                 </div>
-              )}
+
+                {/* Description */}
+                {assignment.Todo && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center space-x-2 text-sm text-gray-400">
+                        <FileText className="w-4 h-4" />
+                        <span>Description</span>
+                      </div>
+                    </div>
+                    <div className="bg-gray-800/50 border border-gray-600 p-3 rounded-lg max-h-[200px] overflow-y-auto">
+                      <p className={`whitespace-pre-wrap leading-relaxed text-sm text-white block`}>{assignment.Todo}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <Separator className="bg-gray-700 w-[80%] mx-auto" />
 
               <div className="flex flex-col items-center w-full">
 
-                <div className="flex items-center justify-evenly w-full">
+                <div className="w-full grid grid-cols-1 gap-2 md:grid-cols-3">
 
-                  <div className="flex items-center space-x-2">
-                    <p className="text-xs text-muted-foreground">Status :</p>
+                  <div className="flex flex-col w-full items-center space-y-2 border border-gray-700 p-2 rounded-lg bg-gray-800/50">
+                    <span className="text-sm text-gray-400">Status</span>
                     <StatusTag assignment={assignment} onEdit={onEdit} />
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <p className="text-xs text-muted-foreground">Priority :</p>
+                  <div className="flex flex-col w-full items-center space-y-2 border border-gray-700 p-2 rounded-lg bg-gray-800/50">
+                    <span className="text-sm text-gray-400">Priority</span>
                     <PriorityTag assignment={assignment} onEdit={onEdit} />
                   </div>
 
-                  <div className="flex items-center space-x-2">
-                    <p className="text-xs text-muted-foreground">Type :</p>
+                  <div className="flex flex-col w-full items-center space-y-2 border border-gray-700 p-2 rounded-lg bg-gray-800/50">
+                    <span className="text-sm text-gray-400">Type</span>
                     <TypeTag assignment={assignment} onEdit={onEdit} />
                   </div>
                 </div>
+
               </div>
 
 

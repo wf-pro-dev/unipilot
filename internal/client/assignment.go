@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/network"
+	"unipilot/internal/secrets"
 )
 
 func GetAssignments() ([]map[string]string, error) {
@@ -24,12 +25,17 @@ func GetAssignments() ([]map[string]string, error) {
 
 	if isOnline {
 
-		client, err := NewClientWithCookies()
+		client, err := NewAuthClient()
 		if err != nil {
 			return nil, err
 		}
 
-		resp, err := client.Get("https://newsroom.dedyn.io/acc-homework/assignment/get")
+		api_url, err := secrets.GetEnvVar("API_URL")
+		if err != nil {
+			return nil, fmt.Errorf("failed to get api url: %w", err)
+		}
+
+		resp, err := client.Get(fmt.Sprintf("%s/assignments", api_url))
 
 		if err != nil {
 			return nil, err
@@ -64,15 +70,20 @@ func CreateAssignment(a *assignment.Assignment) (map[string]interface{}, error) 
 
 	assignmentData := a.ToMap()
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 		return nil, err
 	}
 
 	jsonData, _ := json.Marshal(assignmentData)
 
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get api url: %w", err)
+	}
+
 	resp, err := new_client.Post(
-		"https://newsroom.dedyn.io/acc-homework/assignment",
+		fmt.Sprintf("%s/assignment", api_url),
 		"application/json",
 		bytes.NewBuffer(jsonData),
 	)
@@ -113,7 +124,7 @@ func CreateAssignment(a *assignment.Assignment) (map[string]interface{}, error) 
 
 func SendAssignmentUpdate(id, column, value string) error {
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 
 		return err
@@ -127,8 +138,13 @@ func SendAssignmentUpdate(id, column, value string) error {
 
 	jsonData, _ := json.Marshal(updateData)
 
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return fmt.Errorf("failed to get api url: %w", err)
+	}
+
 	resp, err := new_client.Post(
-		"https://newsroom.dedyn.io/acc-homework/assignment/update",
+		fmt.Sprintf("%s/assignment/update", api_url),
 		"application/json",
 		bytes.NewBuffer(jsonData),
 	)

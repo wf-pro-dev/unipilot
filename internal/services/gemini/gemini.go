@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/spf13/viper"
-
 	"google.golang.org/genai"
+
+	"unipilot/internal/secrets"
 )
 
 type GeminiRequest struct {
@@ -26,20 +26,17 @@ type GeminiResponse struct {
 func GenerateNote(request *GeminiRequest) (*GeminiResponse, error) {
 	ctx := context.Background()
 
-	viper.SetConfigFile(".env")
-	err := viper.ReadInConfig()
+
+	GEMINI_API_KEY, err := secrets.GetEnvVar("GEMINI_API_KEY")
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-
-	GEMINI_API_KEY := viper.GetString("GEMINI_API_KEY")
-
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey:  GEMINI_API_KEY,
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	config := &genai.GenerateContentConfig{

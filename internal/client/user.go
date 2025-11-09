@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"unipilot/internal/secrets"
 )
 
 func SendUserUpdate(column, value string) error {
 
-	new_client, err := NewClientWithCookies()
+	new_client, err := NewAuthClient()
 	if err != nil {
 
 		return err
@@ -23,8 +24,13 @@ func SendUserUpdate(column, value string) error {
 
 	jsonData, _ := json.Marshal(updateData)
 
+	api_url, err := secrets.GetEnvVar("API_URL")
+	if err != nil {
+		return fmt.Errorf("failed to get api url: %w", err)
+	}
+
 	resp, err := new_client.Post(
-		"https://newsroom.dedyn.io/acc-homework/user/update",
+		fmt.Sprintf("%s/user/update", api_url),
 		"application/json",
 		bytes.NewBuffer(jsonData),
 	)
