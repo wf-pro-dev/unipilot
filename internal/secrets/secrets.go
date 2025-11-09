@@ -7,18 +7,29 @@ import (
 	"github.com/spf13/viper"
 )
 
-func GetEnvVar(envName string) (string, error) {
+var (
+	CONSTANT = map[string]string{
+		"BASE_URL": "https://wwwill.dedyn.io",
+		"API_URL":  "https://wwwill.dedyn.io/unipilot/api/v1",
+	}
+)
 
-	var envVar string
+func GetEnvVar(envName string) (string, error) {
 
 	viper.SetConfigFile(".env")
 	err := viper.ReadInConfig()
 	if err != nil {
-		envVar = os.Getenv(envName)
+		return "", fmt.Errorf("failed to read config: %w", err)
+	}
 
-	} else {
+	var envVar = os.Getenv(envName)
+	if envVar == "" {
+		envVar = CONSTANT[envName]
+	}
+	if envVar == "" {
 		envVar = viper.GetString(envName)
 	}
+
 	if envVar == "" {
 		return "", fmt.Errorf("error getting %s: is empty", envName)
 	}
