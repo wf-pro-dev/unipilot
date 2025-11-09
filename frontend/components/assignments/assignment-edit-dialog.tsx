@@ -7,16 +7,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format, isSameDay } from "date-fns"
 import { BookOpen, CalendarIcon, Flag } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { assignment } from "@/wailsjs/go/models"
-import { useCourses } from "@/hooks/use-courses"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { Textarea } from "../ui/textarea"
+import { useAuthContext } from "../provider/auth-provider"
+import { CoursesSelect } from "../courses/courses-select"
 
 
 const priorities = [
@@ -48,16 +49,12 @@ interface AssignmentEditDialogProps {
 
 export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: AssignmentEditDialogProps) {
   if (!assignment) { return null }
+  const { courses: courses } = useAuthContext()
 
   const [deadline, setDeadline] = useState<Date>(new Date(assignment.Deadline) || new Date())
   const [formData, setFormData] = useState({
     title: assignment.Title || "",
-    course : {
-      name: assignment.Course?.Name || "",
-      color: assignment.Course.Color || "",
-    },
     course_code: assignment.CourseCode || "",
-    
     type_name: assignment.TypeName || "",
     status_name: assignment.StatusName || "",
     priority: assignment.Priority || "",
@@ -68,7 +65,6 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
   const key_to_column = {
     title: "Title",
     course_code: "CourseCode",
-    course_name: "CourseName",
     type_name: "TypeName",
     status_name: "StatusName",
     priority: "Priority",
@@ -78,15 +74,14 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
 
 
 
-  const { data: courses } = useCourses()
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setOpen(false)
 
+
     for (const [key, value] of Object.entries(formData)) {
-      if (key === "course"  ) { continue }
-        
+      if (key === "course") { continue }
+
       const column = key_to_column[key as keyof typeof key_to_column] as keyof assignment.LocalAssignment
       if (value !== assignment[column]) {
 
@@ -105,7 +100,9 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
     }
     setDeadline(new Date())
 
+
   }
+  
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -134,36 +131,15 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
               <Label htmlFor="course" className="text-gray-300">
                 Course
               </Label>
-              <Select
+              <CoursesSelect
                 value={formData.course_code}
-                onValueChange={(value) => {
-                  const course = courses?.find((course) => course.Code === value)
-                  setFormData({ 
-                    ...formData, 
-                    course_code: value, 
-                    course : { name: course?.Name || "", color : course?.Color || ""  }
+                onValueChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    course_code: value,
                   })
-                }}
-              >
-                <SelectTrigger className="bg-gray-800/50 border-gray-600">
-                  <div className="flex items-center gap-2">
-                    <div className={` h-2 w-2 rounded-full ${formData.course.color}`} />
-                    <p className="line-clamp-1">
-                      {formData.course_code}
-                    </p>
-                  </div>
-                </SelectTrigger>
-                <SelectContent className="glass border-gray-600">
-                  {courses?.map((course) => (
-                    <SelectItem key={course.Code} value={course.Code}>
-                      <div className="flex items-center gap-2">
-                        <div className={` h-2 w-2 rounded-full ${course.Color}`} />
-                        {course.Code} - {course.Name}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                }
+              />
             </div>
 
             <div>
@@ -303,6 +279,6 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
 
         </form>
       </DialogContent>
-    </Dialog>
+    </Dialog >
   )
 }

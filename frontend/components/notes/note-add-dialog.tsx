@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, BookOpen, FileText, Tag, Video } from "lucide-react"
 import { useCourses } from "@/hooks/use-courses"
 import { note } from "@/wailsjs/go/models"
+import { CoursesSelect } from "../courses/courses-select"
 
 const subjects = [
     { value: "Mathematics", label: "Mathematics", color: "text-blue-400 border-blue-400" },
@@ -36,8 +37,6 @@ export function AddNoteDialog({ onAdd }: AddNoteDialogProps) {
         title: "",
         subject: "",
         course_code: "",
-        course_name: "",
-        course_color: "",
     })
 
     const { data: courses } = useCourses()
@@ -62,8 +61,6 @@ export function AddNoteDialog({ onAdd }: AddNoteDialogProps) {
             title: "",
             subject: "",
             course_code: "",
-            course_name: "",
-            course_color: "",
         })
     }
 
@@ -109,7 +106,14 @@ export function AddNoteDialog({ onAdd }: AddNoteDialogProps) {
                             <Label htmlFor="course" className="text-gray-300">
                                 Course
                             </Label>
-                            <Select
+                            <CoursesSelect
+                                value={formData.course_code}
+                                onValueChange={(value) => setFormData({ 
+                                    ...formData, 
+                                    course_code: value,
+                                })}
+                            />
+                            {/* <Select
                                 value={formData.course_code}
                                 onValueChange={(value) => {
                                     const course = courses?.find((course) => course.Code === value)
@@ -139,7 +143,7 @@ export function AddNoteDialog({ onAdd }: AddNoteDialogProps) {
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
-                            </Select>
+                            </Select> */}
                         </div>
                     </div>
 

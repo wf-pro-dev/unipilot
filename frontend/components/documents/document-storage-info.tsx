@@ -41,11 +41,12 @@ export function DocumentStorageInfo() {
         <Button 
         variant="outline" 
         size="sm" 
-        className="flex-1 bg-transparent border-gray-600">
+        className="flex-1 bg-transparent border-gray-600 flex items-center space-x-2" >
           <HardDrive className="w-4 h-4" />
+          <span className="text-sm text-gray-400">Storage Usage</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80" align="end">
+      <PopoverContent className="w-80 glass border-gray-600" align="end">
         <div className="space-y-4">
           {/* Header */}
           <div className="flex justify-between items-center">

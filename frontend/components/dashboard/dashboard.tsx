@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { StatsCards } from "../dashboard/stats-cards"
 import { useAuthContext } from "../provider/auth-provider"
-import { BookOpen, Calendar, ClipboardList, FileText, MapPin, Users, CheckCircle2, Dot, ChevronLeft, ChevronRight, Clock } from "lucide-react"
+import { BookOpen, Calendar, ClipboardList, FileText, MapPin, Users, CheckCircle2, Dot, ChevronLeft, ChevronRight, Clock, User } from "lucide-react"
 import { getDueDescription, getNextCourse, parseDeadline } from "@/lib/date-utils"
 import { useCoursesBySemester } from "@/hooks/use-courses"
 import { Card, CardContent, CardHeader, CardFooter } from "../ui/card"
@@ -14,7 +14,7 @@ import { useUpdateAssignment } from "@/hooks/use-assignments"
 import { toast } from "sonner"
 import { LogInfo } from "@/wailsjs/runtime"
 import { assignment, note } from "@/wailsjs/go/models"
-import { format, isAfter } from "date-fns"
+import { format, isAfter, isEqual, isSameDay} from "date-fns"
 import { DndProvider, useDrop } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
 import { useNotes } from "@/hooks/use-notes"
@@ -29,7 +29,7 @@ export function Dashboard() {
     const [selectedIndex, setSelectedIndex] = useState(0)
     const { data: exams } = useExamAssignments()
     const UpcomingExams = useMemo(() => {
-        return exams?.filter((exam) => isAfter(exam.Deadline, new Date()))
+        return exams?.filter((exam) => isAfter(exam.Deadline, new Date()) || isSameDay(exam.Deadline, new Date()))
     }, [exams])
     const { data: notes } = useNotes()
     var notesPerPage = 2
@@ -156,7 +156,7 @@ export function Dashboard() {
                 </div>
 
 
-                <div className="w-full h-full">
+                <div className="w-full">
                     {assignments.length > 0 ? (
                         assignments
                             .slice(0, 1)
@@ -180,11 +180,11 @@ export function Dashboard() {
     return (
         <DndProvider backend={HTML5Backend}>
             <div className="flex-1 space-y-5 mb-4">
-                <div className="">
+                {/* <div className="">
                     <p className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
                         {greeting}, {user?.Username} 👋
                     </p>
-                </div>
+                </div> */}
 
                 <StatsCards />
 
@@ -304,13 +304,11 @@ export function Dashboard() {
                                             </div>
                                         </div>
                                         <div className="flex space-x-2 items-center">
-                                            <Users className="w-4 h-4 text-white" />
-                                            <div className="text-xs text-white">
+                                            <User className="w-4 h-4 text-white"/>
+                                            <div className="text-xs text-white"> 
                                                 {course?.Instructor}
                                             </div>
                                         </div>
-
-
                                         <div className="flex space-x-2 items-center">
                                             <MapPin className="w-4 h-4 text-white" />
                                             <div className="text-xs text-white">

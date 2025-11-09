@@ -30,7 +30,7 @@ export function CalendarItem({ assignment, onEdit, onAssignmentClick }: Calendar
 
   return (
     <div ref={drag} className={`cursor-move ${isDragging ? "opacity-50" : ""}`} onClick={() => onAssignmentClick(assignment)}>
-      <Card className="glass-dark border-0 hover:glass-hover transition-all duration-300">
+      <Card className="glass border-0 hover:glass-hover transition-all duration-300">
         <CardContent className="p-3">
           <div className="flex flex-col space-y-2">
 
