@@ -44,11 +44,12 @@ interface AddCourseDialogProps {
 }
 
 export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
+  
   const [open, setOpen] = useState(false)
   const [startDate, setStartDate] = useState<Date | undefined>(undefined)
   const [endDate, setEndDate] = useState<Date | undefined>(undefined)
 
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     name: "",
     code: "",
     color: "bg-blue-500",
@@ -58,7 +59,9 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
     location: "",
     instructor: "",
     instructor_email: "",
-  })
+  }
+
+  const [formData, setFormData] = useState(initialFormData)
   const validateDates = (startDate: Date, endDate: Date) => {
     if (startDate > endDate) {
         toast.error("Start date must be before end date")
@@ -171,22 +174,21 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
 
     toast.success("Course added successfully")
 
-    setOpen(false)
-    setFormData({
-      name: "",
-      code: "",
-      color: "bg-blue-500",
-      semester: "",
-      schedule: "",
-      credits: "3",
-      location: "",
-      instructor: "",
-      instructor_email: "", 
-    })
+    handleOpenChange(false)
+    
+  }
+
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen)
+    if (!isOpen) {
+      setFormData(initialFormData)
+      setStartDate(undefined)
+      setEndDate(undefined)
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button className="text-white bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700">
           <Plus className="mr-2 w-4 h-4" />
@@ -275,11 +277,11 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                     )}
                   >
                     <CalendarIcon className="mr-2 w-4 h-4" />
-                    {startDate ? format(startDate, "PPP") : <span>Pick a start date</span>}
+                    {startDate ? format(startDate, "MMM do, yyyy") : <span>Pick a start date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="p-0 w-auto border-gray-600 glass">
-                  <Calendar mode="single" selected={startDate} onSelect={setStartDate} required />
+                  <Calendar mode="single" className="glass" selected={startDate} onSelect={setStartDate} required />
                 </PopoverContent>
               </Popover>
             </div>
@@ -297,11 +299,11 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                     )}
                   >
                     <CalendarIcon className="mr-2 w-4 h-4" />
-                    {endDate ? format(endDate, "PPP") : <span>Pick a end date</span>}
+                    {endDate ? format(endDate, "MMM do, yyyy") : <span>Pick a end date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="p-0 w-auto border-gray-600 glass">
-                  <Calendar mode="single" selected={endDate} onSelect={setEndDate} required />
+                  <Calendar mode="single" className="glass" selected={endDate} onSelect={setEndDate} required />
                 </PopoverContent>
               </Popover>
             </div>
@@ -327,9 +329,9 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
               <Label htmlFor="semester" className="text-gray-300">
                 Semester
               </Label>
-              <Select value={formData.semester} onValueChange={(value) => setFormData({ ...formData, semester: value })}>
+              <Select  required value={formData.semester} onValueChange={(value) => setFormData({ ...formData, semester: value })}>
                 <SelectTrigger className="border-gray-600 bg-gray-800/50">
-                  <SelectValue />
+                  <SelectValue className={formData.semester !== "" ? "text-white" : "text-gray-400"} placeholder="Select semester"/>
                 </SelectTrigger>
                 <SelectContent className="border-gray-600 glass">
                   {semesters.map((semester) => (

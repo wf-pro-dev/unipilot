@@ -133,8 +133,6 @@ func (a *App) Startup(ctx context.Context) {
 	if a.Auth.IsAuthenticated() {
 		log.Println("[App] User already authenticated, initializing HTTP client...")
 		if a.Auth.Client != nil {
-			log.Printf("[App] Failed to initialize authenticated client: %v", a.Auth.Client)
-		} else {
 			if network.IsOnline() {
 				// Start background sync manager
 				syncManager := sync.NewSyncManager(a.DB.GetDB())
@@ -142,6 +140,7 @@ func (a *App) Startup(ctx context.Context) {
 
 				// Process any pending syncs on startup
 				go func() {
+					log.Printf("[App] Processing pending syncs on startup")
 					if err := syncManager.ProcessPendingSyncs(); err != nil {
 						log.Printf("[App] Startup sync error: %v", err)
 					}
@@ -233,8 +232,8 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 			return nil, fmt.Errorf("failed to create sync log: %w", syncErr)
 		}
 
-		// Commit the transaction with the sync log
-		//tx.Commit()
+		//Commit the transaction with the sync log
+		tx.Commit()
 
 		return nil, nil
 	}

@@ -38,8 +38,9 @@ func (h *Database) GetCourse(id uint) (*course.Course, error) {
 
 // GetCourses retrieves all courses for a user
 func (h *Database) GetCourses() ([]course.LocalCourse, error) {
+	h.db = h.db.Debug()
 	var LocalCourse []course.LocalCourse
-	err := h.db.Find(&LocalCourse).Error
+	err := h.db.Order("start_date DESC").Find(&LocalCourse).Error
 	return LocalCourse, err
 }
 

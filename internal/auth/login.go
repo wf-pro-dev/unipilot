@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 	"unipilot/internal/client"
@@ -44,8 +43,9 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 
 	// Parse the response to get user ID
 	var response struct {
-		User  map[string]interface{} `json:"user"`
-		Token string                 `json:"token"`
+		User         map[string]interface{} `json:"user"`
+		Token        string                 `json:"token"`
+		RefreshToken string                 `json:"refresh_token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
@@ -76,9 +76,12 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 		return nil, fmt.Errorf("failed to save cookies: %w", err)
 	}*/
 
-	log.Printf("Saving token: %s", response.Token)
 	if err := client.SaveToken(response.Token); err != nil {
 		return nil, fmt.Errorf("failed to save token: %w", err)
+	}
+
+	if err := client.SaveRefreshToken(response.RefreshToken); err != nil {
+		return nil, fmt.Errorf("failed to save refresh token: %w", err)
 	}
 
 	httpUserClient, err := client.NewAuthClient()
