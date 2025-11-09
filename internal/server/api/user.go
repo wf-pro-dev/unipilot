@@ -1,9 +1,11 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"gorm.io/gorm"
@@ -127,6 +129,19 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Update the user in redis
+	userJSON, err := json.Marshal(userMap)
+	if err != nil {
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error marshalling user to json: %v", err))
+		return
+	}
+	if err := RedisClient.HSet(context.Background(), "users", strconv.Itoa(int(userID)), userJSON).Err(); err != nil {
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error caching user in redis: %v", err))
+		return
+	}
+
+	server.PrintLOG([]string{"INFO", "USER", "UPDATE", "REDIS"}, fmt.Sprintf("User cached successfully for user id: %d", userID))
+
 	// Return response
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -134,6 +149,6 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 		"user":    userMap,
 	})
 
-	server.PrintLOG([]string{"SUCCESS", "UPDATE", "USER"}, fmt.Sprintf("user_id %d column %s value %s",
+	server.PrintLOG([]string{"SUCCESS", "USER", "UPDATE"}, fmt.Sprintf("user_id %d column %s value %s",
 		userIDVal, updateData.Column, updateData.Value))
 }
