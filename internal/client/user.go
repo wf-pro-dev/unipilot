@@ -24,11 +24,7 @@ func SendUserUpdate(column, value string) error {
 
 	jsonData, _ := json.Marshal(updateData)
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return fmt.Errorf("failed to get api url: %w", err)
-	}
-
+	api_url := secrets.CONSTANTS["API_URL"]
 	resp, err := new_client.Post(
 		fmt.Sprintf("%s/user/update", api_url),
 		"application/json",

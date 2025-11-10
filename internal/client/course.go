@@ -31,7 +31,7 @@ func GetCourses() ([]map[string]string, error) {
 			return nil, err
 		}
 
-		api_url, err := secrets.GetEnvVar("API_URL")
+		api_url := secrets.CONSTANTS["API_URL"]
 		if err != nil {
 			return nil, fmt.Errorf("failed to get api url: %w", err)
 		}
@@ -70,10 +70,7 @@ func GetCourses() ([]map[string]string, error) {
 
 func CreateCourse(c *course.Course) (map[string]interface{}, error) {
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get api url: %w", err)
-	}
+	api_url := secrets.CONSTANTS["API_URL"]
 
 	courseData := c.ToMap()
 
@@ -142,10 +139,7 @@ func SendCourseUpdate(id, column, value string) error {
 
 	jsonData, _ := json.Marshal(updateData)
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return fmt.Errorf("failed to get api url: %w", err)
-	}
+	api_url := secrets.CONSTANTS["API_URL"]
 
 	resp, err := new_client.Post(
 		fmt.Sprintf("%s/course/update", api_url),
@@ -181,10 +175,7 @@ func RequestLinkCourse(courseCode string, usersID []uint) error {
 
 	jsonData, _ := json.Marshal(linkData)
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return fmt.Errorf("failed to get api url: %w", err)
-	}
+	api_url := secrets.CONSTANTS["API_URL"]
 
 	resp, err := new_client.Post(
 		fmt.Sprintf("%s/course/link/request", api_url),
@@ -220,10 +211,7 @@ func AcceptLinkCourse(c *course.Course) (*AcceptLinkCourseResponse, error) {
 
 	jsonData, _ := json.Marshal(c)
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get api url: %w", err)
-	}
+	api_url := secrets.CONSTANTS["API_URL"]
 
 	// Get the  course assignments and documents
 	resp, err := new_client.Post(

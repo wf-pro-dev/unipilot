@@ -11,10 +11,7 @@ import (
 
 func (a *Auth) GetUser() (map[string]interface{}, error) {
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get api url: %w", err)
-	}
+	api_url := secrets.CONSTANTS["API_URL"]
 
 	resp, err := a.Client.Get(fmt.Sprintf("%s/user", api_url))
 	if err != nil {

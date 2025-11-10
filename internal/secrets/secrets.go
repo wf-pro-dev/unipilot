@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	CONSTANT = map[string]string{
+	CONSTANTS = map[string]string{
 		"BASE_URL": "https://wwwill.dedyn.io",
 		"API_URL":  "https://wwwill.dedyn.io/unipilot/api/v1",
 	}
@@ -23,9 +23,6 @@ func GetEnvVar(envName string) (string, error) {
 	}
 
 	var envVar = os.Getenv(envName)
-	if envVar == "" {
-		envVar = CONSTANT[envName]
-	}
 	if envVar == "" {
 		envVar = viper.GetString(envName)
 	}

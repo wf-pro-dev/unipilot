@@ -26,10 +26,7 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 	loginData := map[string]string{"username": username, "password": password}
 	jsonData, _ := json.Marshal(loginData)
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get api url: %w", err)
-	}
+	api_url := secrets.CONSTANTS["API_URL"]
 
 	resp, err := httpClient.Post(fmt.Sprintf("%s/login", api_url), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {

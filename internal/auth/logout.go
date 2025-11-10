@@ -14,10 +14,7 @@ func (a *Auth) Logout() error {
 
 	a.User = nil
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return fmt.Errorf("failed to get api url: %w", err)
-	}
+	api_url := secrets.CONSTANTS["API_URL"]
 
 	// Make POST request to logout endpoint (empty body)
 	resp, err := a.Client.Post(

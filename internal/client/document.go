@@ -22,7 +22,7 @@ type UploadResponse struct {
 // sendMultipartFile sends file using multipart/form-data with your authenticated client
 func SendDocument(document *document.LocalDocument) (string, error) {
 
-	api_url, err := secrets.GetEnvVar("API_URL")
+	api_url := secrets.CONSTANTS["API_URL"]
 	if err != nil {
 		return "", fmt.Errorf("failed to get api url: %w", err)
 	}
@@ -135,10 +135,7 @@ func SendDocument(document *document.LocalDocument) (string, error) {
 }
 func DownloadDocument(document *document.LocalDocument) (io.Reader, error) {
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get api url: %w", err)
-	}
+	api_url := secrets.CONSTANTS["API_URL"]
 
 	var url string = fmt.Sprintf("%s/document/download", api_url)
 
@@ -181,10 +178,7 @@ func DownloadDocument(document *document.LocalDocument) (io.Reader, error) {
 
 func DeleteDocument(documentID uint) error {
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return fmt.Errorf("failed to get api url: %w", err)
-	}
+	api_url := secrets.CONSTANTS["API_URL"]
 
 	var url string = fmt.Sprintf("%s/document/delete", api_url)
 

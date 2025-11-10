@@ -23,10 +23,7 @@ func CreateNote(n *note.Note) (map[string]string, error) {
 
 	jsonData, _ := json.Marshal(noteData)
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get api url: %w", err)
-	}
+	api_url := secrets.CONSTANTS["API_URL"]
 
 	resp, err := new_client.Post(
 		fmt.Sprintf("%s/note", api_url),
@@ -84,10 +81,7 @@ func SendNoteUpdate(id, column, value string) error {
 
 	jsonData, _ := json.Marshal(updateData)
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return fmt.Errorf("failed to get api url: %w", err)
-	}
+	api_url := secrets.CONSTANTS["API_URL"]
 
 	resp, err := new_client.Post(
 		fmt.Sprintf("%s/note/update", api_url),
