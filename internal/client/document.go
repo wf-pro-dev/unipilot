@@ -23,10 +23,6 @@ type UploadResponse struct {
 func SendDocument(document *document.LocalDocument) (string, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	if err != nil {
-		return "", fmt.Errorf("failed to get api url: %w", err)
-	}
-
 	var url string = fmt.Sprintf("%s/document", api_url)
 
 	// Create a new client with cookies
