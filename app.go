@@ -884,7 +884,7 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 			"version":       response.LocalDocument.Version,
 		}
 
-		api_url, err := secrets.GetEnvVar("API_URL")
+		api_url := secrets.CONSTANTS["API_URL"]
 		if err != nil {
 			return nil, fmt.Errorf("failed to get api url: %w", err)
 		}

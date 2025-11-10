@@ -16,14 +16,11 @@ func IsOnline() bool {
 		return onlineStatus
 	}
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return false
-	}
+	api_url := secrets.CONSTANTS["API_URL"]
 
 	// Simple check - adjust as needed
 	client := http.Client{Timeout: 1 * time.Second}
-	_, err = client.Get(fmt.Sprintf("%s/health", api_url))
+	_, err := client.Get(fmt.Sprintf("%s/health", api_url))
 
 	onlineStatus = err == nil
 	lastChecked = time.Now()

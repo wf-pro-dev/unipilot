@@ -22,10 +22,7 @@ func GetRemoteUsers() ([]user.User, error) {
 		return nil, err
 	}
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get api url: %w", err)
-	}
+	api_url := secrets.CONSTANTS["API_URL"]
 
 	resp, err := new_client.Get(fmt.Sprintf("%s/users", api_url))
 	if err != nil {

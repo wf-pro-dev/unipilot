@@ -27,10 +27,7 @@ func (a *Auth) Register(username, email, password, university, language string) 
 	loginData := map[string]string{"username": username, "password": password, "email": email, "university": university, "language": language}
 	jsonData, _ := json.Marshal(loginData)
 
-	api_url, err := secrets.GetEnvVar("API_URL")
-	if err != nil {
-		return nil, fmt.Errorf("failed to get api url: %w", err)
-	}
+	api_url := secrets.CONSTANTS["API_URL"]
 
 	resp, err := httpClient.Post(fmt.Sprintf("%s/register", api_url), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {

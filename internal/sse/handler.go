@@ -76,10 +76,7 @@ func (c *SSE) Connect(httpClient *http.Client) {
 
 func (c *SSE) establishAndStream(httpClient *http.Client) error {
 
-	base_url, err := secrets.GetEnvVar("BASE_URL")
-	if err != nil {
-		return fmt.Errorf("failed to get api url: %w", err)
-	}
+	base_url := secrets.CONSTANTS["BASE_URL"]
 
 	url := fmt.Sprintf("%s/unipilot/sse/v1", base_url)
 	log.Println("SSE URL: ", url)

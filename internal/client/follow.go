@@ -30,7 +30,7 @@ func Follow(followedID uint) (bool, error) {
 	followData := map[string]uint{"followed_id": followedID}
 	jsonData, _ := json.Marshal(followData)
 
-	api_url, err := secrets.GetEnvVar("API_URL")
+	api_url := secrets.CONSTANTS["API_URL"]
 	if err != nil {
 		return false, fmt.Errorf("failed to get api url: %w", err)
 	}
@@ -75,7 +75,7 @@ func GetFollowers(userID uint) ([]user.User, int, error) {
 		return nil, 0, err
 	}
 
-	api_url, err := secrets.GetEnvVar("API_URL")
+	api_url := secrets.CONSTANTS["API_URL"]
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get api url: %w", err)
 	}
@@ -106,7 +106,7 @@ func GetFollowing(userID uint) ([]user.User, int, error) {
 		return nil, 0, err
 	}
 
-	api_url, err := secrets.GetEnvVar("API_URL")
+	api_url := secrets.CONSTANTS["API_URL"]
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get api url: %w", err)
 	}
