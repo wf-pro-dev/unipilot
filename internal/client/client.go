@@ -1,6 +1,8 @@
 package client
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 	"time"
 )
@@ -44,6 +46,33 @@ func (rt *JWTRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 		if err == nil && token != "" {
 			rt.Token = token
 		}
+	}
+
+	if rt.RefreshToken == "" {
+		refreshToken, err := LoadRefreshToken()
+		if err == nil && refreshToken != "" {
+			rt.RefreshToken = refreshToken
+		}
+	}
+
+	// Refresh token if it is about to expire
+	if !IsTokenValid() {
+
+		// call /refresh-token endpoint to get a new token
+		newToken, newRefreshToken, err := RefreshToken(rt.RefreshToken)
+		if err != nil {
+			return nil, fmt.Errorf("failed to refresh token: %w", err)
+		}
+		rt.Token = newToken
+		if err := SaveToken(newToken); err != nil {
+			return nil, fmt.Errorf("failed to save token: %w", err)
+		}
+		rt.RefreshToken = newRefreshToken
+		if err := SaveRefreshToken(newRefreshToken); err != nil {
+			return nil, fmt.Errorf("failed to save refresh token: %w", err)
+		}
+		log.Println("Token refreshed")
+
 	}
 
 	// Add Authorization header if token exists
