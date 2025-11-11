@@ -185,7 +185,7 @@ func IsTokenValid() bool {
 		return false
 	}
 
-	return claims.ExpiresAt != nil && claims.ExpiresAt.After(time.Now().Add(-30*time.Second))
+	return claims.ExpiresAt != nil && claims.ExpiresAt.After(time.Now().Add(-5*time.Minute))
 }
 
 // getTokenFilePath returns the path for the token file
