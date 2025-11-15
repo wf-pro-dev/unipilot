@@ -32,6 +32,10 @@ go.work.sum
 .env
 */**/.env
 
+.venv/
+internal/server/nodejs/node_modules/
+internal/server/qdrant/qdrant_storage/
+
 # Editor/IDE
 # .idea/
 # .vscode/

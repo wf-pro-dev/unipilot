@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -115,6 +114,8 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	keywords := input.Keywords
 	content := input.Content
 
+	//server.PrintLOG([]string{"INFO", "CREATE", "NOTE"}, fmt.Sprintf("Keywords: %s, Content: %s", keywords, content))
+
 	// Gnerate note gemini data if missing
 	if keywords == "" && content == "" {
 
@@ -134,6 +135,8 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		keywords = geminiResponse.Keywords
 		content = geminiResponse.Content
 	}
+
+	server.PrintLOG([]string{"INFO", "CREATE", "NOTE"}, fmt.Sprintf("After Gemini: Keywords: %s, Title: %s, Subject: %s", keywords, input.Title, input.Subject))
 
 	nVal := note.Note{
 		UserID:     userID,
@@ -175,7 +178,8 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	// nJson, err := json.Marshal(newN)
 	_, err = json.Marshal(newN)
 	if err != nil {
-		log.Printf("[Error] error marshalling notification : %v ", err)
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("error marshalling notification: %s", err))
+		return
 	}
 
 	// link_users, err := newN.Course.GetLinkUsers(db)

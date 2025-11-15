@@ -9,17 +9,20 @@ import (
 
 	"unipilot/internal/server"
 	grpc "unipilot/internal/server/api/grpc"
+	"unipilot/internal/server/qdrant"
 	"unipilot/internal/server/sse/grpc/notifications"
 	"unipilot/internal/storage"
 
 	"unipilot/internal/server/api/redis"
 
+	Qdrant "github.com/qdrant/go-client/qdrant"
 	Redis "github.com/redis/go-redis/v9"
 )
 
 var (
-	GrpcClient  notifications.NotificationsServiceClient
-	RedisClient *Redis.Client
+	GrpcClient   notifications.NotificationsServiceClient
+	RedisClient  *Redis.Client
+	QdrantClient *Qdrant.Client
 )
 
 func GetRouteName(name ...string) string {
@@ -50,6 +53,13 @@ func StartServer() {
 	}
 	defer RedisClient.Close()
 
+	QdrantClient, err = qdrant.NewQdrantClient()
+	if err != nil {
+		log.Println("Error getting qdrant client", err)
+		return
+	}
+	defer QdrantClient.Close()
+
 	http.HandleFunc("/health", HealthHandler)
 
 	http.HandleFunc(GetRouteName("register"), server.DBMiddleware(db, RegisterHandler))
@@ -76,6 +86,7 @@ func StartServer() {
 	http.HandleFunc(GetRouteName("document"), server.DBMiddleware(db, server.AuthMiddleware(CreateDocumentHandler)))
 	http.HandleFunc(GetRouteName("document", "download"), server.DBMiddleware(db, server.AuthMiddleware(DownloadDocumentHandler)))
 	http.HandleFunc(GetRouteName("document", "delete"), server.DBMiddleware(db, server.AuthMiddleware(DeleteDocumentHandler)))
+	http.HandleFunc(GetRouteName("document", "rag"), server.DBMiddleware(db, server.AuthMiddleware(UploadDocumentForRAGHandler)))
 
 	http.HandleFunc(GetRouteName("note"), server.DBMiddleware(db, server.AuthMiddleware(CreateNoteHandler)))
 	http.HandleFunc(GetRouteName("note", "get"), server.DBMiddleware(db, server.AuthMiddleware(GetNoteHandler)))

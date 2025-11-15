@@ -9,9 +9,9 @@ services:
         - unipilot-server:${IMAGE_TAG:-latest}
     container_name: server
     ports:
-      - "3000:3000"
-      - "9000:9000"
-      - "6379:6379"
+      - "3000:3000" # API
+      - "9000:9000" # SSE GRPC
+      - "6379:6379" # Redis
     environment:
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}

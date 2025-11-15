@@ -8,26 +8,26 @@ RUN apk add --no-cache \
     git
 
 WORKDIR /app
-
-# Copy Go module files first for better caching
 COPY go.mod go.sum ./
 RUN go mod download
-
-# Copy ALL source code
 COPY internal/ ./internal/
-
-# Build the server application
+COPY scripts/ ./scripts/
 RUN go build -v -o server ./internal/server.go
 
 # Final stage
 FROM alpine:latest
 
-# Install runtime dependencies
+# Install runtime dependencies INCLUDING PYTHON
 RUN apk add --no-cache \
     ca-certificates \
     tzdata \
     shadow \
+    python3 \
+    py3-pip \
     && update-ca-certificates
+
+# Install docx2txt directly in final stage
+RUN pip3 install --break-system-packages --no-cache-dir docx2txt
 
 # Create non-root user and directories
 RUN groupadd -r app && useradd -r -g app app \
@@ -36,25 +36,14 @@ RUN groupadd -r app && useradd -r -g app app \
 
 WORKDIR /app
 
-# COPY THE BINARY FROM BUILDER STAGE - THIS WAS MISSING!
+# Copy the binary and scripts
 COPY --from=builder --chown=app:app /app/server .
+COPY --from=builder --chown=app:app /app/scripts ./scripts/
 
-<<<<<<< HEAD
-=======
-# Copy configuration files if any
-COPY --chown=app:app ecosystem.config.js ./
-
->>>>>>> ba59e03 (feat/docker (backend) :)
-# Switch to non-root user
 USER app
+EXPOSE 3000 6334 9000
 
-# Expose the port your server uses
-EXPOSE 3000
-EXPOSE 9000
-
-# Health check - FIXED PORT (3000 instead of 8080)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
-# Start the server
 CMD ["./server"]
