@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"time"
 
@@ -517,9 +518,34 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//List collections
+	collections, err := QdrantClient.ListCollections(context.Background())
+	if err != nil {
+		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to list collections: %v", err))
+		return
+	}
+	collectionName := fmt.Sprintf("unipilot-qdrant-db-%d", doc.AssignmentID)
+
+	if !slices.Contains(collections, collectionName) {
+		err = QdrantClient.CreateCollection(context.Background(), &qdrant.CreateCollection{
+			CollectionName: collectionName,
+			VectorsConfig: qdrant.NewVectorsConfig(&qdrant.VectorParams{
+				Size:     768,
+				Distance: qdrant.Distance_Cosine,
+			}),
+		})
+		if err != nil {
+			server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create collection: %v", err))
+			return
+		}
+
+		server.PrintLOG([]string{"INFO", "UPLOAD", "DOCUMENT", "QDRANT"}, fmt.Sprintf("Collection created: %s", collectionName))
+
+	}
+
 	// Insert vectors into qdrant
 	_, err = QdrantClient.Upsert(context.Background(), &qdrant.UpsertPoints{
-		CollectionName: "unipilot-qdrant-db-1",
+		CollectionName: collectionName,
 		Points:         vectors,
 	})
 	if err != nil {

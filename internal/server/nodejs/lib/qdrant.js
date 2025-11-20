@@ -11,8 +11,8 @@ const google = createGoogleGenerativeAI({
 });
 
 const qdrantClient = new QdrantClient({
-    url: 'http://localhost:6334',
-    
+    host: process.env.QDRANT_HOST || 'localhost',
+    port: parseInt(process.env.QDRANT_PORT || '6334'),
 });
 
 const ListCollections = async () => {
@@ -21,8 +21,9 @@ const ListCollections = async () => {
 };
 
 
-const findRelevantContent = async (userQuery) => {
+const findRelevantContent = async (userQuery, assignmentID) => {
     try {
+        console.log("a", userQuery, assignmentID);
         const vector = await generateEmbedding(userQuery);
         
         // Check if embedding generation failed
@@ -31,7 +32,7 @@ const findRelevantContent = async (userQuery) => {
             return "Unable to generate embedding for the query.";
         }
         
-        const collection = 'unipilot-qdrant-db-1';
+        const collection = `unipilot-qdrant-db-${assignmentID}`;
         const relevantContent = await qdrantClient.api('points').search({
             collectionName: collection,
             vector: vector,
@@ -41,7 +42,7 @@ const findRelevantContent = async (userQuery) => {
                 selectorOptions: {
                     case: "include",
                     value: {
-                        fields: ["chunk_text"]
+                        fields: ["chunk_text", "assignment_id"]
                     }
                 }
             }
@@ -55,6 +56,8 @@ const findRelevantContent = async (userQuery) => {
         
         // Extract chunks with proper payload value extraction
         const chunks = jsonResponse.result.map((point, index) => {
+
+            console.log("point", point);
             const payload = point.payload || {};
         
             const score = point.score || 0;
@@ -65,13 +68,13 @@ const findRelevantContent = async (userQuery) => {
                 index: index + 1
             };
         }).filter(chunk => chunk.text);
+
+        
         
         if (chunks.length === 0) {
             return "Found relevant documents but no text content was available in the payload.";
         }
 
-        console.log("chunks", chunks);
-        
         // Generate assistance message using AI
         const chunksText = chunks.map(chunk => 
             `[Chunk ${chunk.index}, Relevance: ${chunk.score.toFixed(3)}]\n${chunk.text}`
@@ -79,7 +82,6 @@ const findRelevantContent = async (userQuery) => {
         
         const assistancePrompt = `Based on the following relevant document chunks retrieved for the user's question "${userQuery}", provide a helpful and concise assistance message that directly addresses their question using the information from these chunks:\n\n${chunksText}\n\nProvide a clear, helpful response that answers the user's question using the information from the retrieved chunks.`;
         
-        console.log("assistancePrompt", assistancePrompt);
 
         const { text: assistanceMessage } = await generateText({
             model: google('gemini-2.0-flash-lite'),

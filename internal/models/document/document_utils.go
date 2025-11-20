@@ -35,14 +35,20 @@ func GetFileTextForDocx(filename string) (string, error) {
 }
 
 func GetFileTextForPdf(filename string) (string, error) {
-	var text_file string = fmt.Sprintf("%s.txt", filename)
-	cmd := exec.Command("pdf2text", filename, text_file)
-	err := cmd.Run()
+	file, err := os.Open(filename)
 	if err != nil {
+		return "", fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
+
+	// Create command and set stdin to the file
+	cmd := exec.Command("python3", "/app/scripts/python/extract_pdf.py", filename)
+	output, err := cmd.Output()
+	if err != nil {
+		fmt.Printf("GetFileTextForDocx err : %s", err.Error())
 		return "", err
 	}
-
-	return text_file, nil
+	return string(output), nil
 }
 
 func GetFileText(filename, ext string) (string, error) {

@@ -38,23 +38,23 @@ app.post('/unipilot/ai/v1', async (req, res) => {
 
       let systemPrompt = '';
       if (assignment) {
+        console.log("assignment", assignment);
         systemPrompt = buildSystemPrompt(assignment);
       }
   
       const result = streamText({
         model: google('gemini-2.0-flash-lite'),
         messages: allMessages,
-        stopWhen: stepCountIs(5),
         maxTokens: 4000,
         temperature: 0.7,
         system: systemPrompt,
         tools: {
           getInformation: tool({
-            description: `get information from your knowledge base to answer questions.`,
+            description: `Use this tool to get information from your knowledge base to answer every user question.`,
             inputSchema: z.object({
               question: z.string().describe('the users question'),
             }),
-            execute: async ({ question }) => findRelevantContent(question),
+            execute: async ({ question }) => findRelevantContent(question, assignment.RemoteID),
           }),
         },
       });

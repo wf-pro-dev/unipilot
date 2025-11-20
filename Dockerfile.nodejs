@@ -10,5 +10,7 @@ COPY internal/server/nodejs/ ./
 # Install dependencies
 RUN npm install
 
+EXPOSE 6334
+
 # Start the server
 CMD ["node", "index.js"]

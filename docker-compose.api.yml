@@ -1,13 +1,11 @@
-version: '3.8'
-
 services:
   server:
     build:
       context: .
-      dockerfile: Dockerfile.server
+      dockerfile: Dockerfile.api
       tags:
-        - unipilot-server:${IMAGE_TAG:-latest}
-    container_name: server
+        - unipilot-api:${IMAGE_TAG:-latest}
+    container_name: unipilot-api
     ports:
       - "3000:3000" # API
       - "9000:9000" # SSE GRPC
@@ -24,9 +22,10 @@ services:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
-      - GRPC_SSE_ADDRESS=${GRPC_SSE_ADDRESS}
+      - GRPC_SSE_HOST=${GRPC_SSE_HOST}
       - REDIS_ADDRESS=${REDIS_ADDRESS}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - QDRANT_HOST=${QDRANT_HOST:-unipilot-qdrant}
     volumes:
       - server_data:/app/data
       - server_uploads:/app/uploads

@@ -35,6 +35,7 @@ go.work.sum
 .venv/
 internal/server/nodejs/node_modules/
 internal/server/qdrant/qdrant_storage/
+qdrant_storage/
 
 # Editor/IDE
 # .idea/

@@ -15,6 +15,7 @@ services:
       - DB_NAME=${DB_NAME}
       - SESSION_KEY=${SESSION_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - QDRANT_HOST=${QDRANT_HOST:-unipilot-qdrant}
     volumes:
       - nodejs_logs:/app/logs
     restart: unless-stopped

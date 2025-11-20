@@ -27,7 +27,7 @@ RUN apk add --no-cache \
     && update-ca-certificates
 
 # Install docx2txt directly in final stage
-RUN pip3 install --break-system-packages --no-cache-dir docx2txt
+RUN pip3 install --break-system-packages --no-cache-dir docx2txt pypdf
 
 # Create non-root user and directories
 RUN groupadd -r app && useradd -r -g app app \

@@ -17,7 +17,7 @@ var conn *grpc.ClientConn
 
 func NewGRPCClient() *notifications.NotificationsServiceClient {
 
-	address, err := secrets.GetEnvVar("GRPC_SSE_ADDRESS")
+	address, err := secrets.GetEnvVar("GRPC_SSE_HOST")
 	if err != nil {
 		log.Fatalf("did not get port: %v", err)
 	}
