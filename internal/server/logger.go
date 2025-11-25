@@ -1,11 +1,14 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
+	"unipilot/internal/models/user"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -101,57 +104,88 @@ func InitLogger() {
 
 }
 
-func LogInfo(message string, keysAndValues ...interface{}) {
-
-	logMessage, err := FormatLogMessage(message, keysAndValues...)
+func LogDebug(ctx context.Context, message string, keysAndValues ...interface{}) {
+	fields := extractContextFields(ctx)
+	// Prepend context fields so they can be overridden by provided fields
+	allFields := append(fields, keysAndValues...)
+	logMessage, err := FormatLogMessage(message, allFields...)
 	if err != nil {
-		LogError(err.Error(), err, keysAndValues...)
+		LogError(ctx, err.Error(), err, allFields...)
+		return
+	}
+	if Logger != nil {
+		Logger.Debugf(logMessage)
+	}
+}
+
+func LogInfo(ctx context.Context, message string, keysAndValues ...interface{}) {
+	fields := extractContextFields(ctx)
+	// Prepend context fields so they can be overridden by provided fields
+	allFields := append(fields, keysAndValues...)
+	logMessage, err := FormatLogMessage(message, allFields...)
+
+	if err != nil {
+		LogError(ctx, err.Error(), err, allFields...)
 		return
 	}
 	if Logger != nil {
 		Logger.Infof(logMessage)
 	}
 	if FileLogger != nil {
-		FileLogger.Infow(message, keysAndValues...)
+		FileLogger.Infow(message, allFields...)
 	}
 }
 
-func LogWarn(message string, err error, keysAndValues ...interface{}) {
-	keysAndValues = append(keysAndValues, "error", err.Error())
-	logMessage, err := FormatLogMessage(message, keysAndValues...)
-	if err != nil {
-		LogError(err.Error(), err, keysAndValues...)
+func LogWarn(ctx context.Context, message string, err error, keysAndValues ...interface{}) {
+	fields := extractContextFields(ctx)
+	// Prepend context fields so they can be overridden by provided fields
+	allFields := append(fields, keysAndValues...)
+	allFields = append(allFields, "error", err.Error())
+
+	logMessage, formatErr := FormatLogMessage(message, allFields...)
+	if formatErr != nil {
+		LogError(ctx, formatErr.Error(), formatErr, allFields...)
 		return
 	}
 	if Logger != nil {
 		Logger.Warnf(logMessage)
 	}
 	if FileLogger != nil {
-		FileLogger.Warnw(message, keysAndValues...)
+		FileLogger.Warnw(message, allFields...)
 	}
 }
 
-func LogError(message string, err error, keysAndValues ...interface{}) {
-	keysAndValues = append(keysAndValues, "error", err.Error())
-	logMessage, err := FormatLogMessage(message, keysAndValues...)
-	if err != nil {
-		LogError(err.Error(), err, keysAndValues...)
+func LogError(ctx context.Context, message string, err error, keysAndValues ...interface{}) {
+	fields := extractContextFields(ctx)
+	// Prepend context fields so they can be overridden by provided fields
+	allFields := append(fields, keysAndValues...)
+	allFields = append(allFields, "error", err.Error())
+
+	logMessage, formatErr := FormatLogMessage(message, allFields...)
+	if formatErr != nil {
+		// Avoid infinite recursion by using a simple log if FormatLogMessage fails
+		if Logger != nil {
+			Logger.Errorf("Failed to format log message: %v", formatErr)
+		}
+		if FileLogger != nil {
+			FileLogger.Errorw("Failed to format log message", "error", formatErr.Error())
+		}
 		return
 	}
 	if Logger != nil {
 		Logger.Errorf(logMessage)
 	}
 	if FileLogger != nil {
-		FileLogger.Errorw(message, keysAndValues...)
+		FileLogger.Errorw(message, allFields...)
 	}
 }
 
-func ResponseError(w http.ResponseWriter, err error, code int, message string, keysAndValues ...interface{}) {
+func ResponseError(ctx context.Context, w http.ResponseWriter, err error, code int, message string, keysAndValues ...interface{}) {
 	fields := append([]interface{}{"status_code", code}, keysAndValues...)
 	if code >= 500 {
-		LogError(message, err, fields...)
+		LogError(ctx, message, err, fields...)
 	} else {
-		LogWarn(message, err, fields...)
+		LogWarn(ctx, message, err, fields...)
 	}
 	http.Error(w, message, code)
 }
@@ -171,12 +205,27 @@ func FormatLogMessage(message string, keysAndValues ...interface{}) (string, err
 	return logMessage, nil
 }
 
-func PrintLOG(tags []string, message string) {
-	var tagStr string
-	for _, tag := range tags {
-		tagStr += fmt.Sprintf("[%s] ", tag)
+func extractContextFields(ctx context.Context) []interface{} {
+	fields := []interface{}{}
+
+	if requestID := ctx.Value("request_id"); requestID != nil {
+		fields = append(fields, "request_id", requestID)
 	}
-	log.Printf("%s, %s", tagStr, message)
+
+	if userCtx := ctx.Value("user"); userCtx != nil {
+		if u, ok := userCtx.(user.User); ok {
+			fields = append(fields, "user_id", u.ID)
+		}
+	}
+
+	if startTime := ctx.Value("start_time"); startTime != nil {
+		if st, ok := startTime.(time.Time); ok {
+			duration := time.Since(st).Milliseconds()
+			fields = append(fields, "duration", duration)
+		}
+	}
+
+	return fields
 }
 
 func PrintERROR(w http.ResponseWriter, code int, message string) {

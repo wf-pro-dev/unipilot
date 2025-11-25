@@ -13,18 +13,12 @@ import (
 )
 
 func RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
-
 	user := r.Context().Value("user").(user.User)
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		server.ResponseError(
+		server.ResponseError(r.Context(),
 			w, err, http.StatusInternalServerError, "Error getting session key",
-			"request_id", requestID,
-			"user_id", user.ID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"TOKEN", "SESSION_KEY"},
 		)
 		return
@@ -38,11 +32,8 @@ func RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		server.ResponseError(
+		server.ResponseError(r.Context(),
 			w, err, http.StatusInternalServerError, "Error creating access token",
-			"request_id", requestID,
-			"user_id", user.ID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"TOKEN", "ACCESS_TOKEN"},
 		)
 		return
@@ -56,11 +47,8 @@ func RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		server.ResponseError(
+		server.ResponseError(r.Context(),
 			w, err, http.StatusInternalServerError, "Error creating refresh token",
-			"request_id", requestID,
-			"user_id", user.ID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"TOKEN", "REFRESH_TOKEN"},
 		)
 		return
@@ -73,11 +61,8 @@ func RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		"refresh_token": refreshToken,
 	})
 
-	server.LogInfo(
+	server.LogInfo(r.Context(),
 		"Token refreshed successfully",
-		"request_id", requestID,
-		"user_id", user.ID,
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"TOKEN"},
 	)
 }

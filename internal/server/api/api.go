@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -99,6 +100,6 @@ func StartServer() {
 	http.HandleFunc(GetRouteName("following"), server.DBMiddleware(db, server.AuthMiddleware(HandleGetFollowing)))
 	http.HandleFunc(GetRouteName("follow-status"), server.DBMiddleware(db, server.AuthMiddleware(HandleGetFollowStatus)))
 
-	log.Println("Server listening on :3000...")
+	server.LogDebug(context.Background(), "API Server", "Server listening on :3000...")
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }

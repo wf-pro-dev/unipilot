@@ -28,7 +28,7 @@ func GetAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	var assignments []assignment.Assignment
 	if err := db.Where("user_id = ?", userID).Find(&assignments).Error; err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting assignments from database",
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting assignments from database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -48,7 +48,7 @@ func GetAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		"assignments": assignmentsMap,
 	})
 
-	server.LogInfo("Assignments retrieved successfully",
+	server.LogInfo(r.Context(), "Assignments retrieved successfully",
 		"request_id", requestID,
 		"user_id", userID,
 		"count", len(assignmentsMap),
@@ -84,7 +84,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -94,7 +94,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Validate all required fields
 	if input.LocalID == "" || input.CourseCode == "" || input.Title == "" || input.TypeName == "" || input.Deadline == "" {
-		server.ResponseError(w, fmt.Errorf("missing required fields"), http.StatusBadRequest, "Missing required fields",
+		server.ResponseError(r.Context(), w, fmt.Errorf("missing required fields"), http.StatusBadRequest, "Missing required fields",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -105,7 +105,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	deadline, err := time.Parse(time.DateOnly, input.Deadline)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid deadline format",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid deadline format",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -116,7 +116,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	local_id, err := strconv.Atoi(input.LocalID)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Error formatting local_id",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error formatting local_id",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -129,7 +129,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	if input.ParentID != "" {
 		parent_id, err = strconv.Atoi(input.ParentID)
 		if err != nil {
-			server.ResponseError(w, err, http.StatusBadRequest, "Error formatting parent_id",
+			server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error formatting parent_id",
 				"request_id", requestID,
 				"user_id", userID,
 				"duration", time.Since(startTime).Milliseconds(),
@@ -156,7 +156,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	result := tx.Create(&aVal)
 	if result.Error != nil {
 		tx.Rollback()
-		server.ResponseError(w, result.Error, http.StatusConflict, "Error creating assignment in database",
+		server.ResponseError(r.Context(), w, result.Error, http.StatusConflict, "Error creating assignment in database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -170,7 +170,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	a, err := assignment.Get_Assignment_byID(aObj.ID, userID, tx)
 	if err != nil {
 		tx.Rollback()
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting assignment from database",
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting assignment from database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -183,7 +183,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	assignmentMap := a.ToMap()
 	if assignmentMap == nil {
 		tx.Rollback()
-		server.ResponseError(w, fmt.Errorf("failed to process assignment data"), http.StatusInternalServerError, "Error processing assignment data",
+		server.ResponseError(r.Context(), w, fmt.Errorf("failed to process assignment data"), http.StatusInternalServerError, "Error processing assignment data",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -198,7 +198,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	newA, err := assignment.Get_Assignment_byID(aObj.ID, userID, db)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting assignment from database",
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting assignment from database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -209,8 +209,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	aJson, err := json.Marshal(newA)
 	if err != nil {
-		server.LogWarn(
-			"Error marshalling notification", err,
+		server.LogWarn(r.Context(), "Error marshalling notification", err,
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -220,7 +219,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	link_users, err := newA.Course.GetLinkUsers(db)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting users linked to course",
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting users linked to course",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -256,7 +255,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		"assignment": assignmentMap,
 	})
 
-	server.LogInfo("Assignment created successfully",
+	server.LogInfo(r.Context(), "Assignment created successfully",
 		"request_id", requestID,
 		"user_id", userID,
 		"assignment_id", aObj.ID,
@@ -286,7 +285,7 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&updateData)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -297,7 +296,7 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	int_id, err := strconv.Atoi(updateData.ID)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Error converting assignment ID to int",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error converting assignment ID to int",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -309,7 +308,7 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	a, err := assignment.Get_Assignment_byID(uint(int_id), userID, tx)
 	if err != nil {
 		tx.Rollback()
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting assignment from database",
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting assignment from database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -321,7 +320,7 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Exec(fmt.Sprintf("UPDATE assignments SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), a.ID).Error; err != nil {
 		tx.Rollback()
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error updating assignment in database",
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error updating assignment in database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -332,7 +331,7 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	tx.Commit()
 
-	server.LogInfo("Assignment updated successfully",
+	server.LogInfo(r.Context(), "Assignment updated successfully",
 		"request_id", requestID,
 		"user_id", userID,
 		"assignment_id", a.ID,

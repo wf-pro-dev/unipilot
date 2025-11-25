@@ -16,18 +16,13 @@ import (
 )
 
 func GetNoteHandler(w http.ResponseWriter, r *http.Request) {
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 	currentUser := r.Context().Value("user").(user.User)
 	db := r.Context().Value("db").(*gorm.DB)
 	userID := currentUser.ID
 
 	var notes []note.Note
 	if err := db.Where("user_id = ?", userID).Find(&notes).Error; err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting notes from database",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting notes from database",
 			"tags", []string{"NOTES", "DB"},
 		)
 		return
@@ -44,18 +39,13 @@ func GetNoteHandler(w http.ResponseWriter, r *http.Request) {
 		"notes":   notesMap,
 	})
 
-	server.LogInfo("Notes retrieved successfully",
-		"request_id", requestID,
-		"user_id", userID,
+	server.LogInfo(r.Context(), "Notes retrieved successfully",
 		"count", len(notesMap),
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"NOTES", "READ"},
 	)
 }
 
 func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 	currentUser := r.Context().Value("user").(user.User)
 	db := r.Context().Value("db").(*gorm.DB)
 	userID := currentUser.ID
@@ -78,10 +68,7 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
 			"tags", []string{"NOTES", "REQUEST"},
 		)
 		return
@@ -90,10 +77,7 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	// Validate all required fields
 	if input.CourseCode == "" || input.Title == "" || input.Subject == "" {
 		err := fmt.Errorf("missing required fields: course code: %s, title: %s, subject: %s", input.CourseCode, input.Title, input.Subject)
-		server.ResponseError(w, err, http.StatusBadRequest, "Missing required fields",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Missing required fields",
 			"tags", []string{"NOTES", "MISSING_REQUIRED_FIELDS"},
 		)
 		return
@@ -101,8 +85,6 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	keywords := input.Keywords
 	content := input.Content
-
-	//server.PrintLOG([]string{"INFO", "CREATE", "NOTE"}, fmt.Sprintf("Keywords: %s, Content: %s", keywords, content))
 
 	// Gnerate note gemini data if missing
 	if keywords == "" && content == "" {
@@ -116,10 +98,7 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 		geminiResponse, err := gemini.GenerateNote(geminiRequest)
 		if err != nil {
-			server.ResponseError(w, err, http.StatusInternalServerError, "Error generating note content with Gemini",
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error generating note content with Gemini",
 				"tags", []string{"NOTES", "GEMINI"},
 			)
 			return
@@ -142,10 +121,7 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	result := tx.Create(&nVal)
 	if result.Error != nil {
 		tx.Rollback()
-		server.ResponseError(w, result.Error, http.StatusConflict, "Error creating note in database",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, result.Error, http.StatusConflict, "Error creating note in database",
 			"tags", []string{"NOTES", "DB"},
 		)
 		return
@@ -155,10 +131,7 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	noteMap := nVal.ToMap()
 	if noteMap == nil {
 		tx.Rollback()
-		server.ResponseError(w, fmt.Errorf("failed to process note data"), http.StatusInternalServerError, "Error processing note data",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, fmt.Errorf("failed to process note data"), http.StatusInternalServerError, "Error processing note data",
 			"tags", []string{"NOTES", "MARSHALLING"},
 		)
 		return
@@ -172,10 +145,7 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	newN, err := note.Get_Note_byID(nVal.ID, userID, db)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting note from database",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting note from database",
 			"tags", []string{"NOTES", "DB"},
 		)
 		return
@@ -184,11 +154,8 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	// nJson, err := json.Marshal(newN)
 	_, err = json.Marshal(newN)
 	if err != nil {
-		server.LogWarn(
+		server.LogWarn(r.Context(),
 			"Error marshalling notification", err,
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"NOTES", "MARSHALLING"},
 		)
 	}
@@ -196,11 +163,8 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	// link_users, err := newN.Course.GetLinkUsers(db)
 	_, err = newN.Course.GetLinkUsers(db)
 	if err != nil {
-		server.LogWarn(
+		server.LogWarn(r.Context(),
 			"Error getting users linked to course", err,
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"NOTES", "DB"},
 		)
 	}
@@ -233,19 +197,14 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		"note":    noteMap,
 	})
 
-	server.LogInfo("Note created successfully",
-		"request_id", requestID,
-		"user_id", userID,
+	server.LogInfo(r.Context(), "Note created successfully",
 		"note_id", nVal.ID,
 		"title", nVal.Title,
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"NOTES", "WRITE"},
 	)
 }
 
 func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 	currentUser := r.Context().Value("user").(user.User)
 	db := r.Context().Value("db").(*gorm.DB)
 	userID := currentUser.ID
@@ -265,10 +224,7 @@ func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&updateData)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
 			"tags", []string{"NOTES", "REQUEST"},
 		)
 		return
@@ -276,10 +232,7 @@ func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	int_id, err := strconv.Atoi(updateData.ID)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Error converting note ID to int",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error converting note ID to int",
 			"tags", []string{"NOTES", "INVALID_NOTE_ID"},
 		)
 		return
@@ -288,10 +241,7 @@ func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	n, err := note.Get_Note_byID(uint(int_id), userID, tx)
 	if err != nil {
 		tx.Rollback()
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting note from database",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting note from database",
 			"tags", []string{"NOTES", "DB"},
 		)
 		return
@@ -300,10 +250,7 @@ func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Exec(fmt.Sprintf("UPDATE notes SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), n.ID).Error; err != nil {
 		tx.Rollback()
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error updating note in database",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error updating note in database",
 			"tags", []string{"NOTES", "DB"},
 		)
 		return
@@ -311,12 +258,9 @@ func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	tx.Commit()
 
-	server.LogInfo("Note updated successfully",
-		"request_id", requestID,
-		"user_id", userID,
+	server.LogInfo(r.Context(), "Note updated successfully",
 		"note_id", n.ID,
 		"update", updateData,
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"NOTES", "WRITE"},
 	)
 }

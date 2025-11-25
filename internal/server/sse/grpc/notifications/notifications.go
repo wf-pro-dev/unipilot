@@ -2,7 +2,6 @@ package notifications
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"unipilot/internal/models"
@@ -29,12 +28,19 @@ func (s *Server) SendNotification(ctx context.Context, notification *Notificatio
 		notification.Action,
 		notification.Data,
 	)
-	server.PrintLOG([]string{"SSE", "GRPC"},
-		fmt.Sprintf("Notification %s sent from %v to %v", notification.Title, notification.SenderId, notification.UserId))
+	server.LogDebug(ctx, "Notification sent: ",
+		"title", notification.Title,
+		"sender_id", notification.SenderId,
+		"user_id", notification.UserId,
+		"tags", []string{"SSE", "GRPC", "NOTIFICATION"},
+	)
 	return &NotificationResponse{Success: err == nil}, err
 }
 
 func (s *Server) Heartbeat(ctx context.Context, message *Message) (*Message, error) {
-	server.PrintLOG([]string{"GRPC"}, fmt.Sprintf("Heartbeat from client: %s", message.Body))
+	server.LogDebug(ctx, "Heartbeat from client: ",
+		"body", message.Body,
+		"tags", []string{"GRPC", "HEARTBEAT"},
+	)
 	return &Message{Body: "heartbeat received"}, nil
 }

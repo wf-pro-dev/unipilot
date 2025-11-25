@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -21,8 +20,6 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 
 	var credentials struct {
 		Username string `json:"username"`
@@ -30,14 +27,10 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
-
-		server.ResponseError(
+		server.ResponseError(r.Context(),
 			w, err, http.StatusBadRequest, "Invalid request body",
-			"request_id", requestID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"LOGIN", "INVALID_REQUEST_BODY"},
 		)
-
 		return
 	}
 
@@ -45,13 +38,9 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	var user user.User
 	if err := db.Where("username = ?", credentials.Username).First(&user).Error; err != nil {
-
-
-		server.ResponseError(
+		server.ResponseError(r.Context(),
 			w, err, http.StatusUnauthorized, "No user found",
-			"request_id", requestID,
 			"username", credentials.Username,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"LOGIN", "USER", "DB"},
 		)
 		return
@@ -59,32 +48,23 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Check password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(credentials.Password)); err != nil {
-
-		server.ResponseError(
+		server.ResponseError(r.Context(),
 			w, err, http.StatusUnauthorized, "Invalid Password",
-			"request_id", requestID,
 			"user_id", user.ID,
 			"username", user.Username,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"LOGIN", "PASSWORD"},
 		)
-
 		return
 	}
 
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-
-
-		server.ResponseError(
+		server.ResponseError(r.Context(),
 			w, err, http.StatusInternalServerError, "Invalid session key:",
-			"request_id", requestID,
 			"user_id", user.ID,
 			"username", user.Username,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"LOGIN", "SESSION_KEY"},
 		)
-
 		return
 	}
 
@@ -96,17 +76,12 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-
-
-		server.ResponseError(
+		server.ResponseError(r.Context(),
 			w, err, http.StatusInternalServerError, "Error creating access token",
-			"request_id", requestID,
 			"user_id", user.ID,
 			"username", user.Username,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"LOGIN", "ACCESS_TOKEN"},
 		)
-
 		return
 	}
 
@@ -118,17 +93,12 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-
-
-		server.ResponseError(
+		server.ResponseError(r.Context(),
 			w, err, http.StatusInternalServerError, "Error creating refresh token",
-			"request_id", requestID,
 			"user_id", user.ID,
 			"username", user.Username,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"LOGIN", "REFRESH_TOKEN"},
 		)
-
 		return
 	}
 
@@ -140,15 +110,10 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		"refresh_token": refreshToken,
 	})
 
-	server.PrintLOG([]string{"SUCCESS", "LOGIN"}, fmt.Sprintf("User ID : %v, Username : %v", user.ID, user.Username))
-
-	duration := time.Since(startTime).Milliseconds()
-	server.LogInfo(
+	server.LogInfo(r.Context(),
 		"Login successful",
-		"request_id", requestID,
 		"user_id", user.ID,
 		"username", user.Username,
-		"duration", duration,
 		"tags", []string{"LOGIN"},
 	)
 }

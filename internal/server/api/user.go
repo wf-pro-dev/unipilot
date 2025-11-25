@@ -16,18 +16,13 @@ import (
 )
 
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 	currentUser := r.Context().Value("user").(user.User)
 
 	// Convert to map safely
 	userMap := currentUser.ToMap()
 	if userMap == nil {
 		err := errors.New("failed to process user data")
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error processing user data",
-			"request_id", requestID,
-			"user_id", currentUser.ID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error processing user data",
 			"tags", []string{"USER", "MARSHALLING"},
 		)
 		return
@@ -40,17 +35,12 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 		"user":    userMap,
 	})
 
-	server.LogInfo("User retrieved successfully",
-		"request_id", requestID,
-		"user_id", currentUser.ID,
-		"duration", time.Since(startTime).Milliseconds(),
+	server.LogInfo(r.Context(), "User retrieved successfully",
 		"tags", []string{"USER", "READ"},
 	)
 }
 
 func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 	currentUser := r.Context().Value("user").(user.User)
 	db := r.Context().Value("db").(*gorm.DB)
 	userID := currentUser.ID
@@ -62,10 +52,7 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&updateData)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
 			"tags", []string{"USER", "REQUEST"},
 		)
 		return
@@ -73,10 +60,7 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := db.Exec(fmt.Sprintf("UPDATE users SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), userID).Error; err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error updating user in database",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error updating user in database",
 			"tags", []string{"USER", "DB"},
 		)
 		return
@@ -86,17 +70,11 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	var userObj user.User
 	if err := db.First(&userObj, userID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			server.ResponseError(w, err, http.StatusNotFound, "User not found",
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusNotFound, "User not found",
 				"tags", []string{"USER", "DB"},
 			)
 		} else {
-			server.ResponseError(w, err, http.StatusInternalServerError, "Error getting user from database",
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting user from database",
 				"tags", []string{"USER", "DB"},
 			)
 		}
@@ -107,10 +85,7 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	userMap := userObj.ToMap()
 	if userMap == nil {
 		err := errors.New("failed to process user data")
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error processing user data",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error processing user data",
 			"tags", []string{"USER"},
 		)
 		return
@@ -119,20 +94,14 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	// Update the user in redis
 	userJSON, err := json.Marshal(userMap)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error marshalling user to json",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error marshalling user to json",
 			"tags", []string{"USER", "SERIALIZATION"},
 		)
 		return
 	}
 	if err := RedisClient.HSet(context.Background(), "users", strconv.Itoa(int(userID)), userJSON).Err(); err != nil {
-		server.LogWarn(
+		server.LogWarn(r.Context(),
 			"Error caching user in redis", err,
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"USER", "REDIS"},
 		)
 	}
@@ -144,11 +113,8 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 		"user":    userMap,
 	})
 
-	server.LogInfo("User updated successfully",
-		"request_id", requestID,
-		"user_id", userID,
+	server.LogInfo(r.Context(), "User updated successfully",
 		"update", updateData,
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"USER", "WRITE"},
 	)
 }

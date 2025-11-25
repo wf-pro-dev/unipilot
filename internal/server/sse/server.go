@@ -1,6 +1,7 @@
 package sse
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -61,7 +62,10 @@ func (s *SSEServer) AddClient(userID uint) *SSEClient {
 		Connected: true,
 	}
 
-	server.PrintLOG([]string{"SSE"}, fmt.Sprintf("New SSE user id : %d\n", userID))
+	server.LogDebug(context.Background(), "New SSE user id : ",
+		"user_id", userID, "tags",
+		[]string{"SSE", "NEW_USER"},
+	)
 	s.clients[userID] = client
 	return client
 }
@@ -109,7 +113,10 @@ func (s *SSEServer) Broadcast(message []byte) {
 func (s *SSEServer) logActiveClients() {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	server.PrintLOG([]string{"SSE"}, fmt.Sprintf("Active Clients: %v", s.clients))
+	server.LogDebug(context.Background(), "Active Clients: ",
+		"count", len(s.clients),
+		"tags", []string{"SSE", "ACTIVE_CLIENTS"},
+	)
 }
 
 type noTimeoutWriter struct {
@@ -149,7 +156,9 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 	// Add client to server
 	client := s.AddClient(userID)
 	defer func() {
-		server.PrintLOG([]string{"SSE"}, fmt.Sprintf("Removing client %d (reason: connection closing)", int(userID)))
+		server.LogDebug(r.Context(), "Removing client: ",
+			"tags", []string{"SSE", "REMOVE_CLIENT"},
+		)
 		s.RemoveClient(userID)
 	}()
 
@@ -172,7 +181,9 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, ": heartbeat\n\n")
 			flusher.Flush()
 		case <-r.Context().Done():
-			server.PrintLOG([]string{"SSE"}, fmt.Sprintf("Client %d disconnected (context canceled)", userID))
+			server.LogDebug(r.Context(), "Client disconnected: ",
+				"tags", []string{"SSE", "DISCONNECTED"},
+			)
 			return
 		}
 	}

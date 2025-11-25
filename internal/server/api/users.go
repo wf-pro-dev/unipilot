@@ -15,20 +15,13 @@ import (
 )
 
 func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
-
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 	currentUser := r.Context().Value("user").(user.User)
-
 	db := r.Context().Value("db").(*gorm.DB)
 
 	// Try to get users from Redis cache first
 	usersHash, err := RedisClient.HGetAll(context.Background(), "users").Result()
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting users from redis",
-			"request_id", requestID,
-			"user_id", currentUser.ID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting users from redis",
 			"tags", []string{"USERS", "REDIS"},
 		)
 		return
@@ -45,11 +38,8 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 				cachedUsers = append(cachedUsers, userMap)
 			}
 		}
-		server.LogInfo("Users retrieved from cache",
-			"request_id", requestID,
-			"user_id", currentUser.ID,
+		server.LogInfo(r.Context(), "Users retrieved from cache",
 			"count", len(cachedUsers),
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"USERS", "REDIS", "HIT"},
 		)
 		w.Header().Set("Content-Type", "application/json")
@@ -63,20 +53,14 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 	// Query users from database
 	var users []user.User
 	if err := db.Where("id != ?", currentUser.ID).Find(&users).Error; err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting users from database",
-			"request_id", requestID,
-			"user_id", currentUser.ID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting users from database",
 			"tags", []string{"USERS", "DB"},
 		)
 		return
 	}
 
-	server.FileLogger.Infow("No users data found in redis",
-		"request_id", requestID,
-		"user_id", currentUser.ID,
+	server.LogInfo(r.Context(), "No users data found in redis",
 		"count", len(users),
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"USERS", "REDIS", "MISS"},
 	)
 
@@ -85,10 +69,7 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 
 		var courses_code []string
 		if err := db.Model(&course.Course{}).Select("code").Where("user_id = ? ", u.ID).Find(&courses_code).Error; err != nil {
-			server.ResponseError(w, err, http.StatusInternalServerError, "Error getting user courses",
-				"request_id", requestID,
-				"user_id", currentUser.ID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting user courses",
 				"tags", []string{"USERS", "DB"},
 			)
 			return
@@ -100,21 +81,15 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 		// Cache the users in redis
 		userJSON, err := json.Marshal(userMap)
 		if err != nil {
-			server.ResponseError(w, err, http.StatusInternalServerError, "Error marshalling user to json",
-				"request_id", requestID,
-				"user_id", currentUser.ID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error marshalling user to json",
 				"tags", []string{"USERS", "SERIALIZATION"},
 			)
 			return
 		}
 
 		if err := RedisClient.HSet(context.Background(), "users", strconv.Itoa(int(u.ID)), userJSON).Err(); err != nil {
-			server.LogWarn(
+			server.LogWarn(r.Context(),
 				"Error caching user in redis", err,
-				"request_id", requestID,
-				"user_id", currentUser.ID,
-				"duration", time.Since(startTime).Milliseconds(),
 				"tags", []string{"USERS", "REDIS"},
 			)
 		}
@@ -122,20 +97,14 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Set TTL for users to 10 minutes
 	if err := RedisClient.Expire(context.Background(), "users", time.Hour).Err(); err != nil {
-		server.LogWarn(
+		server.LogWarn(r.Context(),
 			"Error expiring users in redis", err,
-			"request_id", requestID,
-			"user_id", currentUser.ID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"USERS", "REDIS"},
 		)
 	}
 
-	server.FileLogger.Infow("Users cached successfully",
-		"request_id", requestID,
-		"user_id", currentUser.ID,
+	server.LogInfo(r.Context(), "Users cached successfully",
 		"count", len(usersMap),
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"USERS", "REDIS", "CACHED"},
 	)
 
@@ -146,11 +115,8 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 		"users":   usersMap,
 	})
 
-	server.LogInfo("Users retrieved successfully",
-		"request_id", requestID,
-		"user_id", currentUser.ID,
+	server.LogInfo(r.Context(), "Users retrieved successfully",
 		"count", len(usersMap),
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"USERS", "READ"},
 	)
 }

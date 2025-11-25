@@ -51,18 +51,13 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 	currentUser := r.Context().Value("user").(user.User)
 	db := r.Context().Value("db").(*gorm.DB)
 	userID := currentUser.ID
 
 	var req FollowRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
 			"tags", []string{"FOLLOWS", "REQUEST"},
 		)
 		return
@@ -70,10 +65,7 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 
 	if req.FollowedID == 0 {
 		err := fmt.Errorf("invalid followed_id")
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid followed_id",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid followed_id",
 			"tags", []string{"FOLLOWS", "VALIDATION"},
 		)
 		return
@@ -81,10 +73,7 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 
 	if userID == req.FollowedID {
 		err := fmt.Errorf("cannot follow yourself")
-		server.ResponseError(w, err, http.StatusBadRequest, "Cannot follow yourself",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Cannot follow yourself",
 			"tags", []string{"FOLLOWS", "VALIDATION"},
 		)
 		return
@@ -93,10 +82,7 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 	// Check if already following
 	isFollowing, err := user.IsFollowing(userID, req.FollowedID, db)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error checking follow status",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error checking follow status",
 			"tags", []string{"FOLLOWS", "DB"},
 		)
 		return
@@ -106,10 +92,7 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 	if isFollowing {
 		// Unfollow
 		if err := user.RemoveFollow(userID, req.FollowedID, db); err != nil {
-			server.ResponseError(w, err, http.StatusInternalServerError, "Error removing follow",
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error removing follow",
 				"tags", []string{"FOLLOWS", "DB"},
 			)
 			return
@@ -117,20 +100,14 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 
 		// Update stats for both users
 		if err := user.UpdateFollowStats(userID, db); err != nil {
-			server.LogWarn(
+			server.LogWarn(r.Context(),
 				"Error updating follow stats", err,
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
 				"tags", []string{"FOLLOWS", "DB"},
 			)
 		}
 		if err := user.UpdateFollowStats(req.FollowedID, db); err != nil {
-			server.LogWarn(
+			server.LogWarn(r.Context(),
 				"Error updating follow stats", err,
-				"request_id", requestID,
-				"user_id", req.FollowedID,
-				"duration", time.Since(startTime).Milliseconds(),
 				"tags", []string{"FOLLOWS", "DB"},
 			)
 		}
@@ -142,10 +119,7 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// Follow
 		if err := user.CreateFollow(userID, req.FollowedID, db); err != nil {
-			server.ResponseError(w, err, http.StatusInternalServerError, "Error creating follow",
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error creating follow",
 				"tags", []string{"FOLLOWS", "DB"},
 			)
 			return
@@ -153,20 +127,14 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 
 		// Update stats for both users
 		if err := user.UpdateFollowStats(userID, db); err != nil {
-			server.LogWarn(
+			server.LogWarn(r.Context(),
 				"Error updating follow stats", err,
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
 				"tags", []string{"FOLLOWS", "DB"},
 			)
 		}
 		if err := user.UpdateFollowStats(req.FollowedID, db); err != nil {
-			server.LogWarn(
+			server.LogWarn(r.Context(),
 				"Error updating follow stats", err,
-				"request_id", requestID,
-				"user_id", req.FollowedID,
-				"duration", time.Since(startTime).Milliseconds(),
 				"tags", []string{"FOLLOWS", "DB"},
 			)
 		}
@@ -178,11 +146,8 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 
 		var followedUser user.User
 		if err := db.First(&followedUser, req.FollowedID).Error; err != nil {
-			server.LogWarn(
+			server.LogWarn(r.Context(),
 				"Error getting followed user", err,
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
 				"tags", []string{"FOLLOWS", "DB"},
 			)
 		}
@@ -191,11 +156,8 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 		if err := db.Model(&course.Course{}).
 			Where("user_id = ? AND code IN (SELECT code FROM courses WHERE user_id = ?)", userID, req.FollowedID).
 			Count(&sharedCoursesCount).Error; err != nil {
-			server.LogWarn(
+			server.LogWarn(r.Context(),
 				"Error counting shared courses", err,
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
 				"tags", []string{"FOLLOWS", "DB"},
 			)
 		}
@@ -218,12 +180,9 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 
-	server.LogInfo("Follow action completed successfully",
-		"request_id", requestID,
-		"user_id", userID,
+	server.LogInfo(r.Context(), "Follow action completed successfully",
 		"followed_id", req.FollowedID,
 		"action", map[bool]string{true: "unfollow", false: "follow"}[isFollowing],
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"FOLLOWS", "WRITE"},
 	)
 }
@@ -235,8 +194,6 @@ func HandleGetFollowers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 	currentUser := r.Context().Value("user").(user.User)
 	db := r.Context().Value("db").(*gorm.DB)
 	_ = currentUser.ID // Available but not used for this endpoint
@@ -244,9 +201,7 @@ func HandleGetFollowers(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.URL.Query().Get("user_id")
 	if userIDStr == "" {
 		err := fmt.Errorf("user_id parameter required")
-		server.ResponseError(w, err, http.StatusBadRequest, "User ID parameter required",
-			"request_id", requestID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "User ID parameter required",
 			"tags", []string{"FOLLOWS", "REQUEST"},
 		)
 		return
@@ -254,9 +209,7 @@ func HandleGetFollowers(w http.ResponseWriter, r *http.Request) {
 
 	userID, err := strconv.ParseUint(userIDStr, 10, 32)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Error converting user ID",
-			"request_id", requestID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error converting user ID",
 			"tags", []string{"FOLLOWS", "INVALID_USER_ID"},
 		)
 		return
@@ -281,10 +234,7 @@ func HandleGetFollowers(w http.ResponseWriter, r *http.Request) {
 	var cacheKey = fmt.Sprintf("followers:%d", userID)
 	followersHash, err := RedisClient.HGetAll(context.Background(), cacheKey).Result()
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting followers from redis",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting followers from redis",
 			"tags", []string{"FOLLOWS", "REDIS"},
 		)
 		return
@@ -303,11 +253,8 @@ func HandleGetFollowers(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-		server.LogInfo("Followers retrieved from cache",
-			"request_id", requestID,
-			"user_id", userID,
+		server.LogInfo(r.Context(), "Followers retrieved from cache",
 			"count", len(cachedFollowers),
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"FOLLOWS", "REDIS", "HIT"},
 		)
 		return
@@ -315,10 +262,7 @@ func HandleGetFollowers(w http.ResponseWriter, r *http.Request) {
 
 	followers, err := user.GetFollowers(uint(userID), limit, offset, db)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting followers from database",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting followers from database",
 			"tags", []string{"FOLLOWS", "DB"},
 		)
 		return
@@ -329,32 +273,23 @@ func HandleGetFollowers(w http.ResponseWriter, r *http.Request) {
 	for _, follower := range followers {
 		followerJSON, err := json.Marshal(follower)
 		if err != nil {
-			server.LogWarn(
+			server.LogWarn(r.Context(),
 				"Error marshalling follower to json", err,
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
 				"tags", []string{"FOLLOWS", "MARSHALLING"},
 			)
 			continue
 		}
 		if err := RedisClient.HSet(context.Background(), cacheKey, strconv.Itoa(int(follower.ID)), followerJSON).Err(); err != nil {
-			server.LogWarn(
+			server.LogWarn(r.Context(),
 				"Error caching follower in redis", err,
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
 				"tags", []string{"FOLLOWS", "REDIS"},
 			)
 		}
 	}
 
 	if err := RedisClient.Expire(context.Background(), cacheKey, 10*time.Minute).Err(); err != nil {
-		server.LogWarn(
+		server.LogWarn(r.Context(),
 			"Error expiring followers in redis", err,
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"FOLLOWS", "REDIS"},
 		)
 	}
@@ -367,11 +302,8 @@ func HandleGetFollowers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 
-	server.LogInfo("Followers retrieved successfully",
-		"request_id", requestID,
-		"user_id", userID,
+	server.LogInfo(r.Context(), "Followers retrieved successfully",
 		"count", total,
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"FOLLOWS", "READ"},
 	)
 }
@@ -383,8 +315,6 @@ func HandleGetFollowing(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 	currentUser := r.Context().Value("user").(user.User)
 	db := r.Context().Value("db").(*gorm.DB)
 	_ = currentUser.ID // Available but not used for this endpoint
@@ -392,9 +322,7 @@ func HandleGetFollowing(w http.ResponseWriter, r *http.Request) {
 	userIDStr := r.URL.Query().Get("user_id")
 	if userIDStr == "" {
 		err := fmt.Errorf("user_id parameter required")
-		server.ResponseError(w, err, http.StatusBadRequest, "User ID parameter required",
-			"request_id", requestID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "User ID parameter required",
 			"tags", []string{"FOLLOWS", "REQUEST"},
 		)
 		return
@@ -402,9 +330,7 @@ func HandleGetFollowing(w http.ResponseWriter, r *http.Request) {
 
 	userID, err := strconv.ParseUint(userIDStr, 10, 32)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Error converting user ID",
-			"request_id", requestID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error converting user ID",
 			"tags", []string{"FOLLOWS", "INVALID_USER_ID"},
 		)
 		return
@@ -429,10 +355,7 @@ func HandleGetFollowing(w http.ResponseWriter, r *http.Request) {
 	var cacheKey = fmt.Sprintf("following:%d", userID)
 	followingHash, err := RedisClient.HGetAll(context.Background(), cacheKey).Result()
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting following from redis",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting following from redis",
 			"tags", []string{"FOLLOWS", "REDIS"},
 		)
 		return
@@ -451,11 +374,8 @@ func HandleGetFollowing(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-		server.LogInfo("Following retrieved from cache",
-			"request_id", requestID,
-			"user_id", userID,
+		server.LogInfo(r.Context(), "Following retrieved from cache",
 			"count", len(cachedFollowing),
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"FOLLOWS", "REDIS", "HIT"},
 		)
 		return
@@ -463,10 +383,7 @@ func HandleGetFollowing(w http.ResponseWriter, r *http.Request) {
 
 	following, err := user.GetFollowing(uint(userID), limit, offset, db)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting following from database",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting following from database",
 			"tags", []string{"FOLLOWS", "DB"},
 		)
 		return
@@ -477,32 +394,23 @@ func HandleGetFollowing(w http.ResponseWriter, r *http.Request) {
 	for _, followed := range following {
 		followedJSON, err := json.Marshal(followed)
 		if err != nil {
-			server.LogWarn(
+			server.LogWarn(r.Context(),
 				"Error marshalling followed to json", err,
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
 				"tags", []string{"FOLLOWS", "MARSHALLING"},
 			)
 			continue
 		}
 		if err := RedisClient.HSet(context.Background(), cacheKey, strconv.Itoa(int(followed.ID)), followedJSON).Err(); err != nil {
-			server.LogWarn(
+			server.LogWarn(r.Context(),
 				"Error caching followed in redis", err,
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
 				"tags", []string{"FOLLOWS", "REDIS"},
 			)
 		}
 	}
 
 	if err := RedisClient.Expire(context.Background(), cacheKey, 10*time.Minute).Err(); err != nil {
-		server.LogWarn(
+		server.LogWarn(r.Context(),
 			"Error expiring following in redis", err,
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"FOLLOWS", "REDIS"},
 		)
 	}
@@ -515,11 +423,8 @@ func HandleGetFollowing(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 
-	server.LogInfo("Following retrieved successfully",
-		"request_id", requestID,
-		"user_id", userID,
+	server.LogInfo(r.Context(), "Following retrieved successfully",
 		"count", total,
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"FOLLOWS", "READ"},
 	)
 }
@@ -531,8 +436,6 @@ func HandleGetFollowStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 	currentUser := r.Context().Value("user").(user.User)
 	db := r.Context().Value("db").(*gorm.DB)
 	currentUserID := currentUser.ID
@@ -540,10 +443,7 @@ func HandleGetFollowStatus(w http.ResponseWriter, r *http.Request) {
 	targetUserIDStr := r.URL.Query().Get("user_id")
 	if targetUserIDStr == "" {
 		err := fmt.Errorf("user_id parameter required")
-		server.ResponseError(w, err, http.StatusBadRequest, "User ID parameter required",
-			"request_id", requestID,
-			"user_id", currentUserID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "User ID parameter required",
 			"tags", []string{"FOLLOWS", "REQUEST"},
 		)
 		return
@@ -551,10 +451,7 @@ func HandleGetFollowStatus(w http.ResponseWriter, r *http.Request) {
 
 	targetUserID, err := strconv.ParseUint(targetUserIDStr, 10, 32)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Error converting user ID",
-			"request_id", requestID,
-			"user_id", currentUserID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error converting user ID",
 			"tags", []string{"FOLLOWS", "INVALID_USER_ID"},
 		)
 		return
@@ -562,10 +459,7 @@ func HandleGetFollowStatus(w http.ResponseWriter, r *http.Request) {
 
 	isFollowing, err := user.IsFollowing(currentUserID, uint(targetUserID), db)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error checking follow status",
-			"request_id", requestID,
-			"user_id", currentUserID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error checking follow status",
 			"tags", []string{"FOLLOWS", "DB"},
 		)
 		return
@@ -573,10 +467,7 @@ func HandleGetFollowStatus(w http.ResponseWriter, r *http.Request) {
 
 	followersCount, err := user.GetFollowersCount(uint(targetUserID), db)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting followers count",
-			"request_id", requestID,
-			"user_id", currentUserID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting followers count",
 			"tags", []string{"FOLLOWS", "DB"},
 		)
 		return
@@ -584,10 +475,7 @@ func HandleGetFollowStatus(w http.ResponseWriter, r *http.Request) {
 
 	followingCount, err := user.GetFollowingCount(uint(targetUserID), db)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting following count",
-			"request_id", requestID,
-			"user_id", currentUserID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting following count",
 			"tags", []string{"FOLLOWS", "DB"},
 		)
 		return
@@ -602,14 +490,11 @@ func HandleGetFollowStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 
-	server.LogInfo("Follow status retrieved successfully",
-		"request_id", requestID,
-		"user_id", currentUserID,
+	server.LogInfo(r.Context(), "Follow status retrieved successfully",
 		"target_user_id", targetUserID,
 		"is_following", isFollowing,
 		"followers_count", followersCount,
 		"following_count", followingCount,
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"FOLLOWS", "READ"},
 	)
 }

@@ -34,7 +34,7 @@ func GetCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	var courses []course.Course
 	if err := db.Where("user_id = ?", userID).Find(&courses).Error; err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting courses from database",
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting courses from database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -54,7 +54,7 @@ func GetCourseHandler(w http.ResponseWriter, r *http.Request) {
 		"courses": coursesMap,
 	})
 
-	server.LogInfo("Courses retrieved successfully",
+	server.LogInfo(r.Context(), "Courses retrieved successfully",
 		"request_id", requestID,
 		"user_id", userID,
 		"count", len(coursesMap),
@@ -93,7 +93,7 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -105,7 +105,7 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 	// Validate all required fields
 	if input.LocalID == "" || input.Code == "" || input.Semester == "" || input.Instructor == "" || input.StartDate == "" || input.EndDate == "" {
 		err := errors.New("missing required fields")
-		server.ResponseError(w, err, http.StatusBadRequest, "Missing required fields",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Missing required fields",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -116,7 +116,7 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	startDate, err := time.Parse(time.DateOnly, input.StartDate)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid start date format",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid start date format",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -127,7 +127,7 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	endDate, err := time.Parse(time.DateOnly, input.EndDate)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid end date format",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid end date format",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -138,7 +138,7 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	credits, err := strconv.Atoi(input.Credits)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Error formatting credits",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error formatting credits",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -148,7 +148,7 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	localID, err := strconv.Atoi(input.LocalID)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Error formatting local_id",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error formatting local_id",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -175,7 +175,7 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	if result := tx.Create(&cVal); result.Error != nil {
 		tx.Rollback()
-		server.ResponseError(w, result.Error, http.StatusConflict, "Error creating course in database",
+		server.ResponseError(r.Context(), w, result.Error, http.StatusConflict, "Error creating course in database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -187,7 +187,7 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 	c, err := course.Get_Course_byId(cVal.ID, tx)
 	if err != nil {
 		tx.Rollback()
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting course from database",
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting course from database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -201,7 +201,7 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 	if courseMap == nil {
 		tx.Rollback()
 		err := errors.New("failed to process course data")
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error processing course data",
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error processing course data",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -219,7 +219,7 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 		"course":  courseMap,
 	})
 
-	server.LogInfo("Course created successfully",
+	server.LogInfo(r.Context(), "Course created successfully",
 		"request_id", requestID,
 		"user_id", userID,
 		"course_id", cVal.ID,
@@ -250,7 +250,7 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&updateData)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -261,7 +261,7 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	intID, err := strconv.Atoi(updateData.ID)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Error converting course ID to int",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error converting course ID to int",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -273,7 +273,7 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 	c, err := course.Get_Course_byId(uint(intID), tx)
 	if err != nil {
 		tx.Rollback()
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting course from database",
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting course from database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -285,7 +285,7 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Exec(fmt.Sprintf("UPDATE courses SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), c.ID).Error; err != nil {
 		tx.Rollback()
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error updating course in database",
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error updating course in database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -296,7 +296,7 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	tx.Commit()
 
-	server.LogInfo("Course updated successfully",
+	server.LogInfo(r.Context(), "Course updated successfully",
 		"request_id", requestID,
 		"user_id", userID,
 		"course_id", c.ID,
@@ -319,7 +319,7 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&linkRequestData); err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -331,7 +331,7 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Get send course informations
 	c, err := course.Get_Course_byCode(linkRequestData.CourseCode, userID, db)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Error getting course by code",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error getting course by code",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -347,7 +347,7 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request) {
 		linkId = uuid.New()
 		c.LinkID = linkId
 		if err = db.Save(&c).Error; err != nil {
-			server.ResponseError(w, err, http.StatusBadRequest, "Error saving link identifier",
+			server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error saving link identifier",
 				"request_id", requestID,
 				"user_id", userID,
 				"duration", time.Since(startTime).Milliseconds(),
@@ -362,7 +362,7 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	cJson, err := json.Marshal(c)
 	if err != nil {
-		server.LogWarn(
+		server.LogWarn(r.Context(),
 			"Error marshalling notification payload", err,
 			"request_id", requestID,
 			"user_id", userID,
@@ -400,7 +400,7 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request) {
 		"recipients": linkRequestData.UsersID,
 	})
 
-	server.LogInfo("Course link request processed",
+	server.LogInfo(r.Context(), "Course link request processed",
 		"request_id", requestID,
 		"user_id", userID,
 		"course_id", c.ID,
@@ -419,7 +419,7 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	var c course.Course
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -431,7 +431,7 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request) {
 	//1. Get Course assignments
 	var courseAssignments []assignment.Assignment
 	if err := db.Where("user_id = ? AND course_code = ?", c.UserID, c.Code).Order("created_at").Find(&courseAssignments).Error; err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Error getting course assignments",
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error getting course assignments",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
@@ -446,7 +446,7 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request) {
 		assignmentDocuments, err := assignment.GetDocuments(db)
 
 		if err != nil {
-			server.ResponseError(w, err, http.StatusBadRequest, "Error getting assignment documents",
+			server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error getting assignment documents",
 				"request_id", requestID,
 				"user_id", userID,
 				"duration", time.Since(startTime).Milliseconds(),
@@ -483,7 +483,7 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	server.LogInfo("Course link accepted",
+	server.LogInfo(r.Context(), "Course link accepted",
 		"request_id", requestID,
 		"course_code", c.Code,
 		"from_user", c.UserID,

@@ -45,18 +45,13 @@ type DocumentMetadata struct {
 
 // CreateDocumentHandler stores document metadata remotely
 func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 	currentUser := r.Context().Value("user").(user.User)
 	db := r.Context().Value("db").(*gorm.DB)
 	userID := currentUser.ID
 
 	// Parse multipart form with max memory (32MB in memory, rest on disk)
 	if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB
-		server.ResponseError(w, err, http.StatusBadRequest, "Unable to parse multipart form",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Unable to parse multipart form",
 			"tags", []string{"DOCUMENTS", "REQUEST"},
 		)
 		return
@@ -66,10 +61,7 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	metadata := r.FormValue("metadata")
 	if metadata == "" {
 		err := errors.New("metadata missing from form")
-		server.ResponseError(w, err, http.StatusBadRequest, "Metadata missing from form",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Metadata missing from form",
 			"tags", []string{"DOCUMENTS", "REQUEST"},
 		)
 		return
@@ -78,10 +70,7 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse metadata directly into LocalDocument
 	var localDoc document.LocalDocument
 	if err := json.Unmarshal([]byte(metadata), &localDoc); err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid metadata format",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid metadata format",
 			"tags", []string{"DOCUMENTS", "REQUEST"},
 		)
 		return
@@ -96,10 +85,7 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 
 	if localDoc.HasLocalFile {
 		if err := UploadFileToS3(localDoc, newKey, w, r); err != nil {
-			server.ResponseError(w, err, http.StatusInternalServerError, "Error uploading file",
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error uploading file",
 				"tags", []string{"DOCUMENTS", "STORAGE"},
 			)
 			return
@@ -107,10 +93,7 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// Copy file in aws S3
 		if err := cloudstorage.CopyFile(localDoc.StorageKey, newKey); err != nil {
-			server.ResponseError(w, err, http.StatusInternalServerError, "Error copying file",
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error copying file",
 				"tags", []string{"DOCUMENTS", "STORAGE"},
 			)
 			return
@@ -134,10 +117,7 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.Create(doc).Error; err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error saving document metadata",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error saving document metadata",
 			"tags", []string{"DOCUMENTS", "DB"},
 		)
 		return
@@ -145,11 +125,8 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Update remote storage info for the user
 	if err := document.UpdateStorageInfo(userID, db); err != nil {
-		server.LogWarn(
+		server.LogWarn(r.Context(),
 			"Failed to update remote storage info", err,
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"DOCUMENTS", "STORAGE"},
 		)
 	}
@@ -157,10 +134,7 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	// Get document assignment
 	var a assignment.Assignment
 	if err := db.Where("id = ?", doc.AssignmentID).First(&a).Error; err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting assignment",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting assignment",
 			"tags", []string{"DOCUMENTS", "DB"},
 		)
 		return
@@ -169,10 +143,7 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	// Get linked assignments
 	linkedAssignments, err := a.GetChildren(db)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting linked assignments",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting linked assignments",
 			"tags", []string{"DOCUMENTS", "DB"},
 		)
 		return
@@ -182,10 +153,7 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	doc.User = currentUser // Link the creator data with the document
 	dJson, err := json.Marshal(doc)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error marshalling document",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error marshalling document",
 			"tags", []string{"DOCUMENTS", "MARSHALLING"},
 		)
 		return
@@ -195,9 +163,7 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 		// Send notification to linked assignments
 		for _, linkedAssignment := range linkedAssignments {
 			if linkedAssignment.UserID != userID {
-				server.LogInfo("Sending document notification",
-					"request_id", requestID,
-					"user_id", userID,
+				server.LogInfo(r.Context(), "Sending document notification",
 					"target_user_id", linkedAssignment.UserID,
 					"assignment_id", linkedAssignment.ID,
 					"tags", []string{"DOCUMENTS", "GRPC"},
@@ -225,12 +191,9 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 		"document": doc,
 	})
 
-	server.LogInfo("Document created successfully",
-		"request_id", requestID,
-		"user_id", userID,
+	server.LogInfo(r.Context(), "Document created successfully",
 		"document_id", doc.ID,
 		"assignment_id", doc.AssignmentID,
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"DOCUMENTS", "WRITE"},
 	)
 }
@@ -276,7 +239,7 @@ func UploadFileToS3(localDoc document.LocalDocument, key string, w http.Response
 	if err := cloudstorage.UploadFile(filePath, localDoc.FileName, key); err != nil {
 		return err
 	}
-	server.LogInfo("File uploaded to S3",
+	server.LogInfo(context.Background(), "File uploaded to S3",
 		"file_path", filePath,
 		"bytes", bytesWritten,
 		"storage_key", key,
@@ -291,17 +254,10 @@ func UploadFileToS3(localDoc document.LocalDocument, key string, w http.Response
 
 // DownloadDocumentHandler stores document metadata remotely
 func DownloadDocumentHandler(w http.ResponseWriter, r *http.Request) {
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
-	currentUser := r.Context().Value("user").(user.User)
-	userID := currentUser.ID
 
 	var docData document.LocalDocument
 	if err := json.NewDecoder(r.Body).Decode(&docData); err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
 			"tags", []string{"DOCUMENTS", "DOWNLOAD", "REQUEST"},
 		)
 		return
@@ -310,11 +266,8 @@ func DownloadDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	// Download from aws S3
 	fileReader, err := cloudstorage.DownloadFile(docData.StorageKey)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error downloading file",
-			"request_id", requestID,
-			"user_id", userID,
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error downloading file",
 			"storage_key", docData.StorageKey,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"DOCUMENTS", "DOWNLOAD", "STORAGE"},
 		)
 		return
@@ -329,32 +282,24 @@ func DownloadDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	// Stream file directly to response
 	bytesCopied, err := io.Copy(w, fileReader)
 	if err != nil {
-		server.LogWarn(
+		server.LogWarn(r.Context(),
 			"Error streaming file", err,
-			"request_id", requestID,
-			"user_id", userID,
 			"file_name", docData.FileName,
 			"storage_key", docData.StorageKey,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"DOCUMENTS", "DOWNLOAD"},
 		)
 		return
 	}
 
-	server.LogInfo("File streamed successfully",
-		"request_id", requestID,
-		"user_id", userID,
+	server.LogInfo(r.Context(), "File streamed successfully",
 		"file_name", docData.FileName,
 		"bytes", bytesCopied,
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"DOCUMENTS", "DOWNLOAD"},
 	)
 }
 
 // GetAssignmentDocumentsHandler retrieves document metadata for an assignment
 func GetAssignmentDocumentsHandler(w http.ResponseWriter, r *http.Request) {
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 	currentUser := r.Context().Value("user").(user.User)
 	db := r.Context().Value("db").(*gorm.DB)
 	currentUserID := currentUser.ID
@@ -362,10 +307,7 @@ func GetAssignmentDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 	assignmentIDStr := r.URL.Query().Get("assignment_id")
 	if assignmentIDStr == "" {
 		err := errors.New("assignment ID required")
-		server.ResponseError(w, err, http.StatusBadRequest, "Assignment ID required",
-			"request_id", requestID,
-			"user_id", currentUserID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Assignment ID required",
 			"tags", []string{"DOCUMENTS", "REQUEST"},
 		)
 		return
@@ -373,10 +315,7 @@ func GetAssignmentDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 
 	assignmentID, err := strconv.ParseUint(assignmentIDStr, 10, 32)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Error converting assignment ID",
-			"request_id", requestID,
-			"user_id", currentUserID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error converting assignment ID",
 			"tags", []string{"DOCUMENTS", "INVALID_ASSIGNMENT_ID"},
 		)
 		return
@@ -387,11 +326,8 @@ func GetAssignmentDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 		Where("assignment_id = ?", assignmentID).
 		Order("created_at DESC").
 		Find(&documents).Error; err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting documents from database",
-			"request_id", requestID,
-			"user_id", currentUserID,
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting documents from database",
 			"assignment_id", assignmentID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"DOCUMENTS", "DB"},
 		)
 		return
@@ -422,20 +358,15 @@ func GetAssignmentDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 		"documents": docResponses,
 	})
 
-	server.LogInfo("Assignment documents retrieved",
-		"request_id", requestID,
-		"user_id", currentUserID,
+	server.LogInfo(r.Context(), "Assignment documents retrieved",
 		"assignment_id", assignmentID,
 		"count", len(docResponses),
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"DOCUMENTS", "READ"},
 	)
 }
 
 // DeleteDocumentHandler removes document metadata
 func DeleteDocumentHandler(w http.ResponseWriter, r *http.Request) {
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 	currentUser := r.Context().Value("user").(user.User)
 	db := r.Context().Value("db").(*gorm.DB)
 	userID := currentUser.ID
@@ -443,10 +374,7 @@ func DeleteDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	docID := r.URL.Query().Get("document_id")
 	if docID == "" {
 		err := errors.New("document ID required")
-		server.ResponseError(w, err, http.StatusBadRequest, "Document ID required",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Document ID required",
 			"tags", []string{"DOCUMENTS", "REQUEST"},
 		)
 		return
@@ -454,11 +382,8 @@ func DeleteDocumentHandler(w http.ResponseWriter, r *http.Request) {
 
 	var doc document.Document
 	if err := db.Where("local_id = ? AND user_id = ?", docID, userID).First(&doc).Error; err != nil {
-		server.ResponseError(w, err, http.StatusNotFound, "Document not found",
-			"request_id", requestID,
-			"user_id", userID,
+		server.ResponseError(r.Context(), w, err, http.StatusNotFound, "Document not found",
 			"document_id", docID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"DOCUMENTS", "DB"},
 		)
 		return
@@ -466,22 +391,16 @@ func DeleteDocumentHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Delete the document on S3
 	if err := cloudstorage.DeleteFile(doc.FilePath); err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error deleting document from storage",
-			"request_id", requestID,
-			"user_id", userID,
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error deleting document from storage",
 			"document_id", docID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"DOCUMENTS", "STORAGE"},
 		)
 		return
 	}
 
 	if err := db.Delete(&doc).Error; err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error deleting document record",
-			"request_id", requestID,
-			"user_id", userID,
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error deleting document record",
 			"document_id", docID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"DOCUMENTS", "DB"},
 		)
 		return
@@ -489,11 +408,8 @@ func DeleteDocumentHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Update remote storage info for the user
 	if err := document.UpdateStorageInfo(userID, db); err != nil {
-		server.LogWarn(
+		server.LogWarn(r.Context(),
 			"Failed to update remote storage info", err,
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"DOCUMENTS", "STORAGE"},
 		)
 	}
@@ -504,29 +420,21 @@ func DeleteDocumentHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "Document metadata deleted",
 	})
 
-	server.LogInfo("Document deleted",
-		"request_id", requestID,
-		"user_id", userID,
+	server.LogInfo(r.Context(), "Document deleted",
 		"document_id", docID,
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"DOCUMENTS", "WRITE"},
 	)
 }
 
 // UploadDocumentForRAGHandler stores document metadata remotely
 func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
 	currentUser := r.Context().Value("user").(user.User)
 	db := r.Context().Value("db").(*gorm.DB)
 	userID := currentUser.ID
 
 	// Parse multipart form with max memory (32MB in memory, rest on disk)
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Unable to parse multipart form",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Unable to parse multipart form",
 			"tags", []string{"DOCUMENTS", "RAG", "REQUEST"},
 		)
 		return
@@ -536,10 +444,7 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 	metadata := r.FormValue("metadata")
 	if metadata == "" {
 		err := errors.New("metadata missing from form")
-		server.ResponseError(w, err, http.StatusBadRequest, "Metadata missing from form",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Metadata missing from form",
 			"tags", []string{"DOCUMENTS", "RAG", "REQUEST"},
 		)
 		return
@@ -547,10 +452,7 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 
 	var localDoc document.LocalDocument
 	if err := json.Unmarshal([]byte(metadata), &localDoc); err != nil {
-		server.ResponseError(w, err, http.StatusBadRequest, "Invalid metadata format",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid metadata format",
 			"tags", []string{"DOCUMENTS", "RAG", "REQUEST"},
 		)
 		return
@@ -567,10 +469,7 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 	if localDoc.HasLocalFile {
 		fileName, bytesWritten, err = WriteFileToDisk(localDoc, newKey, w, r)
 		if err != nil {
-			server.ResponseError(w, err, http.StatusInternalServerError, "Error writing file to disk",
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error writing file to disk",
 				"tags", []string{"DOCUMENTS", "RAG", "STORAGE"},
 			)
 			return
@@ -579,20 +478,14 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 		fileName = newKey
 		fileReader, err := cloudstorage.DownloadFile(localDoc.StorageKey)
 		if err != nil {
-			server.ResponseError(w, err, http.StatusInternalServerError, "Error downloading file",
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error downloading file",
 				"tags", []string{"DOCUMENTS", "RAG", "STORAGE"},
 			)
 			return
 		}
 
 		if err := os.MkdirAll(filepath.Dir(fileName), 0755); err != nil {
-			server.ResponseError(w, err, http.StatusInternalServerError, "Error creating directory",
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error creating directory",
 				"tags", []string{"DOCUMENTS", "RAG", "FILESYSTEM"},
 			)
 			return
@@ -600,10 +493,7 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 
 		destFile, err := os.Create(fileName)
 		if err != nil {
-			server.ResponseError(w, err, http.StatusInternalServerError, "Error creating file",
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error creating file",
 				"tags", []string{"DOCUMENTS", "RAG", "FILESYSTEM"},
 			)
 			return
@@ -612,19 +502,14 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 
 		bytesWritten, err = io.Copy(destFile, fileReader)
 		if err != nil {
-			server.ResponseError(w, err, http.StatusInternalServerError, "Error copying file content",
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error copying file content",
 				"tags", []string{"DOCUMENTS", "RAG", "FILESYSTEM"},
 			)
 			return
 		}
 	}
 
-	server.LogInfo("File prepared for RAG upload",
-		"request_id", requestID,
-		"user_id", userID,
+	server.LogInfo(r.Context(), "File prepared for RAG upload",
 		"assignment_id", localDoc.RemoteAssignmentID,
 		"bytes", bytesWritten,
 		"has_local_file", localDoc.HasLocalFile,
@@ -633,10 +518,7 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 
 	var doc document.Document
 	if err := db.Where("storage_key = ?", localDoc.StorageKey).First(&doc).Error; err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error finding document metadata record",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error finding document metadata record",
 			"tags", []string{"DOCUMENTS", "RAG", "DB"},
 		)
 		return
@@ -645,10 +527,7 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 
 	vectors, err := document.GetQdrantVectors(&doc)
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting Qdrant vectors",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting Qdrant vectors",
 			"tags", []string{"DOCUMENTS", "RAG", "QDRANT"},
 		)
 		return
@@ -656,10 +535,7 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 
 	collections, err := QdrantClient.ListCollections(context.Background())
 	if err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error listing Qdrant collections",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error listing Qdrant collections",
 			"tags", []string{"DOCUMENTS", "RAG", "QDRANT"},
 		)
 		return
@@ -675,19 +551,14 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 			}),
 		})
 		if err != nil {
-			server.ResponseError(w, err, http.StatusInternalServerError, "Error creating Qdrant collection",
-				"request_id", requestID,
-				"user_id", userID,
-				"duration", time.Since(startTime).Milliseconds(),
+			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error creating Qdrant collection",
 				"tags", []string{"DOCUMENTS", "RAG", "QDRANT"},
 			)
 			return
 		}
 
-		server.LogInfo("Qdrant collection created",
-			"request_id", requestID,
+		server.LogInfo(r.Context(), "Qdrant collection created",
 			"collection", collectionName,
-			"user_id", userID,
 			"tags", []string{"DOCUMENTS", "RAG", "QDRANT"},
 		)
 	}
@@ -696,10 +567,7 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 		CollectionName: collectionName,
 		Points:         vectors,
 	}); err != nil {
-		server.ResponseError(w, err, http.StatusInternalServerError, "Error inserting vectors into Qdrant",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error inserting vectors into Qdrant",
 			"tags", []string{"DOCUMENTS", "RAG", "QDRANT"},
 		)
 		return
@@ -711,13 +579,10 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 		"document": doc,
 	})
 
-	server.LogInfo("Document uploaded for RAG successfully",
-		"request_id", requestID,
-		"user_id", userID,
+	server.LogInfo(r.Context(), "Document uploaded for RAG successfully",
 		"document_id", doc.ID,
 		"assignment_id", doc.AssignmentID,
 		"vectors", len(vectors),
-		"duration", time.Since(startTime).Milliseconds(),
 		"tags", []string{"DOCUMENTS", "RAG", "UPLOAD"},
 	)
 }

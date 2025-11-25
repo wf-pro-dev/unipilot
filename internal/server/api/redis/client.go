@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/redis/go-redis/v9"
@@ -19,7 +20,11 @@ func NewRedisClient() (*redis.Client, error) {
 	// 	return nil, fmt.Errorf("failed to get redis password: %w", err)
 	// }
 
-	server.PrintLOG([]string{"REDIS", "INFO"}, fmt.Sprintf("Redis URL: %s", redisAddr))
+	server.LogDebug(context.Background(), "Redis URL: ",
+		"redis_addr", redisAddr,
+		"tags", []string{"REDIS", "INFO"},
+	)
+
 	return redis.NewClient(&redis.Options{
 		Addr: redisAddr,
 		//Password: redisPass,
