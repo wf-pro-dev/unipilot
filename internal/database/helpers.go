@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"unipilot/internal/models/aimessage"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/document"
@@ -240,4 +241,31 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 	tx.Commit()
 
 	return response, nil
+}
+
+// Saving a message from AI SDK
+func (h *Database) SaveUIMessage(assignmentID uint, vercelMessage map[string]interface{}) error {
+	message, err := aimessage.FromUIMessage(assignmentID, vercelMessage)
+	if err != nil {
+		return err
+	}
+	return h.db.Create(message).Error
+}
+
+// Retrieving conversation history
+func (h *Database) GetConversationHistory(assignmentID uint) ([]map[string]interface{}, error) {
+	var dbMessages []aimessage.LocalAiMessage
+	err := h.db.Where("assignment_id = ?", assignmentID).
+		Order("created_at ASC").
+		Find(&dbMessages).Error
+	if err != nil {
+		return nil, err
+	}
+
+	uiMessages := make([]map[string]interface{}, len(dbMessages))
+	for i, msg := range dbMessages {
+		uiMessages[i] = msg.ToUIMessage()
+	}
+
+	return uiMessages, nil
 }

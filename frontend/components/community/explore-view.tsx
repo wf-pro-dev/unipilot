@@ -11,6 +11,7 @@ import { OfflineBanner } from "../ui/offline-banner"
 import { user } from "@/wailsjs/go/models"
 import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
+import { useAuthContext } from "../provider/auth-provider"
 
 interface ExploreViewProps {
   users: user.User[] | undefined
@@ -19,7 +20,7 @@ interface ExploreViewProps {
 export function ExploreView({ users }: ExploreViewProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedUniversity, setSelectedUniversity] = useState("All Universities")
-
+  const { user: currentUser } = useAuthContext()
 
   const { isOnline } = useNetworkStatus()
 
@@ -28,6 +29,7 @@ export function ExploreView({ users }: ExploreViewProps) {
 
   const filteredUsers = (users || []).filter((user) => {
     const matchesSearch =
+      user.ID !== currentUser?.ID && 
       user.Username.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.Email.toLowerCase().includes(searchTerm.toLowerCase())
 

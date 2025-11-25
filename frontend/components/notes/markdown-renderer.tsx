@@ -81,17 +81,17 @@ export function MarkdownRenderer({
         components={{
           // Custom components for better styling with proper spacing
           h1: ({ children }) => (
-            <h1 className="text-2xl font-bold text-foreground border-b border-border pb-2 mb-6 leading-tight">
+            <h1 className="text-2xl font-bold text-foreground border-b border-border pb-2 mb-4 leading-tight">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-xl font-semibold text-foreground border-b border-border pb-2 mb-5 leading-tight">
+            <h2 className="text-xl font-semibold text-foreground border-b border-border pb-2 mb-3 leading-tight">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-lg font-medium text-foreground mb-4 leading-tight">
+            <h3 className="text-lg font-medium text-foreground mb-2 leading-tight">
               {children}
             </h3>
           ),
@@ -171,7 +171,7 @@ export function MarkdownRenderer({
             return <div className={className} {...props}>{children}</div>
           },
           p: ({ children }) => (
-            <p className="mb-4 leading-relaxed">
+            <p className="mb-2 leading-relaxed">
               {children}
             </p>
           )

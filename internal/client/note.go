@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 	"unipilot/internal/models/note"
 	"unipilot/internal/secrets"
 )
@@ -20,6 +21,7 @@ func CreateNote(n *note.Note) (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	new_client.Timeout = 2 * time.Minute
 
 	jsonData, _ := json.Marshal(noteData)
 

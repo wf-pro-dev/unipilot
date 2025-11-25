@@ -74,6 +74,10 @@ export function GetAssignments() {
   return window['go']['main']['App']['GetAssignments']();
 }
 
+export function GetConversationHistory(arg1) {
+  return window['go']['main']['App']['GetConversationHistory'](arg1);
+}
+
 export function GetCourse(arg1) {
   return window['go']['main']['App']['GetCourse'](arg1);
 }
@@ -174,6 +178,10 @@ export function SaveDocumentAs(arg1) {
   return window['go']['main']['App']['SaveDocumentAs'](arg1);
 }
 
+export function SaveUIMessage(arg1, arg2) {
+  return window['go']['main']['App']['SaveUIMessage'](arg1, arg2);
+}
+
 export function SendDocument(arg1) {
   return window['go']['main']['App']['SendDocument'](arg1);
 }
@@ -212,6 +220,10 @@ export function UpdateUser(arg1, arg2) {
 
 export function UploadDocument(arg1, arg2, arg3) {
   return window['go']['main']['App']['UploadDocument'](arg1, arg2, arg3);
+}
+
+export function UploadDocumentRAG(arg1) {
+  return window['go']['main']['App']['UploadDocumentRAG'](arg1);
 }
 
 export function UploadNewDocumentVersion(arg1) {

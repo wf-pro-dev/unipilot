@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"unipilot/internal/models"
+	"unipilot/internal/models/aimessage"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/document"
@@ -29,6 +30,7 @@ func InitializeSchema(db *gorm.DB) error {
 		&document.LocalDocument{},
 		&note.LocalNote{},
 		&notifications.LocalNotification{},
+		&aimessage.LocalAiMessage{},
 	)
 
 	if err != nil {

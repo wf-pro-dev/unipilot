@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Calendar, Edit, Trash2, FileText, ExternalLink, Info } from "lucide-react"
+import { Calendar, Edit, Trash2, FileText, ExternalLink, Info, Bot } from "lucide-react"
 import { format } from "date-fns"
 import { assignment } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
@@ -16,6 +16,7 @@ import { Separator } from "../ui/separator"
 import { TypeTag } from "./tags/type-tag"
 import { useAssignments } from "@/hooks/use-assignments"
 import { PriorityTag } from "./tags/priority-tag"
+import { useRouter } from "next/navigation"
 
 interface AssignmentDetailsModalProps {
   isOpen: boolean
@@ -37,6 +38,8 @@ export function AssignmentDetailsModal({
 }: AssignmentDetailsModalProps) {
 
   if (!assignment_id) return null
+
+  const router = useRouter()
 
   const [activeView, setActiveView] = useState("info")
 
@@ -86,7 +89,7 @@ export function AssignmentDetailsModal({
 
 
             {/* Status and Priority */}
-              <TabsContent value="info" className="space-y-4">
+            <TabsContent value="info" className="space-y-4">
 
               {/* Course and Type */}
               <div className="flex flex-col space-y-2">
@@ -170,7 +173,19 @@ export function AssignmentDetailsModal({
           <Separator className="bg-gray-700" />
 
           {/* Actions */}
-          <div className="flex gap-2">
+          
+          <div className="grid grid-cols-2 gap-2">
+        
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => router.push(`/chat?assignment=${assignment.ID}`)}
+              className="flex-1 bg-transparent border-gray-600"
+            >
+              <Bot className="h-4 w-4" />
+              <span className="text-sm">AI Help</span>
+            </Button>
+    
             <Button
               variant="outline"
               size="sm"
