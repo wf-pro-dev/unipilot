@@ -10,38 +10,26 @@ import (
 	"gorm.io/gorm"
 
 	"unipilot/internal/models/note"
+	"unipilot/internal/models/user"
 	"unipilot/internal/server"
 	"unipilot/internal/services/gemini"
 )
 
 func GetNoteHandler(w http.ResponseWriter, r *http.Request) {
-	userIDVal := r.Context().Value("user_id")
-	if userIDVal == nil {
-		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
-		return
-	}
-
-	userID, ok := userIDVal.(uint)
-	if !ok {
-		server.PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
-		return
-	}
-
-	dbVal := r.Context().Value("db")
-	if dbVal == nil {
-		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
-		return
-	}
-
-	db, ok := dbVal.(*gorm.DB)
-	if !ok {
-		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
-		return
-	}
+	startTime := r.Context().Value("start_time").(time.Time)
+	requestID := r.Context().Value("request_id").(string)
+	currentUser := r.Context().Value("user").(user.User)
+	db := r.Context().Value("db").(*gorm.DB)
+	userID := currentUser.ID
 
 	var notes []note.Note
 	if err := db.Where("user_id = ?", userID).Find(&notes).Error; err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error getting notes for user id = %d : %s", userID, err))
+		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting notes from database",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"NOTES", "DB"},
+		)
 		return
 	}
 
@@ -55,33 +43,22 @@ func GetNoteHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "User's notes retrieved successfully",
 		"notes":   notesMap,
 	})
+
+	server.LogInfo("Notes retrieved successfully",
+		"request_id", requestID,
+		"user_id", userID,
+		"count", len(notesMap),
+		"duration", time.Since(startTime).Milliseconds(),
+		"tags", []string{"NOTES", "READ"},
+	)
 }
 
 func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
-
-	userIDVal := r.Context().Value("user_id")
-	if userIDVal == nil {
-		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
-		return
-	}
-
-	userID, ok := userIDVal.(uint)
-	if !ok {
-		server.PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
-		return
-	}
-
-	dbVal := r.Context().Value("db")
-	if dbVal == nil {
-		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
-		return
-	}
-
-	db, ok := dbVal.(*gorm.DB)
-	if !ok {
-		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
-		return
-	}
+	startTime := r.Context().Value("start_time").(time.Time)
+	requestID := r.Context().Value("request_id").(string)
+	currentUser := r.Context().Value("user").(user.User)
+	db := r.Context().Value("db").(*gorm.DB)
+	userID := currentUser.ID
 
 	tx := db.Begin()
 	defer func() {
@@ -101,13 +78,24 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"NOTES", "REQUEST"},
+		)
 		return
 	}
 
 	// Validate all required fields
 	if input.CourseCode == "" || input.Title == "" || input.Subject == "" {
-		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Missing required fields: course code: %s, title: %s, subject: %s", input.CourseCode, input.Title, input.Subject))
+		err := fmt.Errorf("missing required fields: course code: %s, title: %s, subject: %s", input.CourseCode, input.Title, input.Subject)
+		server.ResponseError(w, err, http.StatusBadRequest, "Missing required fields",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"NOTES", "MISSING_REQUIRED_FIELDS"},
+		)
 		return
 	}
 
@@ -128,15 +116,18 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 		geminiResponse, err := gemini.GenerateNote(geminiRequest)
 		if err != nil {
-			server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to generate note content: %v", err))
+			server.ResponseError(w, err, http.StatusInternalServerError, "Error generating note content with Gemini",
+				"request_id", requestID,
+				"user_id", userID,
+				"duration", time.Since(startTime).Milliseconds(),
+				"tags", []string{"NOTES", "GEMINI"},
+			)
 			return
 		}
 
 		keywords = geminiResponse.Keywords
 		content = geminiResponse.Content
 	}
-
-	server.PrintLOG([]string{"INFO", "CREATE", "NOTE"}, fmt.Sprintf("After Gemini: Keywords: %s, Title: %s, Subject: %s", keywords, input.Title, input.Subject))
 
 	nVal := note.Note{
 		UserID:     userID,
@@ -151,7 +142,12 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	result := tx.Create(&nVal)
 	if result.Error != nil {
 		tx.Rollback()
-		server.PrintERROR(w, http.StatusConflict, fmt.Sprintf("Error creating note in database: %v", result.Error))
+		server.ResponseError(w, result.Error, http.StatusConflict, "Error creating note in database",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"NOTES", "DB"},
+		)
 		return
 	}
 
@@ -159,7 +155,12 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	noteMap := nVal.ToMap()
 	if noteMap == nil {
 		tx.Rollback()
-		server.PrintERROR(w, http.StatusInternalServerError, "Failed to process note data")
+		server.ResponseError(w, fmt.Errorf("failed to process note data"), http.StatusInternalServerError, "Error processing note data",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"NOTES", "MARSHALLING"},
+		)
 		return
 	}
 
@@ -171,22 +172,37 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	newN, err := note.Get_Note_byID(nVal.ID, userID, db)
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to get note: %s", err))
+		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting note from database",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"NOTES", "DB"},
+		)
 		return
 	}
 
 	// nJson, err := json.Marshal(newN)
 	_, err = json.Marshal(newN)
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("error marshalling notification: %s", err))
-		return
+		server.LogWarn(
+			"Error marshalling notification", err,
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"NOTES", "MARSHALLING"},
+		)
 	}
 
 	// link_users, err := newN.Course.GetLinkUsers(db)
 	_, err = newN.Course.GetLinkUsers(db)
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting users link to course assignment: %s", err))
-		return
+		server.LogWarn(
+			"Error getting users linked to course", err,
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"NOTES", "DB"},
+		)
 	}
 
 	/*if sseServer != nil {
@@ -217,34 +233,22 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		"note":    noteMap,
 	})
 
-	server.PrintLOG([]string{"SUCCESS", "CREATE", "NOTE"}, fmt.Sprintf("User ID : %v, Note ID : %v, Note Title : %v", userID, nVal.ID, nVal.Title))
-
+	server.LogInfo("Note created successfully",
+		"request_id", requestID,
+		"user_id", userID,
+		"note_id", nVal.ID,
+		"title", nVal.Title,
+		"duration", time.Since(startTime).Milliseconds(),
+		"tags", []string{"NOTES", "WRITE"},
+	)
 }
 
 func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
-
-	dbVal := r.Context().Value("db")
-	if dbVal == nil {
-		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
-		return
-	}
-	db, ok := dbVal.(*gorm.DB)
-	if !ok {
-		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
-		return
-	}
-
-	userIDVal := r.Context().Value("user_id")
-	if userIDVal == nil {
-		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
-		return
-	}
-
-	userID, ok := userIDVal.(uint)
-	if !ok {
-		server.PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
-		return
-	}
+	startTime := r.Context().Value("start_time").(time.Time)
+	requestID := r.Context().Value("request_id").(string)
+	currentUser := r.Context().Value("user").(user.User)
+	db := r.Context().Value("db").(*gorm.DB)
+	userID := currentUser.ID
 
 	tx := db.Begin()
 	defer func() {
@@ -256,38 +260,63 @@ func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	var updateData struct {
 		ID     string `json:"id"`
 		Value  string `json:"value"`
-		Column string `json:"column`
+		Column string `json:"column"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&updateData)
 	if err != nil {
-		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
+		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"NOTES", "REQUEST"},
+		)
 		return
 	}
 
 	int_id, err := strconv.Atoi(updateData.ID)
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to convert note ID to int: %s", err))
+		server.ResponseError(w, err, http.StatusBadRequest, "Error converting note ID to int",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"NOTES", "INVALID_NOTE_ID"},
+		)
 		return
 	}
 
-	n, err := note.Get_Note_byID(uint(int_id), userID, db)
+	n, err := note.Get_Note_byID(uint(int_id), userID, tx)
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to get note: %s", err))
+		tx.Rollback()
+		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting note from database",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"NOTES", "DB"},
+		)
 		return
 	}
 
 	if err := tx.Exec(fmt.Sprintf("UPDATE notes SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), n.ID).Error; err != nil {
-
-		server.PrintERROR(w, http.StatusInternalServerError,
-			fmt.Sprintf("Error updating note in database: %s", err))
+		tx.Rollback()
+		server.ResponseError(w, err, http.StatusInternalServerError, "Error updating note in database",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"NOTES", "DB"},
+		)
 		return
 	}
 
-	server.PrintLOG([]string{"SUCCESS", "UPDATE", "NOTE"}, fmt.Sprintf("user_id %d column %s value %s",
-		userID, updateData.Column, updateData.Value))
-
 	tx.Commit()
 
+	server.LogInfo("Note updated successfully",
+		"request_id", requestID,
+		"user_id", userID,
+		"note_id", n.ID,
+		"update", updateData,
+		"duration", time.Since(startTime).Milliseconds(),
+		"tags", []string{"NOTES", "WRITE"},
+	)
 }

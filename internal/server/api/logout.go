@@ -3,6 +3,8 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"time"
+	"unipilot/internal/server"
 )
 
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
@@ -34,9 +36,16 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	// 	server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create session: %w", err))
 	// 	return
 	// }
+	requestID := r.Context().Value("request_id").(string)
+	startTime := r.Context().Value("start_time").(time.Time)
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Logout successful",
 	})
+	server.LogInfo("Logout successful",
+		"request_id", requestID,
+		"duration", time.Since(startTime).Milliseconds(),
+		"tags", []string{"LOGOUT"},
+	)
 }

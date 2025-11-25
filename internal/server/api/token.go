@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -13,13 +12,21 @@ import (
 	"unipilot/internal/server"
 )
 
-func HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
+func RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	user := r.Context().Value("user").(user.User)
+	startTime := r.Context().Value("start_time").(time.Time)
+	requestID := r.Context().Value("request_id").(string)
 
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("error getting session key: %s", err.Error()))
+		server.ResponseError(
+			w, err, http.StatusInternalServerError, "Error getting session key",
+			"request_id", requestID,
+			"user_id", user.ID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"TOKEN", "SESSION_KEY"},
+		)
 		return
 	}
 
@@ -31,7 +38,13 @@ func HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("error creating new token: %s", err.Error()))
+		server.ResponseError(
+			w, err, http.StatusInternalServerError, "Error creating access token",
+			"request_id", requestID,
+			"user_id", user.ID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"TOKEN", "ACCESS_TOKEN"},
+		)
 		return
 	}
 
@@ -43,7 +56,13 @@ func HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("error creating new refresh token: %s", err.Error()))
+		server.ResponseError(
+			w, err, http.StatusInternalServerError, "Error creating refresh token",
+			"request_id", requestID,
+			"user_id", user.ID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"TOKEN", "REFRESH_TOKEN"},
+		)
 		return
 	}
 
@@ -54,5 +73,11 @@ func HandleRefreshToken(w http.ResponseWriter, r *http.Request) {
 		"refresh_token": refreshToken,
 	})
 
-	server.PrintLOG([]string{"SUCCESS", "TOKEN", "REFRESH"}, fmt.Sprintf("Token refreshed successfully for user id: %d", user.ID))
+	server.LogInfo(
+		"Token refreshed successfully",
+		"request_id", requestID,
+		"user_id", user.ID,
+		"duration", time.Since(startTime).Milliseconds(),
+		"tags", []string{"TOKEN"},
+	)
 }

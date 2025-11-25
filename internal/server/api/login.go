@@ -21,6 +21,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	startTime := r.Context().Value("start_time").(time.Time)
+	requestID := r.Context().Value("request_id").(string)
 
 	var credentials struct {
 		Username string `json:"username"`
@@ -28,7 +30,14 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&credentials); err != nil {
-		server.PrintERROR(w, http.StatusBadRequest, "Invalid request body")
+
+		server.ResponseError(
+			w, err, http.StatusBadRequest, "Invalid request body",
+			"request_id", requestID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"LOGIN", "INVALID_REQUEST_BODY"},
+		)
+
 		return
 	}
 
@@ -36,22 +45,46 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	var user user.User
 	if err := db.Where("username = ?", credentials.Username).First(&user).Error; err != nil {
-		server.PrintERROR(w, http.StatusUnauthorized, "Invalid credentials")
 
+
+		server.ResponseError(
+			w, err, http.StatusUnauthorized, "No user found",
+			"request_id", requestID,
+			"username", credentials.Username,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"LOGIN", "USER", "DB"},
+		)
 		return
 	}
 
 	// Check password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(credentials.Password)); err != nil {
 
-		server.PrintERROR(w, http.StatusUnauthorized, "Invalid credentials")
-		w.WriteHeader(http.StatusUnauthorized)
+		server.ResponseError(
+			w, err, http.StatusUnauthorized, "Invalid Password",
+			"request_id", requestID,
+			"user_id", user.ID,
+			"username", user.Username,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"LOGIN", "PASSWORD"},
+		)
+
 		return
 	}
 
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Login: %s", err.Error()))
+
+
+		server.ResponseError(
+			w, err, http.StatusInternalServerError, "Invalid session key:",
+			"request_id", requestID,
+			"user_id", user.ID,
+			"username", user.Username,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"LOGIN", "SESSION_KEY"},
+		)
+
 		return
 	}
 
@@ -63,7 +96,17 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Login: %s", err.Error()))
+
+
+		server.ResponseError(
+			w, err, http.StatusInternalServerError, "Error creating access token",
+			"request_id", requestID,
+			"user_id", user.ID,
+			"username", user.Username,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"LOGIN", "ACCESS_TOKEN"},
+		)
+
 		return
 	}
 
@@ -75,20 +118,19 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Login: %s", err.Error()))
+
+
+		server.ResponseError(
+			w, err, http.StatusInternalServerError, "Error creating refresh token",
+			"request_id", requestID,
+			"user_id", user.ID,
+			"username", user.Username,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"LOGIN", "REFRESH_TOKEN"},
+		)
+
 		return
 	}
-
-	/* DEPRECATED
-	var store = sessions.NewCookieStore([]byte(SESSION_KEY))
-
-	session, _ := store.Get(r, "session-auth")
-	session.Values["user_id"] = user.ID
-	session.Values["authenticated"] = true
-	if err := session.Save(r, w); err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create session: %w", err))
-		return
-	} */
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -99,4 +141,14 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	server.PrintLOG([]string{"SUCCESS", "LOGIN"}, fmt.Sprintf("User ID : %v, Username : %v", user.ID, user.Username))
+
+	duration := time.Since(startTime).Milliseconds()
+	server.LogInfo(
+		"Login successful",
+		"request_id", requestID,
+		"user_id", user.ID,
+		"username", user.Username,
+		"duration", duration,
+		"tags", []string{"LOGIN"},
+	)
 }

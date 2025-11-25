@@ -130,7 +130,6 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 	// Get user from context (set by AuthMiddleware)
 	userID, ok := r.Context().Value("user_id").(uint)
 	if !ok {
-		server.PrintERROR(w, http.StatusUnauthorized, "Unauthorized")
 		return
 	}
 
@@ -144,7 +143,6 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 	// Create a flusher
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		server.PrintERROR(w, http.StatusInternalServerError, "Streaming not supported")
 		return
 	}
 

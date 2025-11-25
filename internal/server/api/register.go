@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -24,6 +25,9 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	requestID := r.Context().Value("request_id").(string)
+	startTime := r.Context().Value("start_time").(time.Time)
+
 	var registrationData struct {
 		Username   string `json:"username"`
 		Email      string `json:"email"`
@@ -34,7 +38,15 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	err := json.NewDecoder(r.Body).Decode(&registrationData)
 	if err != nil {
-		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
+		server.ResponseError(
+			w, err, http.StatusBadRequest, "Invalid request body",
+			"request_id", requestID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"REGISTER"},
+		)
+
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
 		return
 	}
 
@@ -42,14 +54,43 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Validate input
 	if registrationData.Username == "" || registrationData.Email == "" || registrationData.Password == "" || registrationData.University == "" || registrationData.Language == "" {
-		server.PrintERROR(w, http.StatusBadRequest, "Username, email, and password are required")
+		server.ResponseError(
+			w, err, http.StatusBadRequest, "Username, email, and password are required",
+			"request_id", requestID,
+			"Register: Username, email, and password are required",
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"REGISTER", "MISSING_REQUIRED_FIELDS"},
+		)
+
+		http.Error(w, "Username, email, and password are required", http.StatusBadRequest)
+
+		return
+	}
+
+	// Check if username is already taken
+	if err := db.Where("username = ?", registrationData.Username).First(&user.User{}).Error; err == nil {
+		server.ResponseError(
+			w, errors.New("username already taken"), http.StatusConflict, "Username already taken",
+			"request_id", requestID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"REGISTER", "DB"},
+		)
+
 		return
 	}
 
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(registrationData.Password), bcrypt.DefaultCost)
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, "Could not process password")
+		server.ResponseError(
+			w, err, http.StatusInternalServerError, "Error generating hashed password",
+			"request_id", requestID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"REGISTER", "PASSWORD"},
+		)
+
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
@@ -63,7 +104,15 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := db.Create(&user).Error; err != nil {
-		server.PrintERROR(w, http.StatusConflict, fmt.Sprintf("Error creating user: %s", err))
+		server.ResponseError(
+			w, err, http.StatusInternalServerError, "Error creating user",
+			"request_id", requestID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"REGISTER", "DB"},
+		)
+
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
@@ -72,58 +121,91 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// Create session
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Register: %s", err.Error()))
+		server.ResponseError(
+			w, err, http.StatusInternalServerError,
+			"Error getting session key",
+			"request_id", requestID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"REGISTER", "SESSION_KEY"},
+		)
 		return
 	}
 
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, server.Claims{
+	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, server.Claims{
 		User: user,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 15)),
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Register: %s", err.Error()))
+		server.ResponseError(
+			w, err, http.StatusInternalServerError, "Error creating access token",
+			"request_id", requestID,
+			"user_id", user.ID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"REGISTER", "ACCESS_TOKEN"},
+		)
+
+		return
+	}
+
+	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, server.Claims{
+		User: user,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 30)),
+		},
+	}).SignedString([]byte(SESSION_KEY))
+	if err != nil {
+		server.ResponseError(
+			w, err, http.StatusInternalServerError, "Error creating refresh token",
+			"request_id", requestID,
+			"user_id", user.ID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"REGISTER", "REFRESH_TOKEN"},
+		)
+
 		return
 	}
 
 	// Cache the new user in redis
 	userJSON, err := json.Marshal(userMap)
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error marshalling user to json: %v", err))
+		server.ResponseError(
+			w, err, http.StatusInternalServerError, "Error marshalling user to json",
+			"request_id", requestID,
+			"user_id", user.ID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"REGISTER", "MARSHALLING"},
+		)
 		return
 	}
 
 	if err := RedisClient.HSet(context.Background(), "users", strconv.Itoa(int(user.ID)), userJSON).Err(); err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error caching user in redis: %v", err))
-		return
+
+		server.LogWarn(
+			"Error caching user in redis", err,
+			"request_id", requestID,
+			"user_id", user.ID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"REGISTER", "REDIS"},
+		)
 	}
 
-	server.PrintLOG([]string{"INFO", "USER", "REGISTER", "REDIS"}, fmt.Sprintf("User cached successfully for user id: %d", user.ID))
-
-	/* DEPRECATED
-
-	var store = sessions.NewCookieStore([]byte(SESSION_KEY))
-
-	session, _ := store.Get(r, "session-auth")
-	session.Values["user_id"] = user.ID
-	session.Values["authenticated"] = true
-	if err := session.Save(r, w); err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create session: %w", err))
-		return
-	}
-	*/
-
-	id := strconv.Itoa(int(user.ID))
-
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"message": "User registered successfully",
-		"id":      id,
-		"user":    userMap,
-		"token":   token,
+		"message":       "Register successful",
+		"user":          userMap,
+		"token":         accessToken,
+		"refresh_token": refreshToken,
 	})
 
-	server.PrintLOG([]string{"SUCCESS", "USER", "REGISTER"}, fmt.Sprintf("User ID : %v, Username : %v", id, user.Username))
+	server.LogInfo(fmt.Sprintf(" User registered successfully user id: %d, username: %s", user.ID, user.Username),
+		"request_id", requestID,
+		"user_id", user.ID,
+		"username", user.Username,
+		"duration", time.Since(startTime).Milliseconds(),
+		"tags", []string{"REGISTER", "WRITE"},
+	)
 }

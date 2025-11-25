@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -12,6 +11,7 @@ import (
 	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
 	notif "unipilot/internal/models/notifications"
+	"unipilot/internal/models/user"
 	"unipilot/internal/server/sse/grpc/notifications"
 
 	"unipilot/internal/server"
@@ -20,34 +20,20 @@ import (
 )
 
 func GetAssignmentHandler(w http.ResponseWriter, r *http.Request) {
-
-	userIDVal := r.Context().Value("user_id")
-	if userIDVal == nil {
-		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
-		return
-	}
-
-	userID, ok := userIDVal.(uint)
-	if !ok {
-		server.PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
-		return
-	}
-
-	dbVal := r.Context().Value("db")
-	if dbVal == nil {
-		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
-		return
-	}
-
-	db, ok := dbVal.(*gorm.DB)
-	if !ok {
-		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
-		return
-	}
+	startTime := r.Context().Value("start_time").(time.Time)
+	requestID := r.Context().Value("request_id").(string)
+	currentUser := r.Context().Value("user").(user.User)
+	db := r.Context().Value("db").(*gorm.DB)
+	userID := currentUser.ID
 
 	var assignments []assignment.Assignment
 	if err := db.Where("user_id = ?", userID).Find(&assignments).Error; err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Error getting assignment for user id = %d : %s", userID, err))
+		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting assignments from database",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "DB"},
+		)
 		return
 	}
 
@@ -62,32 +48,20 @@ func GetAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		"assignments": assignmentsMap,
 	})
 
+	server.LogInfo("Assignments retrieved successfully",
+		"request_id", requestID,
+		"user_id", userID,
+		"count", len(assignmentsMap),
+		"duration", time.Since(startTime).Milliseconds(),
+		"tags", []string{"ASSIGNMENTS", "READ"},
+	)
 }
 func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
-
-	userIDVal := r.Context().Value("user_id")
-	if userIDVal == nil {
-		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
-		return
-	}
-
-	userID, ok := userIDVal.(uint)
-	if !ok {
-		server.PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
-		return
-	}
-
-	dbVal := r.Context().Value("db")
-	if dbVal == nil {
-		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
-		return
-	}
-
-	db, ok := dbVal.(*gorm.DB)
-	if !ok {
-		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
-		return
-	}
+	startTime := r.Context().Value("start_time").(time.Time)
+	requestID := r.Context().Value("request_id").(string)
+	currentUser := r.Context().Value("user").(user.User)
+	db := r.Context().Value("db").(*gorm.DB)
+	userID := currentUser.ID
 
 	tx := db.Begin()
 	defer func() {
@@ -110,33 +84,57 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body: %v", err))
+		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "REQUEST"},
+		)
 		return
 	}
 	// Validate all required fields
 	if input.LocalID == "" || input.CourseCode == "" || input.Title == "" || input.TypeName == "" || input.Deadline == "" {
-		server.PrintERROR(w, http.StatusBadRequest, "Missing required fields")
+		server.ResponseError(w, fmt.Errorf("missing required fields"), http.StatusBadRequest, "Missing required fields",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "MISSING_REQUIRED_FIELDS"},
+		)
 		return
 	}
 
 	deadline, err := time.Parse(time.DateOnly, input.Deadline)
 	if err != nil {
-		server.PrintERROR(w, http.StatusBadRequest, "Invalid deadline format")
+		server.ResponseError(w, err, http.StatusBadRequest, "Invalid deadline format",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "INVALID_DEADLINE"},
+		)
 		return
 	}
 
 	local_id, err := strconv.Atoi(input.LocalID)
 	if err != nil {
-		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating local_id : %s", err))
+		server.ResponseError(w, err, http.StatusBadRequest, "Error formatting local_id",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "INVALID_LOCAL_ID"},
+		)
 		return
 	}
 
 	var parent_id = 0
 	if input.ParentID != "" {
-
 		parent_id, err = strconv.Atoi(input.ParentID)
 		if err != nil {
-			server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Error formating parent_id : %s", err))
+			server.ResponseError(w, err, http.StatusBadRequest, "Error formatting parent_id",
+				"request_id", requestID,
+				"user_id", userID,
+				"duration", time.Since(startTime).Milliseconds(),
+				"tags", []string{"ASSIGNMENTS", "INVALID_PARENT_ID"},
+			)
 			return
 		}
 	}
@@ -157,7 +155,13 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	result := tx.Create(&aVal)
 	if result.Error != nil {
-		server.PrintERROR(w, http.StatusConflict, fmt.Sprintf("Error creating assignment in database", err))
+		tx.Rollback()
+		server.ResponseError(w, result.Error, http.StatusConflict, "Error creating assignment in database",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "DB"},
+		)
 		return
 	}
 
@@ -165,7 +169,13 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	a, err := assignment.Get_Assignment_byID(aObj.ID, userID, tx)
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
+		tx.Rollback()
+		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting assignment from database",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "DB"},
+		)
 		return
 	}
 
@@ -173,7 +183,12 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	assignmentMap := a.ToMap()
 	if assignmentMap == nil {
 		tx.Rollback()
-		server.PrintERROR(w, http.StatusInternalServerError, "Failed to process assignment data")
+		server.ResponseError(w, fmt.Errorf("failed to process assignment data"), http.StatusInternalServerError, "Error processing assignment data",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "MARSHALLING"},
+		)
 		return
 	}
 
@@ -183,18 +198,34 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	newA, err := assignment.Get_Assignment_byID(aObj.ID, userID, db)
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
+		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting assignment from database",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "DB"},
+		)
 		return
 	}
 
 	aJson, err := json.Marshal(newA)
 	if err != nil {
-		log.Printf("[Error] error marshalling notification : %v ", err)
+		server.LogWarn(
+			"Error marshalling notification", err,
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "MARSHALLING"},
+		)
 	}
 
 	link_users, err := newA.Course.GetLinkUsers(db)
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting users link to course assignment: %s", err))
+		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting users linked to course",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "DB"},
+		)
 		return
 	}
 
@@ -225,32 +256,20 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		"assignment": assignmentMap,
 	})
 
+	server.LogInfo("Assignment created successfully",
+		"request_id", requestID,
+		"user_id", userID,
+		"assignment_id", aObj.ID,
+		"duration", time.Since(startTime).Milliseconds(),
+		"tags", []string{"ASSIGNMENTS", "WRITE"},
+	)
 }
 func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
-
-	dbVal := r.Context().Value("db")
-	if dbVal == nil {
-		server.PrintERROR(w, http.StatusInternalServerError, "Database connection not found")
-		return
-	}
-
-	db, ok := dbVal.(*gorm.DB)
-	if !ok {
-		server.PrintERROR(w, http.StatusInternalServerError, "Invalid database connection")
-		return
-	}
-
-	userIDVal := r.Context().Value("user_id")
-	if userIDVal == nil {
-		server.PrintERROR(w, http.StatusUnauthorized, "User ID not found in context")
-		return
-	}
-
-	userID, ok := userIDVal.(uint)
-	if !ok {
-		server.PrintERROR(w, http.StatusUnauthorized, "Invalid user ID format")
-		return
-	}
+	startTime := r.Context().Value("start_time").(time.Time)
+	requestID := r.Context().Value("request_id").(string)
+	currentUser := r.Context().Value("user").(user.User)
+	db := r.Context().Value("db").(*gorm.DB)
+	userID := currentUser.ID
 
 	tx := db.Begin()
 	defer func() {
@@ -262,38 +281,63 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	var updateData struct {
 		ID     string `json:"id"`
 		Value  string `json:"value"`
-		Column string `json:"column`
+		Column string `json:"column"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&updateData)
 	if err != nil {
-		server.PrintERROR(w, http.StatusBadRequest, fmt.Sprintf("Invalid request body %s", err))
+		server.ResponseError(w, err, http.StatusBadRequest, "Invalid request body",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "REQUEST"},
+		)
 		return
 	}
 
 	int_id, err := strconv.Atoi(updateData.ID)
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to convert assignment ID to int: %s", err))
+		server.ResponseError(w, err, http.StatusBadRequest, "Error converting assignment ID to int",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "VALIDATION"},
+		)
 		return
 	}
 
 	a, err := assignment.Get_Assignment_byID(uint(int_id), userID, tx)
 	if err != nil {
-		server.PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("failed to getting assignment: %s", err))
+		tx.Rollback()
+		server.ResponseError(w, err, http.StatusInternalServerError, "Error getting assignment from database",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "DB"},
+		)
 		return
 	}
 
 	if err := tx.Exec(fmt.Sprintf("UPDATE assignments SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), a.ID).Error; err != nil {
-
-		server.PrintERROR(w, http.StatusInternalServerError,
-			fmt.Sprintf("Error updating assignment in database: %s", err))
+		tx.Rollback()
+		server.ResponseError(w, err, http.StatusInternalServerError, "Error updating assignment in database",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "DB"},
+		)
 		return
 	}
 
-	server.PrintLOG([]string{"SUCCESS", "UPDATE", "ASSIGNMENT"}, fmt.Sprintf("user_id %d assignment %d column %s value %s",
-		userIDVal, a.ID, updateData.Column, updateData.Value))
-
 	tx.Commit()
 
+	server.LogInfo("Assignment updated successfully",
+		"request_id", requestID,
+		"user_id", userID,
+		"assignment_id", a.ID,
+		"update", updateData,
+		"duration", time.Since(startTime).Milliseconds(),
+		"tags", []string{"ASSIGNMENTS", "WRITE"},
+	)
 }

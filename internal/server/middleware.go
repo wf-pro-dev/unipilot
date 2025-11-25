@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"gorm.io/gorm"
 
@@ -26,6 +28,46 @@ func DBMiddleware(db *gorm.DB, next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+//--------------------------------------------------
+// LoggerMiddleware adds the logger to the request context
+//--------------------------------------------------
+
+func LoggerMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		startTime := time.Now()
+		requestID := uuid.New().String()
+		ctx := context.WithValue(r.Context(), "request_id", requestID)
+		ctx = context.WithValue(ctx, "start_time", startTime)
+
+		next(w, r.WithContext(ctx))
+
+		userID := r.Context().Value("user_id")
+		if userID == nil {
+			userID = 0
+		}
+		userID, ok := userID.(uint)
+		if !ok {
+			userID = 0
+		}
+
+		duration := time.Since(startTime).Milliseconds()
+		log_message := fmt.Sprintf("%s %d %s %s %s %dms", requestID, userID, r.Method, r.URL.Path, r.RemoteAddr, duration)
+
+		Logger.Debugf(log_message)
+
+		FileLogger.Infow(log_message,
+			"request_id", requestID,
+			"user_id", userID,
+			"method", r.Method,
+			"path", r.URL.Path,
+			"remote_addr", r.RemoteAddr,
+			"duration", duration,
+		)
+
+	}
+}
+
 // ---------------------------------------------------
 // AuthMiddleware checks if the user is authenticated
 // ---------------------------------------------------
@@ -41,21 +83,18 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Get token from Authorization header
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			PrintERROR(w, http.StatusUnauthorized, "Missing Authorization header")
 			return
 		}
 
 		// Extract token from "Bearer <token>"
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		if tokenString == authHeader {
-			PrintERROR(w, http.StatusUnauthorized, "Invalid Authorization header format")
 			return
 		}
 
 		// Get session key
 		SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 		if err != nil {
-			PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Register: %v", err))
 			return
 		}
 
@@ -80,7 +119,8 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Add user ID to context
 		ctx := context.WithValue(r.Context(), "user", user)
 		ctx = context.WithValue(ctx, "user_id", user.ID)
-		next.ServeHTTP(w, r.WithContext(ctx))
+
+		LoggerMiddleware(next)(w, r.WithContext(ctx))
 	}
 }
 
@@ -90,7 +130,6 @@ func AuthMiddlewareV1(next http.HandlerFunc) http.HandlerFunc {
 
 		SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 		if err != nil {
-			PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Register: %v", err))
 			return
 		}
 
@@ -98,14 +137,12 @@ func AuthMiddlewareV1(next http.HandlerFunc) http.HandlerFunc {
 
 		session, err := store.Get(r, "session-auth")
 		if err != nil {
-			PrintERROR(w, http.StatusInternalServerError, fmt.Sprintf("Failed to create session: %v", err))
 			return
 		}
 
 		// Check if user is authenticated
 		auth, ok := session.Values["authenticated"].(bool)
 		if !ok || !auth {
-			PrintERROR(w, http.StatusUnauthorized, "Unauthorized - please login")
 			return
 		}
 

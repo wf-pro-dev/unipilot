@@ -60,13 +60,15 @@ func StartServer() {
 	}
 	defer QdrantClient.Close()
 
+	server.InitLogger()
+
 	http.HandleFunc("/health", HealthHandler)
 
-	http.HandleFunc(GetRouteName("register"), server.DBMiddleware(db, RegisterHandler))
-	http.HandleFunc(GetRouteName("login"), server.DBMiddleware(db, LoginHandler))
+	http.HandleFunc(GetRouteName("register"), server.DBMiddleware(db, server.LoggerMiddleware(RegisterHandler)))
+	http.HandleFunc(GetRouteName("login"), server.DBMiddleware(db, server.LoggerMiddleware(LoginHandler)))
 	http.HandleFunc(GetRouteName("logout"), server.AuthMiddleware(LogoutHandler))
 
-	http.HandleFunc(GetRouteName("token", "refresh"), server.AuthMiddleware(HandleRefreshToken))
+	http.HandleFunc(GetRouteName("token", "refresh"), server.AuthMiddleware(RefreshTokenHandler))
 
 	http.HandleFunc(GetRouteName("user"), server.DBMiddleware(db, server.AuthMiddleware(GetUserHandler)))
 	http.HandleFunc(GetRouteName("user", "update"), server.DBMiddleware(db, server.AuthMiddleware(UpdateUserHandler)))

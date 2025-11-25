@@ -21,7 +21,7 @@ func GetEnvVar(envName string) (string, error) {
 		viper.SetConfigFile(".env")
 		err := viper.ReadInConfig()
 		if err != nil {
-			return "", fmt.Errorf("failed to read config: %w", err)
+			return "", fmt.Errorf("failed to read config for %s: %w", envName, err)
 		}
 		envVar = viper.GetString(envName)
 	}
