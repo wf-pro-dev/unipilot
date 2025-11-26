@@ -91,6 +91,9 @@
 .page {
   @apply min-h-screen bg-animated md:p-10  md:pt-24 xl:pt-24 xl:p-28 relative overflow-hidden;
 }
+.page-chat {
+  @apply min-h-screen bg-animated p-0 relative overflow-hidden;
+}
 
 @keyframes gradient {
   0% {

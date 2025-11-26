@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"unipilot/internal/secrets"
 	"unipilot/internal/services/utils"
 
 	"unipilot/internal/secrets"
@@ -112,6 +113,8 @@ func LoadToken() (string, error) {
 
 func LoadRefreshToken() (string, error) {
 	refreshTokenFile, err := getRefreshTokenFilePath()
+
+
 	if err != nil {
 		return "", err
 	}
