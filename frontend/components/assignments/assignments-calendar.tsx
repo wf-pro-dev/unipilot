@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Calendar, ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react"
@@ -31,6 +31,75 @@ export function AssignmentsCalendar({
   isLoading = false,
 }: AssignmentsCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
+  // Local state to manage assignments for optimistic updates
+  const [localAssignments, setLocalAssignments] = useState<assignment.LocalAssignment[]>(assignments)
+  // Track pending optimistic updates: map of assignment ID to new deadline string
+  const pendingUpdatesRef = useRef<Map<number, string>>(new Map())
+  // Track if we should skip the next sync (to prevent overwriting optimistic updates)
+  const skipNextSyncRef = useRef(false)
+
+  // Sync local state with props when assignments change, but preserve optimistic updates
+  useEffect(() => {
+    // Skip sync if we just made an optimistic update
+    if (skipNextSyncRef.current) {
+      skipNextSyncRef.current = false
+      return
+    }
+
+    if (pendingUpdatesRef.current.size === 0) {
+      // No pending updates, sync normally
+      setLocalAssignments(assignments)
+      return
+    }
+
+    // We have pending updates - merge props with our optimistic updates
+    setLocalAssignments(prev => {
+      const updated = assignments.map(a => {
+        const pendingDeadline = pendingUpdatesRef.current.get(a.ID)
+        if (pendingDeadline) {
+          // Check if the prop already reflects our optimistic update
+          // Compare dates by day (not time) since we only care about the date
+          const propDeadline = a.Deadline ? parseDeadline(a.Deadline) : null
+          const pendingDeadlineDate = parseDeadline(pendingDeadline)
+          
+          if (propDeadline && format(propDeadline, "yyyy-MM-dd") === format(pendingDeadlineDate, "yyyy-MM-dd")) {
+            // Prop matches our optimistic update, remove from pending
+            pendingUpdatesRef.current.delete(a.ID)
+            return a
+          }
+          
+          // Prop doesn't match yet, keep our optimistic update
+          return { ...a, Deadline: pendingDeadline } as assignment.LocalAssignment
+        }
+        return a
+      })
+      return updated
+    })
+  }, [assignments])
+
+  // Wrapper for onMoveAssignment that optimistically updates local state
+  const handleMoveAssignment = (assignment: assignment.LocalAssignment, date: Date) => {
+    // Optimistically update the assignment's deadline in local state
+    const newDeadline = format(date, "yyyy-MM-dd HH:mm:ssxxx")
+    
+    // Track this as a pending update
+    pendingUpdatesRef.current.set(assignment.ID, newDeadline)
+    
+    // Skip the next sync to prevent overwriting our optimistic update
+    skipNextSyncRef.current = true
+    
+    // Optimistically update local state immediately
+    setLocalAssignments(prev => 
+      prev.map(a => 
+        a.ID === assignment.ID 
+          ? { ...a, Deadline: newDeadline } as assignment.LocalAssignment
+          : a
+      )
+    )
+    
+    // Call the original onMoveAssignment handler
+    onMoveAssignment(assignment, date)
+  }
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear()
@@ -71,7 +140,7 @@ export function AssignmentsCalendar({
   }
 
   const getAssignmentsForDate = (date: Date) => {
-    return (assignments || []).filter(assignment => {
+    return (localAssignments || []).filter(assignment => {
       if (!assignment.Deadline) return false
       const deadline = parseDeadline(assignment.Deadline)
       try {
@@ -164,7 +233,7 @@ export function AssignmentsCalendar({
                     dayAssignments={dayAssignments}
                     isCurrentMonth={isCurrentMonth}
                     isToday={isToday}
-                    onMoveAssignment={onMoveAssignment}
+                    onMoveAssignment={handleMoveAssignment}
                     onDateClick={onDateClick}
                     onEdit={onEdit}
                     onAssignmentClick={onAssignmentClick}

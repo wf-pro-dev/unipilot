@@ -87,7 +87,7 @@ func (sm *SyncManager) MarkSyncCompleted(update *models.LocalUpdate) error {
 
 // BackgroundSync runs periodic sync in the background
 func (sm *SyncManager) BackgroundSync() {
-	ticker := time.NewTicker(2 * time.Minute)
+	ticker := time.NewTicker(2 * time.Hour)
 	defer ticker.Stop()
 
 	for range ticker.C {

@@ -29,8 +29,8 @@ export function useUsers() {
     },
 
 
-    staleTime: 2 * 60 * 1000, // Consider fresh for 2 minutes
-    gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
+    staleTime: 2 * 60 * 60 * 1000, // Consider fresh for 2 hours
+    gcTime: 10 * 60 * 60 * 1000,   // Keep in cache for 10 hours
   })
 }
 

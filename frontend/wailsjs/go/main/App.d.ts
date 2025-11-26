@@ -45,6 +45,8 @@ export function GetAssignmentDocuments(arg1:number):Promise<Array<document.Local
 
 export function GetAssignments():Promise<Array<assignment.LocalAssignment>>;
 
+export function GetConversationHistory(arg1:number):Promise<Array<Record<string, any>>>;
+
 export function GetCourse(arg1:number):Promise<course.Course>;
 
 export function GetCourseAssignments(arg1:course.LocalCourse):Promise<Array<assignment.LocalAssignment>>;
@@ -95,6 +97,8 @@ export function RequestLinkCourse(arg1:string,arg2:Array<number>):Promise<void>;
 
 export function SaveDocumentAs(arg1:number):Promise<void>;
 
+export function SaveUIMessage(arg1:number,arg2:Record<string, any>):Promise<void>;
+
 export function SendDocument(arg1:fileops.FileUploadResponse):Promise<document.LocalDocument>;
 
 export function StartNotificationDaemon():Promise<void>;
@@ -114,5 +118,7 @@ export function UpdateNote(arg1:note.LocalNote,arg2:string,arg3:string):Promise<
 export function UpdateUser(arg1:string,arg2:string):Promise<user.User>;
 
 export function UploadDocument(arg1:number,arg2:number,arg3:string):Promise<document.LocalDocument>;
+
+export function UploadDocumentRAG(arg1:document.LocalDocument):Promise<void>;
 
 export function UploadNewDocumentVersion(arg1:number):Promise<document.LocalDocument>;

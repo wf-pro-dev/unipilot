@@ -388,7 +388,7 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 		return fmt.Errorf("database not initialized")
 	}
 
-	tx := a.DB.GetDB().Debug().Begin()
+	tx := a.DB.GetDB().Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -423,10 +423,11 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 		return err
 	}
 
+	runtime.LogInfof(a.ctx, "Response keywords: %v", responseNote["keywords"])
+
 	isMissingData := noteData.RemoteID == 0 || noteData.Keywords == "" || noteData.Content == ""
 	isResponseNoteEmpty := responseNote == nil || responseNote["keywords"] == "" || responseNote["content"] == ""
 	if isMissingData && !isResponseNoteEmpty {
-		runtime.LogInfof(a.ctx, "Response note is empty: %v", responseNote)
 		noteData.Keywords = responseNote["keywords"]
 		noteData.Content = responseNote["content"]
 	}
@@ -618,6 +619,30 @@ func (a *App) DownloadDocument(doc *document.LocalDocument) error {
 	}
 
 	return nil
+}
+
+// UploadDocumentRAG  uploads a document to the qdrant database for RAG
+func (a *App) UploadDocumentRAG(doc *document.LocalDocument) error {
+
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
+
+		runtime.LogInfof(a.ctx, "sending document to remote: %v", doc.ID)
+
+		clientErr := client.UploadDocumentRAG(doc)
+		if clientErr != nil {
+			return clientErr
+		} else {
+			runtime.LogInfof(a.ctx, "remote upload response: %v", "success")
+		}
+
+	}
+
+	return nil
+
 }
 
 // ========================================
@@ -1274,6 +1299,10 @@ func (a *App) Logout() error {
 	return nil
 }
 
+/********************************************************
+GET OPERATIONS
+********************************************************/
+
 // IsAuthenticated checks if the user is currently authenticated
 func (a *App) GetCurrentUser() (*user.User, error) {
 	return a.Auth.User, nil
@@ -1416,6 +1445,20 @@ func (a *App) GetSubmissionDocuments(assignmentID uint) ([]document.LocalDocumen
 	).Order("created_at DESC").Find(&documents).Error
 
 	return documents, err
+}
+
+func (a *App) SaveUIMessage(assignmentID uint, vercelMessage map[string]interface{}) error {
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+	return a.DB.SaveUIMessage(assignmentID, vercelMessage)
+}
+
+func (a *App) GetConversationHistory(assignmentID uint) ([]map[string]interface{}, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+	return a.DB.GetConversationHistory(assignmentID)
 }
 
 // OpenDocument opens a document file with the system default application
