@@ -15,9 +15,25 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
+// Logger is the console logger instance. In production, it falls back to FileLogger.
+// It outputs structured logs to stdout/stderr with development-friendly formatting.
 var Logger *zap.SugaredLogger
+
+// FileLogger is the file-based logger instance that writes structured JSON logs
+// to log files (app.log and error.log) with automatic rotation and compression.
 var FileLogger *zap.SugaredLogger
 
+// InitLogger initializes the logging system with file and console outputs.
+// Configuration is read from environment variables:
+//   - LOG_DIR: Directory for log files (default: "/app/logs")
+//   - LOG_LEVEL: Log level - DEBUG, WARN, ERROR (default: INFO)
+//   - ENV: Environment mode - if not "production", console logging is enabled
+//
+// Creates two log files:
+//   - app.log: All logs (max 100MB, 10 backups, 30 days retention)
+//   - error.log: Error-level logs only (max 50MB, 5 backups, 60 days retention)
+//
+// Panics if the logs directory cannot be created.
 func InitLogger() {
 	// Create logs directory
 	logDir := os.Getenv("LOG_DIR")
@@ -104,6 +120,14 @@ func InitLogger() {
 
 }
 
+// LogDebug logs a debug-level message with context fields and additional key-value pairs.
+// Context fields (request_id, user_id, duration) are automatically extracted and included.
+// The formatted message is written to the console logger only.
+//
+// Parameters:
+//   - ctx: Context containing request metadata (request_id, user, start_time)
+//   - message: The log message
+//   - keysAndValues: Alternating key-value pairs (e.g., "key1", value1, "key2", value2)
 func LogDebug(ctx context.Context, message string, keysAndValues ...interface{}) {
 	fields := extractContextFields(ctx)
 	// Prepend context fields so they can be overridden by provided fields
@@ -118,6 +142,14 @@ func LogDebug(ctx context.Context, message string, keysAndValues ...interface{})
 	}
 }
 
+// LogInfo logs an info-level message with context fields and additional key-value pairs.
+// Context fields (request_id, user_id, duration) are automatically extracted and included.
+// The message is written to both console and file loggers.
+//
+// Parameters:
+//   - ctx: Context containing request metadata (request_id, user, start_time)
+//   - message: The log message
+//   - keysAndValues: Alternating key-value pairs (e.g., "key1", value1, "key2", value2)
 func LogInfo(ctx context.Context, message string, keysAndValues ...interface{}) {
 	fields := extractContextFields(ctx)
 	// Prepend context fields so they can be overridden by provided fields
@@ -136,6 +168,16 @@ func LogInfo(ctx context.Context, message string, keysAndValues ...interface{}) 
 	}
 }
 
+// LogWarn logs a warning-level message with an error and context fields.
+// Context fields (request_id, user_id, duration) are automatically extracted and included.
+// The error is automatically added to the log fields.
+// The message is written to both console and file loggers.
+//
+// Parameters:
+//   - ctx: Context containing request metadata (request_id, user, start_time)
+//   - message: The log message
+//   - err: The error to log (must not be nil)
+//   - keysAndValues: Alternating key-value pairs (e.g., "key1", value1, "key2", value2)
 func LogWarn(ctx context.Context, message string, err error, keysAndValues ...interface{}) {
 	fields := extractContextFields(ctx)
 	// Prepend context fields so they can be overridden by provided fields
@@ -155,6 +197,16 @@ func LogWarn(ctx context.Context, message string, err error, keysAndValues ...in
 	}
 }
 
+// LogError logs an error-level message with an error and context fields.
+// Context fields (request_id, user_id, duration) are automatically extracted and included.
+// The error is automatically added to the log fields.
+// The message is written to both console and file loggers (including error.log).
+//
+// Parameters:
+//   - ctx: Context containing request metadata (request_id, user, start_time)
+//   - message: The log message
+//   - err: The error to log (must not be nil)
+//   - keysAndValues: Alternating key-value pairs (e.g., "key1", value1, "key2", value2)
 func LogError(ctx context.Context, message string, err error, keysAndValues ...interface{}) {
 	fields := extractContextFields(ctx)
 	// Prepend context fields so they can be overridden by provided fields
@@ -180,6 +232,17 @@ func LogError(ctx context.Context, message string, err error, keysAndValues ...i
 	}
 }
 
+// ResponseError logs an error and sends an HTTP error response.
+// Errors with status code >= 500 are logged as errors, others as warnings.
+// The status code is automatically added to the log fields.
+//
+// Parameters:
+//   - ctx: Context containing request metadata (request_id, user, start_time)
+//   - w: HTTP response writer
+//   - err: The error to log (must not be nil)
+//   - code: HTTP status code
+//   - message: Error message to send to client and log
+//   - keysAndValues: Alternating key-value pairs (e.g., "key1", value1, "key2", value2)
 func ResponseError(ctx context.Context, w http.ResponseWriter, err error, code int, message string, keysAndValues ...interface{}) {
 	fields := append([]interface{}{"status_code", code}, keysAndValues...)
 	if code >= 500 {
@@ -190,6 +253,16 @@ func ResponseError(ctx context.Context, w http.ResponseWriter, err error, code i
 	http.Error(w, message, code)
 }
 
+// FormatLogMessage formats a log message by appending key-value pairs as a string.
+// The output format is: "message key1=value1, key2=value2, ..."
+//
+// Parameters:
+//   - message: The base log message
+//   - keysAndValues: Alternating key-value pairs (must be even number of arguments)
+//
+// Returns:
+//   - string: Formatted log message
+//   - error: Error if keysAndValues is not an even number of arguments
 func FormatLogMessage(message string, keysAndValues ...interface{}) (string, error) {
 	if len(keysAndValues)%2 != 0 {
 		return "", errors.New("keysAndValues must be a pair of key and value")
@@ -205,6 +278,9 @@ func FormatLogMessage(message string, keysAndValues ...interface{}) (string, err
 	return logMessage, nil
 }
 
+// extractContextFields extracts logging fields from the context.
+// Extracts request_id, user_id (from user context), and duration (from start_time).
+// Returns a slice of alternating key-value pairs suitable for structured logging.
 func extractContextFields(ctx context.Context) []interface{} {
 	fields := []interface{}{}
 
@@ -228,6 +304,14 @@ func extractContextFields(ctx context.Context) []interface{} {
 	return fields
 }
 
+// PrintERROR is a legacy error logging function that uses the standard log package.
+// It logs to stdout and sends an HTTP error response.
+// Consider using ResponseError instead for structured logging with context.
+//
+// Parameters:
+//   - w: HTTP response writer
+//   - code: HTTP status code
+//   - message: Error message to send to client and log
 func PrintERROR(w http.ResponseWriter, code int, message string) {
 	log.Printf("[ERROR] [%d] %s", code, message)
 	http.Error(w, message, code)

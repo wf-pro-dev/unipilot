@@ -15,6 +15,37 @@ import (
 	"unipilot/internal/server"
 )
 
+// LoginHandler handles user authentication requests.
+// Validates user credentials against stored password hash and generates JWT tokens
+// for authenticated sessions. Uses bcrypt for secure password verification.
+//
+// HTTP Method: POST
+// Content-Type: application/json
+//
+// Request Body:
+//   - username: User's username (string, required)
+//   - password: User's password in plain text (string, required)
+//
+// Response (200 OK):
+//   - message: Success message
+//   - user: User object (as map) with sensitive fields removed
+//   - token: JWT access token (expires in 15 minutes)
+//   - refresh_token: JWT refresh token (expires in 30 days)
+//
+// Error Responses:
+//   - 400 Bad Request: Invalid JSON body
+//   - 401 Unauthorized: User not found or invalid password
+//   - 405 Method Not Allowed: Non-POST request
+//   - 500 Internal Server Error: Session key retrieval or token generation failure
+//
+// Security Features:
+//   - Constant-time password comparison using bcrypt
+//   - JWT tokens with appropriate expiration times
+//   - Structured logging for security audit trails
+//
+// Side Effects:
+//   - Logs authentication attempts (both successful and failed)
+//   - Generates new JWT tokens for each login session
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

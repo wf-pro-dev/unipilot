@@ -31,11 +31,14 @@ go.work.sum
 # env file
 .env
 */**/.env
-
 .venv/
+
+# backend
 internal/server/nodejs/node_modules/
 internal/server/qdrant/qdrant_storage/
 qdrant_storage/
+# syncthing folder
+.stfolder/
 
 # Editor/IDE
 # .idea/

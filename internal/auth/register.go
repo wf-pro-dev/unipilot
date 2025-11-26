@@ -42,12 +42,6 @@ func (a *Auth) Register(username, email, password, university, language string) 
 		return nil, fmt.Errorf("register failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	/* DEPRECATED
-	if err := client.SaveCookies(httpClient); err != nil {
-		return nil, fmt.Errorf("failed to save cookies: %w", err)
-	}
-	*/
-
 	// Parse the response to get user ID
 	var response struct {
 		User  map[string]interface{} `json:"user"`
