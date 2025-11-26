@@ -2,7 +2,6 @@ package grpc
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"unipilot/internal/server/sse/grpc/notifications"
 
@@ -17,12 +16,12 @@ var conn *grpc.ClientConn
 
 func NewGRPCClient() *notifications.NotificationsServiceClient {
 
-	address, err := secrets.GetEnvVar("GRPC_SSE_ADDRESS")
+	address, err := secrets.GetEnvVar("GRPC_SSE_ADDR")
 	if err != nil {
 		log.Fatalf("did not get port: %v", err)
 	}
 
-	conn, err = grpc.Dial(fmt.Sprintf("%s:9000", address), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err = grpc.Dial(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
@@ -32,19 +31,25 @@ func NewGRPCClient() *notifications.NotificationsServiceClient {
 	if err != nil {
 		log.Fatalf("did not send heartbeat: %v", err)
 	}
-	server.PrintLOG([]string{"GRPC"}, fmt.Sprintf("Heartbeat response: %s", message.Body))
+	server.LogDebug(context.Background(), "Heartbeat response: ",
+		"response", message.Body,
+		"tags", []string{"GRPC", "HEARTBEAT"},
+	)
 
 	return &c
 }
 
 func CloseGRPCClient() {
 
-	if conn == nil {
-		return
+	ctx := context.Background()
+	if conn != nil {
+		if err := conn.Close(); err != nil {
+			server.LogError(ctx, "Failed to close gRPC connection", err,
+				"tags", []string{"GRPC", "CLOSE"},
+			)
+		}
 	}
-
-	if err := conn.Close(); err != nil {
-		log.Fatalf("did not close connection: %v", err)
-	}
-	server.PrintLOG([]string{"GRPC"}, "Closing gRPC connection")
+	server.LogDebug(ctx, "Closed gRPC connection",
+		"tags", []string{"GRPC", "CLOSE"},
+	)
 }
