@@ -108,7 +108,7 @@ export function MarkdownRenderer({
             if (inline) {
               return (
                 <code 
-                  className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-muted-foreground"
+                  className="bg-gray-800/50 border border-gray-600 px-1.5 py-0.5 rounded text-sm font-mono text-muted-foreground"
                   {...props}
                 >
                   {children}
@@ -119,7 +119,7 @@ export function MarkdownRenderer({
             // Block code (triple backticks) - render inline with text
             return (
               <code 
-                className={cn("bg-muted px-2 py-1 rounded text-sm font-mono text-muted-foreground inline-block", className)} 
+                className={cn("bg-gray-800/50 border border-gray-600 px-2 py-1 rounded text-sm font-mono text-muted-foreground inline-block", className)} 
                 {...props}
               >
                 {children}
@@ -129,7 +129,7 @@ export function MarkdownRenderer({
           pre: ({ children, ...props }) => (
             <div className="my-8">
               <pre
-                className="bg-muted rounded-lg p-4 overflow-x-auto text-sm font-mono border"
+                className="bg-gray-800/50 rounded-lg p-4 overflow-x-auto text-sm font-mono border border-gray-600"
                 {...props}
               >
                 {children}

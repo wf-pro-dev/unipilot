@@ -103,12 +103,12 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
   return (
     <div className="flex w-full h-full justify-center">
       {messages.length > 0 && (
-        <div className="flex flex-col max-w-xl py-32 gap-12 ">
+        <div className="flex flex-col max-w-2xl py-32 gap-12 ">
           <div ref={messagesStartRef} />
           {messages.map(message => (
-            <div key={message.id} className="whitespace-pre-wrap">
+            <div key={message.id} className="whitespace-pre-wrap w-full">
 
-              <div className="flex space-x-2">
+              <div className="flex space-x-2 w-full">
                 <div className="mt-4">
                   {message.role === 'user' ? (
                     <Avatar className="w-8 h-8">
@@ -121,7 +121,7 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
                     </div>
                   )}
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 w-full">
                   <span className="text-gray-300 text-xs">{message.role === 'user' ? 'User: ' : 'AI: '}</span>
                   {message.parts.map((part, i) => {
                     switch (part.type) {
@@ -194,7 +194,7 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
             setInput('');
           }}
         >
-          <div className="absolute bottom-0 left-1/2 w-full max-w-2xl -translate-x-1/2">
+          <div className="absolute bottom-0 left-1/2 w-full max-w-3xl -translate-x-1/2">
             <div className="absolute -right-14 -top-14 p-4">
               <Button
                 type="button"
