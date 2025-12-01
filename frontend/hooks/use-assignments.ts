@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
-import { addDays, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns'
+import { addDays, startOfWeek, endOfWeek, isWithinInterval, isAfter, isSameDay } from 'date-fns'
 import { assignment, course } from '@/wailsjs/go/models'
 import { useMemo } from 'react'
 
@@ -241,7 +241,7 @@ export function useCompletedAssignments() {
   }
 }
 
-// Completed assignments
+// Exam assignments
 export function useExamAssignments() {
   const { data: assignments, ...rest } = useAssignments()
 
@@ -254,6 +254,21 @@ export function useExamAssignments() {
     ...rest
   }
 }
+
+// Next assignments
+export function useNextAssignments() {
+  const { data: assignments, ...rest } = useAssignments()
+
+  const nextAssignments = useMemo(() => assignments?.
+    filter(assignment => isAfter(assignment.Deadline, new Date()) || isSameDay(assignment.Deadline, new Date())).
+    sort((a, b) => new Date(a.Deadline).getTime() - new Date(b.Deadline).getTime()) || [], [assignments]) // Memoize the result to avoid unnecessary re-renders
+
+  return {
+    data: nextAssignments,
+    ...rest
+  }
+}
+
 export function useAcceptAssignment() {
   const queryClient = useQueryClient()
 

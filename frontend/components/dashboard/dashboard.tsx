@@ -1,561 +1,373 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { StatsCards } from "../dashboard/stats-cards"
 import { useAuthContext } from "../provider/auth-provider"
-import { BookOpen, Calendar, ClipboardList, FileText, MapPin, Users, CheckCircle2, Dot, ChevronLeft, ChevronRight, Clock, User } from "lucide-react"
-import { getDueDescription, getNextCourse, parseDeadline } from "@/lib/date-utils"
+import { BookOpen, Calendar, FileText, MapPin, User, Clock, ArrowRight, StickyNote } from "lucide-react"
+import { getNextCourse, parseDeadline } from "@/lib/date-utils"
 import { useCoursesBySemester } from "@/hooks/use-courses"
-import { Card, CardContent, CardHeader, CardFooter } from "../ui/card"
+import { CardContent, CardHeader } from "../ui/card"
+import { GlassCard } from "../ui/glass-card"
+import { EmptyState } from "../ui/empty-state"
 import { Button } from "../ui/button"
 import { useRouter } from "next/navigation"
 import { Badge } from "../ui/badge"
-import { useExamAssignments, useWeekAssignments } from "@/hooks/use-assignments"
-import { CalendarItem } from "../assignments/calendar-item"
-import { useUpdateAssignment } from "@/hooks/use-assignments"
+import { useAssignments, useDeleteAssignment, useExamAssignments, useUpdateAssignment } from "@/hooks/use-assignments"
 import { toast } from "sonner"
 import { LogInfo } from "@/wailsjs/runtime"
 import { assignment, note } from "@/wailsjs/go/models"
-import { format, isAfter, isEqual, isSameDay} from "date-fns"
-import { DndProvider, useDrop } from "react-dnd"
-import { HTML5Backend } from "react-dnd-html5-backend"
+import { format, isAfter, isSameDay } from "date-fns"
 import { useNotes } from "@/hooks/use-notes"
 import useEmblaCarousel from 'embla-carousel-react'
+import { AssignmentItem } from "../assignments/assignment-item"
+import { AssignmentEditDialog } from "../assignments/assignment-edit-dialog"
+import { hover } from "framer-motion"
 
+// Helper function to get gradient classes for course colors
+// This ensures Tailwind can detect all possible class combinations
+const getCourseGradientClasses = (color: string | undefined, isOn: boolean | null) => {
+    if (!color || !isOn) {
+        return {
+            bg: "bg-white/5",
+            hover: "hover:bg-white/10 hover:border-white/10"
+        }
+    }
+
+    // Map color values to gradient classes that Tailwind can detect
+    const colorMap: Record<string, { bg: string; hover: string }> = {
+        "bg-blue-500": {
+            bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-blue-500/20 before:via-blue-500/5 before:to-transparent before:transition-opacity before:duration-500",
+            hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-blue-500/40 after:via-blue-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+        },
+        "bg-green-500": {
+            bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-green-500/20 before:via-green-500/5 before:to-transparent before:transition-opacity before:duration-500",
+            hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-green-500/40 after:via-green-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+        },
+        "bg-purple-500": {
+            bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-purple-500/20 before:via-purple-500/5 before:to-transparent before:transition-opacity before:duration-500",
+            hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-purple-500/40 after:via-purple-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+        },
+        "bg-red-500": {
+            bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-red-500/20 before:via-red-500/5 before:to-transparent before:transition-opacity before:duration-500",
+            hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-red-500/40 after:via-red-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+        },
+        "bg-orange-500": {
+            bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-orange-500/20 before:via-orange-500/5 before:to-transparent before:transition-opacity before:duration-500",
+            hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-orange-500/40 after:via-orange-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+        },
+        "bg-pink-500": {
+            bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-pink-500/20 before:via-pink-500/5 before:to-transparent before:transition-opacity before:duration-500",
+            hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-pink-500/40 after:via-pink-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+        }
+    }
+
+    return colorMap[color] || {
+        bg: "bg-white/5",
+        hover: "hover:bg-white/10 hover:border-white/10"
+    }
+}
 
 export function Dashboard() {
     const router = useRouter()
     const { user } = useAuthContext()
     const { data: coursesBySemester } = useCoursesBySemester(user?.Semester || "")
-    const { data: week_assignments } = useWeekAssignments()
-    const [selectedIndex, setSelectedIndex] = useState(0)
+    const { data: assignments } = useAssignments()
     const { data: exams } = useExamAssignments()
-    const UpcomingExams = useMemo(() => {
-        return exams?.filter((exam) => isAfter(exam.Deadline, new Date()) || isSameDay(exam.Deadline, new Date()))
-    }, [exams])
     const { data: notes } = useNotes()
-    var notesPerPage = 2
-    const notesPages = []
-    for (let i = 0; i < (notes || []).length; i += notesPerPage) {
-        notesPages.push(notes?.slice(i, i + notesPerPage))
-    }
+
+    const deleteMutation = useDeleteAssignment()
+    const updateMutation = useUpdateAssignment()
+
+    const [editAssignment, setEditAssignment] = useState<assignment.LocalAssignment | null>(null)
+    const [editDialogOpen, setEditDialogOpen] = useState(false)
+
+    // Filter priority assignments (Not Done, sorted by deadline)
+    const priorityAssignments = useMemo(() => {
+        if (!assignments) return []
+        return assignments
+            .filter(a => a.StatusName !== "Done")
+            .sort((a, b) => new Date(a.Deadline).getTime() - new Date(b.Deadline).getTime())
+            .slice(0, 5)
+    }, [assignments])
+
+    const upcomingExams = useMemo(() => {
+        return exams?.filter((exam) => isAfter(exam.Deadline, new Date()) || isSameDay(exam.Deadline, new Date()))
+            .sort((a, b) => new Date(a.Deadline).getTime() - new Date(b.Deadline).getTime())
+            .slice(0, 3)
+    }, [exams])
 
     const { course, isOn, until } = getNextCourse(coursesBySemester)
-    var daysUntil = Math.floor(until! / 1440)
-    var hoursUntil = Math.floor((until! % 1440) / 60)
-    var minutesUntil = (until! % 60) + 1
 
-    const [emblaRef, emblaApi] = useEmblaCarousel({
-        align: 'start',
-        containScroll: 'trimSnaps',
-        dragFree: false,
-        skipSnaps: false
-    })
+    // Calculate time until class
+    const daysUntil = until ? Math.floor(until / 1440) : 0
+    const hoursUntil = until ? Math.floor((until % 1440) / 60) : 0
+    const minutesUntil = until ? (until % 60) + 1 : 0
 
-    // Carousel navigation functions
-    const scrollPrev = useCallback(() => {
-        if (emblaApi) emblaApi.scrollPrev()
-    }, [emblaApi])
-
-    const scrollNext = useCallback(() => {
-        if (emblaApi) emblaApi.scrollNext()
-    }, [emblaApi])
-
-    const hour = new Date().getHours()
-
-    let greeting = "Good morning"
-    if (hour >= 12 && hour < 17) {
-        greeting = "Good afternoon"
-    } else if (hour >= 17) {
-        greeting = "Good evening"
-    }
-
-    const updateMutation = useUpdateAssignment()
+    // Notes carousel
+    const [emblaRef, emblaApi] = useEmblaCarousel({ align: 'start', containScroll: 'trimSnaps' })
 
     const handleEditAssignment = async (assignment: assignment.LocalAssignment, column: string, value: string) => {
         const message = "[Frontend] assignment " + assignment.ID + " remote_id " + assignment.RemoteID + " " + column + " changed to " + value
         LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
 
-        // Use the optimistic update mutation
-        updateMutation.mutate({
-            assignment,
-            column,
-            value
-        }, {
-            onSuccess: () => {
-                toast.success("Assignment updated successfully")
-            },
-            onError: () => {
-                toast.error("Assignment update failed")
-            }
+        updateMutation.mutate({ assignment, column, value }, {
+            onSuccess: () => toast.success("Assignment updated"),
+            onError: () => toast.error("Update failed")
         })
     }
 
-    const onMoveAssignment = (assignment: assignment.LocalAssignment, status: string) => {
-        if (assignment.StatusName === status) {
-            return
-        }
-        handleEditAssignment(assignment, "status_name", status)
+    const handleToggleComplete = (assignment: assignment.LocalAssignment) => {
+        const newStatus = assignment.StatusName === "Done" ? "Not started" : "Done"
+        handleEditAssignment(assignment, "status_name", newStatus)
     }
 
-
-    // Track current slide
-    const onSelect = useCallback(() => {
-        if (!emblaApi) return
-        setSelectedIndex(emblaApi.selectedScrollSnap())
-    }, [emblaApi])
-
-
-    useEffect(() => {
-        if (!emblaApi) return
-        onSelect()
-        emblaApi.on('select', onSelect)
-        return () => {
-            emblaApi.off('select', onSelect)
-        }
-    }, [emblaApi, onSelect])
-
-
-
-    const StatusCard = ({ status, className, color, overColor }: { status: string, className?: string, color?: string, overColor?: string }) => {
-
-        const [{ isOver }, drop] = useDrop({
-            accept: "assignment",
-            drop: (item: { assignment: assignment.LocalAssignment }) => {
-                if (item.assignment) {
-                    onMoveAssignment(item.assignment, status)
-                }
-            },
-            collect: (monitor) => ({
-                isOver: monitor.isOver(),
-            }),
+    const handleDelete = (assignment: assignment.LocalAssignment) => {
+        deleteMutation.mutate(assignment, {
+            onSuccess: () => toast.success("Assignment deleted"),
+            onError: () => toast.error("Delete failed")
         })
+    }
 
-        const assignments = useMemo(() => {
-            return (week_assignments || [])
-                .filter((assignment) => assignment.StatusName === status)
-                .sort((a, b) => {
-                    return new Date(a.Deadline).getTime() - new Date(b.Deadline).getTime()
-                })
-        }, [week_assignments, status])
-
-        return (
-            <div
-                key={status}
-                ref={drop}
-
-                className={`
-                    flex flex-col 
-                    items-center 
-                    p-3 rounded-lg 
-                    border ${className} ${isOver ? overColor : color}
-                    space-y-2
-                `}
-            >
-
-                <div className={`text-[10px] font-medium text-white bg-transparent border ${color} p-1.5 rounded-full`}>
-                    {status} ({assignments.length})
-                </div>
-
-
-                <div className="w-full">
-                    {assignments.length > 0 ? (
-                        assignments
-                            .slice(0, 1)
-                            .map((assignment) => (
-                                <div key={assignment.ID}>
-                                    <CalendarItem assignment={assignment} onEdit={handleEditAssignment} onAssignmentClick={() => { }} />
-                                </div>
-                            ))
-                    ) : (
-                        <div className="flex flex-col items-center justify-center h-full">
-                            <CheckCircle2 className="h-8 w-8 text-white/20 mx-auto mb-4" />
-                        </div>
-                    )}
-
-                </div>
-
-            </div>
-        )
+    const handleOpenEdit = (assignment: assignment.LocalAssignment) => {
+        setEditAssignment(assignment)
+        setEditDialogOpen(true)
     }
 
     return (
-        <DndProvider backend={HTML5Backend}>
-            <div className="flex-1 space-y-5 mb-4">
-                {/* <div className="">
-                    <p className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-                        {greeting}, {user?.Username} 👋
-                    </p>
-                </div> */}
-
+        <div className="flex flex-col h-full gap-6">
+            <div className="shrink-0">
                 <StatsCards />
+            </div>
 
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+                {/* Main Column (Left 2/3) */}
+                <div className="lg:col-span-2 flex flex-col gap-6 h-full min-h-0">
 
-                <div className="flex-1 grid grid-cols-4 grid-rows-3 gap-5">
+                    {/* Next Class Card */}
+                    <div className="shrink-0">
+                        <GlassCard 
+                            variant="interactive" 
+                            onClick={() => course && router.push(`/courses?view=schedule`)} 
+                            className={`${getCourseGradientClasses(course?.Color, course && isOn).bg} ${getCourseGradientClasses(course?.Color, course && isOn).hover } border border-white/5 transition-all duration-300 group overflow-hidden relative`}
+                        >
 
-
-                    <div className="grid grid-cols-2 gap-5 col-span-4 row-span-2">
-                        <Card className="flex flex-col glass" >
-                            <CardHeader className="flex flex-row items-center justify-between">
-                                <div className="flex flex-row items-center space-x-2">
-                                    <div className={`p-1 rounded-lg bg-white/20`}>
-                                        <ClipboardList className={`h-4 w-4 text-white`} strokeWidth={1.5} />
+                            <CardHeader className="flex flex-row items-center justify-between pb-4 z-10 relative">
+                                <div className="flex items-center space-x-3">
+                                    <div className="p-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/5 shadow-inner">
+                                        <BookOpen className="h-5 w-5 text-white" />
                                     </div>
-                                    <p className="text-sm font-medium text-white">
-                                        Upcoming Assignments
-                                    </p>
+                                    <h3 className="text-lg font-semibold text-white">Next Class</h3>
                                 </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="w-24 bg-transparent border-gray-600 text-xs"
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        router.push(`/assignments?view=week`)
-                                    }}
-                                >
-                                    <ClipboardList className="mr-1 w-2 h-2" />
-                                    View All
-                                </Button>
+                                {isOn && (
+                                    <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 animate-pulse">
+                                        Happening Now
+                                    </Badge>
+                                )}
                             </CardHeader>
-                            <CardContent className="flex-1 grid grid-cols-3 gap-4">
 
-                                <StatusCard status="Not started" className="bg-gray-800/40" color="border-gray-600" overColor="border-gray-300" />
-                                <StatusCard status="In progress" className="bg-blue-500/20" color="border-blue-500" overColor="border-blue-300" />
-                                <StatusCard status="Done" className="bg-green-500/20" color="border-green-500" overColor="border-green-300" />
-
-                            </CardContent>
-                        </Card>
-
-                        <div className="grid grid-cols-2 gap-5">
-
-                            <Card
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                    router.push(`/courses?view=schedule&course=${course?.Code}`)
-                                }}
-
-                                className="h-full flex cursor-pointer flex-col glass hover:scale-105 transition-all duration-300 " >
-                                <CardHeader className="flex flex-row items-center justify-between">
-                                    <div className="flex flex-row items-center space-x-2">
-                                        <div className={`p-1 rounded-lg bg-white/20`}>
-                                            <BookOpen className={`h-4 w-4 text-white`} strokeWidth={1.5} />
-                                        </div>
-                                        <p className="text-sm font-medium text-white">
-                                            Upcoming Class
-                                        </p>
-                                    </div>
-                                    {isOn && (
-                                        <Badge className="text-xs text-blue-500 bg-blue-500/10 border-blue-500">
-                                            On Going
-                                        </Badge>
-                                    )}
-                                </CardHeader>
+                            <CardContent className="z-10 relative">
                                 {course ? (
-                                    <CardContent className="flex-1 space-y-4">
-                                        <div key={course.ID} className="flex items-center space-x-3">
-                                            <div className={`w-2 h-2 rounded-full ${course.Color}`} />
-                                            <div className="flex-1">
-                                                <p className="text-xs font-medium text-gray-300">{course.Code}</p>
-                                                <p className="text-sm text-white">{course.Name}</p>
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                        <div className="space-y-4">
+                                            <div className="space-y-1">
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-2 h-2 rounded-full ${course.Color} shadow-[0_0_8px_currentColor]`} />
+                                                    <span className="text-sm font-medium text-gray-400 tracking-wider">{course.Code}</span>
+                                                </div>
+                                                <h2 className="text-3xl font-bold text-white tracking-tight">{course.Name}</h2>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-4 text-sm text-gray-300">
+                                                <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                                                    <Clock className="w-4 h-4 text-blue-400" />
+                                                    <span>{course.Schedule}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                                                    <MapPin className="w-4 h-4 text-purple-400" />
+                                                    <span>{course.Location || "Online"}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-lg border border-white/5">
+                                                    <User className="w-4 h-4 text-green-400" />
+                                                    <span>{course.Instructor}</span>
+                                                </div>
                                             </div>
                                         </div>
 
                                         {until && (
-                                            <div className="flex flex-row space-x-2 items-center">
-                                                <Clock className="w-4 h-4 text-white" />
-
-                                                <div className="flex flex-row space-x-1 text-xs text-white">
-
-                                                    {!isOn &&
-                                                        <span>In </span>
-                                                    }
-
-                                                    {daysUntil > 0 && (
-                                                        <div className="flex flex-row space-x-1">
-                                                            <span className="font-semibold">{daysUntil}</span>
-                                                            <span> d,</span>
-                                                        </div>
-
-                                                    )}
-
-                                                    {hoursUntil > 0 && (
-                                                        <div className="flex flex-row space-x-1">
-                                                            <span className="font-semibold">{hoursUntil}</span>
-                                                            <span> h,</span>
-                                                        </div>
-                                                    )}
-                                                    <div className="flex flex-row space-x-1">
-                                                        <span className="font-semibold">{minutesUntil}</span>
-                                                        <span>min</span>
-                                                    </div>
-                                                    {isOn &&
-                                                        <span> left in class</span>
-                                                    }
-
+                                            <div className="bg-white/10 border border-white/5 shadow-lg shadow-black/60 rounded-lg flex flex-col items-end justify-center min-w-[140px] p-4">
+                                                <span className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">{isOn ? "Ends in" : "Starts in"}</span>
+                                                <div className="flex items-baseline gap-1">
+                                                    {daysUntil > 0 && <span className="text-2xl font-bold text-white">{daysUntil}<span className="text-sm font-normal text-gray-400 ml-1">d</span></span>}
+                                                    {hoursUntil > 0 && <span className="text-2xl font-bold text-white">{hoursUntil}<span className="text-sm font-normal text-gray-400 ml-1">h</span></span>}
+                                                    <span className="text-2xl font-bold text-white">{minutesUntil}<span className="text-sm font-normal text-gray-400 ml-1">m</span></span>
                                                 </div>
-
-
                                             </div>
                                         )}
-
-                                        <div className="flex space-x-2 items-center">
-                                            <Calendar className="w-4 h-4 text-white" />
-                                            <div className="text-xs text-white">
-                                                {course?.Schedule}
-                                            </div>
-                                        </div>
-                                        <div className="flex space-x-2 items-center">
-                                            <User className="w-4 h-4 text-white"/>
-                                            <div className="text-xs text-white"> 
-                                                {course?.Instructor}
-                                            </div>
-                                        </div>
-                                        <div className="flex space-x-2 items-center">
-                                            <MapPin className="w-4 h-4 text-white" />
-                                            <div className="text-xs text-white">
-                                                {course?.Location || "Online"}
-                                            </div>
-                                        </div>
-                                    </CardContent>
+                                    </div>
                                 ) : (
-                                    <div className="flex flex-col gap-4 items-center justify-center h-full">
-                                        <CheckCircle2 className="h-12 w-12 text-white/20 mx-auto" />
-                                        <p className="text-xs text-gray-400">No course found</p>
-                                    </div>
-                                )}
-                                <CardFooter >
-                                    {course ? (
-                                        <div className="grid grid-cols-5 w-full gap-2">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="flex-1 col-span-3 bg-transparent border-gray-600 text-xs"
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    router.push(`/assignments?view=list&course=${course?.Code}`)
-                                                }}
-                                            >
-                                                <ClipboardList className="w-2 h-2" />
-                                                Assignments
-                                            </Button>
-
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="flex-1 col-span-2 bg-transparent border-gray-600 text-xs"
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    router.push(`/notes?course=${course?.Code}`)
-                                                }}
-                                            >
-                                                <FileText className="w-2 h-2" />
-                                                Notes
-                                            </Button>
-                                        </div>
-                                    ) : (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="flex-1 bg-transparent border-gray-600 text-xs"
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                router.push(`/courses?view=list`)
-                                            }}
-                                        >
-                                            <BookOpen className="mr-1 w-2 h-2" />
-                                            See Courses
-                                        </Button>
-                                    )}
-
-                                </CardFooter>
-                            </Card>
-
-                            <Card className="flex flex-col glass" >
-                                <CardHeader className="flex flex-row items-center space-x-2">
-                                    <div className={`p-1 rounded-lg bg-white/20`}>
-                                        <Calendar className={`h-4 w-4 text-white`} strokeWidth={1.5} />
-                                    </div>
-                                    <p className="text-sm font-medium text-white">
-                                        Upcoming Exams
-                                    </p>
-                                </CardHeader>
-                                <CardContent className="flex-1 space-y-4 overflow-scroll">
-                                    <div className="flex flex-col gap-4">
-                                        {UpcomingExams.length > 0 ? (
-                                            UpcomingExams
-                                                .sort((a, b) => {
-                                                    return new Date(a.Deadline).getTime() - new Date(b.Deadline).getTime()
-                                                })
-                                                .slice(0, 3)
-                                                .map((exam) => (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="flex-1 bg-transparent border-gray-600 py-2 text-xs justify-start"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            router.push(`/assignments?view=exam&assignment=${exam.ID}`)
-                                                        }}
-                                                    >
-                                                        <div key={exam.ID} className="flex flex-row items-center space-x-2 w-full">
-                                                            <Dot className="h-6 w-6 text-white" />
-                                                            <div className="flex flex-col items-start w-full">
-
-                                                                <div className="flex flex-row w-full items-center justify-between">
-                                                                    <div className="text-[10px] text-gray-300 font-medium">
-                                                                        {exam.CourseCode}
-                                                                    </div>
-                                                                    <div className="text-[10px] text-gray-300 font-medium">
-                                                                        {getDueDescription(parseDeadline(exam.Deadline), exam.StatusName)}
-                                                                    </div>
-                                                                </div>
-
-                                                                <div className="text-xs font-medium text-white">
-                                                                    {exam.Title}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    </Button>
-                                                ))
-                                        ) : (
-                                            <div className="flex flex-col gap-4 items-center justify-center h-full">
-                                                <Calendar className="h-12 w-12 text-white/20 mx-auto" />
-                                                <p className="text-xs text-gray-400">No exams found</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </CardContent>
-                                <CardFooter className="flex space-x-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="flex-1 bg-transparent border-gray-600 text-xs"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            router.push(`/assignments?view=exam`)
-                                        }}
-                                    >
-                                        <ClipboardList className="mr-1 w-2 h-2" />
-                                        View All
-                                    </Button>
-                                </CardFooter>
-                            </Card>
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-5 col-span-4 ">
-                        <div className="flex glass" />
-
-                        <Card className="flex flex-col glass" >
-                            <CardHeader className="pb-4 flex flex-row items-center justify-between">
-                                <div className="flex flex-row items-center space-x-2">
-                                    <div className={`p-1 rounded-lg bg-white/20`}>
-                                        <FileText className={`h-4 w-4 text-white`} strokeWidth={1.5} />
-                                    </div>
-                                    <p className="text-sm font-medium text-white">
-                                        Latest Notes
-                                    </p>
-                                </div>
-                                <div className="flex flex-row items-center space-x-4">
-                                    <div>
-                                        {notesPages.length > 1 && (
-                                            <div className="flex flex-row items-center space-x-2">
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    className="rounded-full z-10 h-6 w-6 bg-gray-800/50 border border-gray-600"
-                                                    onClick={scrollPrev}
-                                                >
-                                                    <ChevronLeft className="h-4 w-4" />
-                                                </Button>
-
-                                                <Button
-                                                    variant="outline"
-                                                    size="icon"
-                                                    className="rounded-full z-10 h-6 w-6 bg-gray-800/50 border border-gray-600"
-                                                    onClick={scrollNext}
-                                                >
-                                                    <ChevronRight className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-24 bg-transparent border-gray-600 text-xs"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            router.push(`/notes`)
-                                        }}
-                                    >
-                                        <FileText className="mr-1 w-2 h-2" />
-                                        View All
-                                    </Button>
-
-
-
-                                </div>
-                            </CardHeader>
-                            <CardContent className="flex flex-row gap-4 ">
-
-                                {notes && notes.length > 0 ? (
-                                    <div className="relative w-full">
-                                        <div className="overflow-hidden" ref={emblaRef}>
-                                            <div className="flex">
-                                                {notesPages.map((page, pageIndex) => (
-                                                    <div
-                                                        key={pageIndex}
-                                                        className="flex-none w-full min-w-0"
-                                                    >
-                                                        <div className="grid grid-cols-2 gap-4 w-full">
-                                                            {page?.map((note: note.LocalNote) => {
-
-                                                                return (
-                                                                    <div key={note.ID} className="flex-1 w-full p-2 rounded-lg bg-gray-800/50 border border-gray-600">
-                                                                        <div className="flex flex-col space-y-2">
-                                                                            <div className="text-sm font-medium text-white line-clamp-1">
-                                                                                {note.Title}
-                                                                            </div>
-                                                                            <div className="flex flex-row items-center justify-between">
-
-                                                                                <div className="flex flex-row items-center space-x-2">
-                                                                                    <div className={`w-2 h-2 rounded-full ${note.Course.Color}`} />
-                                                                                    <div className="text-xs text-white">
-                                                                                        {note.CourseCode}
-                                                                                    </div>
-                                                                                </div>
-                                                                                <div className="text-xs text-gray-400">
-                                                                                    {note.Subject}
-                                                                                </div>
-                                                                            </div>
-
-                                                                        </div>
-                                                                    </div>
-                                                                )
-                                                            })}
-
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-
-
-                                    </div>
-
-                                ) : (
-                                    <div className="flex flex-row gap-4 items-center justify-center h-full">
-                                        <FileText strokeWidth={1.5} className="h-10 w-10 text-white/20 mx-auto" />
-                                        <p className="text-xs text-gray-400">No notes found</p>
-                                    </div>
+                                    <EmptyState
+                                        icon={BookOpen}
+                                        title="No upcoming classes"
+                                        description="Enjoy your free time!"
+                                        className="py-8"
+                                    />
                                 )}
                             </CardContent>
-                        </Card>
+                        </GlassCard>
                     </div>
 
+                    {/* Priority Assignments */}
+                    <div className="flex flex-col gap-4 flex-1 min-h-0">
+                        <div className="flex items-center justify-between px-1 shrink-0">
+                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                <Clock className="w-5 h-5 text-orange-400" />
+                                Priority Tasks
+                            </h3>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-gray-400 hover:text-white hover:bg-white/10"
+                                onClick={() => router.push('/assignments')}
+                            >
+                                View All <ArrowRight className="ml-1 w-4 h-4" />
+                            </Button>
+                        </div>
 
-                </div >
-            </div >
-        </DndProvider >
+                        {priorityAssignments.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-3 overflow-y-auto pr-2">
+                                {priorityAssignments.map(assignment => (
+                                    <AssignmentItem
+                                        key={assignment.ID}
+                                        assignment={assignment}
+                                        onToggleComplete={handleToggleComplete}
+                                        onEdit={handleEditAssignment}
+                                        onDelete={handleDelete}
+                                        onOpenEdit={handleOpenEdit}
+                                    // onAssignmentClick={(a) => handleOpenEdit(a)}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <GlassCard className="border-white/5 bg-white/5 py-12 flex-1 flex flex-col justify-center">
+                                <EmptyState
+                                    icon={Clock}
+                                    title="All caught up!"
+                                    description="No pending assignments due soon."
+                                    className="bg-transparent border-0"
+                                />
+                            </GlassCard>
+                        )}
+                    </div>
+                </div>
+
+                {/* Side Column (Right 1/3) */}
+                <div className="flex flex-col gap-6 h-full">
+
+                    {/* Upcoming Exams */}
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-semibold text-white flex items-center gap-2 px-1">
+                            <Calendar className="w-5 h-5 text-red-400" />
+                            Upcoming Exams
+                        </h3>
+                        <div className="space-y-3">
+                            {upcomingExams && upcomingExams.length > 0 ? (
+                                upcomingExams.map(exam => (
+                                    <GlassCard
+                                        key={exam.ID}
+                                        variant="interactive"
+                                        onClick={() => router.push(`/assignments?view=exam&assignment=${exam.ID}`)}
+                                        className="border-white/5 bg-white/5 hover:bg-white/10 p-4 transition-all group"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className="flex flex-col items-center min-w-[50px] bg-white/5 rounded-lg p-2 border border-white/5 group-hover:border-white/10 transition-colors">
+                                                <span className="text-xs font-bold text-red-400 uppercase">{format(parseDeadline(exam.Deadline), "MMM")}</span>
+                                                <span className="text-xl font-bold text-white">{format(parseDeadline(exam.Deadline), "d")}</span>
+                                            </div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{exam.CourseCode}</span>
+                                                <h4 className="text-sm font-medium text-white truncate leading-tight mb-1">{exam.Title}</h4>
+                                                <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                                                    <Clock className="w-3 h-3" />
+                                                    {format(parseDeadline(exam.Deadline), "h:mm a")}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </GlassCard>
+                                ))
+                            ) : (
+                                <GlassCard className="border-white/5 bg-white/5 py-8">
+                                    <EmptyState
+                                        icon={Calendar}
+                                        title="No exams"
+                                        description="Time to relax!"
+                                        className="bg-transparent border-0 p-0"
+                                    />
+                                </GlassCard>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Recent Notes */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between px-1">
+                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                <StickyNote className="w-5 h-5 text-yellow-400" />
+                                Recent Notes
+                            </h3>
+                            <div className="flex gap-1">
+                                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-white/10" onClick={() => emblaApi?.scrollPrev()}>
+                                    <ArrowRight className="w-4 h-4 rotate-180" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-white/10" onClick={() => emblaApi?.scrollNext()}>
+                                    <ArrowRight className="w-4 h-4" />
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="overflow-hidden -mx-1 px-1 pb-4" ref={emblaRef}>
+                            <div className="flex gap-4">
+                                {notes && notes.length > 0 ? (
+                                    notes.slice(0, 5).map((note) => (
+                                        <div key={note.ID} className="flex-[0_0_100%] min-w-0">
+                                            <GlassCard
+                                                variant="interactive"
+                                                onClick={() => router.push('/notes')}
+                                                className="border-white/5 bg-white/5 hover:bg-white/10 p-4 h-full"
+                                            >
+                                                <div className="flex items-start justify-between mb-3">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/5 ${note.Course.Color ? `text-${note.Course.Color.replace('bg-', '').replace('-500', '-400')}` : 'text-gray-400'}`}>
+                                                        <FileText className="w-4 h-4" />
+                                                    </div>
+                                                    <Badge variant="outline" className="border-white/10 text-gray-400 text-[10px]">{note.CourseCode}</Badge>
+                                                </div>
+                                                <h4 className="font-medium text-white line-clamp-2 mb-2">{note.Title}</h4>
+                                                <p className="text-xs text-gray-400 line-clamp-2">{note.Subject}</p>
+                                            </GlassCard>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="w-full">
+                                        <GlassCard className="border-white/5 bg-white/5 py-8">
+                                            <EmptyState
+                                                icon={FileText}
+                                                title="No notes yet"
+                                                description="Create your first note."
+                                                className="bg-transparent border-0 p-0"
+                                            />
+                                        </GlassCard>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <AssignmentEditDialog
+                open={editDialogOpen}
+                setOpen={setEditDialogOpen}
+                assignment={editAssignment}
+                onEdit={handleEditAssignment}
+            />
+        </div>
     )
 }

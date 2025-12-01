@@ -1,6 +1,8 @@
 import { assignment, course as Course } from "@/wailsjs/go/models"
 import { useState, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
+import { GlassCard } from "@/components/ui/glass-card"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { differenceInMinutes, format, isAfter, isBefore, isSameDay } from "date-fns"
 import { CourseItem } from "./course-item"
@@ -108,36 +110,42 @@ function CoursesSchedule({ courses, onCourseClick, onEdit, onDelete }: CoursesSc
     const currentTop = (currentHour - 8) * 60 + currentMinute
 
     return (
-        <div className="space-y-4">
-            <Card className="flex items-center justify-between glass border-0 p-4">
-                <h2 className="text-lg font-medium">Weekly Schedule</h2>
+        <div className="space-y-6">
+            <div className="flex items-center justify-between px-1">
+                <h2 className="text-2xl font-bold text-white tracking-tight">Weekly Schedule</h2>
                 <div className="w-64">
                     <Select value={selectedSemester} onValueChange={setSelectedSemester}>
-                        <SelectTrigger className="bg-gray-800/50 border border-gray-600">
+                        <SelectTrigger className="bg-white/5 border-white/10 text-white hover:bg-white/10 transition-all duration-200 backdrop-blur-sm">
                             <SelectValue placeholder="Filter by semester" />
                         </SelectTrigger>
-                        <SelectContent className="glass border-0">
+                        <SelectContent className="glass border-white/10 bg-black/90 backdrop-blur-xl text-gray-200">
                             {semesters.map(semester => (
-                                <SelectItem key={semester} value={semester}>
+                                <SelectItem 
+                                    key={semester} 
+                                    value={semester}
+                                    className="focus:bg-white/10 focus:text-white cursor-pointer"
+                                >
                                     {semester}
                                 </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
                 </div>
-            </Card>
+            </div>
 
-            <Card className="glass border-0">
-                <CardContent>
-                    <div className="overflow-auto">
+            <GlassCard className="border-white/5 bg-white/5 overflow-hidden shadow-xl shadow-black/20">
+                <CardContent className="p-0">
+                    <div className="overflow-auto custom-scrollbar">
                         <div className="flex min-w-full">
                             {/* Time column */}
-                            <div className="flex-shrink-0 w-20">
-                                <div className="h-12 p-2 font-medium text-center border-b">Time</div>
+                            <div className="flex-shrink-0 w-20 bg-white/[0.02] border-r border-white/5">
+                                <div className="h-12 p-3 text-xs font-medium text-gray-400 uppercase tracking-wider text-center border-b border-white/5 flex items-center justify-center">
+                                    Time
+                                </div>
                                 {timeSlots.map(hour => (
                                     <div
                                         key={hour}
-                                        className="h-[60px] p-2 text-sm text-muted-foreground text-center border-b border-r flex items-center justify-center"
+                                        className="h-[60px] p-2 text-xs font-medium text-gray-500 text-center border-b border-white/5 flex items-center justify-center"
                                     >
                                         {formatTime(hour)}
                                     </div>
@@ -146,40 +154,38 @@ function CoursesSchedule({ courses, onCourseClick, onEdit, onDelete }: CoursesSc
 
                             {/* Days columns */}
                             {DAYS.map((day, dayIndex) => {
-                                console.log(currentTop, now.getDay(), dayIndex, currentHour, currentTop > 0 && now.getDay() == dayIndex && currentHour < 20)
                                 return (
-                                    <div key={day} className="flex-1 min-w-[120px]">
-                                        <div className="h-12 p-2 font-medium text-center border-b">
+                                    <div key={day} className="flex-1 min-w-[140px] relative border-r border-white/5 last:border-r-0">
+                                        <div className="h-12 p-3 text-xs font-medium text-gray-400 uppercase tracking-wider text-center border-b border-white/5 flex items-center justify-center bg-white/[0.02]">
                                             {day}
                                         </div>
-                                        <div className="relative">
+                                        <div className="relative bg-transparent">
                                             {/* Hour grid lines */}
                                             {timeSlots.map(hour => (
                                                 <div
                                                     key={hour}
-                                                    className="h-[60px] border-b border-r border-border"
+                                                    className="h-[60px] border-b border-white/5"
                                                 />
                                             ))}
 
-
                                             {/* Time indicator */}
                                             {currentTop > 0 && now.getDay() == dayIndex && currentHour < 20 && (
-                                                <div className="absolute -left-1 -right-1 h-1 bg-blue-500/70 z-50" style={{
+                                                <div className="absolute -left-[1px] -right-[1px] h-[2px] bg-blue-500 z-50 shadow-[0_0_8px_rgba(59,130,246,0.8)]" style={{
                                                     top: `${currentTop}px`
-                                                }} />
+                                                }}>
+                                                    <div className="absolute -left-1.5 -top-1.5 w-3 h-3 rounded-full bg-blue-500 shadow-md" />
+                                                </div>
                                             )}
-
 
                                             {/* Course blocks */}
                                             {scheduledCourses
                                                 .filter(course => course.parsedSchedule?.days.includes(dayIndex))
                                                 .map((course, index) => {
                                                     if (!course.parsedSchedule) return null
-
+                                                    
                                                     var isOn = false
                                                     const startHour = course.parsedSchedule.startHour
                                                     const startMinute = course.parsedSchedule.startMinute
-
                                                     const endHour = course.parsedSchedule.endHour
                                                     const endMinute = course.parsedSchedule.endMinute
 
@@ -188,45 +194,50 @@ function CoursesSchedule({ courses, onCourseClick, onEdit, onDelete }: CoursesSc
                                                     const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), endHour, endMinute)
 
                                                     isOn = day == format(today, 'EEEE') && isBefore(startDate, today) && isAfter(endDate, today)
+                                                    const duration = differenceInMinutes(endDate, startDate)
 
-                                                    const duration = differenceInMinutes(endDate, startDate) + 1
-
-                                                    // Calculate position: each hour slot is 60px (h-15)
+                                                    // Calculate position
                                                     var topPosition = ((startHour - timeSlots[0]) * 60)
                                                     if (startMinute != 0) {
                                                         topPosition = topPosition + (60 / (60 / startMinute))
                                                     }
-                                                    const height = duration - 2 // 1px/min / Subtract 2px for border spacing
+                                                    const height = duration // Exact duration
 
                                                     return (
-
-                                                        <Card
+                                                        <div
                                                             key={`${course.ID}-${index}`}
-                                                            className={`absolute left-1 right-1 text-xs text-white font-medium shadow-sm ${isOn ? 'bg-blue-500/50 hover:bg-blue-500/70' : 'glass hover:bg-white/5'} border-0  transition-all duration-300 `}
+                                                            className={` absolute left-1 right-1 border rounded-lg hover:translate-y-0.5 backdrop-blur-lg transition-all duration-300 overflow-hidden  cursor-pointer group ${
+                                                                isOn 
+                                                                    ? 'border-blue-400/50 ring-2 ring-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]' 
+                                                                    : 'bg-white/5 border-white/5 shadow-lg shadow-black/60'
+                                                            }`}
                                                             style={{
-                                                                backgroundColor: course.Color || '#3b82f6',
                                                                 top: `${topPosition}px`,
-                                                                height: `${height}px`
+                                                                height: `${height}px`,
                                                             }}
                                                             onClick={() => onCourseClick(course)}
                                                         >
-                                                            <CardContent className="p-2">
-                                                                <div className="flex flex-col space-y-2">
-                                                                    <div className="flex flex-row items-center gap-2">
-                                                                        <div className={`h-2 w-2  rounded-full ${course.Color}`} />
-                                                                        <div className="font-semibold truncate">
-                                                                            {course.Code}
-                                                                        </div>
+                                                            <div className="h-full w-full p-2.5 flex flex-col relative overflow-hidden">
+                                                                {/* Shine effect on hover */}
+                                                                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                                                
+                                                                <div className="flex items-center gap-2 mb-0.5 relative z-10">
+                                                                    <div className="font-semibold text-sm text-white drop-shadow-md truncate">
+                                                                        {course.Code}
                                                                     </div>
-
-                                                                    <div className="text-xs opacity-90">
-                                                                        {course.parsedSchedule?.startTimeString} - {course.parsedSchedule?.endTimeString}
-                                                                    </div>
-
                                                                 </div>
-                                                            </CardContent>
-                                                        </Card>
 
+                                                                <div className="text-[10px] font-medium text-white/90 truncate relative z-10">
+                                                                    {course.parsedSchedule?.startTimeString} - {course.parsedSchedule?.endTimeString}
+                                                                </div>
+                                                                
+                                                                {course.Name && height > 50 && (
+                                                                    <div className="text-[10px] text-white/80 truncate mt-1 relative z-10">
+                                                                        {course.Name}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
                                                     )
                                                 })
                                             }
@@ -238,29 +249,28 @@ function CoursesSchedule({ courses, onCourseClick, onEdit, onDelete }: CoursesSc
                     </div>
 
                     {scheduledCourses.length === 0 && (
-                        <div className="
-                            absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 
-                            bg-gray-800/50 border border-gray-600 
-                            p-4 ml-10 rounded-lg 
-                            text-center text-muted-foreground
-                            flex flex-col items-center justify-center
-                            space-y-1
-                            ">
-                            <BookOpen strokeWidth={1.5} className="h-10 w-10 text-white/20 mx-auto mb-2" />
-                            <p className="text-sm text-white/50">No courses found</p>
-                            <p className="text-sm text-white/50"> for <span className="font-semibold">{selectedSemester}</span> semester</p>
+                        <div className="py-20 flex justify-center items-center">
+                             <EmptyState
+                                icon={BookOpen}
+                                title="No courses found"
+                                description={`No courses found for ${selectedSemester} semester`}
+                                className="bg-transparent border-0"
+                            />
                         </div>
                     )}
                 </CardContent>
-            </Card>
+            </GlassCard>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {asyncCourses.map((course) => (
-                    <CourseItem key={course.ID} course={course} onCourseClick={onCourseClick} onEdit={onEdit} onDelete={onDelete} />
-                ))}
-            </div>
-
-
+            {asyncCourses.length > 0 && (
+                 <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-white px-1">Asynchronous Courses</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {asyncCourses.map((course) => (
+                            <CourseItem key={course.ID} course={course} onCourseClick={onCourseClick} onEdit={onEdit} onDelete={onDelete} />
+                        ))}
+                    </div>
+                 </div>
+            )}
         </div>
     )
 }

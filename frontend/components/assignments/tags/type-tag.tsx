@@ -6,11 +6,11 @@ import { BookOpen } from "lucide-react"
 
 
 const typeColors = {
-    HW: "text-blue-400 border-blue-400",
-    Exam: "text-red-400 border-red-400",
-    Lab: "text-green-400 border-green-400",
-    "Group Project": "text-yellow-400 border-yellow-400",
-    Quiz: "text-orange-400 border-orange-400",
+    HW: "text-gray-400 border-gray-600 bg-gray-800/30",
+    Exam: "text-red-400 border-red-400 bg-red-900/20",
+    Lab: "text-gray-400 border-gray-600 bg-gray-800/30",
+    "Group Project": "text-gray-400 border-gray-600 bg-gray-800/30",
+    Quiz: "text-gray-400 border-gray-600 bg-gray-800/30",
 }
 
 interface TypeTagProps {

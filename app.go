@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -532,6 +533,112 @@ func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documen
 
 }
 
+func (a *App) UploadProfilePicture() (string, error) {
+
+	userID := a.Auth.User.ID
+
+	runtime.LogInfof(a.ctx, "UploadProfilePicture: %v", userID)
+
+	if a.DB == nil {
+		return "", fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return "", fmt.Errorf("user not authenticated")
+	}
+
+	// Open file dialog
+	filters := []runtime.FileFilter{
+
+		{
+			DisplayName: "Images",
+			Pattern:     "*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.svg",
+		},
+	}
+
+	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   "Select Document to Upload",
+		Filters: filters,
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to open file dialog: %w", err)
+	}
+
+	if filePath == "" {
+		return "", fmt.Errorf("no file selected")
+	}
+
+	fileContent, err := os.Open(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open file: %w", err)
+	}
+
+	// Copy the file to the user's profile picture directory
+	profilePicturePath, err := utils.GetProfilePicturePath()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user directory: %w", err)
+	}
+	if err := fileops.WriteFile(profilePicturePath, fileContent); err != nil {
+		return "", fmt.Errorf("failed to move file to profile picture directory: %w", err)
+	}
+
+	a.Auth.User.Avatar = profilePicturePath
+	if err := utils.SetCredentials(a.Auth.User); err != nil {
+		return "", fmt.Errorf("failed to set user to storage: %w", err)
+	}
+
+	//Update the user's profile picture in the database
+	clientErr := client.SendProfilePicture(profilePicturePath)
+	if clientErr != nil {
+		return "", fmt.Errorf("failed to send profile picture: %w", clientErr)
+	}
+
+	return profilePicturePath, nil
+
+}
+
+// GetFileAsDataURL reads a local file and returns it as a data URL (base64 encoded)
+// This is needed because webviews block file:// URLs for security reasons
+func (a *App) GetFileAsDataURL(filePath string) (string, error) {
+	if filePath == "" {
+		return "", fmt.Errorf("file path is empty")
+	}
+
+	// Check if file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return "", fmt.Errorf("file not found: %s", filePath)
+	}
+
+	// Read file
+	fileData, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Detect MIME type based on file extension
+	mimeType := "image/png" // default
+	ext := strings.ToLower(filepath.Ext(filePath))
+	switch ext {
+	case ".jpg", ".jpeg":
+		mimeType = "image/jpeg"
+	case ".png":
+		mimeType = "image/png"
+	case ".gif":
+		mimeType = "image/gif"
+	case ".svg":
+		mimeType = "image/svg+xml"
+	case ".webp":
+		mimeType = "image/webp"
+	}
+
+	// Encode to base64
+	base64Data := base64.StdEncoding.EncodeToString(fileData)
+
+	// Return as data URL
+	return fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data), nil
+}
+
 func (a *App) CreateDocument(uploadReq fileops.FileUploadRequest, hasLocalFile bool) (*document.LocalDocument, error) {
 
 	runtime.LogInfof(a.ctx, "CreateDocument: %v", uploadReq.FileName)
@@ -571,16 +678,17 @@ func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse) (*document.Lo
 
 		runtime.LogInfof(a.ctx, "sending document to remote: %v", uploadResp.LocalDocument.ID)
 
-		storageKey, clientErr := client.SendDocument(uploadResp.LocalDocument)
+		serverResponse, clientErr := client.SendDocument(uploadResp.LocalDocument)
 		if clientErr != nil {
 			return nil, fmt.Errorf("failed to send document: %w", clientErr)
 		} else {
 			runtime.LogInfof(a.ctx, "remote upload response: %v", "success")
 		}
 
-		runtime.LogInfof(a.ctx, "remote upload response: %v", storageKey)
+		runtime.LogInfof(a.ctx, "remote upload response: %v", serverResponse.Success)
 
-		uploadResp.LocalDocument.StorageKey = storageKey
+		uploadResp.LocalDocument.StorageKey = serverResponse.Document.StorageKey
+		uploadResp.LocalDocument.RemoteID = serverResponse.Document.ID
 		if err := tx.Save(uploadResp.LocalDocument).Error; err != nil {
 			return nil, fmt.Errorf("failed to save document: %w", err)
 		}
@@ -669,7 +777,6 @@ func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, colu
 	assignment_id := strconv.Itoa(assignment_id_int)
 
 	isOnline := network.IsOnline()
-	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var clientErr error
 	if isOnline {
 		clientErr = client.SendAssignmentUpdate(assignment_id, column, value)
@@ -962,6 +1069,11 @@ func (a *App) UpdateUser(column, value string) (*user.User, error) {
 
 	// Set the user to the auth struct
 	a.Auth.User = currentUser
+
+	// Set the user to the storage
+	if err := utils.SetCredentials(currentUser); err != nil {
+		return nil, fmt.Errorf("failed to set user to storage: %w", err)
+	}
 
 	isOnline := network.IsOnline()
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)

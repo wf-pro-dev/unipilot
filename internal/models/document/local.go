@@ -10,6 +10,7 @@ import (
 // This is for local operations and caching remote metadata
 type LocalDocument struct {
 	gorm.Model
+	RemoteID           uint `gorm:"unique"`
 	RemoteAssignmentID uint
 	AssignmentID       uint         `gorm:"not null;index"`
 	UserID             uint         `gorm:"not null;index"` // Original uploader

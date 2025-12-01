@@ -95,10 +95,11 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
             return true
         }
 
-        // Validate format: "<day>, <day> <hour> - <hour>"
-        // Days: M, T, W, Th, F, S, Su (separated by ", ")
-        // Hours: HH:MM AM/PM (1-2 digits for hour, 00-59 for minutes)
-        const schedulePattern = /^((?:(?:M|T|W|Th|F|S|Su)(?:,\s(?:M|T|W|Th|F|S|Su))*)?)\s+(\d{1,2}:[0-5]\d\s(?:AM|PM))\s*-\s*(\d{1,2}:[0-5]\d\s(?:AM|PM))$/
+        // Validate format: "<day>, <day> <hour>:<minutes> <period> - <hour>:<minutes> <period>"
+        // Days: M, T, W, Th, F, Sa, Su (separated by ", ") - at least one day required
+        // Hours: HH:MM AM/PM (1-2 digits for hour, 00-59 for minutes, AM/PM)
+        // All sections separated by spaces
+        const schedulePattern = /^((?:M|T|W|Th|F|Sa|Su)(?:,\s(?:M|T|W|Th|F|Sa|Su))*)\s+(\d{1,2}:[0-5]\d\s(?:AM|PM))\s-\s(\d{1,2}:[0-5]\d\s(?:AM|PM))$/
 
         const match = schedule.match(schedulePattern)
 
@@ -222,212 +223,207 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent className="glass border-0 text-white max-w-md max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle>Edit Course</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <Label htmlFor="name" className="text-gray-300">
-                            Course Name
-                        </Label>
-                        <Input
-                            id="name"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            placeholder="Data Structures"
-                            className="border-gray-600 bg-gray-800/50"
-                            required
-                        />
-                    </div>
+      <DialogContent className="glass border-white/10 text-white max-w-lg p-0 overflow-hidden gap-0">
+        <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
+          <DialogTitle className="text-xl font-semibold">Edit Course</DialogTitle>
+        </DialogHeader>
+        
+        <div className="p-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <Label htmlFor="name" className="text-gray-400 text-xs font-medium uppercase tracking-wider block mb-2">
+                Course Name
+              </Label>
+              <Input
+                id="name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Data Structures"
+                className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all h-10"
+                required
+              />
+            </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <Label htmlFor="code" className="text-gray-300">
-                                Location
-                            </Label>
-                            <Input
-                                id="location"
-                                value={formData.location}
-                                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                                placeholder="Building 1, Room 101 / Online"
-                                className="border-gray-600 bg-gray-800/50"
-                                required
-                            />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="location" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
+                  Location
+                </Label>
+                <Input
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  placeholder="Building 1, Room 101 / Online"
+                  className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all h-10"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="credits" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
+                  Credits
+                </Label>
+                <Input
+                  id="credits"
+                  type="number"
+                  value={formData.credits}
+                  onChange={(e) => setFormData({ ...formData, credits: e.target.value })}
+                  placeholder="3"
+                  className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all h-10"
+                  min={1}
+                  max={4}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="start_date" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
+                  Start Date
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal bg-white/5 border-white/10 hover:bg-white/10 hover:text-white h-10",
+                        !startDate && "text-muted-foreground",
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 w-4 h-4 text-blue-400" />
+                      {startDate ? format(startDate, "MMM do, yyyy") : <span>Pick a start date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0 w-auto border-white/10 glass">
+                    <Calendar mode="single" className="glass text-white" selected={startDate} onSelect={setStartDate} required />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="end_date" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
+                  End Date
+                </Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal bg-white/5 border-white/10 hover:bg-white/10 hover:text-white h-10",
+                        !endDate && "text-muted-foreground",
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 w-4 h-4 text-blue-400" />
+                      {endDate ? format(endDate, "MMM do, yyyy") : <span>Pick a end date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0 w-auto border-white/10 glass">
+                    <Calendar mode="single" className="glass text-white" selected={endDate} onSelect={setEndDate} required />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="instructor" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
+                  Instructor
+                </Label>
+                <Input
+                  id="instructor"
+                  value={formData.instructor}
+                  onChange={(e) => setFormData({ ...formData, instructor: e.target.value })}
+                  placeholder="Dr. Smith"
+                  className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all h-10"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="semester" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
+                  Semester
+                </Label>
+                <Select value={formData.semester} onValueChange={(value) => setFormData({ ...formData, semester: value })}>
+                  <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="glass border-white/10">
+                    {semesters.map((semester) => (
+                      <SelectItem key={semester.value} value={semester.value}>
+                        <span className="text-sm">{semester.name}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="instructor_email" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
+                Instructor Email
+              </Label>
+              <Input
+                id="instructor_email"
+                value={formData.instructor_email}
+                onChange={(e) => setFormData({ ...formData, instructor_email: e.target.value })}
+                placeholder="smith@example.com"
+                className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all h-10"
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="schedule" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
+                Schedule
+              </Label>
+              <Input
+                id="schedule"
+                value={formData.schedule}
+                onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
+                placeholder="M, T, W 9:00 AM - 10:30 AM / Async / Asynchronous"
+                className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all h-10"
+                required
+              />
+            </div>
+
+            <div className="flex justify-between items-center pt-4 border-t border-white/5 mt-6">
+              <div>
+                <Select value={formData.color} onValueChange={(value) => setFormData({ ...formData, color: value })}>
+                  <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10 w-[140px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="glass border-white/10">
+                    {colors.map((color) => (
+                      <SelectItem key={color.value} value={color.value}>
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-4 h-4 rounded-full ${color.value}`} />
+                          <span className="text-sm">{color.name}</span>
                         </div>
-                        <div>
-                            <Label htmlFor="credits" className="text-gray-300">
-                                Credits
-                            </Label>
-                            <Input
-                                id="credits"
-                                type="number"
-                                value={formData.credits}
-                                onChange={(e) => setFormData({ ...formData, credits: e.target.value })}
-                                placeholder="3"
-                                className="border-gray-600 bg-gray-800/50"
-                                min={1}
-                                max={4}
-                                required
-                            />
-                        </div>
-                    </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <Label htmlFor="start_date" className="text-gray-300">
-                                Start Date
-                            </Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        className={cn(
-                                            "w-full justify-start text-left font-normal bg-gray-800/50 border-gray-600",
-                                            !startDate && "text-muted-foreground",
-                                        )}
-                                    >
-                                        <CalendarIcon className="mr-2 w-4 h-4" />
-                                        {startDate ? format(startDate, "MMM do, yyyy") : <span>Pick a start date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="p-0 w-auto border-gray-600 glass">
-                                    <Calendar mode="single" className="glass" selected={startDate} onSelect={setStartDate} required />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                        <div>
-                            <Label htmlFor="end_date" className="text-gray-300">
-                                End Date
-                            </Label>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        className={cn(
-                                            "w-full justify-start text-left font-normal bg-gray-800/50 border-gray-600",
-                                            !endDate && "text-muted-foreground",
-                                        )}
-                                    >
-                                        <CalendarIcon className="mr-2 w-4 h-4" />
-                                        {endDate ? format(endDate, "MMM do, yyyy") : <span>Pick a end date</span>}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="p-0 w-auto border-gray-600 glass">
-                                    <Calendar mode="single" className="glass" selected={endDate} onSelect={setEndDate} required />
-                                </PopoverContent>
-                            </Popover>
-                        </div>
-                    </div>
-
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <Label htmlFor="instructor" className="text-gray-300">
-                                Instructor
-                            </Label>
-                            <Input
-                                id="instructor"
-                                value={formData.instructor}
-                                onChange={(e) => setFormData({ ...formData, instructor: e.target.value })}
-                                placeholder="Dr. Smith"
-                                className="border-gray-600 bg-gray-800/50"
-                                required
-                            />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="semester" className="text-gray-300">
-                                Semester
-                            </Label>
-                            <Select value={formData.semester} onValueChange={(value) => setFormData({ ...formData, semester: value })}>
-                                <SelectTrigger className="border-gray-600 bg-gray-800/50">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="border-gray-600 glass">
-                                    {semesters.map((semester) => (
-                                        <SelectItem key={semester.value} value={semester.value}>
-                                            <span>{semester.name}</span>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-
-                    </div>
-
-                    <div>
-                        <Label htmlFor="name" className="text-gray-300">
-                            Instructor Email
-                        </Label>
-                        <Input
-                            id="instructor_email"
-                            value={formData.instructor_email}
-                            onChange={(e) => setFormData({ ...formData, instructor_email: e.target.value })}
-                            placeholder="smith@example.com"
-                            className="border-gray-600 bg-gray-800/50"
-                            required
-                        />
-                    </div>
-
-
-
-                    <div>
-                        <Label htmlFor="schedule" className="text-gray-300">
-                            Schedule
-                        </Label>
-                        <Input
-                            id="schedule"
-                            value={formData.schedule}
-                            onChange={(e) => setFormData({ ...formData, schedule: e.target.value })}
-                            placeholder="M, T, W 9:00 AM - 10:30 AM / Async / Asynchronous"
-                            className="border-gray-600 bg-gray-800/50"
-                            required
-                        />
-                    </div>
-
-
-
-
-
-                    <div className="flex justify-between items-center pt-4">
-                        <div>
-                            <Select value={formData.color} onValueChange={(value) => setFormData({ ...formData, color: value })}>
-                                <SelectTrigger className="border-gray-600 bg-gray-800/50">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="border-gray-600 glass">
-                                    {colors.map((color) => (
-                                        <SelectItem key={color.value} value={color.value}>
-                                            <div className="flex items-center space-x-2">
-                                                <div className={`w-4 h-4 rounded-full ${color.value}`} />
-                                                <span>{color.name}</span>
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-
-
-                        <div className="flex space-x-2">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => setOpen(false)}
-                                className="bg-transparent border-gray-600"
-                            >
-                                Cancel
-                            </Button>
-                            <Button type="submit">Edit Course</Button>
-                        </div>
-
-                    </div>
-
-                </form>
-            </DialogContent>
-        </Dialog >
+              <div className="flex space-x-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setOpen(false)}
+                  className="border-white/10 bg-transparent hover:bg-white/5 text-gray-300 hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-6 shadow-[0_0_15px_rgba(37,99,235,0.2)]"
+                >
+                  Edit Course
+                </Button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </DialogContent>
+    </Dialog>
     )
 }

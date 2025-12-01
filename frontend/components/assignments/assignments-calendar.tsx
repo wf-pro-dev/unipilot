@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { Calendar, ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react"
 import { format } from "date-fns"
@@ -177,25 +178,35 @@ export function AssignmentsCalendar({
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="space-y-6">
-        <Card className="glass border-0">
-          <CardHeader>
+        <GlassCard className="border-white/5 bg-white/5 backdrop-blur-xl shadow-lg shadow-black/20">
+          <CardHeader className="p-5 pb-2">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center space-x-2 text-white">
-                <Calendar className="h-5 w-5" />
-                <span>Assignment Calendar</span>
-                {isLoading && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
-              </CardTitle>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/10">
+                  <Calendar className="h-5 w-5 text-blue-400" />
+                </div>
+                <CardTitle className="text-lg font-semibold text-white tracking-tight flex items-center gap-2">
+                  <span>Assignment Calendar</span>
+                  {isLoading && (
+                    <span className="flex items-center gap-1.5 text-[10px] font-medium bg-white/5 px-2 py-0.5 rounded-full text-gray-400 uppercase tracking-wider border border-white/5 ml-2">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Syncing
+                    </span>
+                  )}
+                </CardTitle>
+              </div>
+              
+              <div className="flex items-center bg-white/5 rounded-lg border border-white/5 p-1">
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => navigateMonth("prev")}
                   disabled={isLoading}
-                  className="text-gray-400 hover:text-white"
+                  className="h-7 w-7 p-0 text-gray-400 hover:text-white hover:bg-white/10 rounded-md"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <span className="text-white font-medium min-w-[120px] text-center">
+                <span className="text-sm font-medium text-white min-w-[100px] text-center">
                   {format(currentDate, "MMMM yyyy")}
                 </span>
                 <Button
@@ -203,25 +214,25 @@ export function AssignmentsCalendar({
                   size="sm"
                   onClick={() => navigateMonth("next")}
                   disabled={isLoading}
-                  className="text-gray-400 hover:text-white"
+                  className="h-7 w-7 p-0 text-gray-400 hover:text-white hover:bg-white/10 rounded-md"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
             </div>
           </CardHeader>
-          <CardContent className="p-6">
+          <CardContent className="p-5 pt-2">
             {/* Day Headers */}
-            <div className="grid grid-cols-7 gap-1 mb-4">
+            <div className="grid grid-cols-7 gap-1 mb-2">
               {dayNames.map((day) => (
-                <div key={day} className="text-center text-sm font-medium text-gray-400 py-2">
+                <div key={day} className="text-center text-[10px] font-semibold text-gray-500 uppercase tracking-wider py-2">
                   {day}
                 </div>
               ))}
             </div>
 
             {/* Calendar Days */}
-            <div className="grid grid-cols-7 gap-1">
+            <div className="grid grid-cols-7 gap-px p-px rounded-xl overflow-hidden border border-white/10">
               {days.map((day, index) => {
                 const isCurrentMonth = day.getMonth() === currentDate.getMonth() && day.getFullYear() === currentDate.getFullYear()
                 const isToday = format(day, "MMM d, yyyy") === format(new Date(), "MMM d, yyyy")
@@ -243,7 +254,7 @@ export function AssignmentsCalendar({
               })}
             </div>
           </CardContent>
-        </Card>
+        </GlassCard>
       </div>
     </DndProvider>
   )

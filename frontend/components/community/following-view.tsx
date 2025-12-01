@@ -2,13 +2,14 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Search, Users, Filter  } from "lucide-react"
+import { Search, Users, Filter } from "lucide-react"
 import { useState } from "react"
 import { UserItem } from "./user-item"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useNetworkStatus } from "@/hooks/use-network-status"
 import { OfflineBanner } from "../ui/offline-banner"
 import { user } from "@/wailsjs/go/models"
+import { GlassCard } from "../ui/glass-card"
 
 interface FollowingViewProps {
   following: user.User[] | undefined
@@ -18,7 +19,7 @@ export function FollowingView({ following }: FollowingViewProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedUniversity, setSelectedUniversity] = useState("All Universities")
 
-  const {isOnline} = useNetworkStatus()
+  const { isOnline } = useNetworkStatus()
 
   const universities = Array.from(new Set(following?.map((user) => user.University) || [])).filter((university) => university !== "")
 
@@ -39,48 +40,41 @@ export function FollowingView({ following }: FollowingViewProps) {
   return (
     <div className="space-y-6">
       {/* Search */}
-      <Card className="glass border-0">
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-6">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search students by name or username..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-gray-800/50 border-gray-600"
-                />
-              </div>
+      <GlassCard className="border-white/5 bg-white/5 backdrop-blur-xl shadow-lg shadow-black/20">
+        <CardContent className="p-5">
+          <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search students by name or username..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-white/5 border-white/10 transition-all duration-300 h-10"
+              />
             </div>
 
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <Filter className="h-4 w-4 text-gray-400" />
-                <span className="text-sm text-gray-400">University:</span>
-                <Select value={selectedUniversity} onValueChange={setSelectedUniversity}>
-                  <SelectTrigger className="w-48 bg-gray-800/50 border-gray-600">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-600">
-                    <SelectItem value="All Universities">All Universities</SelectItem>
-                    {universities?.map((university) => (
-                      <SelectItem key={university} value={university}>
-                        {university}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <Select value={selectedUniversity} onValueChange={setSelectedUniversity}>
+              <SelectTrigger className="w-60 bg-white/5 border-white/10 h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="glass border-white/10 bg-black/90 backdrop-blur-xl">
+                <SelectItem value="All Universities">All Universities</SelectItem>
+                {universities?.map((university) => (
+                  <SelectItem key={university} value={university}>
+                    {university}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
           </div>
         </CardContent>
-      </Card>
+      </GlassCard>
 
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredFollowing?.map((user) => (
-          <UserItem key={user.ID} userID={user.ID}/>
+          <UserItem key={user.ID} userID={user.ID} />
         ))}
       </div>
       {filteredFollowing?.length === 0 && (

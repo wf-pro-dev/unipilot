@@ -11,8 +11,6 @@ import (
 	"unipilot/internal/secrets"
 	"unipilot/internal/services/utils"
 
-	"unipilot/internal/secrets"
-
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -113,7 +111,6 @@ func LoadToken() (string, error) {
 
 func LoadRefreshToken() (string, error) {
 	refreshTokenFile, err := getRefreshTokenFilePath()
-
 
 	if err != nil {
 		return "", err

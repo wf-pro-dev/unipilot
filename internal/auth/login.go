@@ -15,30 +15,43 @@ import (
 	"unipilot/internal/sync"
 )
 
-// Login handles only authentication and saving the session cookie to a file.
+// Login authenticates a user with the provided credentials and initializes the session.
+// Performs authentication, saves tokens, creates authenticated HTTP client, initializes SSE connection,
+// and triggers post-login data migration (courses and assignments).
+//
+// Parameters:
+//   - username: User's username for authentication
+//   - password: User's password in plain text
+//
+// Returns:
+//   - *user.User: Authenticated user object with profile information
+//   - error: Error if authentication fails, token saving fails, or post-login operations fail
 func (a *Auth) Login(username, password string) (*user.User, error) {
-
-	// Cet a authenticated client
+	// Step 1: Create HTTP client with cookie jar for session management
+	// Cookie jar stores authentication cookies automatically
 	httpClient := http.Client{
 		Jar: &client.CookieJar{},
 	}
 
+	// Step 2: Prepare login request payload
 	loginData := map[string]string{"username": username, "password": password}
 	jsonData, _ := json.Marshal(loginData)
 
 	api_url := secrets.CONSTANTS["API_URL"]
 
+	// Step 3: Send authentication request to API
 	resp, err := httpClient.Post(fmt.Sprintf("%s/login", api_url), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("http post failed: %w", err)
 	}
 	defer resp.Body.Close()
 
+	// Step 4: Validate response status code
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("login failed with status %d", resp.StatusCode)
 	}
 
-	// Parse the response to get user ID
+	// Step 5: Parse API response to extract user data and tokens
 	var response struct {
 		User         map[string]interface{} `json:"user"`
 		Token        string                 `json:"token"`
@@ -48,6 +61,8 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
+	// Step 6: Convert response map to User struct
+	// Type assertions extract string values from interface{} map
 	response_user := user.User{
 		Username:   response.User["username"].(string),
 		Email:      response.User["email"].(string),
@@ -58,29 +73,34 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 		Language:   response.User["language"].(string),
 	}
 
+	// Parse timestamps from RFC3339 format
 	response_user.CreatedAt, _ = time.Parse(time.RFC3339, response.User["created_at"].(string))
 	response_user.UpdatedAt, _ = time.Parse(time.RFC3339, response.User["updated_at"].(string))
 
+	// Convert float64 ID to uint (JSON numbers are float64)
 	response_user.ID = uint(response.User["id"].(float64))
 
-	//Store the user in credentials
+	// Step 7: Persist user credentials to local storage for future sessions
 	if err := utils.SetCredentials(&response_user); err != nil {
 		return nil, fmt.Errorf("failed to set credentials: %w", err)
 	}
 
-	/* DEPRECATED
+	/* DEPRECATED: Cookie-based authentication replaced with JWT tokens
 	if err := client.SaveCookies(&httpClient); err != nil {
 		return nil, fmt.Errorf("failed to save cookies: %w", err)
 	}*/
 
+	// Step 8: Save JWT access token for authenticated API requests
 	if err := client.SaveToken(response.Token); err != nil {
 		return nil, fmt.Errorf("failed to save token: %w", err)
 	}
 
+	// Step 9: Save refresh token for token renewal without re-authentication
 	if err := client.SaveRefreshToken(response.RefreshToken); err != nil {
 		return nil, fmt.Errorf("failed to save refresh token: %w", err)
 	}
 
+	// Step 10: Create authenticated HTTP client with saved tokens
 	httpUserClient, err := client.NewAuthClient()
 	if err != nil {
 		return nil, fmt.Errorf("could not create authenticated http client: %w", err)
@@ -88,12 +108,12 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 
 	a.Client = httpUserClient
 
-	// Initialize the SSE connection early to ensure it's never nil
+	// Step 11: Initialize SSE connection for real-time notifications
+	// Initialize early to ensure it's never nil for subsequent operations
 	a.SSE = sse.NewSSE()
 
-	// Now try to get the local database and migrate data
-	// But handle the case where it might fail gracefully
-
+	// Step 12: Perform post-login data migration (courses and assignments)
+	// Errors are non-fatal - login succeeds even if migration fails
 	if err := PostLogin(); err != nil {
 		return &response_user, err
 	}
@@ -101,7 +121,15 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 	return &response_user, nil
 }
 
+// PostLogin performs post-authentication data migration tasks.
+// Initializes local database schema and migrates courses and assignments from remote server.
+// All operations are non-fatal - errors are logged but don't prevent successful login.
+//
+// Returns:
+//   - error: Last error encountered (if any), but login succeeds regardless
 func PostLogin() error {
+	// Step 1: Get local database connection for data migration
+	// Gracefully handle missing database directory (first-time login scenario)
 	localDB, err := utils.GetUserDB()
 	if err != nil {
 		// If we can't get the local database, just log it and continue
@@ -109,22 +137,26 @@ func PostLogin() error {
 		fmt.Printf("Warning: Could not get local database: %v\n", err)
 		fmt.Printf("Login successful, but database operations failed\n")
 		// Don't fail the login, just return success
+		return nil
 	}
-	// Initialize the database schema
+	// Step 2: Initialize database schema (create tables if they don't exist)
+	// Non-fatal operation - login succeeds even if schema initialization fails
 	if err := storage.InitializeSchema(localDB); err != nil {
 		fmt.Printf("Warning: Failed to initialize database schema: %v\n", err)
 		// Don't fail the login, just continue
 	}
 
-	// Try to migrate courses, but don't fail if it doesn't work
+	// Step 3: Migrate courses from remote server to local database
+	// Non-fatal operation - allows offline access to courses
 	// Note: Sync functions are temporarily disabled
 	if err := sync.MigrateCourses(localDB); err != nil {
 		fmt.Printf("Warning: Failed to migrate courses: %v\n", err)
 		// Don't rollback, continue with the transaction
 	}
 
-	//Try to migrate assignments, but don't fail if it doesn't work
-	//Note: Sync functions are temporarily disabled
+	// Step 4: Migrate assignments from remote server to local database
+	// Non-fatal operation - allows offline access to assignments
+	// Note: Sync functions are temporarily disabled
 	fmt.Printf("Attempting to migrate assignments...\n")
 	if err := sync.MigrateAssignments(localDB); err != nil {
 		fmt.Printf("Warning: Failed to migrate assignments: %v\n", err)

@@ -55,6 +55,8 @@ export function GetCourses():Promise<Array<course.LocalCourse>>;
 
 export function GetCurrentUser():Promise<user.User>;
 
+export function GetFileAsDataURL(arg1:string):Promise<string>;
+
 export function GetFollowers(arg1:number):Promise<main.FollowResponse>;
 
 export function GetFollowing(arg1:number):Promise<main.FollowResponse>;
@@ -122,3 +124,5 @@ export function UploadDocument(arg1:number,arg2:number,arg3:string):Promise<docu
 export function UploadDocumentRAG(arg1:document.LocalDocument):Promise<void>;
 
 export function UploadNewDocumentVersion(arg1:number):Promise<document.LocalDocument>;
+
+export function UploadProfilePicture():Promise<string>;

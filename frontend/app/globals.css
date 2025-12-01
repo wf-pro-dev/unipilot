@@ -66,20 +66,104 @@
   body {
     @apply bg-background text-foreground;
   }
+  html, body {
+    overscroll-behavior: none;
+  }
 }
 
+
+/* ============================================
+   DESIGN SYSTEM FOUNDATION
+   ============================================ */
+
+/* Spacing System (8pt Grid) */
+/* Base unit: 8px, Scale: 4px, 8px, 12px, 16px, 24px, 32px, 48px, 64px */
+
+/* Typography System */
+@layer utilities {
+  .text-display {
+    @apply text-[36px] leading-[44px] font-bold tracking-tight;
+  }
+  
+  .text-h1 {
+    @apply text-[30px] leading-[38px] font-bold tracking-tight;
+  }
+  
+  .text-h2 {
+    @apply text-[24px] leading-[32px] font-semibold tracking-tight;
+  }
+  
+  .text-h3 {
+    @apply text-[20px] leading-[28px] font-semibold tracking-tight;
+  }
+  
+  .text-h4 {
+    @apply text-[18px] leading-[26px] font-medium tracking-tight;
+  }
+  
+  .text-body {
+    @apply text-[16px] leading-[24px] font-normal;
+  }
+  
+  .text-body-small {
+    @apply text-[14px] leading-[20px] font-normal;
+  }
+  
+  .text-caption {
+    @apply text-[12px] leading-[16px] font-normal;
+  }
+}
+
+/* Transition Utilities */
+@layer utilities {
+  .transition-smooth {
+    @apply transition-all duration-300 ease-in-out;
+  }
+  
+  .transition-fast {
+    @apply transition-all duration-150 ease-in-out;
+  }
+  
+  .transition-slow {
+    @apply transition-all duration-500 ease-in-out;
+  }
+}
 
 /* Custom styles */
 .glass {
   @apply bg-gray-900/40 backdrop-blur-xl border border-white/10;
+  @apply shadow-lg shadow-black/20;
 }
 
 .glass-dark {
   @apply bg-gray-900/60 backdrop-blur-xl border border-white/5;
+  @apply shadow-xl shadow-black/30;
 }
 
 .glass-hover {
   @apply bg-gray-800/60 backdrop-blur-xl border border-white/20;
+  @apply shadow-xl shadow-black/30;
+}
+
+/* Enhanced Glass Card */
+.glass-card {
+  @apply glass rounded-xl p-6;
+  @apply transition-smooth;
+  @apply hover:scale-[1.01] hover:shadow-2xl hover:shadow-black/30;
+  @apply hover:border-white/15;
+}
+
+/* Page Spacing */
+.page-section {
+  @apply mb-8;
+}
+
+.page-section-lg {
+  @apply mb-12;
+}
+
+.page-section-xl {
+  @apply mb-16;
 }
 
 .bg-animated {
@@ -89,7 +173,7 @@
 }
 
 .page {
-  @apply min-h-screen bg-animated md:p-10  md:pt-24 xl:pt-24 xl:p-28 relative overflow-hidden;
+  @apply min-h-screen bg-animated md:p-10 md:pb-10  md:pt-24 xl:pb-12 xl:pt-24 xl:p-28 relative overflow-hidden;
 }
 .page-chat {
   @apply min-h-screen bg-animated p-0 relative overflow-hidden;

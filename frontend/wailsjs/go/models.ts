@@ -228,6 +228,7 @@ export namespace document {
 	    UpdatedAt: any;
 	    // Go type: gorm
 	    DeletedAt: any;
+	    RemoteID: number;
 	    RemoteAssignmentID: number;
 	    AssignmentID: number;
 	    UserID: number;
@@ -254,6 +255,7 @@ export namespace document {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.RemoteID = source["RemoteID"];
 	        this.RemoteAssignmentID = source["RemoteAssignmentID"];
 	        this.AssignmentID = source["AssignmentID"];
 	        this.UserID = source["UserID"];

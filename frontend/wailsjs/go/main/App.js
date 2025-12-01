@@ -94,6 +94,10 @@ export function GetCurrentUser() {
   return window['go']['main']['App']['GetCurrentUser']();
 }
 
+export function GetFileAsDataURL(arg1) {
+  return window['go']['main']['App']['GetFileAsDataURL'](arg1);
+}
+
 export function GetFollowers(arg1) {
   return window['go']['main']['App']['GetFollowers'](arg1);
 }
@@ -228,4 +232,8 @@ export function UploadDocumentRAG(arg1) {
 
 export function UploadNewDocumentVersion(arg1) {
   return window['go']['main']['App']['UploadNewDocumentVersion'](arg1);
+}
+
+export function UploadProfilePicture() {
+  return window['go']['main']['App']['UploadProfilePicture']();
 }
