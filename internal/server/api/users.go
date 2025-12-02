@@ -93,7 +93,7 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Step 4: Cache miss - Query users from database and enrich with course data
 	var users []user.User
-	if err := db.Where("id != ?", currentUser.ID).Find(&users).Error; err != nil {
+	if err := db.Find(&users).Error; err != nil {
 		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting users from database",
 			"tags", []string{"USERS", "DB"},
 		)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 
 	"unipilot/internal/models/user"
 	"unipilot/internal/server"
+	cloudstorage "unipilot/internal/services/cloud_storage"
 )
 
 // GetUserHandler retrieves the current authenticated user's information.
@@ -189,4 +191,86 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 		"update", updateData,
 		"tags", []string{"USER", "WRITE"},
 	)
+}
+
+func UpdateProfilePictureHandler(w http.ResponseWriter, r *http.Request) {
+	// Step 1: Extract context values from middleware (user and database connection)
+	currentUser := r.Context().Value("user").(user.User)
+	db := r.Context().Value("db").(*gorm.DB)
+	userID := currentUser.ID
+
+	// Step 2: Parse multipart form with size limits (32MB in memory, rest on disk)
+	// This allows handling large file uploads efficiently by spilling to disk when needed
+	if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Unable to parse multipart form",
+			"tags", []string{"USER", "PROFILE_PICTURE", "REQUEST"},
+		)
+		return
+	}
+	// Clean up temporary multipart form files after handler completes
+	defer r.MultipartForm.RemoveAll()
+
+	// Step 3: Generate unique storage paths and file names for cloud storage
+	// Organize files by user ID to enable easy cleanup and access control
+	profilePictureDir := fmt.Sprintf("users_data/user_%d", userID)
+
+	// Use Unix timestamp to ensure uniqueness and prevent filename collisions
+	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().Unix(), "profile_picture.jpg")
+	newKey := fmt.Sprintf("%s/%s", profilePictureDir, uniqueFileName)
+
+	// Step 4: Extract file from multipart form and write to local disk
+	// Local storage is required as intermediate step before S3 upload
+	filePath, bytesWritten, err := WriteFileToDisk(newKey, w, r)
+	if err != nil {
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error writing file to disk",
+			"tags", []string{"USER", "PROFILE_PICTURE", "STORAGE", "FILESYSTEM"},
+		)
+		return
+	}
+
+	// Step 5: Upload file from local disk to AWS S3 cloud storage
+	// This persists the file permanently and makes it accessible via CDN
+	var publicURL string
+	if publicURL, err = cloudstorage.UploadProfilePicture(filePath, uniqueFileName, newKey); err != nil {
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error uploading file to S3",
+			"tags", []string{"USER", "PROFILE_PICTURE", "STORAGE", "S3"},
+		)
+		return
+	}
+
+	// Log successful S3 upload with metrics for monitoring and debugging
+	server.LogInfo(r.Context(), "File uploaded to S3",
+		"file_path", filePath,
+		"bytes", bytesWritten,
+		"storage_key", newKey,
+		"public_url", publicURL,
+		"tags", []string{"USER", "PROFILE_PICTURE", "UPLOAD", "S3"},
+	)
+
+	// Step 6: Clean up local temporary file after successful S3 upload
+	// Prevents disk space accumulation from temporary upload files
+	os.Remove(filePath)
+
+	// Step 7: Update user record in database with new avatar S3 key
+	// Store the S3 path so the application can generate CDN URLs for the image
+	currentUser.Avatar = publicURL
+	if err := db.Save(&currentUser).Error; err != nil {
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error updating user profile picture in database",
+			"tags", []string{"USER", "PROFILE_PICTURE", "DB"},
+		)
+		return
+	}
+
+	// Step 8: Send successful response with confirmation message
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Profile picture updated successfully",
+	})
+
+	// Step 9: Log successful profile picture update for audit trail
+	server.LogInfo(r.Context(), "Profile picture updated successfully",
+		"tags", []string{"USER", "PROFILE_PICTURE", "WRITE"},
+	)
+
 }

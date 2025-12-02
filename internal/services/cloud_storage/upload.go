@@ -7,16 +7,17 @@ import (
 	"io"
 	"os"
 
-	"time"
 	"errors"
 	"log"
-	
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
 )
-func UploadFile(filePath , fileName, key string) error {
+
+func UploadFile(filePath, fileName, key string) error {
 
 	// Get S3 client
 	svc, err := S3Client()
@@ -62,6 +63,52 @@ func UploadFile(filePath , fileName, key string) error {
 	return nil
 }
 
+func UploadProfilePicture(filePath, fileName, key string) (string, error) {
+	// Get S3 client
+	svc, err := S3Client()
+	if err != nil {
+		return "", err
+	}
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", fmt.Errorf("unable to open file: %w", err)
+	}
+	defer file.Close()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return "", fmt.Errorf("unable to get file info: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, file); err != nil {
+		fmt.Fprintln(os.Stderr, "Error reading file:", err)
+		return "", err
+	}
+
+	_, err = svc.PutObject(context.TODO(), &s3.PutObjectInput{
+		Bucket:      aws.String(Bucket),
+		Key:         aws.String(key),
+		Body:        bytes.NewReader(buf.Bytes()),
+		ContentType: aws.String("image/jpeg"),
+		Metadata: map[string]string{
+			"original-name": fileName,
+			"upload-time":   time.Now().Format(time.RFC3339),
+			"file-size":     fmt.Sprintf("%d", fileInfo.Size()),
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	log.Printf("File uploaded to S3: %s", key)
+
+	// Construct and return the public URL
+	publicURL := fmt.Sprintf("https://s3.%s.amazonaws.com/%s/%s", Region, Bucket, key)
+	log.Printf("Public URL: %s", publicURL)
+	return publicURL, nil
+}
 
 func DeleteFile(key string) error {
 
@@ -96,7 +143,7 @@ func DeleteFile(key string) error {
 }
 
 func CopyFile(oldKey, newKey string) error {
-	
+
 	// Get S3 client
 	svc, err := S3Client()
 	if err != nil {
@@ -107,14 +154,12 @@ func CopyFile(oldKey, newKey string) error {
 		CopySource: aws.String(fmt.Sprintf("%s/%s", Bucket, oldKey)),
 		Bucket:     aws.String(Bucket),
 		Key:        aws.String(newKey),
-    	})
+	})
 	if err != nil {
 		return err
 	}
 
 	return nil
-
-	
 
 }
 
@@ -135,7 +180,6 @@ func DownloadFile(key string) (io.Reader, error) {
 		return nil, err
 	}
 
-	
 	return result.Body, nil
 
 }

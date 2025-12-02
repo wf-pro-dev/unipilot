@@ -211,6 +211,7 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	var a assignment.Assignment
 	if err := db.Where("id = ?", doc.AssignmentID).First(&a).Error; err != nil {
 		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting assignment",
+			"assignment_id", doc.AssignmentID,
 			"tags", []string{"DOCUMENTS", "DB"},
 		)
 		return
@@ -221,6 +222,7 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	linkedAssignments, err := a.GetChildren(db)
 	if err != nil {
 		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting linked assignments",
+			"assignment_id", a.ID,
 			"tags", []string{"DOCUMENTS", "DB"},
 		)
 		return
@@ -304,7 +306,7 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 //   - Returns errors for form file extraction failures
 //   - Returns errors for directory creation failures
 //   - Returns errors for file creation or writing failures
-func WriteFileToDisk(localDoc document.LocalDocument, key string, w http.ResponseWriter, r *http.Request) (string, int64, error) {
+func WriteFileToDisk(key string, w http.ResponseWriter, r *http.Request) (string, int64, error) {
 	// Get the file from form
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -363,7 +365,7 @@ func WriteFileToDisk(localDoc document.LocalDocument, key string, w http.Respons
 //   - Logs upload metrics for monitoring and debugging
 func UploadFileToS3(localDoc document.LocalDocument, key string, w http.ResponseWriter, r *http.Request) error {
 
-	filePath, bytesWritten, err := WriteFileToDisk(localDoc, key, w, r)
+	filePath, bytesWritten, err := WriteFileToDisk(key, w, r)
 	if err != nil {
 		return err
 	}
@@ -788,7 +790,7 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if localDoc.HasLocalFile {
-		fileName, bytesWritten, err = WriteFileToDisk(localDoc, newKey, w, r)
+		fileName, bytesWritten, err = WriteFileToDisk(newKey, w, r)
 		if err != nil {
 			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error writing file to disk",
 				"tags", []string{"DOCUMENTS", "RAG", "STORAGE"},

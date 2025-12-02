@@ -73,6 +73,7 @@ func StartServer() {
 
 	http.HandleFunc(GetRouteName("user"), server.DBMiddleware(db, server.AuthMiddleware(GetUserHandler)))
 	http.HandleFunc(GetRouteName("user", "update"), server.DBMiddleware(db, server.AuthMiddleware(UpdateUserHandler)))
+	http.HandleFunc(GetRouteName("user", "profile-picture"), server.DBMiddleware(db, server.AuthMiddleware(UpdateProfilePictureHandler)))
 
 	http.HandleFunc(GetRouteName("users"), server.DBMiddleware(db, server.AuthMiddleware(GetUsersHandler)))
 
