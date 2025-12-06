@@ -22,7 +22,7 @@ func GetRemoteDB() (*gorm.DB, error) {
 		return nil, err
 	}
 	// Updated connection string with SSL
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 
 	db, err := gorm.Open(postgres.Open(psqlInfo), &gorm.Config{
@@ -36,4 +36,3 @@ func GetRemoteDB() (*gorm.DB, error) {
 
 	return db, nil
 }
-

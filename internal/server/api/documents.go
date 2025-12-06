@@ -891,6 +891,8 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 		Points:         vectors,
 	}); err != nil {
 		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error inserting vectors into Qdrant",
+			"document_id", doc.ID,
+			"assignment_id", doc.AssignmentID,
 			"tags", []string{"DOCUMENTS", "RAG", "QDRANT"},
 		)
 		return

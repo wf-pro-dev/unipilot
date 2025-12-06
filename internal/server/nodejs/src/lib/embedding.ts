@@ -10,9 +10,9 @@
  * @requires dotenv - Environment variable management
  */
 
-const { embed } = require('ai');
-const { createGoogleGenerativeAI } = require('@ai-sdk/google');
-const dotenv = require('dotenv');
+import { embed } from 'ai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import dotenv from 'dotenv';
 
 // Load environment variables for API configuration
 dotenv.config();
@@ -75,7 +75,7 @@ const embeddingModel = google.textEmbeddingModel('gemini-embedding-001');
  * - Text content is sent to Google AI services for processing
  * - No sensitive data should be embedded without proper data handling policies
  */
-const generateEmbedding = async (value) => {
+const generateEmbedding = async (value: string) => {
   try {
     // Step 1: Input preprocessing and normalization
     // Replace escaped newlines with spaces to prevent embedding fragmentation
@@ -116,7 +116,7 @@ const generateEmbedding = async (value) => {
  * 
  * @example
  * // Import and use the embedding service
- * const { generateEmbedding } = require('./lib/embedding');
+ * import { generateEmbedding } from './lib/embedding.ts';
  * 
  * async function processDocument(text) {
  *   const vector = await generateEmbedding(text);
@@ -126,6 +126,6 @@ const generateEmbedding = async (value) => {
  *   }
  * }
  */
-module.exports = {
+export {
     generateEmbedding
 };

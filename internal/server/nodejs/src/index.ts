@@ -1,16 +1,17 @@
 // ai-service/server.js
-const express = require('express');
-const { createGoogleGenerativeAI } = require('@ai-sdk/google');
-const { streamText, convertToModelMessages, tool, stepCountIs } = require('ai');
-const cors = require('cors');
-const dotenv = require('dotenv');
-const { findRelevantContent } = require('./lib/qdrant');
-const { z } = require('zod');
+import express, { Request, Response } from 'express';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { streamText, convertToModelMessages, tool } from 'ai';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { findRelevantContent } from './lib/qdrant';
+import { z } from 'zod';
+import { Assignment, ChatRequest } from './types';
 
 dotenv.config();
 
 const google = createGoogleGenerativeAI({
-    apiKey: process.env.GEMINI_API_KEY,
+    apiKey: process.env.GEMINI_API_KEY || '',
 });
 
 const app = express();
@@ -31,7 +32,7 @@ app.use(express.json({ limit: '10mb' }));
  * @route GET /health
  * @returns {Object} JSON response with service status and identification
  */
-app.get('/health', (req, res) => {
+app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'healthy', service: 'ai-chat' });
 });
 /**
@@ -55,33 +56,32 @@ app.get('/health', (req, res) => {
  * @returns {Stream} Streaming AI response with tool integration
  * @throws {500} When AI service is unavailable or processing fails
  */
-app.post('/unipilot/ai/v1', async (req, res) => {
+app.post('/unipilot/ai/v1', async (req: Request, res: Response) => {
     
     try {
       // Step 1: Extract and validate request payload
-      const { messages, assignment } = req.body;
+      const { messages, assignment }: ChatRequest = req.body;
       
       // Step 2: Convert messages to AI SDK format for processing
       let allMessages = convertToModelMessages(messages);
 
       // Step 3: Build assignment-specific system prompt for context
-      let systemPrompt = '';
-      if (assignment) {
-        console.log("assignment", assignment);
-        systemPrompt = buildSystemPrompt(assignment);
-      }
+      const systemPrompt = buildSystemPrompt(assignment);
+     
   
       // Step 4: Configure streaming AI generation with RAG tool integration
       const result = streamText({
         model: google('gemini-2.0-flash-lite'),
         messages: allMessages,
-        maxTokens: 4000, // Limit response length for performance
+        maxOutputTokens: 4000,
         temperature: 0.7, // Balanced creativity vs accuracy
         system: systemPrompt,
         tools: {
           // RAG tool for knowledge base access
           getInformation: tool({
-            description: `Use this tool to get information from your knowledge base to answer every user question.`,
+            description: `Use this tool EVERY TIME the user asks a question that requires information from the knowledge base/documents. 
+            Call this tool for each new question, even if you've called it before in this conversation. 
+            Previous tool calls do not provide information for new questions - always call the tool when a question needs knowledge base information.`,
             inputSchema: z.object({
               question: z.string().describe('the users question'),
             }),
@@ -94,13 +94,13 @@ app.post('/unipilot/ai/v1', async (req, res) => {
       // Step 5: Stream AI response directly to client
       result.pipeUIMessageStreamToResponse(res);
       
-    } catch (error) {
+    } catch (error ) {
       // Step 6: Handle errors with proper HTTP status and logging
       console.error('AI chat error:', error);
       if (!res.headersSent) {
         res.status(500).json({ 
           error: 'AI service unavailable',
-          details: error.message 
+          details: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     }
@@ -129,7 +129,7 @@ app.post('/unipilot/ai/v1', async (req, res) => {
  * @param {string} assignment.StatusName - Current assignment status
  * @returns {string} Formatted system prompt for AI context injection
  */
-function buildSystemPrompt(assignment) {
+function buildSystemPrompt(assignment: Assignment) {
   return `You are a helpful academic assistant. Help with this assignment:
 
 ASSIGNMENT CONTEXT:
@@ -142,7 +142,15 @@ ASSIGNMENT CONTEXT:
 - Todo: ${assignment.Todo}
 - Status: ${assignment.StatusName}
 
-Provide specific, actionable advice.`;
+CRITICAL INSTRUCTION FOR KNOWLEDGE BASE ACCESS:
+You have access to a 'getInformation' tool that searches the knowledge base (documents, materials, notes) for this specific assignment.
+1. You MUST call the 'getInformation' tool EVERY TIME the user asks a question that might require information from the assignment documents or knowledge base.
+2. Do NOT rely on your internal knowledge if the answer could be in the documents.
+3. Treat every user message independently regarding tool use. Even if you called the tool in previous turns, you MUST call it again for a new question if it requires knowledge base information.
+4. Previous tool calls in the history do NOT provide information for the current question. Always fetch fresh information.
+5. Example triggers: "What is this assignment about?", "Summarize the reading", "What are the requirements?", "Explain the concept from the notes".
+
+Provide specific, actionable advice based on the information retrieved.`;
 }
 
 const PORT = process.env.PORT || 3001;
