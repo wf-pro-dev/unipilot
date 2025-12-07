@@ -1,11 +1,12 @@
 services:
-  server:
+  api:
     build:
-      context: .
-      dockerfile: Dockerfile.api
+      context: ../..
+      dockerfile: docker/Dockerfile.api
       tags:
         - unipilot-api:${IMAGE_TAG:-latest}
-    container_name: unipilot-api
+    networks:
+      - unipilot
     ports:
       - "3000:3000" # API
       - "9000:9000" # SSE GRPC
@@ -25,6 +26,7 @@ services:
       - AWS_REGION=${AWS_REGION}
       - GRPC_SSE_ADDR=${GRPC_SSE_ADDR}
       - REDIS_ADDR=${REDIS_ADDR}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
       - QDRANT_HOST=${QDRANT_HOST:-unipilot-qdrant}
       - LOG_LEVEL=${LOG_LEVEL}
     volumes:
@@ -42,3 +44,7 @@ volumes:
   server_data:
   server_uploads:
   server_logs:
+
+networks:
+  unipilot:
+    external: true

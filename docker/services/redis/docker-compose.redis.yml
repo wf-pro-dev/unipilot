@@ -1,14 +1,15 @@
 services:
   redis:
     image: redis:7.2-alpine
-    container_name: redis
+    networks:
+      - unipilot
     command: >
-      redis-server /usr/local/etc/redis/redis.conf
+      sh -c "redis-server /usr/local/etc/redis/redis.conf --requirepass \"$$REDIS_PASSWORD\""
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-      - ./internal/services/redis/redis.conf:/usr/local/etc/redis/redis.conf
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
     restart: unless-stopped
@@ -26,7 +27,8 @@ services:
   
   redis-insight:
     image: redis/redisinsight:latest
-    container_name: redis-insight
+    networks:
+      - unipilot
     ports:
       - "5540:5540"
     restart: unless-stopped
@@ -39,3 +41,7 @@ services:
 
 volumes:
   redis_data:
+
+networks:
+  unipilot:
+    external: true

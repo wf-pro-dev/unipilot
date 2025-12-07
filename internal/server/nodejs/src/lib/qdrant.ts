@@ -144,3 +144,5 @@ const generateFilter = (documentIDs: string[]) => {
     )
 
 }
+
+export { findRelevantContent };

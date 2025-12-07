@@ -1,10 +1,11 @@
 
 services:
-  server:
+  sse:
     build:
-      context: .
-      dockerfile: Dockerfile.sse
-    container_name: sse
+      context: ../..
+      dockerfile: docker/Dockerfile.sse
+    networks:
+      - unipilot
     ports:
       - "3000:3000"
       - "9000:9000"
@@ -31,3 +32,7 @@ services:
 
 volumes:
   sse_logs:
+
+networks:
+  unipilot:
+    external: true

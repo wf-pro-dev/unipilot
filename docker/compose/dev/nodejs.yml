@@ -2,9 +2,10 @@
 services:
   nodejs:
     build:
-      context: .
-      dockerfile: Dockerfile.nodejs
-    container_name: unipilot-nodejs
+      context: ../..
+      dockerfile: docker/Dockerfile.nodejs
+    networks:
+      - unipilot
     ports:
       - "3001:3001"
     environment:
@@ -27,3 +28,7 @@ services:
 
 volumes:
   nodejs_logs:
+
+networks:
+  unipilot:
+    external: true

@@ -1,0 +1,140 @@
+services:
+  api:
+    image: unipilot-api:${IMAGE_TAG:-latest}
+    networks:
+      - unipilot
+    ports:
+      - "3000:3000" # API
+      # SSE port removed to avoid conflict if on same node, assuming SSE service handles its own
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - SESSION_KEY=${SESSION_KEY}
+      - NOTION_API_KEY=${NOTION_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}  
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL}
+      - AWS_REGION=${AWS_REGION}
+      - GRPC_SSE_ADDR=${GRPC_SSE_ADDR}
+      - REDIS_ADDR=${REDIS_ADDR}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - QDRANT_HOST=${QDRANT_HOST:-unipilot-qdrant}
+      - LOG_LEVEL=${LOG_LEVEL}
+    volumes:
+      - server_data:/app/data
+      - server_uploads:/app/uploads
+      - server_logs:/app/logs
+    restart: unless-stopped 
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  sse:
+    image: unipilot-sse:${IMAGE_TAG:-latest}
+    networks:
+      - unipilot
+    ports:
+      - "9000:9000" # SSE GRPC exposed here specifically
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - SESSION_KEY=${SESSION_KEY}
+      - NOTION_API_KEY=${NOTION_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}  
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+    volumes:
+      - sse_logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  nodejs:
+    image: unipilot-nodejs:${IMAGE_TAG:-latest}
+    networks:
+      - unipilot
+    ports:
+      - "3001:3001"
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - SESSION_KEY=${SESSION_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - QDRANT_HOST=${QDRANT_HOST:-unipilot-qdrant}
+    volumes:
+      - nodejs_logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7.2-alpine
+    networks:
+      - unipilot
+    command: >
+      sh -c "redis-server /usr/local/etc/redis/redis.conf --requirepass \"$$REDIS_PASSWORD\""
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./docker/services/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "redis-cli", "--pass", "${REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis-insight:
+    image: redis/redisinsight:latest
+    networks:
+      - unipilot
+    ports:
+      - "5540:5540"
+    restart: unless-stopped
+    depends_on:
+      - redis
+    environment:
+      - RI_REDIS_HOST=${REDIS_HOST}
+      - RI_REDIS_ALIAS=${REDIS_ALIAS}
+      - RI_REDIS_PASSWORD=${REDIS_PASSWORD}
+
+volumes:
+  server_data:
+  server_uploads:
+  server_logs:
+  sse_logs:
+  nodejs_logs:
+  redis_data:
+
+networks:
+  unipilot:
+    external: true
+
