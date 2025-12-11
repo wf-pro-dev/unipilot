@@ -305,3 +305,73 @@ func UploadDocumentRAG(document *document.LocalDocument) error {
 		return fmt.Errorf("server error: %s - %s", resp.Status, string(respBody))
 	}
 }
+
+func DeleteDocumentRAG(assignmentID, documentID uint) error {
+
+	api_url := secrets.CONSTANTS["API_URL"]
+	var url string = fmt.Sprintf("%s/document/rag/delete", api_url)
+
+	client, err := NewAuthClient()
+	if err != nil {
+		return err
+	}
+
+	jsonData, err := json.Marshal(map[string]interface{}{
+		"assignment_id": assignmentID,
+		"document_id":   documentID,
+	})
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("server returned %d: %s", resp.StatusCode, resp.Status)
+	}
+
+	return nil
+}
+
+func GetAssignmentDocumentIDsRAG(assignmentID uint, documentIDs []uint) ([]uint, error) {
+
+	api_url := secrets.CONSTANTS["API_URL"]
+	var url string = fmt.Sprintf("%s/document/rag/list", api_url)
+
+	client, err := NewAuthClient()
+	if err != nil {
+		return nil, err
+	}
+
+	jsonData, err := json.Marshal(map[string]interface{}{
+		"assignment_id": assignmentID,
+		"document_ids":  documentIDs,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("server returned %d: %s", resp.StatusCode, resp.Status)
+	}
+
+	var res struct {
+		DocumentIDs []uint `json:"document_ids"`
+	}
+	log.Printf("response: %v", resp.Body)
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, fmt.Errorf("error decoding response: %v", err)
+	}
+
+	return res.DocumentIDs, nil
+}

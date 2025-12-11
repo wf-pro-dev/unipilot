@@ -753,6 +753,32 @@ func (a *App) UploadDocumentRAG(doc *document.LocalDocument) error {
 
 }
 
+func (a *App) DeleteDocumentRAG(assignmentID, documentID uint) error {
+
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	if err := client.DeleteDocumentRAG(assignmentID, documentID); err != nil {
+		return fmt.Errorf("failed to delete document: %w", err)
+	}
+
+	return nil
+}
+
+func (a *App) GetAssignmentDocumentIDsRAG(assignmentID uint, documentIDs []uint) ([]uint, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	docIds, err := client.GetAssignmentDocumentIDsRAG(assignmentID, documentIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get assignment document IDs: %w", err)
+	}
+
+	return docIds, nil
+}
+
 // ========================================
 // UPDATE OPERATIONS
 // ========================================

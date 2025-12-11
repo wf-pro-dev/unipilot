@@ -52,12 +52,12 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
     } as UIMessage));
   }, [conversationHistory]);
 
-
+  
   const { messages, sendMessage, setMessages } = useChat({
     // Start with empty array, we'll set messages after load
     messages: [],
     transport: new DefaultChatTransport({
-      api: 'https://wwwill.dedyn.io/unipilot/ai/v1',
+      api: 'https://wwwill.xyz/unipilot/ai/v1',
       prepareSendMessagesRequest: ({ id, messages, trigger, messageId }) => {
         return {
           headers: {

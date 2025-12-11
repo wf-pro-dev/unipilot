@@ -31,6 +31,8 @@ export function DeleteCourse(arg1:course.LocalCourse):Promise<void>;
 
 export function DeleteDocument(arg1:number):Promise<void>;
 
+export function DeleteDocumentRAG(arg1:number,arg2:number):Promise<void>;
+
 export function DeleteNote(arg1:note.LocalNote):Promise<void>;
 
 export function DeleteNotification(arg1:notifications.LocalNotification):Promise<void>;
@@ -40,6 +42,8 @@ export function DownloadDocument(arg1:document.LocalDocument):Promise<void>;
 export function Follow(arg1:number):Promise<boolean>;
 
 export function GetAssignment(arg1:number):Promise<assignment.LocalAssignment>;
+
+export function GetAssignmentDocumentIDsRAG(arg1:number,arg2:Array<number>):Promise<Array<number>>;
 
 export function GetAssignmentDocuments(arg1:number):Promise<Array<document.LocalDocument>>;
 

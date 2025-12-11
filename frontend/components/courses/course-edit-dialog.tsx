@@ -142,8 +142,8 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
         const startHour = parseInt(startMatch[1])
         const endHour = parseInt(endMatch[1])
 
-        if (startHour < 1 || startHour > 12 || endHour < 1 || endHour > 12) {
-            toast.error("Hour must be between 1 and 12")
+        if (startHour < 0 || startHour > 12 || endHour < 0 || endHour > 12) {
+            toast.error("Hour must be between 0 and 12")
             return false
         }
 

@@ -46,6 +46,10 @@ export function DeleteDocument(arg1) {
   return window['go']['main']['App']['DeleteDocument'](arg1);
 }
 
+export function DeleteDocumentRAG(arg1, arg2) {
+  return window['go']['main']['App']['DeleteDocumentRAG'](arg1, arg2);
+}
+
 export function DeleteNote(arg1) {
   return window['go']['main']['App']['DeleteNote'](arg1);
 }
@@ -64,6 +68,10 @@ export function Follow(arg1) {
 
 export function GetAssignment(arg1) {
   return window['go']['main']['App']['GetAssignment'](arg1);
+}
+
+export function GetAssignmentDocumentIDsRAG(arg1, arg2) {
+  return window['go']['main']['App']['GetAssignmentDocumentIDsRAG'](arg1, arg2);
 }
 
 export function GetAssignmentDocuments(arg1) {

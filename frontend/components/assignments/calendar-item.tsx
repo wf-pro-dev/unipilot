@@ -3,9 +3,7 @@
 import { useDrag } from "react-dnd"
 import { assignment } from "@/wailsjs/go/models"
 import { parseDeadline } from "@/lib/date-utils"
-import { format } from "date-fns"
-import { TypeTag } from "./tags/type-tag"
-import { Clock, CheckCircle2 } from "lucide-react"
+import { StatusTag } from "./tags/status-tag"
 
 interface CalendarItemProps {
   assignment: assignment.LocalAssignment
@@ -35,15 +33,15 @@ export function CalendarItem({ assignment, onEdit, onAssignmentClick }: Calendar
 
   return (
     <div
-      ref={drag}
-      className={`cursor-pointer group  ${isDragging ? "opacity-50" : ""}`}
+      ref={drag as any}
+      className={`cursor-pointer  group/item  ${isDragging ? "opacity-50" : ""}`}
       onClick={(e) => { e.stopPropagation(); onAssignmentClick(assignment); }}
     >
       <div className={`
-        relative backdrop-blur-lg overflow-hidden rounded-xl border transition-all duration-30
+        relative backdrop-blur-lg overflow-hidden rounded-xl border transition-all 
         ${isDone
-          ? 'bg-black/10 border-white/5 opacity-70 hover:opacity-100'
-          : 'bg-white/5 border-white/5 shadow-lg shadow-black/60 hover:translate-y-0.5 hover:border-white/10 '
+          ? 'bg-black/10 border-white/5 opacity-70 hover:opacity-100 duration-30'
+          : 'bg-white/5 border-white/5 shadow-lg shadow-black/60 hover:translate-y-1 hover:border-white/10 duration-100 ease-in-out'
         }
       `}>
 
@@ -52,7 +50,7 @@ export function CalendarItem({ assignment, onEdit, onAssignmentClick }: Calendar
 
         {/* Shine effect on hover (only if not done) */}
         {!isDone && (
-          <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/15 to-transparent opacity-0 group-hover/item:opacity-100 transition-opacity duration-300 pointer-events-none" />
         )}
 
         <div className="flex flex-col gap-1.5 p-2.5 pl-3.5 relative z-10">
@@ -66,14 +64,14 @@ export function CalendarItem({ assignment, onEdit, onAssignmentClick }: Calendar
           </div>
 
           {/* Title */}
-          <h4 className={`text-sm font-semibold truncate leading-tight drop-shadow-sm ${isDone ? "line-through text-white/30" : "text-white/90 group-hover:text-white transition-colors"}`}>
+          <h4 className={`text-sm font-semibold truncate leading-tight drop-shadow-sm ${isDone ? "line-through text-white/30" : "text-white"}`}>
             {assignment.Title}
           </h4>
 
           {/* Footer: Tags */}
           <div className="flex items-center justify-between pt-0.5">
-            <div className="scale-[0.85] origin-left -ml-1 opacity-80 group-hover:opacity-100 transition-opacity">
-              <TypeTag assignment={assignment} onEdit={onEdit} />
+            <div className="scale-[0.85] origin-left -ml-1 transition-opacity">
+              <StatusTag assignment={assignment} onEdit={onEdit} />
             </div>
           </div>
         </div>

@@ -18,7 +18,7 @@ interface AssignmentItemProps {
   assignment: assignment.LocalAssignment
   onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
   onToggleComplete: (assignment: assignment.LocalAssignment) => void
-  onAssignmentClick?: (assignment: assignment.LocalAssignment) => void  
+  onAssignmentClick?: (assignment: assignment.LocalAssignment) => void
   onDelete: (assignment: assignment.LocalAssignment) => void
   onOpenEdit: (assignment: assignment.LocalAssignment) => void
   disabled?: boolean
@@ -40,7 +40,7 @@ export function AssignmentItem({
   onEdit,
   onDelete,
   onToggleComplete,
-  onAssignmentClick,  
+  onAssignmentClick,
   onOpenEdit,
   disabled = false
 }: AssignmentItemProps) {
@@ -76,11 +76,11 @@ export function AssignmentItem({
     <div>
       <GlassCard
         variant={!disabled && onAssignmentClick ? "interactive" : "default"}
-        className={`border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300 ${disabled ? 'opacity-50' : ''}`}
+        className={`h-full border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300 ${disabled ? 'opacity-50' : ''}`}
         onClick={handleCardClick}
       >
         <CardContent className="p-5">
-          <div className="flex gap-4">
+          <div className="flex  gap-4">
             {/* Left Column: Checkbox */}
             <div onClick={(e) => e.stopPropagation()} className="pt-1">
               <Checkbox
@@ -93,7 +93,7 @@ export function AssignmentItem({
 
             {/* Right Column: Main Content */}
             <div className="flex-1 min-w-0 flex flex-col gap-3">
-              
+
               {/* 1. Context Header: Course & Type tags + Actions */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -154,10 +154,14 @@ export function AssignmentItem({
 
               {/* 2. Main Info: Title & Description */}
               <div className="space-y-1">
-                <h3 className={`text-h4 ${assignment.StatusName === "Done" ? "line-through text-gray-500" : "text-white"} line-clamp-1 tracking-tight`}>
+                <h3 className={`text-h4 ${assignment.StatusName === "Done" ? "line-through text-gray-400" : "text-white"} line-clamp-1 tracking-tight`}>
                   {assignment.Title}
                 </h3>
-                <p className="text-caption text-gray-200 line-clamp-1 leading-relaxed">{assignment.Todo}</p>
+                {assignment.Todo ? (
+                  <p className={`text-caption ${assignment.StatusName === "Done" ? "text-gray-400" : "text-white"} line-clamp-1 leading-relaxed`}  >{assignment.Todo}</p>
+                ) : (
+                  <p className="text-caption text-gray-400 line-clamp-1 leading-relaxed">{"No description yet..."}</p>
+                )}
               </div>
 
               {/* 3. Footer: Status & Date */}

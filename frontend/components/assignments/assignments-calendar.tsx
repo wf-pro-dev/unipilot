@@ -152,8 +152,8 @@ export function AssignmentsCalendar({
       }
     }).sort((a, b) => {
       var status: { [key: string]: number } = {
-        "Not started": 0,
-        "In progress": 1,
+        "Not started": 1,
+        "In progress": 0,
         "Done": 2
       }
       return status[a.StatusName] - status[b.StatusName]

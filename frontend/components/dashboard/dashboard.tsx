@@ -17,9 +17,8 @@ import { assignment, note } from "@/wailsjs/go/models"
 import { format, isAfter, isSameDay } from "date-fns"
 import { useNotes } from "@/hooks/use-notes"
 import useEmblaCarousel from 'embla-carousel-react'
-import { AssignmentItem } from "../assignments/assignment-item"
 import { AssignmentEditDialog } from "../assignments/assignment-edit-dialog"
-import { hover } from "framer-motion"
+import { AssignmentItemCompact } from "../assignments/assignment-item-compact"
 
 // Helper function to get gradient classes for course colors
 // This ensures Tailwind can detect all possible class combinations
@@ -85,13 +84,13 @@ export function Dashboard() {
         return assignments
             .filter(a => a.StatusName !== "Done")
             .sort((a, b) => new Date(a.Deadline).getTime() - new Date(b.Deadline).getTime())
-            .slice(0, 5)
+            .slice(0, 6)
     }, [assignments])
 
     const upcomingExams = useMemo(() => {
         return exams?.filter((exam) => isAfter(exam.Deadline, new Date()) || isSameDay(exam.Deadline, new Date()))
             .sort((a, b) => new Date(a.Deadline).getTime() - new Date(b.Deadline).getTime())
-            .slice(0, 3)
+            .slice(0, 5)
     }, [exams])
 
     const { course, isOn, until } = getNextCourse(coursesBySemester)
@@ -143,10 +142,10 @@ export function Dashboard() {
 
                     {/* Next Class Card */}
                     <div className="shrink-0">
-                        <GlassCard 
-                            variant="interactive" 
-                            onClick={() => course && router.push(`/courses?view=schedule`)} 
-                            className={`${getCourseGradientClasses(course?.Color, course && isOn).bg} ${getCourseGradientClasses(course?.Color, course && isOn).hover } border border-white/5 transition-all duration-300 group overflow-hidden relative`}
+                        <GlassCard
+                            variant="interactive"
+                            onClick={() => course && router.push(`/courses?view=schedule`)}
+                            className={`${getCourseGradientClasses(course?.Color, course && isOn).bg} ${getCourseGradientClasses(course?.Color, course && isOn).hover} border border-white/5 transition-all duration-300 group overflow-hidden relative`}
                         >
 
                             <CardHeader className="flex flex-row items-center justify-between pb-4 z-10 relative">
@@ -165,7 +164,7 @@ export function Dashboard() {
 
                             <CardContent className="z-10 relative">
                                 {course ? (
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 group/course">
                                         <div className="space-y-4">
                                             <div className="space-y-1">
                                                 <div className="flex items-center gap-2">
@@ -192,7 +191,8 @@ export function Dashboard() {
                                         </div>
 
                                         {until && (
-                                            <div className="bg-white/10 border border-white/5 shadow-lg shadow-black/60 rounded-lg flex flex-col items-end justify-center min-w-[140px] p-4">
+                                            <div className="relative border border-white/10 group-hover:border-white/20 shadow-lg shadow-black/60 rounded-xl flex flex-col items-end justify-center min-w-[140px] p-4">
+                                                <div className="absolute inset-0 bg-gradient-to-br from-white/15 to-transparent pointer-events-none group-hover/course:opacity-0 transition-opacity duration-300" />
                                                 <span className="text-xs text-gray-400 uppercase tracking-wider font-medium mb-1">{isOn ? "Ends in" : "Starts in"}</span>
                                                 <div className="flex items-baseline gap-1">
                                                     {daysUntil > 0 && <span className="text-2xl font-bold text-white">{daysUntil}<span className="text-sm font-normal text-gray-400 ml-1">d</span></span>}
@@ -232,16 +232,13 @@ export function Dashboard() {
                         </div>
 
                         {priorityAssignments.length > 0 ? (
-                            <div className="grid grid-cols-1 gap-3 overflow-y-auto pr-2">
+                            <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 pb-20">
                                 {priorityAssignments.map(assignment => (
-                                    <AssignmentItem
+                                    <AssignmentItemCompact
                                         key={assignment.ID}
                                         assignment={assignment}
                                         onToggleComplete={handleToggleComplete}
-                                        onEdit={handleEditAssignment}
-                                        onDelete={handleDelete}
-                                        onOpenEdit={handleOpenEdit}
-                                    // onAssignmentClick={(a) => handleOpenEdit(a)}
+                                        onAssignmentClick={(a) => router.push(`/assignments?view=assignment&assignment=${a.ID}`)}
                                     />
                                 ))}
                             </div>
@@ -259,25 +256,27 @@ export function Dashboard() {
                 </div>
 
                 {/* Side Column (Right 1/3) */}
-                <div className="flex flex-col gap-6 h-full">
+                <div className="flex flex-col gap-6 h-full min-h-0">
 
                     {/* Upcoming Exams */}
-                    <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-white flex items-center gap-2 px-1">
+                    <div className="flex flex-col gap-4 flex-1 min-h-0">
+                        <h3 className="text-lg font-semibold text-white flex items-center gap-2 px-1 shrink-0">
                             <Calendar className="w-5 h-5 text-red-400" />
                             Upcoming Exams
                         </h3>
-                        <div className="space-y-3">
+                        <div className="space-y-3 flex-1 overflow-y-auto pr-2 pb-6">
                             {upcomingExams && upcomingExams.length > 0 ? (
                                 upcomingExams.map(exam => (
                                     <GlassCard
                                         key={exam.ID}
                                         variant="interactive"
                                         onClick={() => router.push(`/assignments?view=exam&assignment=${exam.ID}`)}
-                                        className="border-white/5 bg-white/5 hover:bg-white/10 p-4 transition-all group"
+                                        className="border-white/5 bg-white/5 hover:bg-white/10 p-4 transition-all group/exam"
                                     >
                                         <div className="flex items-start gap-3">
-                                            <div className="flex flex-col items-center min-w-[50px] bg-white/5 rounded-lg p-2 border border-white/5 group-hover:border-white/10 transition-colors">
+                                            <div className="relative aspect-square flex flex-col items-center min-w-[50px] bg-white/5 rounded-lg p-2 border shadow-lg shadow-black/60 border-white/10 group-hover:border-white/15 transition-colors">
+                                                <div className="absolute inset-0 bg-gradient-to-br from-white/15 to-transparent pointer-events-none" />
+
                                                 <span className="text-xs font-bold text-red-400 uppercase">{format(parseDeadline(exam.Deadline), "MMM")}</span>
                                                 <span className="text-xl font-bold text-white">{format(parseDeadline(exam.Deadline), "d")}</span>
                                             </div>
@@ -306,7 +305,7 @@ export function Dashboard() {
                     </div>
 
                     {/* Recent Notes */}
-                    <div className="space-y-4">
+                    <div className="space-y-4 shrink-0">
                         <div className="flex items-center justify-between px-1">
                             <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                                 <StickyNote className="w-5 h-5 text-yellow-400" />

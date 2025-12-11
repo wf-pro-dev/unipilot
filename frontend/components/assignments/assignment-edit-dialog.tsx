@@ -49,7 +49,6 @@ interface AssignmentEditDialogProps {
 
 export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: AssignmentEditDialogProps) {
   if (!assignment) { return null }
-  const { courses: courses } = useAuthContext()
 
   const [deadline, setDeadline] = useState<Date>(new Date(assignment.Deadline) || new Date())
   const [formData, setFormData] = useState({

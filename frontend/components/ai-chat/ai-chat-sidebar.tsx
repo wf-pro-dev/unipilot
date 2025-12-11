@@ -7,13 +7,14 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
 } from "@/components/ui/sidebar"
-import { useAssignmentDocuments } from "@/hooks/use-documents";
+import { useAssignmentDocumentIDsRAG, useAssignmentDocuments } from "@/hooks/use-documents";
 import { assignment } from "@/wailsjs/go/models";
 import { AiDocumentCard } from "./ai-chat-documents";
 import { GlassCard } from "../ui/glass-card";
 import { useNextAssignments } from "@/hooks/use-assignments";
 import { AiAssignmentCard } from "./ai-chat-assignments";
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { document } from "@/wailsjs/go/models";
 
 interface AiChatSidebarProps {
   assignment: assignment.LocalAssignment;
@@ -22,10 +23,22 @@ interface AiChatSidebarProps {
 
 
 export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
-  const { data: documents } = useAssignmentDocuments(assignment.ID)
+  const { data: documentsData } = useAssignmentDocuments(assignment.ID)
   const { data: nextAssignments } =  useNextAssignments()
+  const { data: documentRagIDs } = useAssignmentDocumentIDsRAG(assignment.RemoteID, documentsData?.map((document) => document.ID) || []);
 
-  const getNextAssignments = useMemo(() => {
+  const [documents, setDocuments] = useState<document.LocalDocument[]>([]);
+  
+  useEffect(() => {
+      setDocuments(documentsData || []);
+  }, [documentsData]);
+
+
+  const getDocumentAdded = useCallback(( document: document.LocalDocument) => {
+    return documentRagIDs?.includes(document.RemoteID) || false;
+  }, [documentRagIDs]);
+
+  const getNextAssignments = useCallback(() => {
     return nextAssignments?.
     filter((assign)=> assign.ID != assignment.ID).
     slice(0, 3) || [];
@@ -58,9 +71,13 @@ export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
               <span className="text-caption font-semibold text-muted-foreground/40 bg-white/5 rounded">{documents?.length || 0}</span>
             </div>
             <div className="flex flex-col gap-2.5">
-              {documents?.map((document) => (
-                <AiDocumentCard key={document.ID} document={document} added={false} />
-              ))}
+              {documents?.map((document) => {
+                const added = getDocumentAdded(document)
+                console.log(added,document.RemoteID)
+                return (
+                  <AiDocumentCard key={document.ID} document={document} added={added} />
+                )
+              })}
               {documents?.length === 0 && (
                 <div className="px-4 py-12 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
                   <p className="text-caption text-muted-foreground/60">No documents linked</p>
@@ -76,10 +93,10 @@ export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
               <span className="text-[10px] text-muted-foreground/40 bg-white/5 px-1.5 rounded">{documents?.length || 0}</span>
             </div>
             <div className="flex flex-col gap-2.5">
-              {getNextAssignments.map((assignment) => (
+              {getNextAssignments().map((assignment) => (
                 <AiAssignmentCard key={assignment.ID} assignment={assignment} />
               ))}
-              {getNextAssignments.length === 0 && (
+              {getNextAssignments().length === 0 && (
                 <div className="px-4 py-12 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
                   <p className="text-caption text-muted-foreground/60">No upcoming assignments</p>
                 </div>

@@ -35,7 +35,7 @@ function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMov
             className={`min-h-[120px] p-2 transition-colors duration-200 border border-white/10 ${
                 isOver ? "bg-blue-500/20" :
                 isCurrentMonth
-                ? "hover:bg-white/5 group"
+                ? ""
                 : "bg-black/40 opacity-50"
                 } ${isToday ? "bg-blue-500/5 relative overflow-hidden" : ""}`}
         >
@@ -43,7 +43,7 @@ function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMov
                 <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
             )}
 
-            <div className="flex items-center justify-between mb-2 cursor-pointer" onClick={() => onDateClick(day)}>
+            <div className="group hover:bg-white/5 flex items-center justify-between mb-2 cursor-pointer" onClick={() => onDateClick(day)}>
                 <span
                     className={`text-xs font-medium ${isCurrentMonth
                         ? isToday
@@ -62,7 +62,7 @@ function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMov
             </div>
 
             <div className="space-y-1.5">
-                {dayAssignments.slice(0, 3).map((assignment) => (
+                {dayAssignments.slice(0, 2).map((assignment) => (
                     <CalendarItem
                         key={assignment.ID}
                         assignment={assignment}
@@ -70,9 +70,9 @@ function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMov
                         onAssignmentClick={onAssignmentClick}
                     />
                 ))}
-                {dayAssignments.length > 3 && (
+                {dayAssignments.length > 2 && (
                     <div className="text-[10px] text-gray-500 text-center font-medium hover:text-gray-300 transition-colors cursor-pointer pt-1" onClick={() => onDateClick(day)}>
-                        +{dayAssignments.length - 3} more
+                        +{dayAssignments.length - 2} more
                     </div>
                 )}
             </div>
