@@ -159,6 +159,9 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 		// Upload new file from multipart form to S3
 		if err := UploadFileToS3(localDoc, newKey, w, r); err != nil {
 			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error uploading file",
+				"size", localDoc.FileSize,
+				"file_name", localDoc.FileName,
+				"storage_key", newKey,
 				"tags", []string{"DOCUMENTS", "STORAGE"},
 			)
 			return
@@ -167,7 +170,7 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 		// Copy existing file within S3 storage system
 		if err := cloudstorage.CopyFile(localDoc.StorageKey, newKey); err != nil {
 			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error copying file",
-				"tags", []string{"DOCUMENTS", "STORAGE"},
+				"tags", []string{"DOCUMENTS", "STORAGE", "COPY"},
 			)
 			return
 		}
@@ -332,6 +335,12 @@ func WriteFileToDisk(key string, w http.ResponseWriter, r *http.Request) (string
 		return "", 0, err
 	}
 
+	server.LogDebug(context.Background(), "File written to disk",
+		"file_path", filePath,
+		"bytes", bytesWritten,
+		"tags", []string{"DOCUMENTS", "FILESYSTEM"},
+	)
+
 	return filePath, bytesWritten, nil
 }
 
@@ -372,9 +381,9 @@ func UploadFileToS3(localDoc document.LocalDocument, key string, w http.Response
 
 	// Upload to aws S3
 	if err := cloudstorage.UploadFile(filePath, localDoc.FileName, key); err != nil {
-		return err
+		return fmt.Errorf("failed to upload file to R2: %w", err)
 	}
-	server.LogInfo(context.Background(), "File uploaded to S3",
+	server.LogDebug(context.Background(), "File uploaded to R2",
 		"file_path", filePath,
 		"bytes", bytesWritten,
 		"storage_key", key,
@@ -909,5 +918,132 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 		"assignment_id", doc.AssignmentID,
 		"vectors", len(vectors),
 		"tags", []string{"DOCUMENTS", "RAG", "UPLOAD"},
+	)
+}
+
+func DeleteDocumentRAG(w http.ResponseWriter, r *http.Request) {
+
+	// Step 1: Extract and validate document IDs from query parameters
+	var input struct {
+		AssignmentID uint `json:"assignment_id"`
+		DocumentID   uint `json:"document_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
+			"tags", []string{"DOCUMENTS", "RAG", "REQUEST"},
+		)
+		return
+	}
+
+	// Step 2: Delete the document from the Qdrant
+	if _, err := QdrantClient.Delete(context.Background(), &qdrant.DeletePoints{
+		CollectionName: fmt.Sprintf("unipilot-qdrant-db-%d", input.AssignmentID),
+		Points: qdrant.NewPointsSelectorFilter(
+			&qdrant.Filter{
+				Must: []*qdrant.Condition{
+					qdrant.NewMatchInt("document_id", int64(input.DocumentID)),
+				},
+			},
+		),
+	}); err != nil {
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error deleting document from Qdrant",
+			"document_id", input.DocumentID,
+			"assignment_id", input.AssignmentID,
+			"tags", []string{"DOCUMENTS", "RAG", "QDRANT"},
+		)
+	}
+
+	server.LogInfo(r.Context(), "Document deleted from RAG successfully",
+		"document_id", input.DocumentID,
+		"assignment_id", input.AssignmentID,
+		"tags", []string{"DOCUMENTS", "RAG", "DELETE"},
+	)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Document deleted from RAG successfully",
+	})
+}
+
+func GetAssignmentDocumentIDsRAG(w http.ResponseWriter, r *http.Request) {
+
+	// Step 1: Extract and validate document IDs from query parameters
+	var input struct {
+		AssignmentID uint   `json:"assignment_id"`
+		DocumentIDs  []uint `json:"document_ids"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
+			"tags", []string{"DOCUMENTS", "RAG", "REQUEST"},
+		)
+		return
+	}
+
+	var collectionName = fmt.Sprintf("unipilot-qdrant-db-%d", input.AssignmentID)
+
+	exists, err := QdrantClient.CollectionExists(context.Background(), collectionName)
+	if err != nil {
+		server.ResponseError(r.Context(), w, err, http.StatusNotFound, "Qdrant could not be determined",
+			"assignment_id", input.AssignmentID,
+			"tags", []string{"DOCUMENTS", "RAG", "QDRANT"},
+		)
+		return
+	}
+
+	if !exists {
+		// Step 5: Return the list of uploaded document IDs
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":      true,
+			"document_ids": []uint{},
+		})
+
+		server.LogDebug(r.Context(), "No documents found for RAG",
+			"assignment_id", input.AssignmentID,
+			"tags", []string{"DOCUMENTS", "RAG", "LIST"},
+		)
+		return
+	}
+
+	// Retrive All Qdrant Points for that assignment
+	points, err := QdrantClient.Scroll(context.Background(), &qdrant.ScrollPoints{
+		CollectionName: fmt.Sprintf("unipilot-qdrant-db-%d", input.AssignmentID),
+		WithPayload:    qdrant.NewWithPayload(true),
+	})
+	if err != nil {
+
+		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error listing Qdrant points",
+			"tags", []string{"DOCUMENTS", "RAG", "QDRANT"},
+		)
+		return
+	}
+
+	// Step 3: Make a set of document IDs that are in the Qdrant
+	type Set[E comparable] map[E]struct{} // Generic set type
+	uploadedDocumentIDs := Set[uint]{}
+	for _, point := range points {
+		uploadedDocumentIDs[uint(point.Payload["document_id"].GetIntegerValue())] = struct{}{} // Add document ID to set
+	}
+
+	// Step 4: Flatten the set of uploaded document IDs
+	uploadedDocumentIDsList := make([]uint, 0, len(uploadedDocumentIDs))
+	for id := range uploadedDocumentIDs {
+		uploadedDocumentIDsList = append(uploadedDocumentIDsList, id)
+	}
+
+	// Step 5: Return the list of uploaded document IDs
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":      true,
+		"document_ids": uploadedDocumentIDsList,
+	})
+
+	server.LogInfo(r.Context(), "Document IDs retrieved for RAG successfully",
+		"assignment_id", input.AssignmentID,
+		"document_ids", len(uploadedDocumentIDsList),
+		"tags", []string{"DOCUMENTS", "RAG", "LIST"},
 	)
 }

@@ -90,6 +90,8 @@ func StartServer() {
 	http.HandleFunc(GetRouteName("document", "download"), server.DBMiddleware(db, server.AuthMiddleware(DownloadDocumentHandler)))
 	http.HandleFunc(GetRouteName("document", "delete"), server.DBMiddleware(db, server.AuthMiddleware(DeleteDocumentHandler)))
 	http.HandleFunc(GetRouteName("document", "rag"), server.DBMiddleware(db, server.AuthMiddleware(UploadDocumentForRAGHandler)))
+	http.HandleFunc(GetRouteName("document", "rag", "list"), server.AuthMiddleware(GetAssignmentDocumentIDsRAG))
+	http.HandleFunc(GetRouteName("document", "rag", "delete"), server.AuthMiddleware(DeleteDocumentRAG))
 
 	http.HandleFunc(GetRouteName("note"), server.DBMiddleware(db, server.AuthMiddleware(CreateNoteHandler)))
 	http.HandleFunc(GetRouteName("note", "get"), server.DBMiddleware(db, server.AuthMiddleware(GetNoteHandler)))

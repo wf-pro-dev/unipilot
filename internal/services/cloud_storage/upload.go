@@ -57,7 +57,7 @@ func UploadFile(filePath, fileName, key string) error {
 	})
 
 	if err != nil {
-		return err
+		return fmt.Errorf("r2 operation failed: %w", err)
 	}
 
 	return nil

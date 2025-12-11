@@ -49,10 +49,9 @@ import (
 //   - Requires SSE server instance for notification forwarding
 func StartGRPCServer(sseServer *serverSSE.SSEServer) {
 	// Step 1: Create TCP listener on port 9000 for gRPC connections
-	lis, err := net.Listen("tcp", ":9000")
+	lis, err := net.Listen("tcp4", "0.0.0.0:9000") // Changed this line
 	if err != nil {
-		// Fatal error if cannot bind to port (conflict, permissions, etc.)
-		log.Fatalf("failed to listen on port 9000: %v", err)
+		log.Fatalf("failed to listen: %v", err)
 	}
 
 	// Step 2: Create notification service instance with SSE server reference

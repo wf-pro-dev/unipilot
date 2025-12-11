@@ -62,14 +62,21 @@ app.post('/unipilot/ai/v1', async (req: Request, res: Response) => {
       // Step 1: Extract and validate request payload
       const { messages, assignment }: ChatRequest = req.body;
       
-      // Step 2: Convert messages to AI SDK format for processing
+      // Step 2: Set streaming headers BEFORE any response is sent
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // Critical for nginx streaming
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      
+      // Step 3: Convert messages to AI SDK format for processing
       let allMessages = convertToModelMessages(messages);
 
-      // Step 3: Build assignment-specific system prompt for context
+      // Step 4: Build assignment-specific system prompt for context
       const systemPrompt = buildSystemPrompt(assignment);
      
   
-      // Step 4: Configure streaming AI generation with RAG tool integration
+      // Step 5: Configure streaming AI generation with RAG tool integration
       const result = streamText({
         model: google('gemini-2.0-flash-lite'),
         messages: allMessages,
@@ -91,11 +98,11 @@ app.post('/unipilot/ai/v1', async (req: Request, res: Response) => {
         },
       });
 
-      // Step 5: Stream AI response directly to client
+      // Step 6: Stream AI response directly to client
       result.pipeUIMessageStreamToResponse(res);
       
     } catch (error ) {
-      // Step 6: Handle errors with proper HTTP status and logging
+      // Step 7: Handle errors with proper HTTP status and logging
       console.error('AI chat error:', error);
       if (!res.headersSent) {
         res.status(500).json({ 

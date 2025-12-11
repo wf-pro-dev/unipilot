@@ -120,7 +120,7 @@ func StartSSEServer() *SSEServer {
 
 	// Step 4: Log server startup for monitoring and debugging
 	log.Println("SSE server listening on :3000...")
-
+	sseServer.logActiveClients()
 	// Step 5: Start HTTP server in background goroutine to avoid blocking
 	go func() {
 		if err := http.ListenAndServe(":3000", nil); err != nil {
@@ -173,8 +173,9 @@ func (s *SSEServer) AddClient(userID uint) *SSEClient {
 		Connected: true,                   // Initial connection status
 	}
 
+	log.Println("New SSE user id : ", userID)
 	// Step 3: Log new client registration for monitoring and debugging
-	server.LogDebug(context.Background(), "New SSE user id : ",
+	server.LogInfo(context.Background(), "New SSE user id : ",
 		"user_id", userID, "tags",
 		[]string{"SSE", "NEW_USER"},
 	)
@@ -327,6 +328,7 @@ func (s *SSEServer) Broadcast(message []byte) {
 func (s *SSEServer) logActiveClients() {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	log.Printf("Active Clients: %d\n", len(s.clients))
 	server.LogDebug(context.Background(), "Active Clients: ",
 		"count", len(s.clients),
 		"tags", []string{"SSE", "ACTIVE_CLIENTS"},

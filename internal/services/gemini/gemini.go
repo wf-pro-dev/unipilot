@@ -26,7 +26,6 @@ type GeminiResponse struct {
 func GenerateNote(request *GeminiRequest) (*GeminiResponse, error) {
 	ctx := context.Background()
 
-
 	GEMINI_API_KEY, err := secrets.GetEnvVar("GEMINI_API_KEY")
 	if err != nil {
 		return nil, err
@@ -40,6 +39,7 @@ func GenerateNote(request *GeminiRequest) (*GeminiResponse, error) {
 	}
 
 	config := &genai.GenerateContentConfig{
+		MaxOutputTokens:  16384,
 		ResponseMIMEType: "application/json",
 		ResponseSchema: &genai.Schema{
 			Type: genai.TypeObject,
@@ -58,7 +58,7 @@ func GenerateNote(request *GeminiRequest) (*GeminiResponse, error) {
 
 	result, err := client.Models.GenerateContent(
 		ctx,
-		"gemini-2.0-flash-lite",
+		"gemini-2.5-flash-lite",
 		genai.Text(prompt),
 		config,
 	)
@@ -85,7 +85,7 @@ CONTEXT:
 
 INSTRUCTIONS:
 1. Generate exactly 5 relevant keywords that capture the main concepts of this lecture
-2. Create a comprehensive lecture summary with a minimun of 6000 words
+2. Create a comprehensive lecture summary with a minimun of 3000 words
 3. Structure the content in proper Markdown format with clear headings and subheadings
 4. Include key concepts, definitions, examples, and important points
 5. Use academic language appropriate for the subject level
