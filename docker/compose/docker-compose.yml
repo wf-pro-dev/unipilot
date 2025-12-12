@@ -1,6 +1,6 @@
 services:
   api:
-    image: unipilot-api:${IMAGE_TAG:-latest}
+    image:  192.168.86.22:5000/unipilot/api:${IMAGE_TAG:-latest}
     dns:
       - 1.1.1.1
       - 8.8.8.8 
@@ -40,7 +40,7 @@ services:
       retries: 3
 
   sse:
-    image: unipilot-sse:${IMAGE_TAG:-latest}
+    image: 192.168.86.22:5000/unipilot/sse:${IMAGE_TAG:-latest}
     dns:
       - 8.8.8.8
       - 1.1.1.1
@@ -72,7 +72,7 @@ services:
       retries: 3
 
   nodejs:
-    image: unipilot-nodejs:${IMAGE_TAG:-latest}
+    image: 192.168.86.22:5000/unipilot/nodejs:${IMAGE_TAG:-latest}
     dns:
       - 8.8.8.8
       - 1.1.1.1
