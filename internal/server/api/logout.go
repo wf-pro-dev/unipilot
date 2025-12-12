@@ -43,7 +43,6 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Step 3: Log logout event for security audit trail and monitoring
-	server.LogInfo(r.Context(), "Logout successful",
-		"tags", []string{"LOGOUT"},
-	)
+	server.LogInfo(r.Context(), "User logged out",
+		"tags", []string{"auth", "auth", "low"})
 }

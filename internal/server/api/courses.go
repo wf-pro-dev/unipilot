@@ -70,14 +70,6 @@ func GetCourseHandler(w http.ResponseWriter, r *http.Request) {
 		"courses": coursesMap,
 	})
 
-	// Step 5: Log successful operation with performance metrics
-	server.LogInfo(r.Context(), "Courses retrieved successfully",
-		"request_id", requestID,
-		"user_id", userID,
-		"count", len(coursesMap),
-		"duration", time.Since(startTime).Milliseconds(),
-		"tags", []string{"COURSES", "READ"},
-	)
 }
 
 // CreateCourseHandler creates a new course for the authenticated user.
@@ -273,15 +265,7 @@ func CreateCourseHandler(w http.ResponseWriter, r *http.Request) {
 		"course":  courseMap,
 	})
 
-	// Step 12: Log successful course creation with performance metrics
-	server.LogInfo(r.Context(), "Course created successfully",
-		"request_id", requestID,
-		"user_id", userID,
-		"course_id", cVal.ID,
-		"code", cVal.Code,
-		"duration", time.Since(startTime).Milliseconds(),
-		"tags", []string{"COURSES", "WRITE"},
-	)
+	// Step 12: Course creation completed (logged by middleware)
 }
 
 // UpdateCourseHandler updates a specific field of a course.
@@ -370,14 +354,7 @@ func UpdateCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	tx.Commit()
 
-	server.LogInfo(r.Context(), "Course updated successfully",
-		"request_id", requestID,
-		"user_id", userID,
-		"course_id", c.ID,
-		"update", updateData,
-		"duration", time.Since(startTime).Milliseconds(),
-		"tags", []string{"COURSES", "WRITE"},
-	)
+	// Course update completed (logged by middleware)
 }
 
 // LinkRequestCourseHandler initiates a course sharing request by sending notifications
@@ -455,13 +432,9 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request) {
 
 	cJson, err := json.Marshal(c)
 	if err != nil {
-		server.LogWarn(r.Context(),
-			"Error marshalling notification payload", err,
-			"request_id", requestID,
-			"user_id", userID,
-			"course_id", c.ID,
-			"duration", time.Since(startTime).Milliseconds(),
-			"tags", []string{"COURSES", "MARSHALLING"},
+		server.LogWarn(r.Context(), "Failed to marshal notification payload", err,
+			"tags", []string{"notification", "network", "low"},
+			"error_type", "internal",
 		)
 	}
 
@@ -493,14 +466,9 @@ func LinkRequestCourseHandler(w http.ResponseWriter, r *http.Request) {
 		"recipients": linkRequestData.UsersID,
 	})
 
-	server.LogInfo(r.Context(), "Course link request processed",
-		"request_id", requestID,
-		"user_id", userID,
-		"course_id", c.ID,
-		"recipients_count", len(linkRequestData.UsersID),
-		"duration", time.Since(startTime).Milliseconds(),
-		"tags", []string{"COURSES", "LINK", "REQUEST"},
-	)
+	server.LogInfo(r.Context(), "Course link request processed", "course_id", c.ID, "recipients_count", len(linkRequestData.UsersID),
+		"tags", []string{"course", "network", "medium"},
+		"external_service", "grpc")
 }
 
 // AcceptLinkCourseHandler accepts a course link request and returns all assignments
@@ -607,13 +575,7 @@ func AcceptLinkCourseHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 7: Log the successful link acceptance for audit and debugging
-	server.LogInfo(r.Context(), "Course link accepted",
-		"request_id", requestID,
-		"course_code", c.Code,
-		"from_user", c.UserID,
-		"to_user", userID,
-		"assignments_synced", len(responseAssignments),
-		"duration", time.Since(startTime).Milliseconds(),
-		"tags", []string{"COURSES", "LINK", "ACCEPT"},
-	)
+	server.LogInfo(r.Context(), "Course link accepted", "course_code", c.Code, "from_user_id", c.UserID, "assignments_synced", len(responseAssignments),
+		"tags", []string{"course", "db", "high"},
+		"data_size", len(responseAssignments))
 }

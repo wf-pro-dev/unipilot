@@ -167,15 +167,15 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 
 		// Update follow statistics for both users after unfollow
 		if err := user.UpdateFollowStats(userID, db); err != nil {
-			server.LogWarn(r.Context(),
-				"Error updating follow stats", err,
-				"tags", []string{"FOLLOWS", "DB"},
+			server.LogWarn(r.Context(), "Failed to update follow stats", err,
+				"tags", []string{"follow", "db", "medium"},
+				"error_type", "database",
 			)
 		}
 		if err := user.UpdateFollowStats(req.FollowedID, db); err != nil {
-			server.LogWarn(r.Context(),
-				"Error updating follow stats", err,
-				"tags", []string{"FOLLOWS", "DB"},
+			server.LogWarn(r.Context(), "Failed to update follow stats", err,
+				"tags", []string{"follow", "db", "medium"},
+				"error_type", "database",
 			)
 		}
 
@@ -194,15 +194,15 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 
 		// Update follow statistics for both users after follow
 		if err := user.UpdateFollowStats(userID, db); err != nil {
-			server.LogWarn(r.Context(),
-				"Error updating follow stats", err,
-				"tags", []string{"FOLLOWS", "DB"},
+			server.LogWarn(r.Context(), "Failed to update follow stats", err,
+				"tags", []string{"follow", "db", "medium"},
+				"error_type", "database",
 			)
 		}
 		if err := user.UpdateFollowStats(req.FollowedID, db); err != nil {
-			server.LogWarn(r.Context(),
-				"Error updating follow stats", err,
-				"tags", []string{"FOLLOWS", "DB"},
+			server.LogWarn(r.Context(), "Failed to update follow stats", err,
+				"tags", []string{"follow", "db", "medium"},
+				"error_type", "database",
 			)
 		}
 
@@ -214,9 +214,9 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 		// Step 8: Prepare notification data with social context
 		var followedUser user.User
 		if err := db.First(&followedUser, req.FollowedID).Error; err != nil {
-			server.LogWarn(r.Context(),
-				"Error getting followed user", err,
-				"tags", []string{"FOLLOWS", "DB"},
+			server.LogWarn(r.Context(), "Failed to get followed user", err,
+				"tags", []string{"follow", "db", "low"},
+				"error_type", "database",
 			)
 		}
 
@@ -225,9 +225,9 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 		if err := db.Model(&course.Course{}).
 			Where("user_id = ? AND code IN (SELECT code FROM courses WHERE user_id = ?)", userID, req.FollowedID).
 			Count(&sharedCoursesCount).Error; err != nil {
-			server.LogWarn(r.Context(),
-				"Error counting shared courses", err,
-				"tags", []string{"FOLLOWS", "DB"},
+			server.LogWarn(r.Context(), "Failed to count shared courses", err,
+				"tags", []string{"course", "db", "low"},
+				"error_type", "database",
 			)
 		}
 
@@ -251,11 +251,12 @@ func HandleFollow(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 
 	// Step 10: Log follow action for social analytics and audit trail
-	server.LogInfo(r.Context(), "Follow action completed successfully",
-		"followed_id", req.FollowedID,
-		"action", map[bool]string{true: "unfollow", false: "follow"}[isFollowing],
-		"tags", []string{"FOLLOWS", "WRITE"},
-	)
+	action := "follow"
+	if isFollowing {
+		action = "unfollow"
+	}
+	server.LogInfo(r.Context(), "Follow action completed", "followed_id", req.FollowedID, "action", action,
+		"tags", []string{"follow", "db", "medium", "update"})
 }
 
 // HandleGetFollowers retrieves a paginated list of users who follow the specified user.
@@ -376,10 +377,6 @@ func HandleGetFollowers(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-		server.LogInfo(r.Context(), "Followers retrieved from cache",
-			"count", len(cachedFollowers),
-			"tags", []string{"FOLLOWS", "REDIS", "HIT"},
-		)
 		return
 	}
 
@@ -397,25 +394,26 @@ func HandleGetFollowers(w http.ResponseWriter, r *http.Request) {
 	for _, follower := range followers {
 		followerJSON, err := json.Marshal(follower)
 		if err != nil {
-			server.LogWarn(r.Context(),
-				"Error marshalling follower to json", err,
-				"tags", []string{"FOLLOWS", "MARSHALLING"},
+			server.LogWarn(r.Context(), "Failed to marshal follower to JSON", err,
+				"tags", []string{"follow", "io", "low"},
+				"error_type", "internal",
 			)
 			continue
 		}
 		if err := RedisClient.HSet(context.Background(), cacheKey, strconv.Itoa(int(follower.ID)), followerJSON).Err(); err != nil {
-			server.LogWarn(r.Context(),
-				"Error caching follower in redis", err,
-				"tags", []string{"FOLLOWS", "REDIS"},
+			server.LogWarn(r.Context(), "Failed to cache follower in Redis", err,
+				"tags", []string{"cache", "cache", "medium"},
+				"cache_status", "error",
+				"error_type", "cache",
 			)
 		}
 	}
 
 	// Step 10: Set cache expiration to 10 minutes for optimal balance of freshness and performance
 	if err := RedisClient.Expire(context.Background(), cacheKey, 10*time.Minute).Err(); err != nil {
-		server.LogWarn(r.Context(),
-			"Error expiring followers in redis", err,
-			"tags", []string{"FOLLOWS", "REDIS"},
+		server.LogWarn(r.Context(), "Failed to set cache expiration for followers", err,
+			"tags", []string{"cache", "cache", "low"},
+			"error_type", "cache",
 		)
 	}
 
@@ -428,11 +426,6 @@ func HandleGetFollowers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 
-	// Step 12: Log successful retrieval for audit trail and monitoring
-	server.LogInfo(r.Context(), "Followers retrieved successfully",
-		"count", total,
-		"tags", []string{"FOLLOWS", "READ"},
-	)
 }
 
 // HandleGetFollowing retrieves a paginated list of users that the specified user follows.
@@ -542,10 +535,6 @@ func HandleGetFollowing(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(response)
-		server.LogInfo(r.Context(), "Following retrieved from cache",
-			"count", len(cachedFollowing),
-			"tags", []string{"FOLLOWS", "REDIS", "HIT"},
-		)
 		return
 	}
 
@@ -563,25 +552,26 @@ func HandleGetFollowing(w http.ResponseWriter, r *http.Request) {
 	for _, followed := range following {
 		followedJSON, err := json.Marshal(followed)
 		if err != nil {
-			server.LogWarn(r.Context(),
-				"Error marshalling followed to json", err,
-				"tags", []string{"FOLLOWS", "MARSHALLING"},
+			server.LogWarn(r.Context(), "Failed to marshal followed to JSON", err,
+				"tags", []string{"follow", "io", "low"},
+				"error_type", "internal",
 			)
 			continue
 		}
 		if err := RedisClient.HSet(context.Background(), cacheKey, strconv.Itoa(int(followed.ID)), followedJSON).Err(); err != nil {
-			server.LogWarn(r.Context(),
-				"Error caching followed in redis", err,
-				"tags", []string{"FOLLOWS", "REDIS"},
+			server.LogWarn(r.Context(), "Failed to cache followed in Redis", err,
+				"tags", []string{"cache", "cache", "medium"},
+				"cache_status", "error",
+				"error_type", "cache",
 			)
 		}
 	}
 
 	// Step 10: Set cache expiration to 10 minutes for optimal balance of freshness and performance
 	if err := RedisClient.Expire(context.Background(), cacheKey, 10*time.Minute).Err(); err != nil {
-		server.LogWarn(r.Context(),
-			"Error expiring following in redis", err,
-			"tags", []string{"FOLLOWS", "REDIS"},
+		server.LogWarn(r.Context(), "Failed to set cache expiration for following", err,
+			"tags", []string{"cache", "cache", "low"},
+			"error_type", "cache",
 		)
 	}
 
@@ -595,10 +585,6 @@ func HandleGetFollowing(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 
 	// Step 12: Log successful retrieval for audit trail and monitoring
-	server.LogInfo(r.Context(), "Following retrieved successfully",
-		"count", total,
-		"tags", []string{"FOLLOWS", "READ"},
-	)
 }
 
 // HandleGetFollowStatus retrieves follow relationship status and statistics between users.
@@ -710,11 +696,4 @@ func HandleGetFollowStatus(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 
 	// Step 10: Log successful status retrieval for social analytics and monitoring
-	server.LogInfo(r.Context(), "Follow status retrieved successfully",
-		"target_user_id", targetUserID,
-		"is_following", isFollowing,
-		"followers_count", followersCount,
-		"following_count", followingCount,
-		"tags", []string{"FOLLOWS", "READ"},
-	)
 }

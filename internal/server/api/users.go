@@ -79,10 +79,6 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 				cachedUsers = append(cachedUsers, userMap)
 			}
 		}
-		server.LogInfo(r.Context(), "Users retrieved from cache",
-			"count", len(cachedUsers),
-			"tags", []string{"USERS", "REDIS", "HIT"},
-		)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"message": "Users retrieved successfully",
@@ -99,11 +95,6 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-
-	server.LogInfo(r.Context(), "No users data found in redis",
-		"count", len(users),
-		"tags", []string{"USERS", "REDIS", "MISS"},
-	)
 
 	// Step 5: Process each user and enrich with course codes for comprehensive profiles
 	var usersMap []map[string]interface{}
@@ -131,25 +122,21 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := RedisClient.HSet(context.Background(), "users", strconv.Itoa(int(u.ID)), userJSON).Err(); err != nil {
-			server.LogWarn(r.Context(),
-				"Error caching user in redis", err,
-				"tags", []string{"USERS", "REDIS"},
+			server.LogWarn(r.Context(), "Failed to cache user in Redis", err, "user_id", u.ID,
+				"tags", []string{"cache", "cache", "medium"},
+				"cache_status", "error",
+				"error_type", "cache",
 			)
 		}
 	}
 
 	// Step 7: Set cache expiration to 1 hour for optimal balance of freshness and performance
 	if err := RedisClient.Expire(context.Background(), "users", time.Hour).Err(); err != nil {
-		server.LogWarn(r.Context(),
-			"Error expiring users in redis", err,
-			"tags", []string{"USERS", "REDIS"},
+		server.LogWarn(r.Context(), "Failed to set cache expiration", err,
+			"tags", []string{"cache", "cache", "low"},
+			"error_type", "cache",
 		)
 	}
-
-	server.LogInfo(r.Context(), "Users cached successfully",
-		"count", len(usersMap),
-		"tags", []string{"USERS", "REDIS", "CACHED"},
-	)
 
 	// Step 8: Send successful response with enriched user data
 	w.Header().Set("Content-Type", "application/json")
@@ -158,9 +145,4 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 		"users":   usersMap,
 	})
 
-	// Step 9: Log successful retrieval for audit trail and monitoring
-	server.LogInfo(r.Context(), "Users retrieved successfully",
-		"count", len(usersMap),
-		"tags", []string{"USERS", "READ"},
-	)
 }

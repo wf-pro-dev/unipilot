@@ -84,14 +84,6 @@ func GetAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		"assignments": assignmentsMap,
 	})
 
-	// Step 5: Log successful retrieval with performance metrics for monitoring
-	server.LogInfo(r.Context(), "Assignments retrieved successfully",
-		"request_id", requestID,
-		"user_id", userID,
-		"count", len(assignmentsMap),
-		"duration", time.Since(startTime).Milliseconds(),
-		"tags", []string{"ASSIGNMENTS", "READ"},
-	)
 }
 
 // CreateAssignmentHandler creates a new assignment for the authenticated user.
@@ -311,11 +303,9 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	// Serialize assignment data for notification payload
 	aJson, err := json.Marshal(newA)
 	if err != nil {
-		server.LogWarn(r.Context(), "Error marshalling notification", err,
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
-			"tags", []string{"ASSIGNMENTS", "MARSHALLING"},
+		server.LogWarn(r.Context(), "Failed to marshal notification", err,
+			"tags", []string{"notification", "network", "low"},
+			"error_type", "internal",
 		)
 	}
 
@@ -360,14 +350,7 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		"assignment": assignmentMap,
 	})
 
-	// Step 16: Log successful creation with performance metrics for monitoring
-	server.LogInfo(r.Context(), "Assignment created successfully",
-		"request_id", requestID,
-		"user_id", userID,
-		"assignment_id", aObj.ID,
-		"duration", time.Since(startTime).Milliseconds(),
-		"tags", []string{"ASSIGNMENTS", "WRITE"},
-	)
+	// Step 16: Assignment creation completed (logged by middleware)
 }
 
 // UpdateAssignmentHandler updates a specific field of an existing assignment.
@@ -485,13 +468,5 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	// Step 7: Commit transaction after successful update
 	tx.Commit()
 
-	// Step 8: Log successful update with change details for audit trail
-	server.LogInfo(r.Context(), "Assignment updated successfully",
-		"request_id", requestID,
-		"user_id", userID,
-		"assignment_id", a.ID,
-		"update", updateData,
-		"duration", time.Since(startTime).Milliseconds(),
-		"tags", []string{"ASSIGNMENTS", "WRITE"},
-	)
+	// Step 8: Assignment update completed (logged by middleware)
 }

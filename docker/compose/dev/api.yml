@@ -1,7 +1,7 @@
 services:
   api:
     build:
-      context: ../..
+      context: /home/will/unipilot
       dockerfile: docker/Dockerfile.api
       tags:
         - unipilot-api:${IMAGE_TAG:-latest}
@@ -9,8 +9,6 @@ services:
       - unipilot
     ports:
       - "3000:3000" # API
-      - "9000:9000" # SSE GRPC
-      - "6379:6379" # Redis
     environment:
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}

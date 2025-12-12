@@ -65,10 +65,6 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 		"user":    userMap,
 	})
 
-	// Step 4: Log successful user retrieval for audit trail
-	server.LogInfo(r.Context(), "User retrieved successfully",
-		"tags", []string{"USER", "READ"},
-	)
 }
 
 // UpdateUserHandler updates a specific field of the authenticated user's profile.
@@ -173,9 +169,10 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Cache update is non-blocking - failure is logged but doesn't stop the response
 	if err := RedisClient.HSet(context.Background(), "users", strconv.Itoa(int(userID)), userJSON).Err(); err != nil {
-		server.LogWarn(r.Context(),
-			"Error caching user in redis", err,
-			"tags", []string{"USER", "REDIS"},
+		server.LogWarn(r.Context(), "Failed to cache user in Redis", err, "user_id", userID,
+			"tags", []string{"cache", "cache", "medium"},
+			"cache_status", "error",
+			"error_type", "cache",
 		)
 	}
 
@@ -186,11 +183,7 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 		"user":    userMap,
 	})
 
-	// Step 8: Log successful update with change details for audit trail
-	server.LogInfo(r.Context(), "User updated successfully",
-		"update", updateData,
-		"tags", []string{"USER", "WRITE"},
-	)
+	// Step 8: User update completed (logged by middleware)
 }
 
 func UpdateProfilePictureHandler(w http.ResponseWriter, r *http.Request) {
@@ -220,7 +213,7 @@ func UpdateProfilePictureHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Step 4: Extract file from multipart form and write to local disk
 	// Local storage is required as intermediate step before S3 upload
-	filePath, bytesWritten, err := WriteFileToDisk(newKey, w, r)
+	filePath, _, err := WriteFileToDisk(newKey, w, r)
 	if err != nil {
 		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error writing file to disk",
 			"tags", []string{"USER", "PROFILE_PICTURE", "STORAGE", "FILESYSTEM"},
@@ -237,15 +230,6 @@ func UpdateProfilePictureHandler(w http.ResponseWriter, r *http.Request) {
 		)
 		return
 	}
-
-	// Log successful S3 upload with metrics for monitoring and debugging
-	server.LogInfo(r.Context(), "File uploaded to S3",
-		"file_path", filePath,
-		"bytes", bytesWritten,
-		"storage_key", newKey,
-		"public_url", publicURL,
-		"tags", []string{"USER", "PROFILE_PICTURE", "UPLOAD", "S3"},
-	)
 
 	// Step 6: Clean up local temporary file after successful S3 upload
 	// Prevents disk space accumulation from temporary upload files
@@ -269,8 +253,8 @@ func UpdateProfilePictureHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Step 9: Log successful profile picture update for audit trail
-	server.LogInfo(r.Context(), "Profile picture updated successfully",
-		"tags", []string{"USER", "PROFILE_PICTURE", "WRITE"},
-	)
+	server.LogInfo(r.Context(), "Profile picture updated", "user_id", userID,
+		"tags", []string{"user", "upload", "high", "update"},
+		"external_service", "s3")
 
 }

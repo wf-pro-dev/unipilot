@@ -187,14 +187,10 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Store in Redis hash with user ID as key (failure is non-critical, only logged)
 	if err := RedisClient.HSet(context.Background(), "users", strconv.Itoa(int(user.ID)), userJSON).Err(); err != nil {
-		server.LogWarn(r.Context(),
-			"Error caching user in redis", err,
-			"tags", []string{"REGISTER", "REDIS"},
-		)
-	} else {
-		server.LogInfo(r.Context(), "User cached successfully",
-			"user_id", user.ID,
-			"tags", []string{"REGISTER", "REDIS", "CACHED"},
+		server.LogWarn(r.Context(), "Failed to cache user in Redis", err, "user_id", user.ID,
+			"tags", []string{"cache", "cache", "medium"},
+			"cache_status", "error",
+			"error_type", "cache",
 		)
 	}
 
@@ -208,9 +204,6 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Step 10: Log successful registration for audit trail and monitoring
-	server.LogInfo(r.Context(), "User registered successfully",
-		"user_id", user.ID,
-		"username", user.Username,
-		"tags", []string{"REGISTER", "WRITE"},
-	)
+	server.LogInfo(r.Context(), "User registered", "user_id", user.ID,
+		"tags", []string{"user", "db", "high", "create"})
 }

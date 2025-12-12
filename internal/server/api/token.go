@@ -104,8 +104,6 @@ func RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Step 7: Log successful token refresh for audit trail and monitoring
-	server.LogDebug(r.Context(),
-		"Token refreshed successfully",
-		"tags", []string{"TOKEN"},
-	)
+	server.LogInfo(r.Context(), "Token refreshed", "user_id", user.ID,
+		"tags", []string{"auth", "auth", "medium"})
 }

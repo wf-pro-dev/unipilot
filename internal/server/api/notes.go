@@ -75,10 +75,6 @@ func GetNoteHandler(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Step 5: Log successful retrieval with note count for monitoring
-	server.LogInfo(r.Context(), "Notes retrieved successfully",
-		"count", len(notesMap),
-		"tags", []string{"NOTES", "READ"},
-	)
 }
 
 // CreateNoteHandler creates a new note for the authenticated user with AI-powered content generation.
@@ -255,9 +251,9 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	// nJson, err := json.Marshal(newN)
 	_, err = json.Marshal(newN)
 	if err != nil {
-		server.LogWarn(r.Context(),
-			"Error marshalling notification", err,
-			"tags", []string{"NOTES", "MARSHALLING"},
+		server.LogWarn(r.Context(), "Failed to marshal notification", err,
+			"tags", []string{"notification", "network", "low"},
+			"error_type", "internal",
 		)
 	}
 
@@ -265,9 +261,9 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	// link_users, err := newN.Course.GetLinkUsers(db)
 	_, err = newN.Course.GetLinkUsers(db)
 	if err != nil {
-		server.LogWarn(r.Context(),
-			"Error getting users linked to course", err,
-			"tags", []string{"NOTES", "DB"},
+		server.LogWarn(r.Context(), "Failed to get users linked to course", err,
+			"tags", []string{"course", "db", "medium"},
+			"error_type", "database",
 		)
 	}
 
@@ -300,12 +296,7 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		"note":    noteMap,
 	})
 
-	// Step 13: Log successful note creation for audit trail and monitoring
-	server.LogInfo(r.Context(), "Note created successfully",
-		"note_id", nVal.ID,
-		"title", nVal.Title,
-		"tags", []string{"NOTES", "WRITE"},
-	)
+	// Step 13: Note creation completed (logged by middleware)
 }
 
 // UpdateNoteHandler updates a specific field of an existing note with ownership validation.
@@ -410,10 +401,5 @@ func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	// Step 7: Commit transaction after successful update
 	tx.Commit()
 
-	// Step 8: Log successful update with change details for audit trail
-	server.LogInfo(r.Context(), "Note updated successfully",
-		"note_id", n.ID,
-		"update", updateData,
-		"tags", []string{"NOTES", "WRITE"},
-	)
+	// Step 8: Note update completed (logged by middleware)
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"unipilot/internal/secrets"
-	"unipilot/internal/server"
 )
 
 func NewRedisClient() (*redis.Client, error) {
@@ -20,11 +19,6 @@ func NewRedisClient() (*redis.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get redis password: %w", err)
 	}
-
-	server.LogDebug(context.Background(), "Redis URL: ",
-		"redis_addr", redisAddr,
-		"tags", []string{"REDIS", "INFO"},
-	)
 
 	client := redis.NewClient(&redis.Options{
 		Addr:            redisAddr,

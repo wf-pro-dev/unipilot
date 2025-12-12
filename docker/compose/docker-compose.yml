@@ -9,7 +9,6 @@ services:
       - unipilot
     ports:
       - "3000:3000" # API
-      # SSE port removed to avoid conflict if on same node, assuming SSE service handles its own
     environment:
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}
@@ -17,7 +16,6 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
       - SESSION_KEY=${SESSION_KEY}
-      - NOTION_API_KEY=${NOTION_API_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}  
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}

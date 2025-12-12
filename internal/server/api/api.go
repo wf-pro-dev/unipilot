@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -36,10 +37,18 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func StartServer() {
+	// Initialize logger first so we can use proper logging for startup errors
+	server.InitLogger()
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "component", "system")
 
 	db, err := storage.GetRemoteDB()
 	if err != nil {
-		log.Println("Error getting database", err)
+		server.LogFatal(ctx, "Failed to initialize database connection", err,
+			"tags", []string{"system", "db", "high"},
+			"error_type", "database",
+		)
 		return
 	}
 
@@ -48,19 +57,23 @@ func StartServer() {
 
 	RedisClient, err = redis.NewRedisClient()
 	if err != nil {
-		log.Println("Error getting redis client", err)
+		server.LogFatal(ctx, "Failed to initialize Redis client", err,
+			"tags", []string{"cache", "network", "high"},
+			"error_type", "network",
+		)
 		return
 	}
 	defer RedisClient.Close()
 
 	QdrantClient, err = qdrant.NewQdrantClient()
 	if err != nil {
-		log.Println("Error getting qdrant client", err)
+		server.LogFatal(ctx, "Failed to initialize Qdrant client", err,
+			"tags", []string{"rag", "network", "high"},
+			"error_type", "network",
+		)
 		return
 	}
 	defer QdrantClient.Close()
-
-	server.InitLogger()
 
 	http.HandleFunc("/health", HealthHandler)
 
@@ -102,6 +115,8 @@ func StartServer() {
 	http.HandleFunc(GetRouteName("following"), server.DBMiddleware(db, server.AuthMiddleware(HandleGetFollowing)))
 	http.HandleFunc(GetRouteName("follow-status"), server.DBMiddleware(db, server.AuthMiddleware(HandleGetFollowStatus)))
 
-	log.Println("Server listening on :3000...")
+	server.LogInfo(ctx, "HTTP server starting", "port", 3000,
+		"tags", []string{"system", "network", "high"},
+	)
 	log.Fatal(http.ListenAndServe(":3000", nil))
 }

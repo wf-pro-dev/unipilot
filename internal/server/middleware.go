@@ -17,6 +17,125 @@ import (
 	"unipilot/internal/models/user"
 )
 
+// responseWriter wraps http.ResponseWriter to capture status code
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func newResponseWriter(w http.ResponseWriter) *responseWriter {
+	return &responseWriter{w, http.StatusOK}
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
+// RouteTags defines tags for each route pattern
+// Format: [resource, operation, level, action?]
+// - resource: user, assignment, course, document, note, follow, auth, system
+// - operation: db, io, network, auth
+// - level: high (>1s), medium (100ms-1s), low (<100ms)
+// - action: create, read, update, delete (for CRUD operations)
+//
+// Consolidated taxonomy:
+// - Merged: upload/download/storage → io (file operations)
+// - Merged: rag → document (all document-related operations)
+// - Merged: compute → db (database operations for RAG metadata)
+// - Merged: network → db (course link is primarily DB operation with network side-effect)
+var routeTags = map[string][]string{
+	// Authentication routes
+	"/unipilot/api/v1/register":      {"user", "db", "high", "create"},
+	"/unipilot/api/v1/login":         {"login", "auth", "medium", "read"},
+	"/unipilot/api/v1/logout":        {"logout", "auth", "low"},
+	"/unipilot/api/v1/token/refresh": {"token", "auth", "medium"},
+
+	// User routes
+	"/unipilot/api/v1/user":                 {"user", "db", "low", "read"},
+	"/unipilot/api/v1/user/update":          {"user", "db", "medium", "update"},
+	"/unipilot/api/v1/user/profile-picture": {"user", "storage", "high", "update"},
+	"/unipilot/api/v1/users":                {"user", "db", "medium", "read"},
+
+	// Assignment routes
+	"/unipilot/api/v1/assignment":        {"assignment", "db", "medium", "create"},
+	"/unipilot/api/v1/assignment/update": {"assignment", "db", "medium", "update"},
+	"/unipilot/api/v1/assignments":       {"assignment", "db", "low", "read"},
+
+	// Course routes
+	"/unipilot/api/v1/course":              {"course", "db", "medium", "create"},
+	"/unipilot/api/v1/course/update":       {"course", "db", "medium", "update"},
+	"/unipilot/api/v1/course/get":          {"course", "db", "low", "read"},
+	"/unipilot/api/v1/course/link/request": {"course", "db", "medium"},
+	"/unipilot/api/v1/course/link/accept":  {"course", "db", "high"},
+	"/unipilot/api/v1/courses":             {"course", "db", "low", "read"},
+
+	// Note routes
+	"/unipilot/api/v1/note":        {"note", "db", "medium", "create"},
+	"/unipilot/api/v1/note/update": {"note", "db", "medium", "update"},
+	"/unipilot/api/v1/notes":       {"note", "db", "low", "read"},
+
+	// Document routes (includes RAG operations)
+	"/unipilot/api/v1/document":            {"document", "storage", "high", "create"},
+	"/unipilot/api/v1/document/delete":     {"document", "storage", "medium", "delete"},
+	"/unipilot/api/v1/document/download":   {"document", "storage", "medium"},
+	"/unipilot/api/v1/document/rag":        {"document", "rag", "high", "create"},
+	"/unipilot/api/v1/document/rag/delete": {"document", "rag", "medium", "delete"},
+	"/unipilot/api/v1/document/rag/list":   {"document", "rag", "low", "read"},
+	"/unipilot/api/v1/documents":           {"document", "db", "low", "read"},
+
+	// Follow routes
+	"/unipilot/api/v1/follow":        {"follow", "db", "medium", "update"},
+	"/unipilot/api/v1/followers":     {"follow", "db", "low", "read"},
+	"/unipilot/api/v1/following":     {"follow", "db", "low", "read"},
+	"/unipilot/api/v1/follow-status": {"follow", "db", "low", "read"},
+}
+
+// getRouteTags returns tags for a given route path
+// Falls back to generic tags if route not found
+func getRouteTags(path string) []string {
+	// Remove query parameters for matching
+	cleanPath := path
+	if idx := strings.Index(path, "?"); idx != -1 {
+		cleanPath = path[:idx]
+	}
+
+	// Try exact match first
+	if tags, ok := routeTags[cleanPath]; ok {
+		return tags
+	}
+
+	// Fallback to generic tags
+	return []string{"system", "network", "medium"}
+}
+
+// getClientIP extracts the real client IP from request headers
+// Handles Docker Swarm, nginx, and other proxy scenarios
+func getClientIP(r *http.Request) string {
+	// Check X-Forwarded-For header (most common, contains chain of IPs)
+	// Format: "client, proxy1, proxy2" - we want the first (original client)
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		// X-Forwarded-For can contain multiple IPs, take the first one
+		ips := strings.Split(forwarded, ",")
+		if len(ips) > 0 {
+			return strings.TrimSpace(ips[0])
+		}
+	}
+
+	// Fallback to X-Real-IP (nginx sets this)
+	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
+		return realIP
+	}
+
+	// Final fallback to RemoteAddr (direct connection or no proxy headers)
+	// Remove port if present
+	addr := r.RemoteAddr
+	if idx := strings.LastIndex(addr, ":"); idx != -1 {
+		addr = addr[:idx]
+	}
+	return addr
+}
+
 // DBMiddleware injects the database connection into the HTTP request context.
 // Provides database access to all downstream handlers without requiring explicit
 // parameter passing. Essential middleware for all database-dependent endpoints.
@@ -81,39 +200,59 @@ func LoggerMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Generate unique request ID and capture start time for tracking
 		startTime := time.Now()
 		requestID := uuid.New().String()
+
+		// Get route-specific tags
+		tags := getRouteTags(r.URL.Path)
+
+		// Create context with request metadata
 		ctx := context.WithValue(r.Context(), "request_id", requestID)
 		ctx = context.WithValue(ctx, "start_time", startTime)
+		ctx = context.WithValue(ctx, "component", "api")
+
+		// Wrap response writer to capture status code
+		rw := newResponseWriter(w)
 
 		// Execute the next handler with enriched context
-		next(w, r.WithContext(ctx))
+		next(rw, r.WithContext(ctx))
 
-		// Extract user ID from context (if available from authentication)
-		userID := r.Context().Value("user_id")
-		if userID == nil {
-			userID = 0
-		}
-		userID, ok := userID.(uint)
-		if !ok {
-			userID = 0
-		}
+		// Store status code in context for logging
+		ctx = context.WithValue(ctx, "status_code", rw.statusCode)
 
-		// Calculate request duration and format comprehensive log message
+		// Calculate request duration
 		duration := time.Since(startTime).Milliseconds()
-		log_message := fmt.Sprintf("%s %d %s %s %s %dms", requestID, userID, r.Method, r.URL.Path, r.RemoteAddr, duration)
 
-		// Log to console for development debugging
-		Logger.Debugf(log_message)
+		// Get real client IP (handles Docker Swarm VIP issue)
+		clientIP := getClientIP(r)
 
-		// Log structured data to file for production monitoring and analysis
-		FileLogger.Infow(log_message,
-			"request_id", requestID,
-			"user_id", userID,
-			"method", r.Method,
-			"path", r.URL.Path,
-			"remote_addr", r.RemoteAddr,
-			"duration", duration,
-		)
+		// Determine log level based on request duration
+		// Slow requests (>1s) are logged as WARN for performance monitoring
+		logLevel := "INFO"
+		if duration > 1000 {
+			logLevel = "WARN"
+			// Update tags level to "high" for slow requests
+			if len(tags) >= 3 {
+				tags[2] = "high"
+			}
+		}
 
+		// Log request completion using unified logging functions
+		// This automatically handles both console (compact) and file (JSON) logging
+		if logLevel == "WARN" {
+			LogWarn(ctx, "Request completed",
+				fmt.Errorf("slow request: %dms", duration),
+				"method", r.Method,
+				"path", r.URL.Path,
+				"remote_addr", clientIP,
+				"tags", tags,
+			)
+		} else {
+			LogInfo(ctx, "Request completed",
+				"method", r.Method,
+				"path", r.URL.Path,
+				"remote_addr", clientIP,
+				"tags", tags,
+			)
+		}
 	}
 }
 

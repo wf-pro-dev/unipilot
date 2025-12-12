@@ -203,9 +203,9 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	// Step 8: Update user storage quota information for tracking
 	// Update remote storage info for the user
 	if err := document.UpdateStorageInfo(userID, db); err != nil {
-		server.LogWarn(r.Context(),
-			"Failed to update remote storage info", err,
-			"tags", []string{"DOCUMENTS", "STORAGE"},
+		server.LogWarn(r.Context(), "Failed to update remote storage info", err,
+			"tags", []string{"storage", "db", "medium"},
+			"error_type", "database",
 		)
 	}
 
@@ -247,11 +247,6 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 		// Send notification to linked assignments
 		for _, linkedAssignment := range linkedAssignments {
 			if linkedAssignment.UserID != userID {
-				server.LogInfo(r.Context(), "Sending document notification",
-					"target_user_id", linkedAssignment.UserID,
-					"assignment_id", linkedAssignment.ID,
-					"tags", []string{"DOCUMENTS", "GRPC"},
-				)
 				GrpcClient.SendNotification(context.Background(),
 					&notifications.Notification{
 						UserId:   uint32(linkedAssignment.UserID),
@@ -276,12 +271,7 @@ func CreateDocumentHandler(w http.ResponseWriter, r *http.Request) {
 		"document": doc,
 	})
 
-	// Step 14: Log successful document creation for audit trail
-	server.LogInfo(r.Context(), "Document created successfully",
-		"document_id", doc.ID,
-		"assignment_id", doc.AssignmentID,
-		"tags", []string{"DOCUMENTS", "WRITE"},
-	)
+	// Step 14: Document creation completed (logged by middleware)
 }
 
 // WriteFileToDisk extracts file from multipart form and writes it to local disk storage.
@@ -335,12 +325,6 @@ func WriteFileToDisk(key string, w http.ResponseWriter, r *http.Request) (string
 		return "", 0, err
 	}
 
-	server.LogDebug(context.Background(), "File written to disk",
-		"file_path", filePath,
-		"bytes", bytesWritten,
-		"tags", []string{"DOCUMENTS", "FILESYSTEM"},
-	)
-
 	return filePath, bytesWritten, nil
 }
 
@@ -374,7 +358,7 @@ func WriteFileToDisk(key string, w http.ResponseWriter, r *http.Request) (string
 //   - Logs upload metrics for monitoring and debugging
 func UploadFileToS3(localDoc document.LocalDocument, key string, w http.ResponseWriter, r *http.Request) error {
 
-	filePath, bytesWritten, err := WriteFileToDisk(key, w, r)
+	filePath, _, err := WriteFileToDisk(key, w, r)
 	if err != nil {
 		return err
 	}
@@ -383,12 +367,6 @@ func UploadFileToS3(localDoc document.LocalDocument, key string, w http.Response
 	if err := cloudstorage.UploadFile(filePath, localDoc.FileName, key); err != nil {
 		return fmt.Errorf("failed to upload file to R2: %w", err)
 	}
-	server.LogDebug(context.Background(), "File uploaded to R2",
-		"file_path", filePath,
-		"bytes", bytesWritten,
-		"storage_key", key,
-		"tags", []string{"DOCUMENTS", "UPLOAD"},
-	)
 
 	// Clean up local file after S3 upload
 	os.Remove(filePath)
@@ -463,23 +441,15 @@ func DownloadDocumentHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Step 4: Stream file content directly to client response
 	// Stream file directly to response
-	bytesCopied, err := io.Copy(w, fileReader)
+	_, err = io.Copy(w, fileReader)
 	if err != nil {
-		server.LogWarn(r.Context(),
-			"Error streaming file", err,
-			"file_name", docData.FileName,
-			"storage_key", docData.StorageKey,
-			"tags", []string{"DOCUMENTS", "DOWNLOAD"},
+		server.LogWarn(r.Context(), "Failed to stream file", err, "file_name", docData.FileName,
+			"tags", []string{"document", "download", "medium"},
+			"error_type", "storage",
 		)
 		return
 	}
 
-	// Step 5: Log successful download for monitoring and audit trail
-	server.LogInfo(r.Context(), "File streamed successfully",
-		"file_name", docData.FileName,
-		"bytes", bytesCopied,
-		"tags", []string{"DOCUMENTS", "DOWNLOAD"},
-	)
 }
 
 // GetAssignmentDocumentsHandler retrieves all document metadata for a specific assignment.
@@ -589,12 +559,6 @@ func GetAssignmentDocumentsHandler(w http.ResponseWriter, r *http.Request) {
 		"documents": docResponses,
 	})
 
-	// Step 7: Log successful retrieval with document count for monitoring
-	server.LogInfo(r.Context(), "Assignment documents retrieved",
-		"assignment_id", assignmentID,
-		"count", len(docResponses),
-		"tags", []string{"DOCUMENTS", "READ"},
-	)
 }
 
 // DeleteDocumentHandler removes document record and associated file from cloud storage.
@@ -686,9 +650,9 @@ func DeleteDocumentHandler(w http.ResponseWriter, r *http.Request) {
 	// Step 6: Update user storage quota information after deletion
 	// Update remote storage info for the user
 	if err := document.UpdateStorageInfo(userID, db); err != nil {
-		server.LogWarn(r.Context(),
-			"Failed to update remote storage info", err,
-			"tags", []string{"DOCUMENTS", "STORAGE"},
+		server.LogWarn(r.Context(), "Failed to update remote storage info", err,
+			"tags", []string{"storage", "db", "medium"},
+			"error_type", "database",
 		)
 	}
 
@@ -699,11 +663,7 @@ func DeleteDocumentHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "Document metadata deleted",
 	})
 
-	// Step 8: Log successful deletion for audit trail
-	server.LogInfo(r.Context(), "Document deleted",
-		"document_id", docID,
-		"tags", []string{"DOCUMENTS", "WRITE"},
-	)
+	// Step 8: Document deletion completed (logged by middleware)
 }
 
 // UploadDocumentForRAGHandler processes documents for Retrieval-Augmented Generation (RAG).
@@ -795,11 +755,11 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 	newKey := fmt.Sprintf("%s/%s", assignmentDir, uniqueFileName)
 
 	var fileName string
-	var bytesWritten int64
+
 	var err error
 
 	if localDoc.HasLocalFile {
-		fileName, bytesWritten, err = WriteFileToDisk(newKey, w, r)
+		fileName, _, err = WriteFileToDisk(newKey, w, r)
 		if err != nil {
 			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error writing file to disk",
 				"tags", []string{"DOCUMENTS", "RAG", "STORAGE"},
@@ -832,7 +792,7 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		defer destFile.Close()
 
-		bytesWritten, err = io.Copy(destFile, fileReader)
+		_, err = io.Copy(destFile, fileReader)
 		if err != nil {
 			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error copying file content",
 				"tags", []string{"DOCUMENTS", "RAG", "FILESYSTEM"},
@@ -840,13 +800,6 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-	server.LogInfo(r.Context(), "File prepared for RAG upload",
-		"assignment_id", localDoc.RemoteAssignmentID,
-		"bytes", bytesWritten,
-		"has_local_file", localDoc.HasLocalFile,
-		"tags", []string{"DOCUMENTS", "RAG", "FILE"},
-	)
 
 	var doc document.Document
 	if err := db.Where("storage_key = ?", localDoc.StorageKey).First(&doc).Error; err != nil {
@@ -889,10 +842,6 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		server.LogInfo(r.Context(), "Qdrant collection created",
-			"collection", collectionName,
-			"tags", []string{"DOCUMENTS", "RAG", "QDRANT"},
-		)
 	}
 
 	if _, err = QdrantClient.Upsert(context.Background(), &qdrant.UpsertPoints{
@@ -913,12 +862,11 @@ func UploadDocumentForRAGHandler(w http.ResponseWriter, r *http.Request) {
 		"document": doc,
 	})
 
-	server.LogInfo(r.Context(), "Document uploaded for RAG successfully",
-		"document_id", doc.ID,
-		"assignment_id", doc.AssignmentID,
-		"vectors", len(vectors),
-		"tags", []string{"DOCUMENTS", "RAG", "UPLOAD"},
+	server.LogInfo(r.Context(), "Document uploaded for RAG", "document_id", doc.ID, "assignment_id", doc.AssignmentID,
+		"tags", []string{"rag", "compute", "high"},
+		"external_service", "qdrant",
 	)
+
 }
 
 func DeleteDocumentRAG(w http.ResponseWriter, r *http.Request) {
@@ -954,11 +902,7 @@ func DeleteDocumentRAG(w http.ResponseWriter, r *http.Request) {
 		)
 	}
 
-	server.LogInfo(r.Context(), "Document deleted from RAG successfully",
-		"document_id", input.DocumentID,
-		"assignment_id", input.AssignmentID,
-		"tags", []string{"DOCUMENTS", "RAG", "DELETE"},
-	)
+	// Document deletion from RAG completed (logged by middleware)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -1001,10 +945,8 @@ func GetAssignmentDocumentIDsRAG(w http.ResponseWriter, r *http.Request) {
 			"document_ids": []uint{},
 		})
 
-		server.LogDebug(r.Context(), "No documents found for RAG",
-			"assignment_id", input.AssignmentID,
-			"tags", []string{"DOCUMENTS", "RAG", "LIST"},
-		)
+		server.LogDebug(r.Context(), "No documents found for RAG", "assignment_id", input.AssignmentID,
+			"tags", []string{"rag", "db", "low", "read"})
 		return
 	}
 
@@ -1041,9 +983,4 @@ func GetAssignmentDocumentIDsRAG(w http.ResponseWriter, r *http.Request) {
 		"document_ids": uploadedDocumentIDsList,
 	})
 
-	server.LogInfo(r.Context(), "Document IDs retrieved for RAG successfully",
-		"assignment_id", input.AssignmentID,
-		"document_ids", len(uploadedDocumentIDsList),
-		"tags", []string{"DOCUMENTS", "RAG", "LIST"},
-	)
 }

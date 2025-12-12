@@ -119,7 +119,10 @@ func StartSSEServer() *SSEServer {
 	http.HandleFunc("/unipilot/sse/v1", server.AuthMiddleware(sseServer.SSEHandler))
 
 	// Step 4: Log server startup for monitoring and debugging
-	log.Println("SSE server listening on :3000...")
+	ctx := context.WithValue(context.Background(), "component", "sse")
+	server.LogInfo(ctx, "SSE server starting", "port", 3000,
+		"tags", []string{"system", "network", "high"},
+	)
 	sseServer.logActiveClients()
 	// Step 5: Start HTTP server in background goroutine to avoid blocking
 	go func() {
@@ -173,11 +176,10 @@ func (s *SSEServer) AddClient(userID uint) *SSEClient {
 		Connected: true,                   // Initial connection status
 	}
 
-	log.Println("New SSE user id : ", userID)
 	// Step 3: Log new client registration for monitoring and debugging
-	server.LogInfo(context.Background(), "New SSE user id : ",
-		"user_id", userID, "tags",
-		[]string{"SSE", "NEW_USER"},
+	ctx := context.WithValue(context.Background(), "component", "sse")
+	server.LogInfo(ctx, "SSE client connected", "user_id", userID,
+		"tags", []string{"notification", "network", "low"},
 	)
 
 	// Step 4: Add client to server's connection pool (replaces existing if present)
@@ -328,10 +330,9 @@ func (s *SSEServer) Broadcast(message []byte) {
 func (s *SSEServer) logActiveClients() {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	log.Printf("Active Clients: %d\n", len(s.clients))
-	server.LogDebug(context.Background(), "Active Clients: ",
-		"count", len(s.clients),
-		"tags", []string{"SSE", "ACTIVE_CLIENTS"},
+	ctx := context.WithValue(context.Background(), "component", "sse")
+	server.LogDebug(ctx, "Active SSE clients", "count", len(s.clients),
+		"tags", []string{"notification", "network", "low"},
 	)
 }
 
@@ -409,8 +410,9 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 	client := s.AddClient(userID)
 	defer func() {
 		// Step 5: Cleanup client connection on function exit
-		server.LogDebug(r.Context(), "Removing client: ",
-			"tags", []string{"SSE", "REMOVE_CLIENT"},
+		ctx := context.WithValue(r.Context(), "component", "sse")
+		server.LogDebug(ctx, "SSE client removed",
+			"tags", []string{"notification", "network", "low"},
 		)
 		s.RemoveClient(userID)
 	}()
@@ -439,8 +441,9 @@ func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
 
 		case <-r.Context().Done():
 			// Step 11: Handle client disconnection (browser close, network error, etc.)
-			server.LogDebug(r.Context(), "Client disconnected: ",
-				"tags", []string{"SSE", "DISCONNECTED"},
+			ctx := context.WithValue(r.Context(), "component", "sse")
+			server.LogDebug(ctx, "SSE client disconnected",
+				"tags", []string{"notification", "network", "low"},
 			)
 			return
 		}
@@ -505,7 +508,11 @@ func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity
 	jsonData, err := json.Marshal(notification)
 	if err != nil {
 		// Step 3: Log marshalling errors for debugging
-		log.Printf("[Error] error marshalling notification : %v ", err)
+		ctx := context.WithValue(context.Background(), "component", "sse")
+		server.LogWarn(ctx, "Failed to marshal notification", err,
+			"tags", []string{"notification", "io", "low"},
+			"error_type", "internal",
+		)
 		return err
 	}
 

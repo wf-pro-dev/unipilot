@@ -141,10 +141,6 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		"refresh_token": refreshToken,
 	})
 
-	server.LogInfo(r.Context(),
-		"Login successful",
-		"user_id", user.ID,
-		"username", user.Username,
-		"tags", []string{"LOGIN"},
-	)
+	server.LogInfo(r.Context(), "User logged in", "user_id", user.ID,
+		"tags", []string{"auth", "auth", "medium", "read"})
 }
