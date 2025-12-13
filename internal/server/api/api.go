@@ -2,11 +2,10 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"net/http"
-	"strings"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
 
 	"unipilot/internal/server"
 	grpc "unipilot/internal/server/api/grpc"
@@ -26,19 +25,19 @@ var (
 	QdrantClient *Qdrant.Client
 )
 
-func GetRouteName(name ...string) string {
-	return fmt.Sprintf("/unipilot/api/v1/%s", strings.Join(name, "/"))
-}
-
-func HealthHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status": "healthy", "timestamp": "` + time.Now().Format(time.RFC3339) + `"}`))
+func HealthHandler(c *fiber.Ctx) error {
+	return c.JSON(fiber.Map{
+		"status":    "healthy",
+		"timestamp": time.Now().Format(time.RFC3339),
+	})
 }
 
 func StartServer() {
 	// Initialize logger first so we can use proper logging for startup errors
 	server.InitLogger()
+
+	// Initialize Fiber app
+	app := fiber.New()
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "component", "system")
@@ -75,48 +74,51 @@ func StartServer() {
 	}
 	defer QdrantClient.Close()
 
-	http.HandleFunc("/health", HealthHandler)
+	app.Get("/health", HealthHandler)
 
-	http.HandleFunc(GetRouteName("register"), server.DBMiddleware(db, server.LoggerMiddleware(RegisterHandler)))
-	http.HandleFunc(GetRouteName("login"), server.DBMiddleware(db, server.LoggerMiddleware(LoginHandler)))
-	http.HandleFunc(GetRouteName("logout"), server.AuthMiddleware(LogoutHandler))
+	app.Use(server.LoggerMiddleware)
+	app.Use(server.DBMiddleware(db))
 
-	http.HandleFunc(GetRouteName("token", "refresh"), server.AuthMiddleware(RefreshTokenHandler))
+	app.Post("/auth/register", RegisterHandler)
+	app.Post("/auth/login", LoginHandler)
+	app.Post("/auth/logout", server.AuthMiddleware, LogoutHandler)
+	app.Post("/auth/refresh-token", server.AuthMiddleware, RefreshTokenHandler)
 
-	http.HandleFunc(GetRouteName("user"), server.DBMiddleware(db, server.AuthMiddleware(GetUserHandler)))
-	http.HandleFunc(GetRouteName("user", "update"), server.DBMiddleware(db, server.AuthMiddleware(UpdateUserHandler)))
-	http.HandleFunc(GetRouteName("user", "profile-picture"), server.DBMiddleware(db, server.AuthMiddleware(UpdateProfilePictureHandler)))
+	app.Get("/users", server.AuthMiddleware, GetUsersHandler)
+	app.Get("/users/me", server.AuthMiddleware, GetUserHandler)
+	app.Post("/users/me", server.AuthMiddleware, UpdateUserHandler)
+	app.Post("/users/me/profile-picture", server.AuthMiddleware, UpdateProfilePictureHandler)
 
-	http.HandleFunc(GetRouteName("users"), server.DBMiddleware(db, server.AuthMiddleware(GetUsersHandler)))
+	app.Post("/users/:id/follow", server.AuthMiddleware, HandleFollow)
+	app.Get("/users/:id/followers", server.AuthMiddleware, HandleGetFollowers)
+	app.Get("/users/:id/following", server.AuthMiddleware, HandleGetFollowing)
 
-	http.HandleFunc(GetRouteName("assignment"), server.DBMiddleware(db, server.AuthMiddleware(CreateAssignmentHandler)))
-	http.HandleFunc(GetRouteName("assignments"), server.DBMiddleware(db, server.AuthMiddleware(GetAssignmentHandler)))
-	http.HandleFunc(GetRouteName("assignment", "update"), server.DBMiddleware(db, server.AuthMiddleware(UpdateAssignmentHandler)))
+	app.Get("/assignments", server.AuthMiddleware, GetAssignmentHandler)
+	app.Post("/assignments", server.AuthMiddleware, CreateAssignmentHandler)
+	app.Put("/assignments/:id", server.AuthMiddleware, UpdateAssignmentHandler)
+	app.Delete("/assignments/:id", server.AuthMiddleware, DeleteAssignmentHandler)
 
-	http.HandleFunc(GetRouteName("course"), server.DBMiddleware(db, server.AuthMiddleware(CreateCourseHandler)))
-	http.HandleFunc(GetRouteName("course", "get"), server.DBMiddleware(db, server.AuthMiddleware(GetCourseHandler)))
-	http.HandleFunc(GetRouteName("course", "update"), server.DBMiddleware(db, server.AuthMiddleware(UpdateCourseHandler)))
-	http.HandleFunc(GetRouteName("course", "link", "request"), server.DBMiddleware(db, server.AuthMiddleware(LinkRequestCourseHandler)))
-	http.HandleFunc(GetRouteName("course", "link", "accept"), server.DBMiddleware(db, server.AuthMiddleware(AcceptLinkCourseHandler)))
+	app.Get("/courses", server.AuthMiddleware, GetCoursesHandler)
+	app.Post("/courses", server.AuthMiddleware, CreateCourseHandler)
+	app.Put("/courses/:id", server.AuthMiddleware, UpdateCourseHandler)
+	app.Post("/courses/:id/link-request", server.AuthMiddleware, LinkRequestCourseHandler)
+	app.Post("/courses/:id/link-accept", server.AuthMiddleware, AcceptLinkCourseHandler)
+	app.Delete("/courses/:id", server.AuthMiddleware, DeleteCourseHandler)
 
-	http.HandleFunc(GetRouteName("document"), server.DBMiddleware(db, server.AuthMiddleware(CreateDocumentHandler)))
-	http.HandleFunc(GetRouteName("document", "download"), server.DBMiddleware(db, server.AuthMiddleware(DownloadDocumentHandler)))
-	http.HandleFunc(GetRouteName("document", "delete"), server.DBMiddleware(db, server.AuthMiddleware(DeleteDocumentHandler)))
-	http.HandleFunc(GetRouteName("document", "rag"), server.DBMiddleware(db, server.AuthMiddleware(UploadDocumentForRAGHandler)))
-	http.HandleFunc(GetRouteName("document", "rag", "list"), server.AuthMiddleware(GetAssignmentDocumentIDsRAG))
-	http.HandleFunc(GetRouteName("document", "rag", "delete"), server.AuthMiddleware(DeleteDocumentRAG))
+	app.Get("/documents/assignments/:id", server.AuthMiddleware, GetAssignmentDocumentsHandler)
+	app.Get("/documents/assignments/:id/rag", server.AuthMiddleware, GetAssignmentDocumentIDsRAG)
 
-	http.HandleFunc(GetRouteName("note"), server.DBMiddleware(db, server.AuthMiddleware(CreateNoteHandler)))
-	http.HandleFunc(GetRouteName("note", "get"), server.DBMiddleware(db, server.AuthMiddleware(GetNoteHandler)))
-	http.HandleFunc(GetRouteName("note", "update"), server.DBMiddleware(db, server.AuthMiddleware(UpdateNoteHandler)))
+	app.Get("/documents", server.AuthMiddleware, GetDocumentsHandler)
+	app.Post("/documents", server.AuthMiddleware, CreateDocumentHandler)
+	app.Post("/documents/:id/download", server.AuthMiddleware, DownloadDocumentHandler)
+	app.Delete("/documents/:id", server.AuthMiddleware, DeleteDocumentHandler)
+	app.Post("/documents/:id/rag", server.AuthMiddleware, UploadDocumentForRAGHandler)
+	app.Delete("/documents/:id/rag", server.AuthMiddleware, DeleteDocumentRAG)
 
-	http.HandleFunc(GetRouteName("follow"), server.DBMiddleware(db, server.AuthMiddleware(HandleFollow)))
-	http.HandleFunc(GetRouteName("followers"), server.DBMiddleware(db, server.AuthMiddleware(HandleGetFollowers)))
-	http.HandleFunc(GetRouteName("following"), server.DBMiddleware(db, server.AuthMiddleware(HandleGetFollowing)))
-	http.HandleFunc(GetRouteName("follow-status"), server.DBMiddleware(db, server.AuthMiddleware(HandleGetFollowStatus)))
+	app.Get("/notes", server.AuthMiddleware, GetNotesHandler)
+	app.Post("/notes", server.AuthMiddleware, CreateNoteHandler)
+	app.Put("/notes/:id", server.AuthMiddleware, UpdateNoteHandler)
+	app.Delete("/notes/:id", server.AuthMiddleware, DeleteNoteHandler)
 
-	server.LogInfo(ctx, "HTTP server starting", "port", 3000,
-		"tags", []string{"system", "network", "high"},
-	)
-	log.Fatal(http.ListenAndServe(":3000", nil))
+	log.Fatal(app.Listen(":3000"))
 }

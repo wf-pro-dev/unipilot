@@ -1,12 +1,13 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
 	"unipilot/internal/models/note"
@@ -46,19 +47,18 @@ import (
 // Side Effects:
 //   - Logs successful retrieval with note count for monitoring
 //   - No database modifications (read-only operation)
-func GetNoteHandler(w http.ResponseWriter, r *http.Request) {
+func GetNotesHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser := r.Context().Value("user").(user.User)
-	db := r.Context().Value("db").(*gorm.DB)
+	currentUser := c.Locals("user").(user.User)
+	db := c.Locals("db").(*gorm.DB)
 	userID := currentUser.ID
 
 	// Step 2: Query user's notes from database
 	var notes []note.Note
 	if err := db.Where("user_id = ?", userID).Find(&notes).Error; err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting notes from database",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting notes from database",
 			"tags", []string{"NOTES", "DB"},
 		)
-		return
 	}
 
 	// Step 3: Convert notes to safe map format for JSON response
@@ -68,13 +68,10 @@ func GetNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 4: Send successful response with note data
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	return c.JSON(fiber.Map{
 		"message": "User's notes retrieved successfully",
 		"notes":   notesMap,
 	})
-
-	// Step 5: Log successful retrieval with note count for monitoring
 }
 
 // CreateNoteHandler creates a new note for the authenticated user with AI-powered content generation.
@@ -132,10 +129,10 @@ func GetNoteHandler(w http.ResponseWriter, r *http.Request) {
 //   - May call Google Gemini AI service for content generation
 //   - Logs note creation with performance metrics
 //   - Prepares notification data for future SSE implementation
-func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
+func CreateNoteHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser := r.Context().Value("user").(user.User)
-	db := r.Context().Value("db").(*gorm.DB)
+	currentUser := c.Locals("user").(user.User)
+	db := c.Locals("db").(*gorm.DB)
 	userID := currentUser.ID
 
 	// Step 2: Begin database transaction for atomic note creation
@@ -157,21 +154,19 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 		Videos     string `json:"videos"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
+	if err := c.BodyParser(&input); err != nil {
+		return server.ResponseError(c, err, fiber.StatusBadRequest, "Invalid request body",
 			"tags", []string{"NOTES", "REQUEST"},
 		)
-		return
 	}
 
 	// Step 4: Validate all required fields for note creation
 	// Validate all required fields
 	if input.CourseCode == "" || input.Title == "" || input.Subject == "" {
 		err := fmt.Errorf("missing required fields: course code: %s, title: %s, subject: %s", input.CourseCode, input.Title, input.Subject)
-		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Missing required fields",
+		return server.ResponseError(c, err, fiber.StatusBadRequest, "Missing required fields",
 			"tags", []string{"NOTES", "MISSING_REQUIRED_FIELDS"},
 		)
-		return
 	}
 
 	// Step 5: Prepare content and keywords, with AI generation fallback
@@ -190,10 +185,9 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 		geminiResponse, err := gemini.GenerateNote(geminiRequest)
 		if err != nil {
-			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error generating note content with Gemini",
+			return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error generating note content with Gemini",
 				"tags", []string{"NOTES", "GEMINI"},
 			)
-			return
 		}
 
 		keywords = geminiResponse.Keywords
@@ -215,10 +209,9 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	result := tx.Create(&nVal)
 	if result.Error != nil {
 		tx.Rollback()
-		server.ResponseError(r.Context(), w, result.Error, http.StatusConflict, "Error creating note in database",
+		return server.ResponseError(c, result.Error, fiber.StatusConflict, "Error creating note in database",
 			"tags", []string{"NOTES", "DB"},
 		)
-		return
 	}
 
 	// Step 9: Convert note to safe map format for JSON response
@@ -226,10 +219,9 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	noteMap := nVal.ToMap()
 	if noteMap == nil {
 		tx.Rollback()
-		server.ResponseError(r.Context(), w, fmt.Errorf("failed to process note data"), http.StatusInternalServerError, "Error processing note data",
+		return server.ResponseError(c, fmt.Errorf("failed to process note data"), fiber.StatusInternalServerError, "Error processing note data",
 			"tags", []string{"NOTES", "MARSHALLING"},
 		)
-		return
 	}
 
 	// Step 10: Commit transaction after successful note creation
@@ -241,17 +233,16 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	newN, err := note.Get_Note_byID(nVal.ID, userID, db)
 	if err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting note from database",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting note from database",
 			"tags", []string{"NOTES", "DB"},
 		)
-		return
 	}
 
 	// Serialize note data for future notification payload
 	// nJson, err := json.Marshal(newN)
 	_, err = json.Marshal(newN)
 	if err != nil {
-		server.LogWarn(r.Context(), "Failed to marshal notification", err,
+		server.LogWarn(context.Background(), "Failed to marshal notification", err,
 			"tags", []string{"notification", "network", "low"},
 			"error_type", "internal",
 		)
@@ -261,7 +252,7 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	// link_users, err := newN.Course.GetLinkUsers(db)
 	_, err = newN.Course.GetLinkUsers(db)
 	if err != nil {
-		server.LogWarn(r.Context(), "Failed to get users linked to course", err,
+		server.LogWarn(context.Background(), "Failed to get users linked to course", err,
 			"tags", []string{"course", "db", "medium"},
 			"error_type", "database",
 		)
@@ -289,14 +280,10 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}*/
 
 	// Step 12: Send successful response with created note data
-	// Return response
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	return c.JSON(fiber.Map{
 		"message": "Note created successfully",
 		"note":    noteMap,
 	})
-
-	// Step 13: Note creation completed (logged by middleware)
 }
 
 // UpdateNoteHandler updates a specific field of an existing note with ownership validation.
@@ -340,11 +327,26 @@ func CreateNoteHandler(w http.ResponseWriter, r *http.Request) {
 //   - Modifies note record in database with timestamp update
 //   - Logs successful updates with change details for audit trail
 //   - No notification system integration (updates are silent)
-func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
+func UpdateNoteHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser := r.Context().Value("user").(user.User)
-	db := r.Context().Value("db").(*gorm.DB)
+	currentUser := c.Locals("user").(user.User)
+	db := c.Locals("db").(*gorm.DB)
 	userID := currentUser.ID
+
+	var int_id int
+	var err error
+	idStr := c.Params("id")
+	if idStr == "" {
+		return server.ResponseError(c, fmt.Errorf("note ID required"), fiber.StatusBadRequest, "Note ID required",
+			"tags", []string{"NOTES", "INVALID_NOTE_ID"},
+		)
+	}
+	if int_id, err = strconv.Atoi(idStr); err != nil {
+		return server.ResponseError(c, err, fiber.StatusBadRequest, "Error converting note ID to int",
+			"tags", []string{"NOTES", "INVALID_NOTE_ID"},
+		)
+	}
+	noteID := uint(int_id)
 
 	// Step 2: Begin database transaction for atomic note update
 	tx := db.Begin()
@@ -356,50 +358,64 @@ func UpdateNoteHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Step 3: Define and parse note update request structure
 	var updateData struct {
-		ID     string `json:"id"`
 		Value  string `json:"value"`
 		Column string `json:"column"`
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&updateData)
-	if err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
+	if err := c.BodyParser(&updateData); err != nil {
+		return server.ResponseError(c, err, fiber.StatusBadRequest, "Invalid request body",
 			"tags", []string{"NOTES", "REQUEST"},
 		)
-		return
-	}
-
-	// Step 4: Convert note ID from string to integer for database query
-	int_id, err := strconv.Atoi(updateData.ID)
-	if err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error converting note ID to int",
-			"tags", []string{"NOTES", "INVALID_NOTE_ID"},
-		)
-		return
 	}
 
 	// Step 5: Validate note exists and user has ownership permissions
-	n, err := note.Get_Note_byID(uint(int_id), userID, tx)
+	n, err := note.Get_Note_byID(noteID, userID, tx)
 	if err != nil {
 		tx.Rollback()
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting note from database",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting note from database",
 			"tags", []string{"NOTES", "DB"},
 		)
-		return
 	}
 
 	// Step 6: Execute raw SQL update with automatic timestamp tracking
 	if err := tx.Exec(fmt.Sprintf("UPDATE notes SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), n.ID).Error; err != nil {
 		tx.Rollback()
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error updating note in database",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error updating note in database",
 			"tags", []string{"NOTES", "DB"},
 		)
-		return
 	}
 
 	// Step 7: Commit transaction after successful update
 	tx.Commit()
 
 	// Step 8: Note update completed (logged by middleware)
+	return c.JSON(fiber.Map{"message": "Note updated successfully"})
+}
+
+func DeleteNoteHandler(c *fiber.Ctx) error {
+	// Step 1: Extract context values from middleware (user and database connection)
+	db := c.Locals("db").(*gorm.DB)
+
+	idStr := c.Params("id")
+	if idStr == "" {
+		return server.ResponseError(c, fmt.Errorf("note ID required"), fiber.StatusBadRequest, "Note ID required",
+			"tags", []string{"NOTES", "INVALID_NOTE_ID"},
+		)
+	}
+	noteID, err := strconv.Atoi(idStr)
+	if err != nil {
+		return server.ResponseError(c, err, fiber.StatusBadRequest, "Error converting note ID to int",
+			"tags", []string{"NOTES", "INVALID_NOTE_ID"},
+		)
+	}
+
+	// Step 2: Begin database transaction for atomic note deletion
+	if err := note.DeleteNote(uint(noteID), db); err != nil {
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error deleting note from database",
+			"tags", []string{"NOTES", "DB"},
+		)
+	}
+
+	return c.JSON(fiber.Map{"message": "Note deleted successfully"})
 }

@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"strconv"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
 	"unipilot/internal/models/user"
@@ -44,27 +44,15 @@ import (
 // Side Effects:
 //   - Logs successful user retrieval for audit trail
 //   - No database or cache modifications
-func GetUserHandler(w http.ResponseWriter, r *http.Request) {
+func GetUserHandler(c *fiber.Ctx) error {
 	// Step 1: Extract user context from JWT token (validated by AuthMiddleware)
-	currentUser := r.Context().Value("user").(user.User)
-
-	// Step 2: Convert user struct to safe map format (excludes sensitive fields like password hash)
-	userMap := currentUser.ToMap()
-	if userMap == nil {
-		err := errors.New("failed to process user data")
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error processing user data",
-			"tags", []string{"USER", "MARSHALLING"},
-		)
-		return
-	}
+	currentUser := c.Locals("user").(user.User)
 
 	// Step 3: Send successful response with sanitized user data
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	return c.JSON(fiber.Map{
 		"message": "User retrieved successfully",
-		"user":    userMap,
+		"user":    currentUser,
 	})
-
 }
 
 // UpdateUserHandler updates a specific field of the authenticated user's profile.
@@ -105,10 +93,10 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 //   - Modifies user record in database with timestamp update
 //   - Updates Redis cache (logs warning on failure, non-critical)
 //   - Logs successful updates for audit trail
-func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
+func UpdateUserHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser := r.Context().Value("user").(user.User)
-	db := r.Context().Value("db").(*gorm.DB)
+	currentUser := c.Locals("user").(user.User)
+	db := c.Locals("db").(*gorm.DB)
 	userID := currentUser.ID
 
 	// Step 2: Define and parse update request structure
@@ -117,59 +105,53 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 		Column string `json:"column"`
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&updateData)
+	err := c.BodyParser(&updateData)
 	if err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
+		return server.ResponseError(c, err, fiber.StatusBadRequest, "Invalid request body",
 			"tags", []string{"USER", "REQUEST"},
 		)
-		return
 	}
 
 	// Step 3: Execute raw SQL update with automatic timestamp tracking
 	if err := db.Exec(fmt.Sprintf("UPDATE users SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), userID).Error; err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error updating user in database",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error updating user in database",
 			"tags", []string{"USER", "DB"},
 		)
-		return
 	}
 
 	// Step 4: Retrieve updated user record to ensure consistency and get fresh data
 	var userObj user.User
 	if err := db.First(&userObj, userID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			server.ResponseError(r.Context(), w, err, http.StatusNotFound, "User not found",
-				"tags", []string{"USER", "DB"},
-			)
-		} else {
-			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting user from database",
+			return server.ResponseError(c, err, fiber.StatusNotFound, "User not found",
 				"tags", []string{"USER", "DB"},
 			)
 		}
-		return
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting user from database",
+			"tags", []string{"USER", "DB"},
+		)
 	}
 
 	// Step 5: Convert updated user to safe map format (excludes sensitive fields)
 	userMap := userObj.ToMap()
 	if userMap == nil {
 		err := errors.New("failed to process user data")
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error processing user data",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error processing user data",
 			"tags", []string{"USER"},
 		)
-		return
 	}
 
 	// Step 6: Update Redis cache with new user data for performance optimization
 	userJSON, err := json.Marshal(userMap)
 	if err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error marshalling user to json",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error marshalling user to json",
 			"tags", []string{"USER", "SERIALIZATION"},
 		)
-		return
 	}
 	// Cache update is non-blocking - failure is logged but doesn't stop the response
 	if err := RedisClient.HSet(context.Background(), "users", strconv.Itoa(int(userID)), userJSON).Err(); err != nil {
-		server.LogWarn(r.Context(), "Failed to cache user in Redis", err, "user_id", userID,
+		server.LogWarn(context.Background(), "Failed to cache user in Redis", err, "user_id", userID,
 			"tags", []string{"cache", "cache", "medium"},
 			"cache_status", "error",
 			"error_type", "cache",
@@ -177,31 +159,25 @@ func UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 7: Send successful response with updated user data
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	return c.JSON(fiber.Map{
 		"message": "User updated successfully",
 		"user":    userMap,
 	})
-
-	// Step 8: User update completed (logged by middleware)
 }
 
-func UpdateProfilePictureHandler(w http.ResponseWriter, r *http.Request) {
+func UpdateProfilePictureHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser := r.Context().Value("user").(user.User)
-	db := r.Context().Value("db").(*gorm.DB)
+	currentUser := c.Locals("user").(user.User)
+	db := c.Locals("db").(*gorm.DB)
 	userID := currentUser.ID
 
-	// Step 2: Parse multipart form with size limits (32MB in memory, rest on disk)
-	// This allows handling large file uploads efficiently by spilling to disk when needed
-	if err := r.ParseMultipartForm(32 << 20); err != nil { // 32MB
-		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Unable to parse multipart form",
+	// Step 2: Extract file from multipart form
+	file, err := c.FormFile("file")
+	if err != nil {
+		return server.ResponseError(c, err, fiber.StatusBadRequest, "Unable to get file from form",
 			"tags", []string{"USER", "PROFILE_PICTURE", "REQUEST"},
 		)
-		return
 	}
-	// Clean up temporary multipart form files after handler completes
-	defer r.MultipartForm.RemoveAll()
 
 	// Step 3: Generate unique storage paths and file names for cloud storage
 	// Organize files by user ID to enable easy cleanup and access control
@@ -213,22 +189,20 @@ func UpdateProfilePictureHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Step 4: Extract file from multipart form and write to local disk
 	// Local storage is required as intermediate step before S3 upload
-	filePath, _, err := WriteFileToDisk(newKey, w, r)
+	filePath, _, err := WriteFileToDiskFiber(newKey, file, c)
 	if err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error writing file to disk",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error writing file to disk",
 			"tags", []string{"USER", "PROFILE_PICTURE", "STORAGE", "FILESYSTEM"},
 		)
-		return
 	}
 
 	// Step 5: Upload file from local disk to AWS S3 cloud storage
 	// This persists the file permanently and makes it accessible via CDN
 	var publicURL string
 	if publicURL, err = cloudstorage.UploadProfilePicture(filePath, uniqueFileName, newKey); err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error uploading file to S3",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error uploading file to S3",
 			"tags", []string{"USER", "PROFILE_PICTURE", "STORAGE", "S3"},
 		)
-		return
 	}
 
 	// Step 6: Clean up local temporary file after successful S3 upload
@@ -239,22 +213,19 @@ func UpdateProfilePictureHandler(w http.ResponseWriter, r *http.Request) {
 	// Store the S3 path so the application can generate CDN URLs for the image
 	currentUser.Avatar = publicURL
 	if err := db.Save(&currentUser).Error; err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error updating user profile picture in database",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error updating user profile picture in database",
 			"tags", []string{"USER", "PROFILE_PICTURE", "DB"},
 		)
-		return
 	}
 
-	// Step 8: Send successful response with confirmation message
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Profile picture updated successfully",
-	})
-
 	// Step 9: Log successful profile picture update for audit trail
-	server.LogInfo(r.Context(), "Profile picture updated", "user_id", userID,
+	server.LogInfo(context.Background(), "Profile picture updated", "user_id", userID,
 		"tags", []string{"user", "upload", "high", "update"},
 		"external_service", "s3")
 
+	// Step 8: Send successful response with confirmation message
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Profile picture updated successfully",
+	})
 }

@@ -3,10 +3,10 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
 	"unipilot/internal/models/course"
@@ -54,18 +54,17 @@ import (
 //   - Populates Redis cache on cache miss with 1-hour expiration
 //   - Logs cache hit/miss events for monitoring
 //   - No database modifications (read-only operation)
-func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
+func GetUsersHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser := r.Context().Value("user").(user.User)
-	db := r.Context().Value("db").(*gorm.DB)
+	currentUser := c.Locals("user").(user.User)
+	db := c.Locals("db").(*gorm.DB)
 
 	// Step 2: Attempt to retrieve users from Redis cache first (performance optimization)
 	usersHash, err := RedisClient.HGetAll(context.Background(), "users").Result()
 	if err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting users from redis",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting users from redis",
 			"tags", []string{"USERS", "REDIS"},
 		)
-		return
 	}
 	if len(usersHash) > 0 {
 		// Step 3: Cache hit - Convert Redis hash to user array and exclude current user
@@ -79,21 +78,18 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 				cachedUsers = append(cachedUsers, userMap)
 			}
 		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		return c.JSON(fiber.Map{
 			"message": "Users retrieved successfully",
 			"users":   cachedUsers,
 		})
-		return
 	}
 
 	// Step 4: Cache miss - Query users from database and enrich with course data
 	var users []user.User
 	if err := db.Find(&users).Error; err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting users from database",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting users from database",
 			"tags", []string{"USERS", "DB"},
 		)
-		return
 	}
 
 	// Step 5: Process each user and enrich with course codes for comprehensive profiles
@@ -102,10 +98,9 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 		// Query course codes associated with this user
 		var courses_code []string
 		if err := db.Model(&course.Course{}).Select("code").Where("user_id = ? ", u.ID).Find(&courses_code).Error; err != nil {
-			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting user courses",
+			return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting user courses",
 				"tags", []string{"USERS", "DB"},
 			)
-			return
 		}
 		// Attach course codes to user object and convert to safe map format
 		u.CoursesCode = courses_code
@@ -115,14 +110,13 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 		// Step 6: Cache individual user in Redis for future requests (non-blocking)
 		userJSON, err := json.Marshal(userMap)
 		if err != nil {
-			server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error marshalling user to json",
+			return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error marshalling user to json",
 				"tags", []string{"USERS", "SERIALIZATION"},
 			)
-			return
 		}
 
 		if err := RedisClient.HSet(context.Background(), "users", strconv.Itoa(int(u.ID)), userJSON).Err(); err != nil {
-			server.LogWarn(r.Context(), "Failed to cache user in Redis", err, "user_id", u.ID,
+			server.LogWarn(context.Background(), "Failed to cache user in Redis", err, "user_id", u.ID,
 				"tags", []string{"cache", "cache", "medium"},
 				"cache_status", "error",
 				"error_type", "cache",
@@ -132,17 +126,15 @@ func GetUsersHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Step 7: Set cache expiration to 1 hour for optimal balance of freshness and performance
 	if err := RedisClient.Expire(context.Background(), "users", time.Hour).Err(); err != nil {
-		server.LogWarn(r.Context(), "Failed to set cache expiration", err,
+		server.LogWarn(context.Background(), "Failed to set cache expiration", err,
 			"tags", []string{"cache", "cache", "low"},
 			"error_type", "cache",
 		)
 	}
 
 	// Step 8: Send successful response with enriched user data
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	return c.JSON(fiber.Map{
 		"message": "Users retrieved successfully",
 		"users":   usersMap,
 	})
-
 }

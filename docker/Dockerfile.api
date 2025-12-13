@@ -24,6 +24,7 @@ RUN apk add --no-cache \
     shadow \
     python3 \
     py3-pip \
+    wget \
     && update-ca-certificates
 
 # Install docx2txt directly in final stage

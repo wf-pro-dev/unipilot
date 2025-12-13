@@ -1,10 +1,10 @@
 package server
 
 import (
-	"encoding/json"
-	"net/http"
+	"context"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 
 	"unipilot/internal/models/user"
@@ -43,67 +43,54 @@ import (
 //   - Creates new JWT tokens with current timestamps
 //   - Logs token refresh events for audit trail
 //   - Previous tokens remain valid until natural expiration
-func RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
-	// Step 1: Enforce POST-only endpoint for security (refresh should never be GET)
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
+func RefreshTokenHandler(c *fiber.Ctx) error {
 	// Step 2: Extract user context from request context (validated by AuthMiddleware)
-	user := r.Context().Value("user").(user.User)
+	userObj := c.Locals("user").(user.User)
 
 	// Step 3: Retrieve JWT signing key from environment for secure token generation
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		server.ResponseError(r.Context(),
-			w, err, http.StatusInternalServerError, "Error getting session key",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting session key",
 			"tags", []string{"TOKEN", "SESSION_KEY"},
 		)
-		return
 	}
 
 	// Step 4: Generate new access token with 15-minute expiration for API access
 	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, server.Claims{
-		User: user,
+		User: userObj,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 15)),
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		server.ResponseError(r.Context(),
-			w, err, http.StatusInternalServerError, "Error creating access token",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error creating access token",
 			"tags", []string{"TOKEN", "ACCESS_TOKEN"},
 		)
-		return
 	}
 
 	// Step 5: Generate new refresh token with 30-day expiration for long-term sessions
 	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, server.Claims{
-		User: user,
+		User: userObj,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 30)),
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		server.ResponseError(r.Context(),
-			w, err, http.StatusInternalServerError, "Error creating refresh token",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error creating refresh token",
 			"tags", []string{"TOKEN", "REFRESH_TOKEN"},
 		)
-		return
 	}
 
+	// Step 7: Log successful token refresh for audit trail and monitoring
+	server.LogInfo(context.Background(), "Token refreshed", "user_id", userObj.ID,
+		"tags", []string{"auth", "auth", "medium"})
+
 	// Step 6: Send successful response with both new tokens
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	return c.JSON(fiber.Map{
 		"message":       "Token refreshed successfully",
 		"token":         accessToken,
 		"refresh_token": refreshToken,
 	})
-
-	// Step 7: Log successful token refresh for audit trail and monitoring
-	server.LogInfo(r.Context(), "Token refreshed", "user_id", user.ID,
-		"tags", []string{"auth", "auth", "medium"})
 }

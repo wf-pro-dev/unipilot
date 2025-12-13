@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
@@ -39,6 +40,9 @@ func (rw *responseWriter) WriteHeader(code int) {
 // - level: high (>1s), medium (100ms-1s), low (<100ms)
 // - action: create, read, update, delete (for CRUD operations)
 //
+// Key format: "METHOD /route/pattern" (e.g., "GET /assignments", "PUT /assignments/:id")
+// This ensures routes are uniquely identified by HTTP method and route pattern.
+//
 // Consolidated taxonomy:
 // - Merged: upload/download/storage → io (file operations)
 // - Merged: rag → document (all document-related operations)
@@ -46,62 +50,72 @@ func (rw *responseWriter) WriteHeader(code int) {
 // - Merged: network → db (course link is primarily DB operation with network side-effect)
 var routeTags = map[string][]string{
 	// Authentication routes
-	"/unipilot/api/v1/register":      {"user", "db", "high", "create"},
-	"/unipilot/api/v1/login":         {"login", "auth", "medium", "read"},
-	"/unipilot/api/v1/logout":        {"logout", "auth", "low"},
-	"/unipilot/api/v1/token/refresh": {"token", "auth", "medium"},
+	"POST /auth/register":      {"user", "db", "high", "create"},
+	"POST /auth/login":         {"login", "auth", "medium", "read"},
+	"POST /auth/logout":        {"logout", "auth", "low"},
+	"POST /auth/refresh-token": {"token", "auth", "medium"},
 
 	// User routes
-	"/unipilot/api/v1/user":                 {"user", "db", "low", "read"},
-	"/unipilot/api/v1/user/update":          {"user", "db", "medium", "update"},
-	"/unipilot/api/v1/user/profile-picture": {"user", "storage", "high", "update"},
-	"/unipilot/api/v1/users":                {"user", "db", "medium", "read"},
+	"GET /users/me":                  {"user", "db", "low", "read"},
+	"POST /users/me":                 {"user", "db", "medium", "update"},
+	"POST /users/me/profile-picture": {"user", "storage", "high", "update"},
+	"GET /users":                     {"user", "db", "medium", "read"},
+	"POST /users/:id/follow":         {"follow", "db", "medium", "update"},
+	"GET /users/:id/followers":       {"follow", "db", "low", "read"},
+	"GET /users/:id/following":       {"follow", "db", "low", "read"},
 
 	// Assignment routes
-	"/unipilot/api/v1/assignment":        {"assignment", "db", "medium", "create"},
-	"/unipilot/api/v1/assignment/update": {"assignment", "db", "medium", "update"},
-	"/unipilot/api/v1/assignments":       {"assignment", "db", "low", "read"},
+	"GET /assignments":        {"assignment", "db", "low", "read"},
+	"POST /assignments":       {"assignment", "db", "medium", "create"},
+	"PUT /assignments/:id":    {"assignment", "db", "medium", "update"},
+	"DELETE /assignments/:id": {"assignment", "db", "medium", "delete"},
 
 	// Course routes
-	"/unipilot/api/v1/course":              {"course", "db", "medium", "create"},
-	"/unipilot/api/v1/course/update":       {"course", "db", "medium", "update"},
-	"/unipilot/api/v1/course/get":          {"course", "db", "low", "read"},
-	"/unipilot/api/v1/course/link/request": {"course", "db", "medium"},
-	"/unipilot/api/v1/course/link/accept":  {"course", "db", "high"},
-	"/unipilot/api/v1/courses":             {"course", "db", "low", "read"},
+	"GET /courses":                   {"course", "db", "low", "read"},
+	"POST /courses":                  {"course", "db", "medium", "create"},
+	"PUT /courses/:id":               {"course", "db", "medium", "update"},
+	"DELETE /courses/:id":            {"course", "db", "medium", "delete"},
+	"POST /courses/:id/link-request": {"course", "db", "medium"},
+	"POST /courses/:id/link-accept":  {"course", "db", "high"},
 
 	// Note routes
-	"/unipilot/api/v1/note":        {"note", "db", "medium", "create"},
-	"/unipilot/api/v1/note/update": {"note", "db", "medium", "update"},
-	"/unipilot/api/v1/notes":       {"note", "db", "low", "read"},
+	"GET /notes":        {"note", "db", "low", "read"},
+	"POST /notes":       {"note", "db", "medium", "create"},
+	"PUT /notes/:id":    {"note", "db", "medium", "update"},
+	"DELETE /notes/:id": {"note", "db", "medium", "delete"},
 
 	// Document routes (includes RAG operations)
-	"/unipilot/api/v1/document":            {"document", "storage", "high", "create"},
-	"/unipilot/api/v1/document/delete":     {"document", "storage", "medium", "delete"},
-	"/unipilot/api/v1/document/download":   {"document", "storage", "medium"},
-	"/unipilot/api/v1/document/rag":        {"document", "rag", "high", "create"},
-	"/unipilot/api/v1/document/rag/delete": {"document", "rag", "medium", "delete"},
-	"/unipilot/api/v1/document/rag/list":   {"document", "rag", "low", "read"},
-	"/unipilot/api/v1/documents":           {"document", "db", "low", "read"},
+	"GET /documents":                     {"document", "db", "low", "read"},
+	"POST /documents":                    {"document", "storage", "high", "create"},
+	"DELETE /documents/:id":              {"document", "storage", "medium", "delete"},
+	"POST /documents/:id/download":       {"document", "storage", "medium"},
+	"POST /documents/:id/rag":            {"document", "rag", "high", "create"},
+	"DELETE /documents/:id/rag":          {"document", "rag", "medium", "delete"},
+	"GET /documents/assignments/:id":     {"document", "db", "low", "read"},
+	"GET /documents/assignments/:id/rag": {"document", "rag", "low", "read"},
 
-	// Follow routes
-	"/unipilot/api/v1/follow":        {"follow", "db", "medium", "update"},
-	"/unipilot/api/v1/followers":     {"follow", "db", "low", "read"},
-	"/unipilot/api/v1/following":     {"follow", "db", "low", "read"},
-	"/unipilot/api/v1/follow-status": {"follow", "db", "low", "read"},
+	// Follow routes (also under users, but keeping for completeness)
+	"GET /follow-status": {"follow", "db", "low", "read"},
 }
 
-// getRouteTags returns tags for a given route path
+// getRouteTags returns tags for a given HTTP method and route pattern
+// Uses "METHOD /route/pattern" format to uniquely identify routes
 // Falls back to generic tags if route not found
-func getRouteTags(path string) []string {
-	// Remove query parameters for matching
-	cleanPath := path
-	if idx := strings.Index(path, "?"); idx != -1 {
-		cleanPath = path[:idx]
+func getRouteTags(method, routePattern string) []string {
+	// Normalize method to uppercase
+	method = strings.ToUpper(method)
+
+	// Remove query parameters from route pattern if present
+	cleanPattern := routePattern
+	if idx := strings.Index(routePattern, "?"); idx != -1 {
+		cleanPattern = routePattern[:idx]
 	}
 
+	// Create composite key: "METHOD /route/pattern"
+	key := method + " " + cleanPattern
+
 	// Try exact match first
-	if tags, ok := routeTags[cleanPath]; ok {
+	if tags, ok := routeTags[key]; ok {
 		return tags
 	}
 
@@ -111,10 +125,10 @@ func getRouteTags(path string) []string {
 
 // getClientIP extracts the real client IP from request headers
 // Handles Docker Swarm, nginx, and other proxy scenarios
-func getClientIP(r *http.Request) string {
+func getClientIP(c *fiber.Ctx) string {
 	// Check X-Forwarded-For header (most common, contains chain of IPs)
 	// Format: "client, proxy1, proxy2" - we want the first (original client)
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+	if forwarded := c.Get("X-Forwarded-For"); forwarded != "" {
 		// X-Forwarded-For can contain multiple IPs, take the first one
 		ips := strings.Split(forwarded, ",")
 		if len(ips) > 0 {
@@ -123,45 +137,43 @@ func getClientIP(r *http.Request) string {
 	}
 
 	// Fallback to X-Real-IP (nginx sets this)
-	if realIP := r.Header.Get("X-Real-IP"); realIP != "" {
+	if realIP := c.Get("X-Real-IP"); realIP != "" {
 		return realIP
 	}
 
 	// Final fallback to RemoteAddr (direct connection or no proxy headers)
 	// Remove port if present
-	addr := r.RemoteAddr
+	addr := c.IP()
 	if idx := strings.LastIndex(addr, ":"); idx != -1 {
 		addr = addr[:idx]
 	}
 	return addr
 }
 
-// DBMiddleware injects the database connection into the HTTP request context.
+// DBMiddleware injects the database connection into Fiber's locals.
 // Provides database access to all downstream handlers without requiring explicit
 // parameter passing. Essential middleware for all database-dependent endpoints.
 //
 // Parameters:
 //   - db: GORM database connection instance
-//   - next: The next HTTP handler in the middleware chain
 //
 // Returns:
-//   - http.HandlerFunc: Middleware function that adds database to request context
+//   - fiber.Handler: Middleware function that adds database to Fiber locals
 //
-// Context Values Added:
+// Locals Added:
 //   - "db": *gorm.DB instance for database operations
 //
 // Usage:
 //   - Applied to all API routes that require database access
-//   - Handlers can retrieve database via: r.Context().Value("db").(*gorm.DB)
+//   - Handlers can retrieve database via: c.Locals("db").(*gorm.DB)
 //
 // Security Considerations:
 //   - Database connection is shared across requests (connection pooling)
 //   - No user-specific database isolation (handled at application level)
-func DBMiddleware(db *gorm.DB, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Inject database connection into request context for downstream handlers
-		ctx := context.WithValue(r.Context(), "db", db)
-		next(w, r.WithContext(ctx))
+func DBMiddleware(db *gorm.DB) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		c.Locals("db", db)
+		return c.Next()
 	}
 }
 
@@ -169,13 +181,10 @@ func DBMiddleware(db *gorm.DB, next http.HandlerFunc) http.HandlerFunc {
 // Generates unique request IDs, tracks request duration, and logs detailed request
 // information for debugging, monitoring, and audit purposes.
 //
-// Parameters:
-//   - next: The next HTTP handler in the middleware chain
-//
 // Returns:
-//   - http.HandlerFunc: Middleware function that adds logging context and tracks requests
+//   - fiber.Handler: Middleware function that adds logging context and tracks requests
 //
-// Context Values Added:
+// Locals Added:
 //   - "request_id": Unique UUID for request tracing across services
 //   - "start_time": Request start time for duration calculation
 //
@@ -195,65 +204,77 @@ func DBMiddleware(db *gorm.DB, next http.HandlerFunc) http.HandlerFunc {
 //   - Request tracing for security audit trails
 //   - User activity logging for compliance
 //   - Remote address tracking for security analysis
-func LoggerMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Generate unique request ID and capture start time for tracking
-		startTime := time.Now()
-		requestID := uuid.New().String()
+func LoggerMiddleware(c *fiber.Ctx) error {
+	// Generate unique request ID and capture start time for tracking
+	startTime := time.Now()
+	requestID := uuid.New().String()
 
-		// Get route-specific tags
-		tags := getRouteTags(r.URL.Path)
+	// Get the actual request path (with parameters, e.g., "/assignments/289")
+	// This is what we'll log in the output
+	requestPath := c.Path()
 
-		// Create context with request metadata
-		ctx := context.WithValue(r.Context(), "request_id", requestID)
-		ctx = context.WithValue(ctx, "start_time", startTime)
-		ctx = context.WithValue(ctx, "component", "api")
+	// Store in locals for handlers
+	c.Locals("request_id", requestID)
+	c.Locals("start_time", startTime)
+	c.Locals("component", "api")
 
-		// Wrap response writer to capture status code
-		rw := newResponseWriter(w)
+	// Execute the next handler (route matching happens here)
+	err := c.Next()
 
-		// Execute the next handler with enriched context
-		next(rw, r.WithContext(ctx))
+	// Get the route pattern from Fiber after route matching (e.g., "/assignments/:id")
+	// This is what we use for tag matching
+	routePattern := requestPath
+	if route := c.Route(); route != nil && route.Path != "" {
+		routePattern = route.Path
+	}
 
-		// Store status code in context for logging
-		ctx = context.WithValue(ctx, "status_code", rw.statusCode)
+	// Get route-specific tags using method + route pattern
+	tags := getRouteTags(c.Method(), routePattern)
 
-		// Calculate request duration
-		duration := time.Since(startTime).Milliseconds()
+	// Calculate request duration
+	duration := time.Since(startTime).Milliseconds()
 
-		// Get real client IP (handles Docker Swarm VIP issue)
-		clientIP := getClientIP(r)
+	// Get real client IP (handles Docker Swarm VIP issue)
+	clientIP := getClientIP(c)
 
-		// Determine log level based on request duration
-		// Slow requests (>1s) are logged as WARN for performance monitoring
-		logLevel := "INFO"
-		if duration > 1000 {
-			logLevel = "WARN"
-			// Update tags level to "high" for slow requests
-			if len(tags) >= 3 {
-				tags[2] = "high"
-			}
-		}
+	// Create context for logging
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "request_id", requestID)
+	ctx = context.WithValue(ctx, "start_time", startTime)
+	ctx = context.WithValue(ctx, "status_code", c.Response().StatusCode())
 
-		// Log request completion using unified logging functions
-		// This automatically handles both console (compact) and file (JSON) logging
-		if logLevel == "WARN" {
-			LogWarn(ctx, "Request completed",
-				fmt.Errorf("slow request: %dms", duration),
-				"method", r.Method,
-				"path", r.URL.Path,
-				"remote_addr", clientIP,
-				"tags", tags,
-			)
-		} else {
-			LogInfo(ctx, "Request completed",
-				"method", r.Method,
-				"path", r.URL.Path,
-				"remote_addr", clientIP,
-				"tags", tags,
-			)
+	// Determine log level based on request duration
+	// Slow requests (>1s) are logged as WARN for performance monitoring
+	logLevel := "INFO"
+	if duration > 1000 {
+		logLevel = "WARN"
+		// Update tags level to "high" for slow requests
+		if len(tags) >= 3 {
+			tags[2] = "high"
 		}
 	}
+
+	// Log request completion using unified logging functions
+	// Use the actual request path (with IDs) for logging, not the route pattern
+	// This automatically handles both console (compact) and file (JSON) logging
+	if logLevel == "WARN" {
+		LogWarn(ctx, "Request completed",
+			fmt.Errorf("slow request: %dms", duration),
+			"method", c.Method(),
+			"path", requestPath,
+			"remote_addr", clientIP,
+			"tags", tags,
+		)
+	} else {
+		LogInfo(ctx, "Request completed",
+			"method", c.Method(),
+			"path", requestPath,
+			"remote_addr", clientIP,
+			"tags", tags,
+		)
+	}
+
+	return err
 }
 
 // Claims represents the JWT token payload structure for user authentication.
@@ -316,54 +337,60 @@ type Claims struct {
 //   - Handlers access user via: r.Context().Value("user").(user.User)
 //   - User ID available via: r.Context().Value("user_id").(uint)
 
-func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Step 1: Extract JWT token from Authorization header
-		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
-			return // No auth header - allow public endpoints to handle
-		}
-
-		// Step 2: Parse Bearer token format ("Bearer <token>")
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		if tokenString == authHeader {
-			return // Invalid format - not a Bearer token
-		}
-
-		// Step 3: Retrieve server secret key for token validation
-		SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
-		if err != nil {
-			return // Cannot validate without secret key
-		}
-
-		// Step 4: Parse and validate JWT token with server secret
-		token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-			return []byte(SESSION_KEY), nil // Use same secret as token generation
+func AuthMiddleware(c *fiber.Ctx) error {
+	// Step 1: Extract JWT token from Authorization header
+	authHeader := c.Get("Authorization")
+	if authHeader == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Authorization header required",
 		})
-
-		// Step 5: Validate token parsing and signature
-		if err != nil || !token.Valid {
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
-			return
-		}
-
-		// Step 6: Extract and validate claims structure
-		claims, ok := token.Claims.(*Claims)
-		if !ok {
-			http.Error(w, "Invalid token claims", http.StatusUnauthorized)
-			return
-		}
-
-		// Step 7: Extract user object from validated claims
-		user := claims.User
-
-		// Step 8: Inject user context into request for downstream handlers
-		ctx := context.WithValue(r.Context(), "user", user)
-		ctx = context.WithValue(ctx, "user_id", user.ID)
-
-		// Step 9: Continue to next handler with authenticated user context and logging
-		LoggerMiddleware(next)(w, r.WithContext(ctx))
 	}
+
+	// Step 2: Parse Bearer token format ("Bearer <token>")
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	if tokenString == authHeader {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid authorization format. Expected: Bearer <token>",
+		})
+	}
+
+	// Step 3: Retrieve server secret key for token validation
+	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Server configuration error",
+		})
+	}
+
+	// Step 4: Parse and validate JWT token with server secret
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(SESSION_KEY), nil // Use same secret as token generation
+	})
+
+	// Step 5: Validate token parsing and signature
+	if err != nil || !token.Valid {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid or expired token",
+		})
+	}
+
+	// Step 6: Extract and validate claims structure
+	claims, ok := token.Claims.(*Claims)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid token claims",
+		})
+	}
+
+	// Step 7: Extract user object from validated claims
+	user := claims.User
+
+	// Step 8: Inject user context into Fiber locals for downstream handlers
+	c.Locals("user", user)
+	c.Locals("user_id", user.ID)
+
+	// Step 9: Continue to next handler with authenticated user context
+	return c.Next()
 }
 
 // DEPRECATED: This middleware is deprecated in favor of JWT-based authentication (AuthMiddleware).

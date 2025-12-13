@@ -47,3 +47,11 @@ func Get_Note_byID(id, user_id uint, db *gorm.DB) (*Note, error) {
 	}
 	return note, nil
 }
+
+func DeleteNote(id uint, db *gorm.DB) error {
+	err := db.Delete(&Note{}, "id = ?", id).Error
+	if err != nil {
+		return err
+	}
+	return nil
+}

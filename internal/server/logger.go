@@ -135,6 +135,7 @@ import (
 	"time"
 	"unipilot/internal/models/user"
 
+	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -410,7 +411,43 @@ func getErrorType(err error, keysAndValues ...interface{}) string {
 	return "internal"
 }
 
-func ResponseError(ctx context.Context, w http.ResponseWriter, err error, code int, message string, keysAndValues ...interface{}) {
+// ResponseError sends an error response using Fiber
+func ResponseError(c *fiber.Ctx, err error, statusCode int, message string, keyvals ...interface{}) error {
+	// Create a context for logging
+	ctx := context.Background()
+
+	// Determine error type for structured logging and metrics
+	errorType := getErrorType(err, keyvals...)
+
+	// Prepend status_code and error_type to fields (most important for analysis)
+	fields := append([]interface{}{"status_code", statusCode, "error_type", errorType}, keyvals...)
+
+	// Log as ERROR for server errors (>=500), WARN for client errors (<500)
+	// This helps distinguish between bugs (ERROR) and bad requests (WARN)
+	if statusCode >= 500 {
+		LogError(ctx, message, err, fields...)
+	} else {
+		LogWarn(ctx, message, err, fields...)
+	}
+
+	// Build error response
+	response := fiber.Map{
+		"error":   message,
+		"message": err.Error(),
+	}
+
+	// Add additional key-value pairs to response
+	for i := 0; i < len(keyvals)-1; i += 2 {
+		if key, ok := keyvals[i].(string); ok {
+			response[key] = keyvals[i+1]
+		}
+	}
+
+	return c.Status(statusCode).JSON(response)
+}
+
+// ResponseErrorHTTP is the old HTTP version (kept for backward compatibility if needed)
+func ResponseErrorHTTP(ctx context.Context, w http.ResponseWriter, err error, code int, message string, keysAndValues ...interface{}) {
 	// Store status code in context so it's available for logging
 	ctx = context.WithValue(ctx, "status_code", code)
 

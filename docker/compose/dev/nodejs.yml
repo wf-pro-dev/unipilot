@@ -2,7 +2,7 @@
 services:
   nodejs:
     build:
-      context: ../..
+      context: /home/will/unipilot
       dockerfile: docker/Dockerfile.nodejs
     networks:
       - unipilot

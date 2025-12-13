@@ -1,9 +1,11 @@
 package server
 
 import (
-	"encoding/json"
-	"net/http"
+	"context"
+
 	"unipilot/internal/server"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 // LogoutHandler handles user logout requests.
@@ -28,21 +30,13 @@ import (
 // Side Effects:
 //   - Logs logout event for audit trail
 //   - No server-side session state changes (stateless design)
-func LogoutHandler(w http.ResponseWriter, r *http.Request) {
-
-	// Step 1: Enforce POST-only endpoint for security (registration should never be GET)
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
+func LogoutHandler(c *fiber.Ctx) error {
+	// Step 3: Log logout event for security audit trail and monitoring
+	server.LogInfo(context.Background(), "User logged out",
+		"tags", []string{"auth", "auth", "low"})
 
 	// Step 2: Send successful logout acknowledgment (no server-side token invalidation needed)
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	return c.JSON(fiber.Map{
 		"message": "Logout successful",
 	})
-
-	// Step 3: Log logout event for security audit trail and monitoring
-	server.LogInfo(r.Context(), "User logged out",
-		"tags", []string{"auth", "auth", "low"})
 }
