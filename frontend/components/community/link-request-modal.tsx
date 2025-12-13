@@ -7,6 +7,7 @@ import { user } from "@/wailsjs/go/models"
 import { Check, Users, X} from "lucide-react";
 import { useRequestLinkCourse } from "@/hooks/use-courses";
 import { LogInfo } from "@/wailsjs/runtime/runtime";
+import { course } from "@/wailsjs/go/models";
 
 interface LinkRequestModalProps {
     isOpen: boolean
@@ -31,7 +32,8 @@ export function LinkRequestModal({ isOpen, onClose, courseID }: LinkRequestModal
 
     const handleRequestLinkCourse = () => {
         LogInfo("Requesting to link course " + courseID + " to " + selectedFollowers.length + " followers")
-        requestLinkCourse({ courseCode: courses?.find((c) => c.ID === courseID)?.Code || "", usersID: selectedFollowers })
+        
+        requestLinkCourse({ course: courses?.find((c) => c.ID === courseID) as course.LocalCourse, usersID: selectedFollowers })
     }
 
     return (

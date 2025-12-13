@@ -9,40 +9,64 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"unipilot/internal/models/user"
 	"unipilot/internal/secrets"
+
+	"github.com/gofiber/fiber/v2"
 )
 
-func SendUserUpdate(column, value string) error {
+func GetUser() (*user.User, error) {
 
-	new_client, err := NewAuthClient()
-	if err != nil {
+	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Get(fmt.Sprintf("%s/users/me", api_url))
 
-		return err
+	if err := setAuthHeader(agent); err != nil {
+		return nil, err
 	}
+
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
+
+	if statusCode != 200 {
+		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
+	}
+
+	var response struct {
+		Message string    `json:"message"`
+		User    user.User `json:"user"`
+	}
+
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
+
+	return &response.User, nil
+}
+
+func UpdateUser(column, value string) error {
 
 	updateData := map[string]interface{}{
 		"value":  value,
 		"column": column,
 	}
 
-	jsonData, _ := json.Marshal(updateData)
-
 	api_url := secrets.CONSTANTS["API_URL"]
-	resp, err := new_client.Post(
-		fmt.Sprintf("%s/user/update", api_url),
-		"application/json",
-		bytes.NewBuffer(jsonData),
-	)
+	agent := fiber.Post(fmt.Sprintf("%s/users/me", api_url))
+	agent.JSON(updateData)
 
-	if err != nil {
+	if err := setAuthHeader(agent); err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	statusCode, _, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return errs[0]
+	}
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+	if statusCode != 200 {
+		return fmt.Errorf("server returned status %d", statusCode)
 	}
 
 	return nil
@@ -53,16 +77,10 @@ type ProfilePictureResponse struct {
 	Message string `json:"message"`
 }
 
-func SendProfilePicture(path string) error {
+func UpdateProfilePicture(path string) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	var url string = fmt.Sprintf("%s/user/profile-picture", api_url)
-
-	// Create a new client with cookies
-	client, err := NewAuthClient()
-	if err != nil {
-		return err
-	}
+	var url string = fmt.Sprintf("%s/users/me/profile-picture", api_url)
 
 	// Create a buffer to store the multipart data
 	var buf bytes.Buffer
@@ -102,8 +120,13 @@ func SendProfilePicture(path string) error {
 	// Set headers - the Content-Type is crucial for multipart
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	// Send request using your authenticated client with cookies
-	resp, err := client.Do(req)
+	// Set auth header with token refresh
+	if err := setAuthHeaderRequest(req); err != nil {
+		return err
+	}
+
+	// Send request using default client
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err)
 	}
@@ -121,7 +144,7 @@ func SendProfilePicture(path string) error {
 	switch resp.StatusCode {
 	case http.StatusOK, http.StatusCreated:
 		// Success - parse response
-		var uploadResp UploadResponse
+		var uploadResp ProfilePictureResponse
 		if err := json.Unmarshal(respBody, &uploadResp); err != nil {
 			return fmt.Errorf("error parsing success response: %v", err)
 		}

@@ -133,7 +133,7 @@ func LoadRefreshToken() (string, error) {
 func RefreshToken(refreshToken string) (string, string, error) {
 	api_url := secrets.CONSTANTS["API_URL"]
 	// Set Authorization header
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/token/refresh", api_url), nil)
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/auth/refresh-token", api_url), nil)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create request: %w", err)
 	}

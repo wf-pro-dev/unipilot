@@ -589,7 +589,7 @@ func (a *App) UploadProfilePicture() (string, error) {
 	}
 
 	//Update the user's profile picture in the database
-	clientErr := client.SendProfilePicture(profilePicturePath)
+	clientErr := client.UpdateProfilePicture(profilePicturePath)
 	if clientErr != nil {
 		return "", fmt.Errorf("failed to send profile picture: %w", clientErr)
 	}
@@ -805,7 +805,7 @@ func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, colu
 	isOnline := network.IsOnline()
 	var clientErr error
 	if isOnline {
-		clientErr = client.SendAssignmentUpdate(assignment_id, column, value)
+		clientErr = client.UpdateAssignment(assignment_id, column, value)
 	} else {
 		clientErr = fmt.Errorf("user is offline")
 	}
@@ -868,7 +868,7 @@ func (a *App) UpdateCourse(course *course.LocalCourse, column, value string) err
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var clientErr error
 	if isOnline {
-		clientErr = client.SendCourseUpdate(course_id, column, value)
+		clientErr = client.UpdateCourse(course_id, column, value)
 	} else {
 		clientErr = fmt.Errorf("user is offline")
 	}
@@ -918,7 +918,7 @@ func (a *App) UpdateNote(LocalNote *note.LocalNote, column, value string) error 
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var clientErr error
 	if isOnline {
-		clientErr = client.SendNoteUpdate(note_id, column, value)
+		clientErr = client.UpdateNote(note_id, column, value)
 	} else {
 		clientErr = fmt.Errorf("user is offline")
 	}
@@ -1043,9 +1043,6 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 		}
 
 		api_url := secrets.CONSTANTS["API_URL"]
-		if err != nil {
-			return nil, fmt.Errorf("failed to get api url: %w", err)
-		}
 
 		go func() {
 			jsonData, _ := json.Marshal(metadataReq)
@@ -1105,7 +1102,7 @@ func (a *App) UpdateUser(column, value string) (*user.User, error) {
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var clientErr error
 	if isOnline {
-		clientErr = client.SendUserUpdate(column, value)
+		clientErr = client.UpdateUser(column, value)
 	} else {
 		clientErr = fmt.Errorf("user is offline")
 	}
@@ -1159,8 +1156,9 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 
 	// Delete all documents related to the assignment
 	for _, document := range documents {
-		if err := a.DeleteDocument(document.ID); err != nil {
-			return err
+		// Delete the document from the database
+		if err := db.Delete(document).Error; err != nil {
+			return fmt.Errorf("failed to delete document record: %w", err)
 		}
 	}
 
@@ -1170,13 +1168,11 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 
 	assignment_id_str := strconv.Itoa(int(assignment.ID))
 
-	deleted_at := time.Now().Format(time.RFC3339)
-
 	isOnline := network.IsOnline()
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var clientErr error
 	if isOnline {
-		clientErr = client.SendAssignmentUpdate(assignment_id_str, "deleted_at", deleted_at)
+		clientErr = client.DeleteAssignment(assignment_id_str)
 	} else {
 		clientErr = fmt.Errorf("user is offline")
 	}
@@ -1185,6 +1181,7 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 		sm := sync.NewSyncManager(db)
 		_, err := sm.GetSyncLog(models.EntityAssignment, assignment.ID, "create", "")
 		if err != nil {
+			deleted_at := time.Now().Format(time.RFC3339)
 			if syncErr := sm.CreateSyncLog(
 				models.EntityAssignment,
 				assignment.ID,
@@ -1224,7 +1221,7 @@ func (a *App) DeleteCourse(course *course.LocalCourse) error {
 
 	// Delete all assignments related to the course
 	for _, assignment := range assignments {
-		if err := a.DeleteAssignment(&assignment); err != nil {
+		if err := db.Delete(&assignment).Error; err != nil {
 			return err
 		}
 	}
@@ -1241,7 +1238,7 @@ func (a *App) DeleteCourse(course *course.LocalCourse) error {
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var clientErr error
 	if isOnline {
-		clientErr = client.SendCourseUpdate(course_id_str, "deleted_at", deleted_at)
+		clientErr = client.DeleteCourse(course_id_str)
 	} else {
 		clientErr = fmt.Errorf("user is offline")
 	}
@@ -1338,7 +1335,7 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var clientErr error
 	if isOnline {
-		clientErr = client.SendNoteUpdate(note_id_str, "deleted_at", deleted_at)
+		clientErr = client.UpdateNote(note_id_str, "deleted_at", deleted_at)
 	} else {
 		clientErr = fmt.Errorf("user is offline")
 	}
@@ -1855,8 +1852,8 @@ func (a *App) RebuildNotificationDaemon() error {
 }
 
 // LinkCourse links a course to a list of users
-func (a *App) RequestLinkCourse(courseCode string, usersID []uint) error {
-	return client.RequestLinkCourse(courseCode, usersID)
+func (a *App) RequestLinkCourse(c *course.LocalCourse, usersID []uint) error {
+	return client.RequestLinkCourse(c, usersID)
 }
 
 func (a *App) AcceptLink(courseData string) error {

@@ -27,7 +27,7 @@ func (a *Auth) Logout() error {
 	// With stateless JWT tokens, this is primarily for server-side logging
 	// Make POST request to logout endpoint (empty body)
 	resp, err := a.Client.Post(
-		fmt.Sprintf("%s/logout", api_url),
+		fmt.Sprintf("%s/auth/logout", api_url),
 		"application/json",
 		nil,
 	)

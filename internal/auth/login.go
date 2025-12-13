@@ -40,7 +40,7 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 	api_url := secrets.CONSTANTS["API_URL"]
 
 	// Step 3: Send authentication request to API
-	resp, err := httpClient.Post(fmt.Sprintf("%s/login", api_url), "application/json", bytes.NewBuffer(jsonData))
+	resp, err := httpClient.Post(fmt.Sprintf("%s/auth/login", api_url), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("http post failed: %w", err)
 	}

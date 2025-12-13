@@ -99,7 +99,7 @@ export function RebuildNotificationDaemon():Promise<void>;
 
 export function Register(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<user.User>;
 
-export function RequestLinkCourse(arg1:string,arg2:Array<number>):Promise<void>;
+export function RequestLinkCourse(arg1:course.LocalCourse,arg2:Array<number>):Promise<void>;
 
 export function SaveDocumentAs(arg1:number):Promise<void>;
 
