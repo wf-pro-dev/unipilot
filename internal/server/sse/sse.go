@@ -117,15 +117,11 @@ func StartSSEServer() *SSEServer {
 	// Step 3: Register public health check endpoint for monitoring
 	app.Get("/health", HealthHandler)
 
+	// Step 4: Register active clients count endpoint for monitoring
+	app.Get("/unipilot/sse/v1/count", sseServer.CountHandler)
+
 	// Step 4: Register authenticated SSE endpoint with JWT middleware
 	app.Get("/unipilot/sse/v1", server.AuthMiddleware, sseServer.SSEHandler)
-
-	// Step 5: Log server startup for monitoring and debugging
-	ctx := context.WithValue(context.Background(), "component", "sse")
-	server.LogInfo(ctx, "SSE server starting", "port", 3000,
-		"tags", []string{"system", "network", "high"},
-	)
-	sseServer.logActiveClients()
 
 	// Step 6: Start Fiber server in background goroutine to avoid blocking
 	go func() {
@@ -182,6 +178,10 @@ func (s *SSEServer) AddClient(userID uint) *SSEClient {
 		Messages:  make(chan []byte, 100),
 		Connected: true,
 	}
+	ctx := context.WithValue(context.Background(), "component", "sse")
+	server.LogDebug(ctx, "SSE client added", "user_id", userID,
+		"tags", []string{"notification", "network", "low"},
+	)
 
 	s.clients[userID] = client
 	return client
@@ -223,6 +223,10 @@ func (s *SSEServer) RemoveClient(userID uint) {
 
 		// Step 4: Remove client from active connections map
 		delete(s.clients, userID)
+		ctx := context.WithValue(context.Background(), "component", "sse")
+		server.LogDebug(ctx, "SSE client removed", "user_id", userID,
+			"tags", []string{"notification", "network", "low"},
+		)
 	}
 }
 
@@ -259,9 +263,6 @@ func (s *SSEServer) SendToUser(userID uint, message []byte) bool {
 	// Step 1: Acquire read lock for concurrent client map access
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
-	// Step 2: Log active client count for monitoring
-	s.logActiveClients()
 
 	// Step 3: Check if target user is connected
 	if client, ok := s.clients[userID]; ok {
@@ -325,13 +326,13 @@ func (s *SSEServer) Broadcast(message []byte) {
 // logActiveClients outputs the current number of connected clients for monitoring.
 // Called during message sending operations to track connection health and usage patterns.
 // Uses structured logging for integration with monitoring and alerting systems.
-func (s *SSEServer) logActiveClients() {
+func (s *SSEServer) CountHandler(c *fiber.Ctx) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	ctx := context.WithValue(context.Background(), "component", "sse")
-	server.LogDebug(ctx, "Active SSE clients", "count", len(s.clients),
-		"tags", []string{"notification", "network", "low"},
-	)
+	return c.JSON(fiber.Map{
+		"count":     len(s.clients),
+		"timestamp": time.Now().Format(time.RFC3339),
+	})
 }
 
 // SSEHandler establishes and manages Server-Sent Event connections for authenticated users.

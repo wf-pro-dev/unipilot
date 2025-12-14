@@ -72,7 +72,7 @@ func StartGRPCServer(sseServer *serverSSE.SSEServer) {
 	notifications.RegisterNotificationsServiceServer(grpcServer, &s)
 
 	// Step 5: Log server startup for monitoring and debugging
-	server.LogInfo(ctx, "gRPC server starting", "port", 9000,
+	server.LogDebug(ctx, "gRPC server starting", "port", 9000,
 		"tags", []string{"system", "network", "high"},
 	)
 
