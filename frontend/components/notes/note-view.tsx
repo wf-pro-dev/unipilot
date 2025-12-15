@@ -43,9 +43,8 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
     return notes
       .filter((note) => {
         const matchesSearch =
-          note.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          note.Keywords.toLowerCase().includes(searchTerm.toLowerCase())
-        const matchesCourse = selectedCourse === "all" || note.CourseCode === selectedCourse
+          note.title.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesCourse = selectedCourse === "all" || note.course_code === selectedCourse
         return matchesSearch && matchesCourse
       })
       .sort((a, b) => {
@@ -151,7 +150,7 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onNoteClick={onNoteClick}
-                disabled={isLoading || !note.Content}
+                disabled={isLoading || !note.content}
               />
             ))}
           </div>

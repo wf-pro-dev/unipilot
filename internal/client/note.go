@@ -48,13 +48,11 @@ func GetNotes() ([]map[string]string, error) {
 	return response.Notes, nil
 }
 
-func CreateNote(n *note.Note) (map[string]string, error) {
-
-	noteData := n.ToMap()
+func CreateNote(n *note.LocalNote) (map[string]string, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Post(fmt.Sprintf("%s/notes", api_url))
-	agent.JSON(noteData)
+	agent.JSON(n)
 
 	if err := setAuthHeader(agent); err != nil {
 		return nil, err
@@ -83,8 +81,8 @@ func CreateNote(n *note.Note) (map[string]string, error) {
 		return nil, errors.New(response.Error)
 	}
 
-	if response.Note == nil {
-		return nil, fmt.Errorf("no note data in response")
+	if response.Note == nil || response.Note["content"] == "" {
+		return nil, fmt.Errorf("Invalid note data in response")
 	}
 
 	return response.Note, nil

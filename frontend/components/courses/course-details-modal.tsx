@@ -106,7 +106,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
 
 
   const handleDeleteNote = async (note: note.LocalNote) => {
-    const message = "note " + note.Title + " deleted"
+    const message = "note " + note.title + " deleted"
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     deleteNote.mutate(note, {
       onSuccess: () => {
@@ -119,7 +119,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
   }
 
   const handleEditNote = async (note: note.LocalNote, column: string, value: string) => {
-    const message = "note " + note.Title + " " + column + " changed to " + value
+    const message = "note " + note.title + " " + column + " changed to " + value
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     updateNote.mutate({ note, column, value }, {
       onError: () => {
@@ -136,8 +136,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
   const filteredNotes = useMemo(() => {
     return notes.filter((note) => {
       const matchesSearch =
-        note.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        note.Keywords.toLowerCase().includes(searchTerm.toLowerCase())
+        note.title.toLowerCase().includes(searchTerm.toLowerCase())
       return matchesSearch
     })
   }, [notes, searchTerm])

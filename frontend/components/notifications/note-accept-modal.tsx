@@ -27,14 +27,6 @@ export function NoteAcceptModal({
     const fulldNoteData = JSON.parse(noteData)
 
 
-    // Parse keywords if they're stored as JSON string
-    console.log("note keywords", Object.keys(fulldNoteData), fulldNoteData["keywords"])
-    const keywords = fulldNoteData["keywords"] ?
-        (fulldNoteData["keywords"].startsWith('[') ? JSON.parse(fulldNoteData["keywords"]) : fulldNoteData["keywords"].split(',')) :
-        []
-
-    console.log("note keywords", keywords)
-
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="glass border-white/10 text-white max-w-lg p-0 overflow-hidden gap-0">
@@ -72,21 +64,7 @@ export function NoteAcceptModal({
 
                         </div>
 
-                        <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                                <div className="flex items-center space-x-2 text-xs font-medium text-gray-400 uppercase tracking-wider">
-                                    <Tag className="w-3.5 h-3.5" />
-                                    <span>Keywords</span>
-                                </div>
-                            </div>
-                            <div className="flex flex-wrap gap-1.5 p-3 rounded-lg border border-white/10 bg-white/5">
-                                {keywords.map((keyword: string, index: number) => (
-                                    <Badge key={index} variant="secondary" className="text-[10px] bg-white/10 hover:bg-white/20 text-gray-300 border-0 font-normal">
-                                        {keyword}
-                                    </Badge>
-                                ))} 
-                            </div>
-                        </div>
+                       
                         <p className="text-xs text-gray-400 bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg flex items-center gap-2">
                             <Check className="w-3 h-3 text-blue-400" />
                             It will be added to your notes. Make sure to check for similar notes.

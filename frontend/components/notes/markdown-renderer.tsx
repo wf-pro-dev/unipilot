@@ -81,11 +81,15 @@ function CodeBlock({ className, children, inline, ...props }: any) {
     return <MermaidDiagram>{content}</MermaidDiagram>
   }
 
-  if (inline) {
+  // Check for inline code or "fake" blocks (single line, no language specified)
+  // This prevents short snippets like `catch` from breaking the flow when rendered as blocks
+  const isInline = inline || (!match && !content.includes('\n') && content.length < 80)
+
+  if (isInline) {
     return (
       <code 
         className={cn(
-          "bg-muted/50 border border-border px-1.5 py-0.5 rounded text-sm font-mono text-foreground/90", 
+          "bg-muted/30 px-1.5 py-0.5 rounded-md text-[0.9em] font-mono text-foreground font-medium", 
           className
         )} 
         {...props}

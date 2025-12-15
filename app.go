@@ -400,38 +400,23 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 		return fmt.Errorf("user not authenticated")
 	}
 
-	runtime.LogInfof(a.ctx, "Accepting note: %v \n ------------- \n", noteData.Content)
+	if noteData.Content == "" {
+		return fmt.Errorf("note data is missing")
+	}
 
 	// Create the note within the transaction
 	if err := tx.Create(noteData).Error; err != nil {
-		tx.Rollback()
 		return err
 	}
 
-	remoteNote := &note.Note{
-		Title:      noteData.Title,
-		Subject:    noteData.Subject,
-		CourseCode: noteData.CourseCode,
-		Keywords:   noteData.Keywords,
-		Content:    noteData.Content,
-		Videos:     noteData.Videos,
-	}
-
-	responseNote, err := client.CreateNote(remoteNote)
+	responseNote, err := client.CreateNote(noteData)
 	if err != nil {
 		tx.Rollback()
 		fmt.Println("Error creating remote note:", err)
 		return err
 	}
 
-	runtime.LogInfof(a.ctx, "Response keywords: %v", responseNote["keywords"])
-
-	isMissingData := noteData.RemoteID == 0 || noteData.Keywords == "" || noteData.Content == ""
-	isResponseNoteEmpty := responseNote == nil || responseNote["keywords"] == "" || responseNote["content"] == ""
-	if isMissingData && !isResponseNoteEmpty {
-		noteData.Keywords = responseNote["keywords"]
-		noteData.Content = responseNote["content"]
-	}
+	noteData.Content = responseNote["content"]
 
 	int_remote_id, err := strconv.Atoi(responseNote["id"])
 	if err != nil {
@@ -1296,9 +1281,10 @@ func (a *App) DeleteDocument(documentID uint) error {
 		}
 	}
 
-	db := a.DB.GetDB()
+	tx := a.DB.GetDB().Begin()
 	// Delete database record
-	if err := db.Delete(&doc).Error; err != nil {
+	if err := tx.Delete(&doc).Error; err != nil {
+		tx.Rollback()
 		return fmt.Errorf("failed to delete document record: %w", err)
 	}
 
@@ -1308,10 +1294,13 @@ func (a *App) DeleteDocument(documentID uint) error {
 	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
 
 		if err := client.DeleteDocument(documentID); err != nil {
+			tx.Rollback()
 			return fmt.Errorf("failed to delete document metadata: %w", err)
 		}
 
 	}
+
+	tx.Commit()
 
 	return nil
 }
@@ -1465,6 +1454,14 @@ func (a *App) Sync() error {
 
 	// Perform the sync
 	return sm.ProcessPendingSyncs()
+}
+
+func (a *App) GetAuthToken() (string, error) {
+	token, err := client.LoadToken()
+	if err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 // GetAssignment returns an assignment by ID
@@ -1987,13 +1984,12 @@ func (a *App) AcceptNote(noteData string) error {
 		return err
 	}
 
-	runtime.LogInfof(a.ctx, "Accepting note: %v \n ------------- \n", n.Content)
+	runtime.LogInfo(a.ctx, "Accepting note: %v \n ------------- \n")
 
 	localNote := note.LocalNote{
 		CourseCode: n.Course.Code,
 		Title:      n.Title,
 		Subject:    n.Subject,
-		Keywords:   n.Keywords,
 		Content:    n.Content,
 		Videos:     n.Videos,
 	}

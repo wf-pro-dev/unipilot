@@ -95,7 +95,7 @@ export function AddAssignmentDialog({ onAdd }: AddAssignmentDialogProps) {
       Type: null as any,
       Status: null as any,
       Documents: [] as any,
-    } as assignment.LocalAssignment)
+    } as assignment.LocalAssignment )
     setFormData({
       title: "",
       course_color: "",

@@ -214,7 +214,7 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={()=>handleDelete(doc.RemoteID)}
+              onClick={()=>handleDelete(doc.ID)}
               className="bg-red-600 hover:bg-red-700"
               disabled={isLoading}
             >

@@ -122,6 +122,8 @@ export function useCreateNote() {
   })
 }
 
+
+
 // Hook for deleting notes
 export function useDeleteNote() {
   const queryClient = useQueryClient()
@@ -194,7 +196,7 @@ export function useAcceptNote() {
 
 export function useCourseNotes(course: course.LocalCourse) {
   const { data: notes } = useNotes()
-  const courseNotes = (notes || []).filter(note => note.CourseCode == course.Code)
+  const courseNotes = (notes || []).filter(note => note.course_code == course.Code)
   return courseNotes
 }
 

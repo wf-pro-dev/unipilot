@@ -49,6 +49,8 @@ export function GetAssignmentDocuments(arg1:number):Promise<Array<document.Local
 
 export function GetAssignments():Promise<Array<assignment.LocalAssignment>>;
 
+export function GetAuthToken():Promise<string>;
+
 export function GetConversationHistory(arg1:number):Promise<Array<Record<string, any>>>;
 
 export function GetCourse(arg1:number):Promise<course.Course>;

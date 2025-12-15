@@ -3,7 +3,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { user } from "@/wailsjs/go/models"
-import { GetCurrentUser, Login, UploadProfilePicture, Register, Logout, UpdateUser, GetFileAsDataURL } from "@/wailsjs/go/main/App"
+import { 
+  GetCurrentUser, 
+  Login, 
+  UploadProfilePicture, 
+  Register, 
+  Logout, 
+  UpdateUser, 
+  GetFileAsDataURL,
+  GetAuthToken
+} from "@/wailsjs/go/main/App"
 import { useAuthContext } from '@/components/provider/auth-provider'
 
 // Query keys for auth
@@ -25,7 +34,16 @@ export function useCurrentUser() {
         return null
       }
     },
-    retry: false,
+    retry: false, // Don't retry if authentication fails ! IMPORTANT
+  })
+}
+
+export function useGetAuthToken() {
+  return useQuery({
+    queryKey: ['auth_token'],
+    queryFn: async () => {
+      return await GetAuthToken()
+    },
   })
 }
 

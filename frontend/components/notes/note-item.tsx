@@ -27,7 +27,7 @@ export function NoteItem({
 }: NoteItemProps) {
 
   const { data: courses } = useCourses()
-  const course = courses?.find(c => c.Code === note.CourseCode)
+  const course = courses?.find(c => c.Code === note.course_code)
 
   const handleCardClick = () => {
     if (onNoteClick && !disabled) {
@@ -42,13 +42,9 @@ export function NoteItem({
   }
 
   // Parse keywords if they're stored as JSON string
-  const keywords = note.Keywords ?
-    (note.Keywords.startsWith('[') ? JSON.parse(note.Keywords) : note.Keywords.split(',')) :
-    []
-
   // Parse videos if they're stored as JSON string
-  const videos = note.Videos ?
-    (note.Videos.startsWith('[') ? JSON.parse(note.Videos) : []) :
+  const videos = note.videos ?
+    (note.videos.startsWith('[') ? JSON.parse(note.videos) : []) :
     []
 
 
@@ -64,8 +60,8 @@ export function NoteItem({
             <div className="flex-1 space-y-3">
               <div className="flex gap-3 justify-between items-start">
                 <div className="space-y-1 flex-1 min-w-0">
-                  <h3 className="text-base font-semibold text-white line-clamp-1 tracking-tight">{note.Title}</h3>
-                  <p className="text-xs text-gray-400 line-clamp-1 font-medium">{note.Subject}</p>
+                  <h3 className="text-base font-semibold text-white line-clamp-1 tracking-tight">{note.title}</h3>
+                  <p className="text-xs text-gray-400 line-clamp-1 font-medium">{note.subject}</p>
                 </div>
                 <div className="flex items-center flex-shrink-0">
                   <DropdownMenu>
@@ -122,36 +118,6 @@ export function NoteItem({
                     <span className="mr-1" style={{ color: course?.Color || '#9ca3af' }}>●</span>
                     {course?.Code || 'No Course'} 
                   </Badge>
-                </div>
-
-
-                {/* Keywords */}
-
-                <div className="flex items-center space-x-2 line-clamp-1">
-                  <div className="p-1 bg-emerald-500/10 rounded-md border border-emerald-500/10">
-                    <Tag className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
-                  </div>
-                  {keywords.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {keywords.slice(0, 3).map((keyword: string, index: number) => (
-                        <Badge key={index} variant="secondary" className="text-[10px] border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 font-normal px-2 py-0.5">
-                          {keyword}
-                        </Badge>
-                      ))}
-                      {keywords.length > 3 && (
-                        <Badge variant="secondary" className="text-[10px] border-white/10 bg-white/5 text-gray-400 font-normal px-2 py-0.5">
-                          +{keywords.length - 3} more
-                        </Badge>
-                      )}
-                    </div>
-                  ) :
-                    <div className="flex items-center space-x-2">
-                      {Array.from({ length: 3 }).map((_, index) => (  
-                        <Skeleton key={index} className="h-4 w-16 bg-white/5 rounded-md" />
-                      ))}
-                    </div>
-                  }
-
                 </div>
 
 

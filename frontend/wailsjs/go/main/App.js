@@ -82,6 +82,10 @@ export function GetAssignments() {
   return window['go']['main']['App']['GetAssignments']();
 }
 
+export function GetAuthToken() {
+  return window['go']['main']['App']['GetAuthToken']();
+}
+
 export function GetConversationHistory(arg1) {
   return window['go']['main']['App']['GetConversationHistory'](arg1);
 }

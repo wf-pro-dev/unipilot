@@ -71,7 +71,7 @@ export function NoteDetailModal({
   const { data: notes } = useNotes()
   const note = notes?.find(n => n.ID === noteID)
 
-  const course = courses?.find(c => c.Code === note?.CourseCode)
+  const course = courses?.find(c => c.Code === note?.course_code)
 
   const handleDelete = () => {
     if (confirm("Are you sure you want to delete this note?")) {
@@ -81,14 +81,14 @@ export function NoteDetailModal({
   }
   
   const videos = useMemo(() => {
-    if (!note?.Videos) return []
+    if (!note?.videos) return []
     try {
-      return note.Videos.startsWith('[') ? JSON.parse(note.Videos) : []
+      return note.videos.startsWith('[') ? JSON.parse(note.videos) : []
     } catch (error) {
       console.error('Error parsing videos:', error)
       return []
     }
-  }, [note?.Videos])
+  }, [note?.videos])
 
   // Extract YouTube video ID from various URL formats
   const extractVideoId = (url: string): string | null => {
@@ -130,10 +130,6 @@ export function NoteDetailModal({
   if (!note) return null
 
   // Parse keywords if they're stored as JSON string
-  const keywords = note.Keywords ?
-    (note.Keywords.startsWith('[') ? JSON.parse(note.Keywords) : note.Keywords.split(',')) :
-    []
-
   return (
     <div>
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -158,14 +154,14 @@ export function NoteDetailModal({
                 }}
               >
                 <BookOpen className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">{note.Subject}</span>
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">{note.subject}</span>
               </motion.div>
               
               <motion.h2 
                 className="font-bold text-white leading-tight"
                 style={{ fontSize: titleSize }}
               >
-                {note.Title}
+                {note.title}
               </motion.h2>
             </div>
 
@@ -203,16 +199,7 @@ export function NoteDetailModal({
                       </div>
                     </div>
 
-                    {/* Keywords */}
-                    {keywords.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {keywords.map((keyword: string, index: number) => (
-                          <Badge key={index} variant="secondary" className="text-[10px] bg-white/5 hover:bg-white/10 text-gray-300 border-white/10 font-normal">
-                            {keyword}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
+                    
                  </div>
             </motion.div>
           </motion.div>
@@ -258,9 +245,9 @@ export function NoteDetailModal({
                   <TabsContent value="note" className="animate-in fade-in slide-in-from-bottom-4 duration-300 focus-visible:ring-0 focus-visible:outline-none mt-0">
                     <div className="space-y-4">
                       {/* Check if we have HTML content from the server */}
-                      {note.Content ? (
+                      {note.content ? (
                         <StyledMarkdownRenderer
-                          content={note.Content}
+                          content={note.content}
                           className="bg-white/5 rounded-xl p-6 border border-white/5 min-h-[300px]"
                         />
                       ) : (
