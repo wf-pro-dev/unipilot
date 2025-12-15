@@ -4,16 +4,18 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { BookOpen, Tag, Video, Calendar, User, X, List } from "lucide-react"
+import { BookOpen, Tag, Video, Calendar, User, X, List, FileText, ChevronLeft, ChevronRight } from "lucide-react"
 import { note } from "@/wailsjs/go/models"
 import { NoteVideo } from "./note-video"
-import { useMemo, useState } from "react"
+import { useMemo, useState, useRef } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
 import { useCourses } from "@/hooks/use-courses"
 import { useNotes } from "@/hooks/use-notes"
 import { AddVideosDialog } from "./add-videos-dialog"
 import { toast } from "sonner"
 import { StyledMarkdownRenderer } from "./markdown-renderer"
+import { cn } from "@/lib/utils"
+import { motion, useScroll, useTransform, AnimatePresence, useMotionValue } from "framer-motion"
 
 interface NoteDetailModalProps {
   noteID: number | null
@@ -34,11 +36,42 @@ export function NoteDetailModal({
   const [activeView, setActiveView] = useState("note")
   const { data: courses } = useCourses()
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
+  
+  const scrollRef = useRef<HTMLDivElement>(null)
+  // Using useScroll for cleaner Framer Motion integration
+  // We need to ensure the scrollRef is attached to the scrolling container
+  const { scrollY } = useScroll({ 
+    container: scrollRef
+  })
 
+  // Header Animations
+  const headerPadding = useTransform(scrollY, [0, 100], ["24px", "16px"])
+  const headerBackground = useTransform(
+    scrollY, 
+    [0, 50], 
+    ["rgba(0,0,0,0)", "rgba(0,0,0,0.2)"]
+  )
+  const headerBackdrop = useTransform(scrollY, [0, 50], ["blur(0px)", "blur(12px)"])
+  const headerBorderOpacity = useTransform(scrollY, [0, 50], [0, 0.1])
+  
+  const metadataOpacity = useTransform(scrollY, [0, 100], [1, 0])
+  const metadataHeight = useTransform(scrollY, [0, 100], ["auto", "0px"])
+  const metadataMargin = useTransform(scrollY, [0, 100], ["16px", "0px"])
+  
+  const titleSize = useTransform(scrollY, [0, 150], ["1.5rem", "1.25rem"]) // 2xl to xl
+
+  // Tabs Animations
+  // Padding around the tabs list: starts at 24px (p-6), goes to 0px (full width)
+  const tabsContainerPadding = useTransform(scrollY, [0, 100], ["24px", "0px"])
+  // Radius of the tabs list itself: starts at 12px (rounded-xl), goes to 0px
+  const tabsRadius = useTransform(scrollY, [0, 100], [12, 0])
+  const tabsBackdrop = useTransform(scrollY, [0, 50], ["blur(0px)", "blur(8px)"])
+  const tabsBackground = useTransform(scrollY, [0, 50], ["rgba(0,0,0,0.05)", "rgba(0,0,0,0.4)"])
+  
   const { data: notes } = useNotes()
   const note = notes?.find(n => n.ID === noteID)
 
-  const course = courses?.find(c => c.Code === note?.CourseCode)
+  const course = courses?.find(c => c.Code === note?.course_code)
 
   const handleDelete = () => {
     if (confirm("Are you sure you want to delete this note?")) {
@@ -48,14 +81,14 @@ export function NoteDetailModal({
   }
   
   const videos = useMemo(() => {
-    if (!note?.Videos) return []
+    if (!note?.videos) return []
     try {
-      return note.Videos.startsWith('[') ? JSON.parse(note.Videos) : []
+      return note.videos.startsWith('[') ? JSON.parse(note.videos) : []
     } catch (error) {
       console.error('Error parsing videos:', error)
       return []
     }
-  }, [note?.Videos])
+  }, [note?.videos])
 
   // Extract YouTube video ID from various URL formats
   const extractVideoId = (url: string): string | null => {
@@ -97,136 +130,156 @@ export function NoteDetailModal({
   if (!note) return null
 
   // Parse keywords if they're stored as JSON string
-  const keywords = note.Keywords ?
-    (note.Keywords.startsWith('[') ? JSON.parse(note.Keywords) : note.Keywords.split(',')) :
-    []
-
-
   return (
     <div>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto border-0 glass">
-          <DialogHeader className="space-y-4">
-
-            <div className="space-y-2">
-              <DialogTitle className="text-2xl font-bold text-white note-dialog-title">
-                {note.Title}
-              </DialogTitle>
-              <p className="text-gray-300 note-dialog-subtitle">{note.Subject}</p>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col glass border-white/10 p-0 overflow-hidden gap-0">
+          
+          {/* Animated Header */}
+          <motion.div 
+            className="border-b border-white/5 z-30 flex-shrink-0 relative"
+            style={{ 
+                padding: headerPadding,
+                backgroundColor: headerBackground,
+                backdropFilter: headerBackdrop,
+                borderColor: `rgba(255,255,255,${headerBorderOpacity})`
+            }}
+          >
+            <div className="space-y-1">
+              <motion.div 
+                className="flex items-center gap-2 overflow-hidden"
+                style={{ 
+                    opacity: metadataOpacity, 
+                    height: useTransform(scrollY, [0, 20], ["auto", "0px"]) 
+                }}
+              >
+                <BookOpen className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">{note.subject}</span>
+              </motion.div>
+              
+              <motion.h2 
+                className="font-bold text-white leading-tight"
+                style={{ fontSize: titleSize }}
+              >
+                {note.title}
+              </motion.h2>
             </div>
 
+            {/* Collapsible Metadata */}
+            <motion.div 
+                style={{ 
+                    opacity: metadataOpacity,
+                    height: metadataHeight,
+                    marginTop: metadataMargin
+                }}
+                className="overflow-hidden"
+            >
+                 <div className="space-y-4 pb-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      {/* Course Info */}
+                      {course && (
+                        <div className="flex items-center space-x-2 bg-white/5 p-2 rounded-lg border border-white/5 w-fit">
+                          <div className={`h-2 w-2 rounded-full ${course?.Color}`} />
+                          <span className="text-gray-300 font-medium text-xs">{course?.Code}</span>
+                        </div>
+                      )}
 
-            {/* Metadata */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              {/* Course Info */}
-              {course && (
-                <div className="flex items-center space-x-2">
-                  <BookOpen className="w-4 h-4 text-gray-400" />
-                  <Badge variant="outline" className="text-sm flex flex-row gap-2">
-                    <div className={`h-2 w-2  rounded-full ${course?.Color}`} />
-                    {course?.Code}
-                  </Badge>
-                </div>
-              )}
+                      {/* Timestamps */}
+                      <div className="flex items-center space-x-4 text-xs text-gray-400">
+                        <div className="flex items-center space-x-1.5">
+                          <Calendar className="w-3.5 h-3.5" />
+                          <span>Created {new Date(note.CreatedAt).toLocaleDateString()}</span>
+                        </div>
+                        {note.UpdatedAt && note.UpdatedAt !== note.CreatedAt && (
+                          <div className="flex items-center space-x-1.5">
+                            <span className="w-1 h-1 rounded-full bg-gray-600" />
+                            <span>Updated {new Date(note.UpdatedAt).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-              {/* Keywords */}
-              {keywords.length > 0 && (
-                <div className="flex items-center space-x-2">
-                  <Tag className="w-4 h-4 text-gray-400" />
-                  <div className="flex flex-wrap gap-1">
-                    {keywords.map((keyword: string, index: number) => (
-                      <Badge key={index} variant="secondary" className="text-xs">
-                        {keyword}
-                      </Badge>
-                    ))}
+                    
+                 </div>
+            </motion.div>
+          </motion.div>
+
+          <div 
+            className="flex-1 overflow-y-auto scroll-smooth"
+            ref={scrollRef}
+            onScroll={(e) => scrollY.set(e.currentTarget.scrollTop)}
+          >
+             <Tabs defaultValue="note" value={activeView} onValueChange={setActiveView} className="w-full flex flex-col min-h-full">
+                
+                {/* Sticky Tabs List Container */}
+                <motion.div 
+                    className="sticky top-0 z-20" 
+                    style={{ 
+                        padding: tabsContainerPadding,
+                        backdropFilter: tabsBackdrop,
+                        backgroundColor: tabsBackground
+                    }}
+                >
+                    <motion.div style={{ borderRadius: tabsRadius }} className="overflow-hidden">
+                        <TabsList className="flex flex-row bg-white/5 p-1 w-full border border-white/5 h-auto">
+                            <TabsTrigger 
+                              value="note" 
+                              className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+                            >
+                              <FileText className="w-4 h-4" />
+                              <span className="text-sm font-medium">Note Content</span>
+                            </TabsTrigger>
+                            <TabsTrigger 
+                              value="videos" 
+                              className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+                            >
+                              <Video className="w-4 h-4" />
+                              <span className="text-sm font-medium">Videos ({videos.length})</span>
+                            </TabsTrigger>
+                        </TabsList>
+                    </motion.div>
+                </motion.div>
+
+                {/* Content */}
+                <div className="p-6 pt-4 flex-1">
+                  <TabsContent value="note" className="animate-in fade-in slide-in-from-bottom-4 duration-300 focus-visible:ring-0 focus-visible:outline-none mt-0">
+                    <div className="space-y-4">
+                      {/* Check if we have HTML content from the server */}
+                      {note.content ? (
+                        <StyledMarkdownRenderer
+                          content={note.content}
+                          className="bg-white/5 rounded-xl p-6 border border-white/5 min-h-[300px]"
+                        />
+                      ) : (
+                        <div className="text-gray-400 text-center py-12 border border-dashed border-white/10 rounded-xl bg-white/5">
+                          <FileText className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                          <p>No content available</p>
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+
+                  <TabsContent value="videos" className="animate-in fade-in slide-in-from-bottom-4 duration-300 focus-visible:ring-0 focus-visible:outline-none mt-0">
+                    <NoteVideo
+                      videos={videos}
+                      note={note}
+                      onRemoveVideo={handleRemoveVideo}
+                      setIsAddDialogOpen={setIsAddDialogOpen}
+                    />
+                  </TabsContent>
+
+                  {/* Actions */}
+                  <div className="flex justify-end space-x-3 pt-6 mt-6 border-t border-white/5">
+                    <Button
+                      variant="destructive"
+                      onClick={handleDelete}
+                      className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 shadow-none"
+                    >
+                      Delete Note
+                    </Button>
                   </div>
                 </div>
-              )}
-
-              {/* Videos */}
-              { videos.length > 0 && (
-                <div className="flex items-center space-x-2">
-                  <Video className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-300">
-                    {videos.length} video{videos.length !== 1 ? 's' : ''} available
-                  </span>
-                </div>
-              )}
-
-              {/* Timestamps */}
-              <div className="flex items-center space-x-2">
-                <Calendar className="w-4 h-4 text-gray-400" />
-                <span className="text-gray-300">
-                  Created: {new Date(note.CreatedAt).toLocaleDateString()}
-                </span>
-              </div>
-
-              {note.UpdatedAt && note.UpdatedAt !== note.CreatedAt && (
-                <div className="flex items-center space-x-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
-                  <span className="text-gray-300">
-                    Updated: {new Date(note.UpdatedAt).toLocaleDateString()}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <Separator className="bg-gray-700" />
-          </DialogHeader>
-
-          <Tabs defaultValue="note" value={activeView} onValueChange={setActiveView} className="w-full">
-            <TabsList className="flex flex-row gap-2 mb-4">
-              <TabsTrigger value="note" className="glass border-gray-600  flex items-center space-x-2 py-2 px-4 rounded-full">
-                <Calendar className="w-4 h-4" />
-                <span>Note</span>
-              </TabsTrigger>
-              <TabsTrigger value="videos" className="glass border-gray-600 flex items-center space-x-2 py-2 px-4 rounded-full">
-                <List className="w-4 h-4" />
-                <span>Videos</span>
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Content */}
-
-            <TabsContent value="note">
-              <div className="space-y-4">
-                  <div className="space-y-2">
-                  {/* Check if we have HTML content from the server */}
-                  {note.Content ? (
-                    <StyledMarkdownRenderer
-                      content={note.Content}
-                      className="bg-gray-800/50 rounded-lg p-4"
-                    />
-                  ) : (
-                    <div className="text-gray-400 text-center py-8">
-                      No content available
-                    </div>
-                  )}
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="videos">
-              <NoteVideo
-                videos={videos}
-                note={note}
-                onRemoveVideo={handleRemoveVideo}
-                setIsAddDialogOpen={setIsAddDialogOpen}
-              />
-            </TabsContent>
-
-          </Tabs>
-
-          {/* Actions */}
-          <div className="flex justify-end space-x-2 pt-4 border-t border-gray-700">
-           
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Delete Note
-            </Button>
+             </Tabs>
           </div>
         </DialogContent>
       </Dialog>
@@ -239,4 +292,4 @@ export function NoteDetailModal({
       />
     </div>
   )
-} 
+}

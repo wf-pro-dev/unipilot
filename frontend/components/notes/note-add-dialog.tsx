@@ -12,6 +12,8 @@ import { Plus, BookOpen, FileText, Tag, Video } from "lucide-react"
 import { useCourses } from "@/hooks/use-courses"
 import { note } from "@/wailsjs/go/models"
 import { CoursesSelect } from "../courses/courses-select"
+import { useStreamNote } from "@/hooks/use-stream-notes"
+import { NoteStreamModal } from "./note-stream-modal"
 
 const subjects = [
     { value: "Mathematics", label: "Mathematics", color: "text-blue-400 border-blue-400" },
@@ -33,30 +35,69 @@ interface AddNoteDialogProps {
 
 export function AddNoteDialog({ onAdd }: AddNoteDialogProps) {
     const [open, setOpen] = useState(false)
+    const [showStreamModal, setShowStreamModal] = useState(false)
     const [formData, setFormData] = useState({
         title: "",
         subject: "",
         course_code: "",
     })
+    // Store note data separately so it persists after form reset
+    const [streamNoteData, setStreamNoteData] = useState<{
+        title: string
+        subject: string
+        course_code: string
+    } | null>(null)
 
     const { data: courses } = useCourses()
+    const { 
+        content, 
+        isStreaming, 
+        error, 
+        startStream, 
+        stopStream,
+        reset
+    } = useStreamNote()
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        
+        // Validate form
+        if (!formData.title || !formData.subject || !formData.course_code) {
+            return
+        }
+
+        // Store note data for stream modal
+        const noteData = {
+            title: formData.title,
+            subject: formData.subject,
+            course_code: formData.course_code,
+        }
+        console.log("note-add-dialog", noteData)
+        setStreamNoteData(noteData)
+
+        // Close form dialog
         setOpen(false)
 
-        onAdd({
-            Title: formData.title,
-            Subject: formData.subject,
-            CourseCode: formData.course_code,
+        // Reset streaming state and show stream modal
+        reset()
+        setShowStreamModal(true)
 
-            ID: 0,
-            CreatedAt: new Date(),
-            UpdatedAt: new Date(),
-            DeletedAt: null,
-            Course: null as any,
-        } as note.LocalNote)
+        // Start streaming
+        await startStream(noteData)
+    }
 
+    const handleCloseStreamModal = () => {
+        // Stop streaming if still active
+        if (isStreaming) {
+            stopStream()
+        }
+        // Reset state
+        reset()
+        // Close modal
+        setShowStreamModal(false)
+        // Clear stream note data
+        setStreamNoteData(null)
+        // Reset form
         setFormData({
             title: "",
             subject: "",
@@ -65,117 +106,106 @@ export function AddNoteDialog({ onAdd }: AddNoteDialogProps) {
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button className="text-white bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Note
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="glass border-0 text-white max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Add Note</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
+        <>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                    <Button className="text-white bg-green-600 hover:bg-green-500 shadow-[0_0_15px_rgba(22,163,74,0.3)] transition-all duration-300 border-0">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Note
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="glass border-white/10 text-white max-w-md p-0 overflow-hidden gap-0">
+                    <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
+                        <DialogTitle className="text-xl font-semibold">Add Note</DialogTitle>
+                    </DialogHeader>
+                    
+                    <div className="p-6">
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="subject" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
+                                        Subject
+                                    </Label>
+                                    <Select
+                                        value={formData.subject}
+                                        onValueChange={(value) => setFormData({ ...formData, subject: value })}
+                                    >
+                                        <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10">
+                                            <SelectValue placeholder="Select subject" />
+                                        </SelectTrigger>
+                                        <SelectContent className="glass border-white/10">
+                                            {subjects.map((subject) => (
+                                                <SelectItem key={subject.value} value={subject.value}>
+                                                    <span className="text-sm">{subject.label}</span>
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
 
+                                <div className="space-y-2">
+                                    <Label htmlFor="course" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
+                                        Course
+                                    </Label>
+                                    <CoursesSelect
+                                        value={formData.course_code}
+                                        onValueChange={(value) => setFormData({ 
+                                            ...formData, 
+                                            course_code: value,
+                                        })}
+                                    />
+                                </div>
+                            </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <Label htmlFor="subject" className="text-gray-300">
-                                Subject
-                            </Label>
-                            <Select
-                                value={formData.subject}
-                                onValueChange={(value) => setFormData({ ...formData, subject: value })}
-                            >
-                                <SelectTrigger className="bg-gray-800/50 border-gray-600">
-                                    <SelectValue placeholder="Select subject" />
-                                </SelectTrigger>
-                                <SelectContent className="glass border-gray-600">
-                                    {subjects.map((subject) => (
-                                        <SelectItem key={subject.value} value={subject.value}>
-                                            {subject.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="title" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
+                                    Note Title
+                                </Label>
+                                <Input
+                                    id="title"
+                                    value={formData.title}
+                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                    placeholder="Lecture 5: Introduction to React"
+                                    className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all h-10"
+                                    required
+                                />
+                            </div>
 
-
-                        <div>
-                            <Label htmlFor="course" className="text-gray-300">
-                                Course
-                            </Label>
-                            <CoursesSelect
-                                value={formData.course_code}
-                                onValueChange={(value) => setFormData({ 
-                                    ...formData, 
-                                    course_code: value,
-                                })}
-                            />
-                            {/* <Select
-                                value={formData.course_code}
-                                onValueChange={(value) => {
-                                    const course = courses?.find((course) => course.Code === value)
-                                    setFormData({
-                                        ...formData,
-                                        course_code: value,
-                                        course_name: course?.Name || "",
-                                        course_color: course?.Color || ""
-                                    })
-                                }}
-                            >
-                                <SelectTrigger className="bg-gray-800/50 border-gray-600">
-                                    <SelectValue placeholder="Select course" className="text-white" >
-                                        <div className="flex items-center gap-2">
-                                            <div className={`h-2 w-2 rounded-full ${formData.course_color}`} />
-                                            {formData.course_code}
-                                        </div>
-                                    </SelectValue>
-                                </SelectTrigger>
-                                <SelectContent className="glass border-gray-600">
-                                    {courses?.map((course) => (
-                                        <SelectItem key={course.Code} value={course.Code}>
-                                            <div className="flex items-center gap-2">
-                                                <div className={`h-2 w-2 rounded-full ${course.Color}`} />
-                                                {course.Code} - {course.Name}
-                                            </div>
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select> */}
-                        </div>
+                            <div className="flex justify-end space-x-3 pt-4 border-t border-white/5 mt-6">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setOpen(false)}
+                                    className="border-white/10 bg-transparent hover:bg-white/5 text-gray-300 hover:text-white"
+                                >
+                                    Cancel
+                                </Button>
+                                <Button 
+                                    type="submit"
+                                    className="bg-green-600 hover:bg-green-500 text-white px-6 shadow-[0_0_15px_rgba(22,163,74,0.2)]"
+                                >
+                                    Generate Note
+                                </Button>
+                            </div>
+                        </form>
                     </div>
+                </DialogContent>
+            </Dialog>
 
-                    <div>
-                        <Label htmlFor="title" className="text-gray-300">
-                            Note Title
-                        </Label>
-                        <Input
-                            id="title"
-                            value={formData.title}
-                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                            placeholder="Lecture 5: Introduction to React"
-                            className="bg-gray-800/50 border-gray-600"
-                            required
-                        />
-                    </div>
-
-
-
-                    <div className="flex justify-end space-x-2 pt-4">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setOpen(false)}
-                            className="border-gray-600 bg-transparent"
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="submit">Add Note</Button>
-                    </div>
-                </form>
-            </DialogContent>
-        </Dialog>
+            {/* Stream Modal - stays open after streaming completes */}
+            {showStreamModal && streamNoteData && (
+                <NoteStreamModal
+                    isOpen={showStreamModal}
+                    onClose={handleCloseStreamModal}
+                    onStop={stopStream}
+                    title={streamNoteData.title}
+                    subject={streamNoteData.subject}
+                    courseCode={streamNoteData.course_code}
+                    content={content}
+                    isStreaming={isStreaming}
+                    error={error}
+                />
+            )}
+        </>
     )
 }

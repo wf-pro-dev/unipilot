@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -399,38 +400,23 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 		return fmt.Errorf("user not authenticated")
 	}
 
-	runtime.LogInfof(a.ctx, "Accepting note: %v \n ------------- \n", noteData.Content)
+	if noteData.Content == "" {
+		return fmt.Errorf("note data is missing")
+	}
 
 	// Create the note within the transaction
 	if err := tx.Create(noteData).Error; err != nil {
-		tx.Rollback()
 		return err
 	}
 
-	remoteNote := &note.Note{
-		Title:      noteData.Title,
-		Subject:    noteData.Subject,
-		CourseCode: noteData.CourseCode,
-		Keywords:   noteData.Keywords,
-		Content:    noteData.Content,
-		Videos:     noteData.Videos,
-	}
-
-	responseNote, err := client.CreateNote(remoteNote)
+	responseNote, err := client.CreateNote(noteData)
 	if err != nil {
 		tx.Rollback()
 		fmt.Println("Error creating remote note:", err)
 		return err
 	}
 
-	runtime.LogInfof(a.ctx, "Response keywords: %v", responseNote["keywords"])
-
-	isMissingData := noteData.RemoteID == 0 || noteData.Keywords == "" || noteData.Content == ""
-	isResponseNoteEmpty := responseNote == nil || responseNote["keywords"] == "" || responseNote["content"] == ""
-	if isMissingData && !isResponseNoteEmpty {
-		noteData.Keywords = responseNote["keywords"]
-		noteData.Content = responseNote["content"]
-	}
+	noteData.Content = responseNote["content"]
 
 	int_remote_id, err := strconv.Atoi(responseNote["id"])
 	if err != nil {
@@ -532,6 +518,112 @@ func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documen
 
 }
 
+func (a *App) UploadProfilePicture() (string, error) {
+
+	userID := a.Auth.User.ID
+
+	runtime.LogInfof(a.ctx, "UploadProfilePicture: %v", userID)
+
+	if a.DB == nil {
+		return "", fmt.Errorf("database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return "", fmt.Errorf("user not authenticated")
+	}
+
+	// Open file dialog
+	filters := []runtime.FileFilter{
+
+		{
+			DisplayName: "Images",
+			Pattern:     "*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.svg",
+		},
+	}
+
+	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title:   "Select Document to Upload",
+		Filters: filters,
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("failed to open file dialog: %w", err)
+	}
+
+	if filePath == "" {
+		return "", fmt.Errorf("no file selected")
+	}
+
+	fileContent, err := os.Open(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to open file: %w", err)
+	}
+
+	// Copy the file to the user's profile picture directory
+	profilePicturePath, err := utils.GetProfilePicturePath()
+	if err != nil {
+		return "", fmt.Errorf("failed to get user directory: %w", err)
+	}
+	if err := fileops.WriteFile(profilePicturePath, fileContent); err != nil {
+		return "", fmt.Errorf("failed to move file to profile picture directory: %w", err)
+	}
+
+	a.Auth.User.Avatar = profilePicturePath
+	if err := utils.SetCredentials(a.Auth.User); err != nil {
+		return "", fmt.Errorf("failed to set user to storage: %w", err)
+	}
+
+	//Update the user's profile picture in the database
+	clientErr := client.UpdateProfilePicture(profilePicturePath)
+	if clientErr != nil {
+		return "", fmt.Errorf("failed to send profile picture: %w", clientErr)
+	}
+
+	return profilePicturePath, nil
+
+}
+
+// GetFileAsDataURL reads a local file and returns it as a data URL (base64 encoded)
+// This is needed because webviews block file:// URLs for security reasons
+func (a *App) GetFileAsDataURL(filePath string) (string, error) {
+	if filePath == "" {
+		return "", fmt.Errorf("file path is empty")
+	}
+
+	// Check if file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return "", fmt.Errorf("file not found: %s", filePath)
+	}
+
+	// Read file
+	fileData, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Detect MIME type based on file extension
+	mimeType := "image/png" // default
+	ext := strings.ToLower(filepath.Ext(filePath))
+	switch ext {
+	case ".jpg", ".jpeg":
+		mimeType = "image/jpeg"
+	case ".png":
+		mimeType = "image/png"
+	case ".gif":
+		mimeType = "image/gif"
+	case ".svg":
+		mimeType = "image/svg+xml"
+	case ".webp":
+		mimeType = "image/webp"
+	}
+
+	// Encode to base64
+	base64Data := base64.StdEncoding.EncodeToString(fileData)
+
+	// Return as data URL
+	return fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data), nil
+}
+
 func (a *App) CreateDocument(uploadReq fileops.FileUploadRequest, hasLocalFile bool) (*document.LocalDocument, error) {
 
 	runtime.LogInfof(a.ctx, "CreateDocument: %v", uploadReq.FileName)
@@ -571,16 +663,17 @@ func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse) (*document.Lo
 
 		runtime.LogInfof(a.ctx, "sending document to remote: %v", uploadResp.LocalDocument.ID)
 
-		storageKey, clientErr := client.SendDocument(uploadResp.LocalDocument)
+		serverResponse, clientErr := client.SendDocument(uploadResp.LocalDocument)
 		if clientErr != nil {
 			return nil, fmt.Errorf("failed to send document: %w", clientErr)
 		} else {
 			runtime.LogInfof(a.ctx, "remote upload response: %v", "success")
 		}
 
-		runtime.LogInfof(a.ctx, "remote upload response: %v", storageKey)
+		runtime.LogInfof(a.ctx, "remote upload response: %v", serverResponse.Success)
 
-		uploadResp.LocalDocument.StorageKey = storageKey
+		uploadResp.LocalDocument.StorageKey = serverResponse.Document.StorageKey
+		uploadResp.LocalDocument.RemoteID = serverResponse.Document.ID
 		if err := tx.Save(uploadResp.LocalDocument).Error; err != nil {
 			return nil, fmt.Errorf("failed to save document: %w", err)
 		}
@@ -645,6 +738,32 @@ func (a *App) UploadDocumentRAG(doc *document.LocalDocument) error {
 
 }
 
+func (a *App) DeleteDocumentRAG(assignmentID, documentID uint) error {
+
+	if a.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	if err := client.DeleteDocumentRAG(assignmentID, documentID); err != nil {
+		return fmt.Errorf("failed to delete document: %w", err)
+	}
+
+	return nil
+}
+
+func (a *App) GetAssignmentDocumentIDsRAG(assignmentID uint, documentIDs []uint) ([]uint, error) {
+	if a.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	docIds, err := client.GetAssignmentDocumentIDsRAG(assignmentID, documentIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get assignment document IDs: %w", err)
+	}
+
+	return docIds, nil
+}
+
 // ========================================
 // UPDATE OPERATIONS
 // ========================================
@@ -669,10 +788,9 @@ func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, colu
 	assignment_id := strconv.Itoa(assignment_id_int)
 
 	isOnline := network.IsOnline()
-	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var clientErr error
 	if isOnline {
-		clientErr = client.SendAssignmentUpdate(assignment_id, column, value)
+		clientErr = client.UpdateAssignment(assignment_id, column, value)
 	} else {
 		clientErr = fmt.Errorf("user is offline")
 	}
@@ -735,7 +853,7 @@ func (a *App) UpdateCourse(course *course.LocalCourse, column, value string) err
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var clientErr error
 	if isOnline {
-		clientErr = client.SendCourseUpdate(course_id, column, value)
+		clientErr = client.UpdateCourse(course_id, column, value)
 	} else {
 		clientErr = fmt.Errorf("user is offline")
 	}
@@ -785,7 +903,7 @@ func (a *App) UpdateNote(LocalNote *note.LocalNote, column, value string) error 
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var clientErr error
 	if isOnline {
-		clientErr = client.SendNoteUpdate(note_id, column, value)
+		clientErr = client.UpdateNote(note_id, column, value)
 	} else {
 		clientErr = fmt.Errorf("user is offline")
 	}
@@ -910,9 +1028,6 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 		}
 
 		api_url := secrets.CONSTANTS["API_URL"]
-		if err != nil {
-			return nil, fmt.Errorf("failed to get api url: %w", err)
-		}
 
 		go func() {
 			jsonData, _ := json.Marshal(metadataReq)
@@ -963,11 +1078,16 @@ func (a *App) UpdateUser(column, value string) (*user.User, error) {
 	// Set the user to the auth struct
 	a.Auth.User = currentUser
 
+	// Set the user to the storage
+	if err := utils.SetCredentials(currentUser); err != nil {
+		return nil, fmt.Errorf("failed to set user to storage: %w", err)
+	}
+
 	isOnline := network.IsOnline()
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var clientErr error
 	if isOnline {
-		clientErr = client.SendUserUpdate(column, value)
+		clientErr = client.UpdateUser(column, value)
 	} else {
 		clientErr = fmt.Errorf("user is offline")
 	}
@@ -1021,8 +1141,9 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 
 	// Delete all documents related to the assignment
 	for _, document := range documents {
-		if err := a.DeleteDocument(document.ID); err != nil {
-			return err
+		// Delete the document from the database
+		if err := db.Delete(document).Error; err != nil {
+			return fmt.Errorf("failed to delete document record: %w", err)
 		}
 	}
 
@@ -1032,13 +1153,11 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 
 	assignment_id_str := strconv.Itoa(int(assignment.ID))
 
-	deleted_at := time.Now().Format(time.RFC3339)
-
 	isOnline := network.IsOnline()
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var clientErr error
 	if isOnline {
-		clientErr = client.SendAssignmentUpdate(assignment_id_str, "deleted_at", deleted_at)
+		clientErr = client.DeleteAssignment(assignment_id_str)
 	} else {
 		clientErr = fmt.Errorf("user is offline")
 	}
@@ -1047,6 +1166,7 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 		sm := sync.NewSyncManager(db)
 		_, err := sm.GetSyncLog(models.EntityAssignment, assignment.ID, "create", "")
 		if err != nil {
+			deleted_at := time.Now().Format(time.RFC3339)
 			if syncErr := sm.CreateSyncLog(
 				models.EntityAssignment,
 				assignment.ID,
@@ -1086,7 +1206,7 @@ func (a *App) DeleteCourse(course *course.LocalCourse) error {
 
 	// Delete all assignments related to the course
 	for _, assignment := range assignments {
-		if err := a.DeleteAssignment(&assignment); err != nil {
+		if err := db.Delete(&assignment).Error; err != nil {
 			return err
 		}
 	}
@@ -1103,7 +1223,7 @@ func (a *App) DeleteCourse(course *course.LocalCourse) error {
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var clientErr error
 	if isOnline {
-		clientErr = client.SendCourseUpdate(course_id_str, "deleted_at", deleted_at)
+		clientErr = client.DeleteCourse(course_id_str)
 	} else {
 		clientErr = fmt.Errorf("user is offline")
 	}
@@ -1161,9 +1281,10 @@ func (a *App) DeleteDocument(documentID uint) error {
 		}
 	}
 
-	db := a.DB.GetDB()
+	tx := a.DB.GetDB().Begin()
 	// Delete database record
-	if err := db.Delete(&doc).Error; err != nil {
+	if err := tx.Delete(&doc).Error; err != nil {
+		tx.Rollback()
 		return fmt.Errorf("failed to delete document record: %w", err)
 	}
 
@@ -1173,10 +1294,13 @@ func (a *App) DeleteDocument(documentID uint) error {
 	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
 
 		if err := client.DeleteDocument(documentID); err != nil {
+			tx.Rollback()
 			return fmt.Errorf("failed to delete document metadata: %w", err)
 		}
 
 	}
+
+	tx.Commit()
 
 	return nil
 }
@@ -1200,7 +1324,7 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 	runtime.LogInfof(a.ctx, "isOnline : %v", isOnline)
 	var clientErr error
 	if isOnline {
-		clientErr = client.SendNoteUpdate(note_id_str, "deleted_at", deleted_at)
+		clientErr = client.UpdateNote(note_id_str, "deleted_at", deleted_at)
 	} else {
 		clientErr = fmt.Errorf("user is offline")
 	}
@@ -1330,6 +1454,14 @@ func (a *App) Sync() error {
 
 	// Perform the sync
 	return sm.ProcessPendingSyncs()
+}
+
+func (a *App) GetAuthToken() (string, error) {
+	token, err := client.LoadToken()
+	if err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 // GetAssignment returns an assignment by ID
@@ -1717,8 +1849,8 @@ func (a *App) RebuildNotificationDaemon() error {
 }
 
 // LinkCourse links a course to a list of users
-func (a *App) RequestLinkCourse(courseCode string, usersID []uint) error {
-	return client.RequestLinkCourse(courseCode, usersID)
+func (a *App) RequestLinkCourse(c *course.LocalCourse, usersID []uint) error {
+	return client.RequestLinkCourse(c, usersID)
 }
 
 func (a *App) AcceptLink(courseData string) error {
@@ -1852,13 +1984,12 @@ func (a *App) AcceptNote(noteData string) error {
 		return err
 	}
 
-	runtime.LogInfof(a.ctx, "Accepting note: %v \n ------------- \n", n.Content)
+	runtime.LogInfo(a.ctx, "Accepting note: %v \n ------------- \n")
 
 	localNote := note.LocalNote{
 		CourseCode: n.Course.Code,
 		Title:      n.Title,
 		Subject:    n.Subject,
-		Keywords:   n.Keywords,
 		Content:    n.Content,
 		Videos:     n.Videos,
 	}

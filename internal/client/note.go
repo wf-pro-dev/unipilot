@@ -1,49 +1,70 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"log"
-	"net/http"
-	"time"
 	"unipilot/internal/models/note"
 	"unipilot/internal/secrets"
+
+	"github.com/gofiber/fiber/v2"
 )
 
-func CreateNote(n *note.Note) (map[string]string, error) {
-
-	noteData := n.ToMap()
-
-	new_client, err := NewAuthClient()
-	if err != nil {
-		return nil, err
+func GetNotes() ([]map[string]string, error) {
+	var response struct {
+		Message string              `json:"message"`
+		Notes   []map[string]string `json:"notes"`
+		Error   string              `json:"error,omitempty"`
 	}
-	new_client.Timeout = 2 * time.Minute
-
-	jsonData, _ := json.Marshal(noteData)
 
 	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Get(fmt.Sprintf("%s/notes", api_url))
 
-	resp, err := new_client.Post(
-		fmt.Sprintf("%s/note", api_url),
-		"application/json",
-		bytes.NewBuffer(jsonData),
-	)
-
-	if err != nil {
+	if err := setAuthHeader(agent); err != nil {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
 
-	log.Printf("Response status code: %d\n", resp.StatusCode)
+	if statusCode != 200 {
+		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
+	}
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if response.Error != "" {
+		return nil, errors.New(response.Error)
+	}
+
+	if response.Notes == nil {
+		return make([]map[string]string, 0), nil
+	}
+
+	return response.Notes, nil
+}
+
+func CreateNote(n *note.LocalNote) (map[string]string, error) {
+
+	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Post(fmt.Sprintf("%s/notes", api_url))
+	agent.JSON(n)
+
+	if err := setAuthHeader(agent); err != nil {
+		return nil, err
+	}
+
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
+
+	if statusCode != 200 {
+		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
 	}
 
 	var response struct {
@@ -52,7 +73,7 @@ func CreateNote(n *note.Note) (map[string]string, error) {
 		Error   string            `json:"error,omitempty"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -60,46 +81,56 @@ func CreateNote(n *note.Note) (map[string]string, error) {
 		return nil, errors.New(response.Error)
 	}
 
-	if response.Note == nil {
-		return nil, fmt.Errorf("no note data in response")
+	if response.Note == nil || response.Note["content"] == "" {
+		return nil, fmt.Errorf("Invalid note data in response")
 	}
 
 	return response.Note, nil
 }
 
-func SendNoteUpdate(id, column, value string) error {
-
-	new_client, err := NewAuthClient()
-	if err != nil {
-
-		return err
-	}
+func UpdateNote(id, column, value string) error {
 
 	updateData := map[string]interface{}{
-		"id":     id,
 		"value":  value,
 		"column": column,
 	}
 
-	jsonData, _ := json.Marshal(updateData)
-
 	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Put(fmt.Sprintf("%s/notes/%s", api_url, id))
+	agent.JSON(updateData)
 
-	resp, err := new_client.Post(
-		fmt.Sprintf("%s/note/update", api_url),
-		"application/json",
-		bytes.NewBuffer(jsonData),
-	)
-
-	if err != nil {
+	if err := setAuthHeader(agent); err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	statusCode, _, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return errs[0]
+	}
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+	if statusCode != 200 {
+		return fmt.Errorf("server returned status %d", statusCode)
+	}
+
+	return nil
+}
+
+func DeleteNote(id string) error {
+
+	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Delete(fmt.Sprintf("%s/notes/%s", api_url, id))
+
+	if err := setAuthHeader(agent); err != nil {
+		return err
+	}
+
+	statusCode, _, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return errs[0]
+	}
+
+	if statusCode != 200 {
+		return fmt.Errorf("server returned status %d", statusCode)
 	}
 
 	return nil

@@ -26,87 +26,85 @@ export function UserDetailsModal({ isOpen, onClose, user }: UserDetailsModalProp
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="glass border-0 text-white max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
+      <DialogContent className="glass border-white/10 text-white max-w-2xl p-0 overflow-hidden gap-0">
+        <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
+          <DialogTitle className="flex items-center space-x-2 text-xl font-semibold">
             <User className="h-5 w-5 text-blue-400" />
             <span>User Profile</span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 mt-6">
+        <div className="p-6 space-y-6">
           {/* User Header */}
           <div className="flex items-start space-x-6">
-            <Avatar className="h-20 w-20">
+            <Avatar className="h-24 w-24 ring-4 ring-white/5 shadow-2xl">
               <AvatarImage src={user.avatar || "/placeholder.svg"} alt={user.name} />
-              <AvatarFallback className="text-lg">
+              <AvatarFallback className="text-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white">
                 {user.name
                   .split(" ")
                   .map((n: string) => n[0])
                   .join("")}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold text-white">{user.name}</h2>
-              <p className="text-lg text-blue-400 mb-2">{user.username}</p>
-              <div className="flex items-center space-x-3">
-                <Badge variant="outline" className="border-gray-600">
-                  <GraduationCap className="h-3 w-3 mr-1" />
+            <div className="flex-1 space-y-2 pt-1">
+              <div>
+                <h2 className="text-2xl font-bold text-white tracking-tight">{user.name}</h2>
+                <p className="text-base text-blue-400 font-medium">@{user.username}</p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline" className="border-white/10 bg-white/5 text-gray-300">
+                  <GraduationCap className="h-3 w-3 mr-1.5 text-purple-400" />
                   {user.year}
                 </Badge>
-                <Badge variant="outline" className="border-gray-600">
+                <Badge variant="outline" className="border-white/10 bg-white/5 text-gray-300">
                   {user.university}
                 </Badge>
               </div>
             </div>
           </div>
 
-          <Separator className="bg-gray-700" />
-
           {/* User Stats */}
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-blue-400">{user.followers}</div>
-              <div className="text-sm text-gray-400">Followers</div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center p-4 rounded-xl bg-white/5 border border-white/5">
+              <div className="text-2xl font-bold text-blue-400 mb-1">{user.followers}</div>
+              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider">Followers</div>
             </div>
-            <div>
-              <div className="text-2xl font-bold text-green-400">{user.following}</div>
-              <div className="text-sm text-gray-400">Following</div>
+            <div className="text-center p-4 rounded-xl bg-white/5 border border-white/5">
+              <div className="text-2xl font-bold text-green-400 mb-1">{user.following}</div>
+              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider">Following</div>
             </div>
-            <div>
-              <div className="text-2xl font-bold text-purple-400">{user.posts}</div>
-              <div className="text-sm text-gray-400">Posts</div>
+            <div className="text-center p-4 rounded-xl bg-white/5 border border-white/5">
+              <div className="text-2xl font-bold text-purple-400 mb-1">{user.posts}</div>
+              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider">Posts</div>
             </div>
           </div>
 
-          <Separator className="bg-gray-700" />
-
           {/* User Info */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-xl bg-white/5 border border-white/5">
             <div>
-              <label className="text-sm font-medium text-gray-400 block mb-2">Location</label>
+              <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-2">Location</label>
               <div className="flex items-center space-x-2 text-white">
                 <MapPin className="h-4 w-4 text-green-400" />
-                <span>{user.location}</span>
+                <span className="text-sm">{user.location}</span>
               </div>
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-400 block mb-2">Joined</label>
+              <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-2">Joined</label>
               <div className="flex items-center space-x-2 text-white">
                 <Calendar className="h-4 w-4 text-blue-400" />
-                <span>{formatDate(user.joinedDate)}</span>
+                <span className="text-sm">{formatDate(user.joinedDate)}</span>
               </div>
             </div>
           </div>
 
           {/* Courses */}
           <div>
-            <label className="text-sm font-medium text-gray-400 block mb-3">Current Courses</label>
+            <label className="text-xs font-medium text-gray-400 uppercase tracking-wider block mb-3">Current Courses</label>
             <div className="flex flex-wrap gap-2">
               {user.courses.map((course: string) => (
-                <Badge key={course} className="bg-blue-500/20 text-blue-400 border-blue-500/30">
-                  <BookOpen className="h-3 w-3 mr-1" />
+                <Badge key={course} className="bg-blue-500/10 text-blue-300 border-blue-500/20 px-3 py-1.5 hover:bg-blue-500/20 transition-colors">
+                  <BookOpen className="h-3.5 w-3.5 mr-1.5" />
                   {course}
                 </Badge>
               ))}
@@ -115,32 +113,29 @@ export function UserDetailsModal({ isOpen, onClose, user }: UserDetailsModalProp
 
           {/* Mutual Followers (if available) */}
           {user.mutualFollowers && (
-            <div>
-              <label className="text-sm font-medium text-gray-400 block mb-2">Mutual Connections</label>
-              <div className="flex items-center space-x-2 text-white">
-                <Users className="h-4 w-4 text-purple-400" />
-                <span>{user.mutualFollowers} mutual followers</span>
-              </div>
+            <div className="flex items-center space-x-2 text-sm text-gray-400 bg-white/5 p-3 rounded-lg border border-white/5 w-fit">
+              <Users className="h-4 w-4 text-purple-400" />
+              <span><span className="text-white font-medium">{user.mutualFollowers}</span> mutual connections</span>
             </div>
           )}
 
-          <Separator className="bg-gray-700" />
+          <div className="h-px bg-white/5 w-full" />
 
           {/* Actions */}
-          <div className="flex justify-between">
-            <div className="flex space-x-2">
-              <Button className="bg-blue-600 hover:bg-blue-700">
+          <div className="flex justify-between gap-3">
+            <div className="flex space-x-3 flex-1">
+              <Button className="bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.2)] border-0 flex-1">
                 <UserPlus className="h-4 w-4 mr-2" />
                 Follow
               </Button>
-              <Button variant="outline" className="border-gray-600 bg-transparent">
+              <Button variant="outline" className="border-white/10 bg-white/5 hover:bg-white/10 text-white flex-1">
                 <MessageCircle className="h-4 w-4 mr-2" />
                 Message
               </Button>
             </div>
-            <Button variant="outline" className="border-gray-600 bg-transparent">
+            <Button variant="outline" className="border-white/10 bg-white/5 hover:bg-white/10 text-white">
               <Mail className="h-4 w-4 mr-2" />
-              Send Email
+              Email
             </Button>
           </div>
         </div>

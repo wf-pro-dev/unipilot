@@ -228,6 +228,7 @@ export namespace document {
 	    UpdatedAt: any;
 	    // Go type: gorm
 	    DeletedAt: any;
+	    RemoteID: number;
 	    RemoteAssignmentID: number;
 	    AssignmentID: number;
 	    UserID: number;
@@ -254,6 +255,7 @@ export namespace document {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.RemoteID = source["RemoteID"];
 	        this.RemoteAssignmentID = source["RemoteAssignmentID"];
 	        this.AssignmentID = source["AssignmentID"];
 	        this.UserID = source["UserID"];
@@ -482,13 +484,12 @@ export namespace note {
 	    UpdatedAt: any;
 	    // Go type: gorm
 	    DeletedAt: any;
-	    RemoteID: number;
-	    CourseCode: string;
-	    Title: string;
-	    Subject: string;
-	    Content: string;
-	    Keywords: string;
-	    Videos: string;
+	    remote_id: number;
+	    course_code: string;
+	    title: string;
+	    subject: string;
+	    content: string;
+	    videos: string;
 	    Course: course.LocalCourse;
 	
 	    static createFrom(source: any = {}) {
@@ -501,13 +502,12 @@ export namespace note {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
-	        this.RemoteID = source["RemoteID"];
-	        this.CourseCode = source["CourseCode"];
-	        this.Title = source["Title"];
-	        this.Subject = source["Subject"];
-	        this.Content = source["Content"];
-	        this.Keywords = source["Keywords"];
-	        this.Videos = source["Videos"];
+	        this.remote_id = source["remote_id"];
+	        this.course_code = source["course_code"];
+	        this.title = source["title"];
+	        this.subject = source["subject"];
+	        this.content = source["content"];
+	        this.videos = source["videos"];
 	        this.Course = this.convertValues(source["Course"], course.LocalCourse);
 	    }
 	

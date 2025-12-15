@@ -1,6 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { GlassCard } from "@/components/ui/glass-card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,7 +25,7 @@ import {
   X,
 } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
-import { useCurrentUser, useUpdateUser } from "@/hooks/use-auth"
+import { useCurrentUser, useGetAvatarUrl, useUpdateUser, useUploadProfilePicture } from "@/hooks/use-auth"
 import { useAssignments, useCompletedAssignments } from "@/hooks/use-assignments"
 import { useCourses, useDeleteCourse } from "@/hooks/use-courses"
 import { CourseItem } from "@/components/courses/course-item"
@@ -114,11 +115,13 @@ export default function ProfilePage() {
   const { data: courses } = useCourses()
   const { followers, following } = useAuthContext()
   const { mutate: updateUser } = useUpdateUser()
+  const { data: avatarUrl } = useGetAvatarUrl()
 
   const updateMutation = useUpdateCourse()
   const deleteMutation = useDeleteCourse()
+  const uploadProfilePictureMutation = useUploadProfilePicture()
 
-  const completionPercentage = ((completedAssignments || []).length / (assignments || []).length) * 100
+  const finalAvatarUrl = avatarUrl || "/placeholder.svg?height=40&width=40"
 
   const coursesPerPage = 4
   const coursePages = []
@@ -258,23 +261,23 @@ export default function ProfilePage() {
 
       <div className="max-w-6xl mx-auto relative z-10">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+          <h1 className="text-h1 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
             My Profile
           </h1>
-          <p className="text-gray-400 mt-2">Manage your account information and academic progress</p>
+          <p className="text-body-small text-gray-400 mt-3">Manage your account information and academic progress</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Profile Info */}
           <div className="lg:col-span-1 space-y-6">
             {/* Profile Card */}
-            <Card className="glass border-0">
+            <GlassCard className="border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300">
               <CardContent className="p-6">
-                <div className="flex flex-col items-center space-y-4">
+                <div className="flex flex-col items-center space-y-6">
                   <div className="relative">
-                    <Avatar className="h-24 w-24">
-                      <AvatarImage src={"/placeholder.svg"} alt={user?.Username} />
-                      <AvatarFallback className="text-lg">
+                    <Avatar className="h-28 w-28 border-2 border-white/10 shadow-lg shadow-black/20">
+                      <AvatarImage src={finalAvatarUrl} alt={user?.Username} />
+                      <AvatarFallback className="text-h3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 text-white">
                         {user?.Username
                           .split(" ")
                           .map((n) => n[0])
@@ -283,224 +286,237 @@ export default function ProfilePage() {
                     </Avatar>
                     <Button
                       size="sm"
-                      className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0"
+                      className="absolute -bottom-1 -right-1 h-9 w-9 rounded-full p-0 bg-white/10 border border-white/10 hover:bg-white/20 hover:border-white/20 transition-smooth"
                       disabled={!isEditing}
+                      onClick={() => uploadProfilePictureMutation.mutate()}
                     >
-                      <Camera className="h-4 w-4" />
+                      <Camera className="h-4 w-4 text-white" />
                     </Button>
                   </div>
 
-
-                  <div className="text-center">
-                    <h2 className="text-xl font-bold text-white">{user?.Username}</h2>
-                    <p className="text-blue-400">{user?.Email}</p>
+                  <div className="text-center space-y-1">
+                    <h2 className="text-h3 text-white font-semibold tracking-tight">{user?.Username}</h2>
+                    <p className="text-body-small text-blue-400">{user?.Email}</p>
                   </div>
 
-                  <Separator orientation="horizontal" className="w-20 bg-gray-600" />
+                  <Separator orientation="horizontal" className="w-20 bg-white/10" />
 
                   <div className="flex flex-row w-full justify-evenly text-center items-center">
-                    <div>
-                      <div className="text-xl font-bold text-white">{followers?.length}</div>
-                      <div className="text-xs text-gray-400">Followers</div>
+                    <div className="space-y-1">
+                      <div className="text-h4 text-white font-semibold">{followers?.length || 0}</div>
+                      <div className="text-caption text-gray-400 uppercase tracking-wider">Followers</div>
                     </div>
 
-                    <Separator orientation="vertical" className="h-10 bg-gray-600" />
+                    <Separator orientation="vertical" className="h-12 bg-white/10" />
 
-                    <div>
-                      <div className="text-xl font-bold text-white">{following?.length}</div>
-                      <div className="text-xs text-gray-400">Following</div>
+                    <div className="space-y-1">
+                      <div className="text-h4 text-white font-semibold">{following?.length || 0}</div>
+                      <div className="text-caption text-gray-400 uppercase tracking-wider">Following</div>
                     </div>
-
                   </div>
-
                 </div>
               </CardContent>
-            </Card>
+            </GlassCard>
 
             {/* Stats Card */}
-            <Card className="glass border-0">
-              <CardHeader>
+            <GlassCard className="border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300">
+              <CardHeader className="pb-4">
                 <CardTitle className="flex items-center space-x-2 text-white">
-                  <TrendingUp className="h-5 w-5 text-green-400" />
-                  <span>Academic Stats</span>
+                  <div className="p-1.5 rounded-lg bg-green-500/10 border border-green-500/20">
+                    <TrendingUp className="h-4 w-4 text-green-400" />
+                  </div>
+                  <span className="text-h4 font-semibold">Academic Stats</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-400">Assignments Completed</span>
-                    <span className="text-sm text-white">{completedAssignments?.length}/{assignments?.length || 1}</span>
+              <CardContent className="space-y-5">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-caption text-gray-400 uppercase tracking-wider font-medium">Assignments Completed</span>
+                    <span className="text-body-small text-white font-semibold">{completedAssignments?.length || 0}/{assignments?.length || 0}</span>
                   </div>
-                  <Progress value={(completedAssignments?.length / (assignments?.length || 0)) * 100} className="h-2" />
+                  <div className="space-y-1.5">
+                    <Progress 
+                      value={(completedAssignments?.length || 0) / ((assignments?.length || 0) || 1) * 100} 
+                      className="h-2 bg-white/10"
+                    />
+                    <div className="flex justify-end">
+                      <span className="text-caption text-gray-400 font-medium">
+                        {Math.round(((completedAssignments?.length || 0) / ((assignments?.length || 0) || 1)) * 100)}%
+                      </span>
+                    </div>
+                  </div>
                 </div>
-
-
               </CardContent>
-            </Card>
-
-
+            </GlassCard>
           </div>
 
           {/* Right Column - Details */}
           <div className="lg:col-span-2 space-y-6">
             {/* Personal Information */}
-            <Card className="glass border-0">
+            <GlassCard className="border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300">
               <form onSubmit={handleSubmit}>
-                <CardHeader>
+                <CardHeader className="pb-4">
                   <CardTitle className="flex items-center justify-between text-white">
                     <div className="flex items-center space-x-2">
-                      <User className="h-5 w-5 text-blue-400" />
-                      <span>Personal Information</span>
+                      <div className="p-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <User className="h-4 w-4 text-blue-400" />
+                      </div>
+                      <span className="text-h4 font-semibold">Personal Information</span>
                     </div>
                     <div>
                       {!isEditing ? (
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex-1 bg-transparent border-gray-600"
-                          onClick={() => setIsEditing(true)}>
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
+                          className="bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-gray-300 hover:text-white transition-smooth"
+                          onClick={() => setIsEditing(true)}
+                        >
+                          <Edit className="h-4 w-4 mr-1.5" />
+                          <span className="text-body-small">Edit</span>
                         </Button>
                       ) : (
                         <div className="flex items-center space-x-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            className="flex-1 text-red-400 bg-transparent border-red-600 hover:bg-red-600/10"
+                            className="text-red-400 bg-red-500/10 border-red-500/20 hover:bg-red-500/20 hover:border-red-500/30 transition-smooth"
                             onClick={handleCancel}
                           >
-                            <X className="h-4 w-4 mr-1" />
-                            Cancel
+                            <X className="h-4 w-4 mr-1.5" />
+                            <span className="text-body-small">Cancel</span>
                           </Button>
-                        <Button
-                          type="submit"
-                          variant="outline"
-                          size="sm"
-                          className="flex-1 text-blue-400 bg-transparent border-blue-600 hover:bg-blue-600/10"
-                        >
-                          <Save className="h-4 w-4 mr-1" />
-                          Save
-                        </Button>
+                          <Button
+                            type="submit"
+                            variant="outline"
+                            size="sm"
+                            className="text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/30 transition-smooth"
+                          >
+                            <Save className="h-4 w-4 mr-1.5" />
+                            <span className="text-body-small">Save</span>
+                          </Button>
                         </div>
                       )}
                     </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label htmlFor="email" className="text-sm font-medium text-gray-400 block mb-2">Email</label>
+                      <div className="space-y-2">
+                        <label htmlFor="email" className="text-caption text-gray-400 uppercase tracking-wider font-medium block">Email</label>
                         {isEditing ? (
                           <Input
                             id="email"
                             value={editedData?.Email}
                             placeholder={user?.Email}
                             onChange={(e) => setEditedData({ ...editedData, Email: e.target.value })}
-                            className="bg-gray-800/50 border-gray-600"
+                            className="bg-white/5 border-white/10 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 text-white placeholder:text-gray-500 transition-smooth"
                           />
                         ) : (
-                          <div className="flex items-center space-x-2 text-white">
-                            <Mail className="h-4 w-4 text-blue-400" />
-                            <span>{user?.Email}</span>
+                          <div className="flex items-center space-x-2.5 bg-white/5 border border-white/5 rounded-lg px-3 py-2.5">
+                            <Mail className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                            <span className="text-body text-white">{user?.Email}</span>
                           </div>
                         )}
                       </div>
 
-                      <div>
-                        <label className="text-sm font-medium text-gray-400 block mb-2">University</label>
+                      <div className="space-y-2">
+                        <label className="text-caption text-gray-400 uppercase tracking-wider font-medium block">University</label>
                         {!isEditing ? (
-                          <div className="text-white">{user?.University}</div>
+                          <div className="flex items-center space-x-2.5 bg-white/5 border border-white/5 rounded-lg px-3 py-2.5">
+                            <GraduationCap className="h-4 w-4 text-purple-400 flex-shrink-0" />
+                            <span className="text-body text-white">{user?.University}</span>
+                          </div>
                         ) : (
                           <Select value={editedData?.University} onValueChange={(value) => setEditedData({ ...editedData, University: value })}>
-                            <SelectTrigger className="bg-gray-800/50 border-gray-600">
+                            <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500/50 text-white transition-smooth">
                               <SelectValue placeholder={editedData?.University} />
                             </SelectTrigger>
-                            <SelectContent className="glass">
+                            <SelectContent className="glass border-white/10 bg-black/90 backdrop-blur-xl">
                               {universities.map((university) => (
-                                <SelectItem key={university} value={university}>{university}</SelectItem>
+                                <SelectItem key={university} value={university} className="text-white focus:bg-white/10">{university}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         )}
                       </div>
-
-
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-
-                      <div>
-                        <label className="text-sm font-medium text-gray-400 block mb-2">Joined</label>
-                        <div className="flex items-center space-x-2 text-white">
-                          <Calendar className="h-4 w-4 text-purple-400" />
-                          <span>{format(new Date(user?.CreatedAt || new Date()), "MMMM d, yyyy")}</span>
+                      <div className="space-y-2">
+                        <label className="text-caption text-gray-400 uppercase tracking-wider font-medium block">Joined</label>
+                        <div className="flex items-center space-x-2.5 bg-white/5 border border-white/5 rounded-lg px-3 py-2.5">
+                          <Calendar className="h-4 w-4 text-purple-400 flex-shrink-0" />
+                          <span className="text-body text-white">{format(new Date(user?.CreatedAt || new Date()), "MMMM d, yyyy")}</span>
                         </div>
                       </div>
 
-                      <div>
-                        <label className="text-sm font-medium text-gray-400 block mb-2">Semester</label>
+                      <div className="space-y-2">
+                        <label className="text-caption text-gray-400 uppercase tracking-wider font-medium block">Semester</label>
                         {!isEditing ? (
-                          <Badge variant="outline" className="px-2 py-1 bg-gray-800/50 border border-gray-600 rounded-full">
-                            <span className="text-xs text-white font-medium">{user?.Semester}</span>
+                          <Badge variant="outline" className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg">
+                            <span className="text-body-small text-white font-medium">{user?.Semester}</span>
                           </Badge>
                         ) : (
                           <Select value={editedData?.Semester} onValueChange={(value) => setEditedData({ ...editedData, Semester: value })}>
-                            <SelectTrigger className="bg-gray-800/50 border-gray-600">
+                            <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500/50 text-white transition-smooth">
                               <SelectValue placeholder={editedData?.Semester} />
                             </SelectTrigger>
-                            <SelectContent className="glass">
+                            <SelectContent className="glass border-white/10 bg-black/90 backdrop-blur-xl">
                               {semesters.map((semester) => (
-                                <SelectItem key={semester.value} value={semester.value}>{semester.name}</SelectItem>
+                                <SelectItem key={semester.value} value={semester.value} className="text-white focus:bg-white/10">{semester.name}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         )}
                       </div>
 
-                      <div>
-                        <label className="text-sm font-medium text-gray-400 block mb-2">Year</label>
+                      <div className="space-y-2">
+                        <label className="text-caption text-gray-400 uppercase tracking-wider font-medium block">Year</label>
                         {!isEditing ? (
-                          <Badge variant="outline" className=" px-2 py-1 bg-gray-800/50 border border-gray-600 rounded-full">
-                            <span className="text-xs text-white font-medium">{user?.Year}</span>
+                          <Badge variant="outline" className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg">
+                            <span className="text-body-small text-white font-medium">{user?.Year}</span>
                           </Badge>
                         ) : (
                           <Select value={editedData?.Year} onValueChange={(value) => setEditedData({ ...editedData, Year: value })}>
-                            <SelectTrigger className="bg-gray-800/50 border-gray-600">
+                            <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500/50 text-white transition-smooth">
                               <SelectValue placeholder={editedData?.Year} />
                             </SelectTrigger>
-                            <SelectContent className="glass">
+                            <SelectContent className="glass border-white/10 bg-black/90 backdrop-blur-xl">
                               {years.map((year) => (
-                                <SelectItem key={year} value={year}>{year}</SelectItem>
+                                <SelectItem key={year} value={year} className="text-white focus:bg-white/10">{year}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         )}
                       </div>
-
                     </div>
                   </div>
                 </CardContent>
               </form>
-            </Card>
+            </GlassCard>
 
             {/* Current Courses */}
-            <div className="space-y-2">
-              <Card className="flex items-center justify-between text-white p-4 border-0 glass">
-                <div className="flex items-center space-x-2">
-                  <BookOpen className="h-5 w-5 text-green-400" />
-                  <span>Courses</span>
-                </div>
-                <div className="flex items-center">
-                  {coursePages.length > 1 && (
-                    <Badge variant="outline" className="flex items-center p-2 bg-gray-800/50 border border-gray-600 rounded-full">
-                      <p className="text-sm text-muted-foreground">{selectedIndex + 1} / <span className="text-white">{coursePages.length}</span></p>
-                    </Badge>
-                  )}
-                </div>
-              </Card>
+            <div className="space-y-4">
+              <GlassCard className="border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="p-1.5 rounded-lg bg-green-500/10 border border-green-500/20">
+                        <BookOpen className="h-4 w-4 text-green-400" />
+                      </div>
+                      <span className="text-h4 font-semibold text-white">Courses</span>
+                    </div>
+                    <div className="flex items-center">
+                      {coursePages.length > 1 && (
+                        <Badge variant="outline" className="flex items-center px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg">
+                          <p className="text-body-small text-gray-400">{selectedIndex + 1} / <span className="text-white font-semibold">{coursePages.length}</span></p>
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </GlassCard>
 
               <div className="flex flex-col relative">
 
@@ -536,19 +552,19 @@ export default function ProfilePage() {
                     <Button
                       variant="outline"
                       size="icon"
-                      className="left-0 absolute rounded-full top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 h-8 w-8 bg-gray-800/50 border border-gray-600"
+                      className="left-0 absolute rounded-full top-1/2 -translate-y-1/2 -translate-x-1/2 z-10 h-9 w-9 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-smooth"
                       onClick={scrollPrev}
                     >
-                      <ChevronLeft className="h-4 w-4" />
+                      <ChevronLeft className="h-4 w-4 text-white" />
                     </Button>
 
                     <Button
                       variant="outline"
                       size="icon"
-                      className="right-0 absolute rounded-full top-1/2 -translate-y-1/2 translate-x-1/2 z-10 h-8 w-8 bg-gray-800/50 border border-gray-600"
+                      className="right-0 absolute rounded-full top-1/2 -translate-y-1/2 translate-x-1/2 z-10 h-9 w-9 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-smooth"
                       onClick={scrollNext}
                     >
-                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-4 w-4 text-white" />
                     </Button>
                   </>
                 )}
@@ -575,6 +591,7 @@ export default function ProfilePage() {
           onClose={() => setSelectedCourseId(null)}
           onEdit={handleEditCourse}
           onDelete={handleDeleteCourseClick}
+          onLinkRequest={() => {}}
         />
       </div>
     </div>

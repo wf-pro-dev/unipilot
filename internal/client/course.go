@@ -1,17 +1,14 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"log"
-	"net/http"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
-	"unipilot/internal/network"
 	"unipilot/internal/secrets"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func GetCourses() ([]map[string]string, error) {
@@ -22,47 +19,32 @@ func GetCourses() ([]map[string]string, error) {
 		Error   string              `json:"error,omitempty"`
 	}
 
-	isOnline := network.IsOnline()
+	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Get(fmt.Sprintf("%s/courses", api_url))
 
-	if isOnline {
+	if err := setAuthHeader(agent); err != nil {
+		return nil, err
+	}
 
-		client, err := NewAuthClient()
-		if err != nil {
-			return nil, err
-		}
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
 
-		api_url := secrets.CONSTANTS["API_URL"]
-		if err != nil {
-			return nil, fmt.Errorf("failed to get api url: %w", err)
-		}
+	if statusCode != 200 {
+		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
+	}
 
-		resp, err := client.Get(fmt.Sprintf("%s/course/get", api_url))
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
 
-		if err != nil {
-			return nil, err
-		}
+	if response.Error != "" {
+		return nil, errors.New(response.Error)
+	}
 
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return nil, fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
-		}
-
-		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-			return nil, fmt.Errorf("failed to decode response: %w", err)
-		}
-
-		if response.Error != "" {
-
-			return nil, errors.New(response.Error)
-
-		}
-
-		if response.Courses == nil {
-			return nil, errors.New("no assignment data in response")
-		}
-
+	if response.Courses == nil {
+		return nil, errors.New("no assignment data in response")
 	}
 
 	return response.Courses, nil
@@ -71,35 +53,24 @@ func GetCourses() ([]map[string]string, error) {
 func CreateCourse(c *course.Course) (map[string]interface{}, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-
 	courseData := c.ToMap()
-
-	new_client, err := NewAuthClient()
-	if err != nil {
-		return nil, err
-	}
-
-	jsonData, _ := json.Marshal(courseData)
 
 	fmt.Println("Creating course:", courseData["code"])
 
-	resp, err := new_client.Post(
-		fmt.Sprintf("%s/course", api_url),
-		"application/json",
-		bytes.NewBuffer(jsonData),
-	)
+	agent := fiber.Post(fmt.Sprintf("%s/courses", api_url))
+	agent.JSON(courseData)
 
-	if err != nil {
+	if err := setAuthHeader(agent); err != nil {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
 
-	log.Printf("Response status code: %d\n", resp.StatusCode)
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+	if statusCode != 200 {
+		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
 	}
 
 	var response struct {
@@ -108,7 +79,7 @@ func CreateCourse(c *course.Course) (map[string]interface{}, error) {
 		Error   string                 `json:"error,omitempty"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -123,75 +94,55 @@ func CreateCourse(c *course.Course) (map[string]interface{}, error) {
 	return response.Course, nil
 }
 
-func SendCourseUpdate(id, column, value string) error {
-
-	new_client, err := NewAuthClient()
-	if err != nil {
-
-		return err
-	}
+func UpdateCourse(id, column, value string) error {
 
 	updateData := map[string]interface{}{
-		"id":     id,
 		"value":  value,
 		"column": column,
 	}
 
-	jsonData, _ := json.Marshal(updateData)
-
 	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Put(fmt.Sprintf("%s/courses/%s", api_url, id))
+	agent.JSON(updateData)
 
-	resp, err := new_client.Post(
-		fmt.Sprintf("%s/course/update", api_url),
-		"application/json",
-		bytes.NewBuffer(jsonData),
-	)
-
-	if err != nil {
+	if err := setAuthHeader(agent); err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	statusCode, _, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return errs[0]
+	}
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+	if statusCode != 200 {
+		return fmt.Errorf("server returned status %d", statusCode)
 	}
 
 	return nil
 }
 
-func RequestLinkCourse(courseCode string, usersID []uint) error {
-
-	new_client, err := NewAuthClient()
-	if err != nil {
-		return err
-	}
+func RequestLinkCourse(c *course.LocalCourse, usersID []uint) error {
 
 	linkData := map[string]interface{}{
-		"course_code": courseCode,
+		"course_code": c.Code,
 		"users_id":    usersID,
 	}
 
-	jsonData, _ := json.Marshal(linkData)
-
 	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Post(fmt.Sprintf("%s/courses/%d/link-request", api_url, c.RemoteID))
+	agent.JSON(linkData)
 
-	resp, err := new_client.Post(
-		fmt.Sprintf("%s/course/link/request", api_url),
-		"application/json",
-		bytes.NewBuffer(jsonData),
-	)
-
-	if err != nil {
+	if err := setAuthHeader(agent); err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	statusCode, _, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return errs[0]
+	}
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+	if statusCode != 200 {
+		return fmt.Errorf("server returned status %d", statusCode)
 	}
 
 	return nil
@@ -204,36 +155,27 @@ type AcceptLinkCourseResponse struct {
 
 func AcceptLinkCourse(c *course.Course) (*AcceptLinkCourseResponse, error) {
 
-	new_client, err := NewAuthClient()
-	if err != nil {
-		return nil, err
-	}
-
-	jsonData, _ := json.Marshal(c)
-
 	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Post(fmt.Sprintf("%s/courses/%d/link-accept", api_url, c.ID))
+	agent.JSON(c)
 
-	// Get the  course assignments and documents
-	resp, err := new_client.Post(
-		fmt.Sprintf("%s/course/link/accept", api_url),
-		"application/json",
-		bytes.NewBuffer(jsonData),
-	)
-
-	if err != nil {
+	if err := setAuthHeader(agent); err != nil {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-	fmt.Println("Response status code:", resp.StatusCode)
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+	fmt.Println("Response status code:", statusCode)
+
+	if statusCode != 200 {
+		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
 	}
 
 	var response AcceptLinkCourseResponse
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -244,7 +186,26 @@ func AcceptLinkCourse(c *course.Course) (*AcceptLinkCourseResponse, error) {
 	if response.Assignments == nil {
 		return nil, errors.New("no assignments in response")
 	}
-	log.Println("Assignments:", response.Assignments)
-
 	return &response, nil
+}
+
+func DeleteCourse(id string) error {
+
+	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Delete(fmt.Sprintf("%s/courses/%s", api_url, id))
+
+	if err := setAuthHeader(agent); err != nil {
+		return err
+	}
+
+	statusCode, _, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return errs[0]
+	}
+
+	if statusCode != 200 {
+		return fmt.Errorf("server returned status %d", statusCode)
+	}
+
+	return nil
 }

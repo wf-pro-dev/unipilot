@@ -1,10 +1,10 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { Plus, Play, X, ExternalLink } from "lucide-react"
+import { Plus, Play, X, ExternalLink, AlertCircle } from "lucide-react"
 import { BrowserOpenURL } from "@/wailsjs/runtime/runtime"
 import { note } from "@/wailsjs/go/models"
 
@@ -17,13 +17,50 @@ interface NoteVideoProps {
 }
 
 export function NoteVideo({ videos, note, onRemoveVideo, setIsAddDialogOpen }: NoteVideoProps) {
+  const [embedErrors, setEmbedErrors] = useState<Set<string>>(new Set())
 
   const getYouTubeEmbedUrl = (videoId: string) => {
-    return `https://www.youtube.com/embed/${videoId}`
+    // Add enablejsapi=1 to allow postMessage communication for error detection
+    return `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=${window.location.origin}`
   }
 
   const getYouTubeWatchUrl = (videoId: string) => {
     return `https://www.youtube.com/watch?v=${videoId}`
+  }
+
+  // Listen for YouTube iframe API error messages
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      // YouTube sends error messages via postMessage
+      if (event.origin !== 'https://www.youtube.com') return
+
+      if (event.data && typeof event.data === 'string') {
+        try {
+          const data = JSON.parse(event.data)
+          // YouTube error 153 is reported in various ways
+          if (data.error === 153 || data.errorCode === 153 ||
+            (data.info && data.info.includes && data.info.includes('153'))) {
+            // Extract video ID from iframe source if possible
+            // This is a fallback - we'll also check via iframe load timeout
+          }
+        } catch {
+          // Not JSON, ignore
+        }
+      }
+    }
+
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [])
+
+  const handleVideoError = (videoId: string) => {
+    setEmbedErrors(prev => new Set(prev).add(videoId))
+  }
+
+  // Manual error reporting - users can click to report embedding issues
+  const handleReportError = (videoId: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    handleVideoError(videoId)
   }
 
   if (videos.length === 0) {
@@ -74,14 +111,59 @@ export function NoteVideo({ videos, note, onRemoveVideo, setIsAddDialogOpen }: N
             <CardContent className="p-4">
               <div className="space-y-3">
                 {/* Video thumbnail/embed */}
-                <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden">
-                  <iframe
-                    src={getYouTubeEmbedUrl(videoId)}
-                    title={`Video ${index + 1}`}
-                    className="w-full h-full"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
+                <div className="relative aspect-video bg-gray-900 rounded-lg overflow-hidden group">
+                  {embedErrors.has(videoId) ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center">
+                      <AlertCircle className="w-8 h-8 text-yellow-400 mb-2" />
+                      <p className="text-sm text-gray-300 mb-2">
+                        This video cannot be embedded
+                      </p>
+                      <p className="text-xs text-gray-400 mb-4">
+                        Error 153: Video player configuration error. The video may have embedding disabled or domain restrictions.
+                      </p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => BrowserOpenURL(getYouTubeWatchUrl(videoId))}
+                        className="text-blue-400 border-blue-400/30 hover:bg-blue-400/10"
+                      >
+                        <ExternalLink className="w-3 h-3 mr-2" />
+                        Watch on YouTube
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      {/* <iframe
+                        src={getYouTubeEmbedUrl(videoId)}
+                        title={`Video ${index + 1}`}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      /> */}
+                      <iframe
+                        width="100%"
+                        height="100%"
+                        src="https://www.youtube-nocookie.com/embed/Ilk7UXzV_Qc?si=6cOLhgdzVosGwCbw"
+                        title="YouTube video player"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allowfullscreen
+                      />
+                      {/* Manual error reporting button - appears on hover */}
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => handleReportError(videoId, e)}
+                          className="bg-black/50 hover:bg-black/70 text-yellow-400 text-xs h-6 px-2"
+                          title="Report embedding error (Error 153)"
+                        >
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          Report Error
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Video actions */}
@@ -114,7 +196,7 @@ export function NoteVideo({ videos, note, onRemoveVideo, setIsAddDialogOpen }: N
         ))}
       </div>
 
-       
+
     </div>
   )
 }

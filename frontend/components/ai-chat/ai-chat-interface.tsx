@@ -1,7 +1,7 @@
 'use client';
 
 import { useChat } from '@ai-sdk/react';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/button';
 import { ArrowUp, Bot, FileText, Send } from 'lucide-react';
 import { assignment } from '@/wailsjs/go/models';
@@ -12,7 +12,7 @@ import { useConversationHistory, useSaveUIMessage } from '@/hooks/use-aimessages
 import { UIMessage } from '@ai-sdk/react';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { StyledMarkdownRenderer } from '../notes/markdown-renderer';
-import { useRef } from 'react';
+import { GlassCard } from '../ui/glass-card';
 
 interface AIChatInterfaceProps {
   assignment: assignment.LocalAssignment;
@@ -24,12 +24,21 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
   const { mutate: saveUIMessage } = useSaveUIMessage();
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesStartRef = useRef<HTMLDivElement>(null)
+  const previousAssignmentIdRef = useRef<number | null>(null)
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    // Use requestAnimationFrame to ensure DOM is painted before scrolling
+    requestAnimationFrame(() => {
+      // Use a small timeout to ensure layout is stable
+  
+        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' })
+
+    })
   }
+  
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Cancel any ongoing smooth scrolls first
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
   // Convert conversation history to UIMessage format
   const initialMessages = useMemo(() => {
@@ -43,13 +52,12 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
     } as UIMessage));
   }, [conversationHistory]);
 
-  console.log('Initial messages for useChat:', initialMessages);
-
+  
   const { messages, sendMessage, setMessages } = useChat({
     // Start with empty array, we'll set messages after load
     messages: [],
     transport: new DefaultChatTransport({
-      api: 'https://wwwill.dedyn.io/unipilot/ai/v1',
+      api: 'https://wwwill.xyz/unipilot/ai/v1',
       prepareSendMessagesRequest: ({ id, messages, trigger, messageId }) => {
         return {
           headers: {
@@ -77,8 +85,30 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
   });
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    // Only scroll if messages exist and are rendered
+    if (messages.length > 0) {
+      // Delay scroll to ensure DOM is fully rendered
+      const timeoutId = setTimeout(() => {
+        scrollToBottom()
+      }, 50) // Small delay to let React finish rendering
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [messages.length]) // Only depend on length to avoid excessive calls
+
+
+  // Reset messages when assignment changes
+  useEffect(() => {
+    const assignmentChanged = previousAssignmentIdRef.current !== null && 
+                              previousAssignmentIdRef.current !== assignment.ID;
+    
+    if (assignmentChanged) {
+      console.log('Assignment changed, clearing messages');
+      setMessages([]);
+    }
+    
+    previousAssignmentIdRef.current = assignment.ID;
+  }, [assignment.ID, setMessages]);
 
   // Set messages once conversation history is loaded
   useEffect(() => {
@@ -86,15 +116,14 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
       console.log('Setting initial messages from conversation history');
       setMessages(initialMessages);
     }
-  }, [initialMessages, messages.length, setMessages]);
+  }, [initialMessages, messages.length, setMessages, scrollToBottom]);
 
 
   const isMessageValid = useMemo(() => {
     return input.trim().length > 0 && input.trim().length < 1000;
   }, [input]);
 
-  console.log('Current messages:', messages);
-  console.log('Conversation history:', conversationHistory);
+
 
   if (historyLoading) {
     return <div>Loading conversation history...</div>;
@@ -103,81 +132,107 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
   return (
     <div className="flex w-full h-full justify-center">
       {messages.length > 0 && (
-        <div className="flex flex-col max-w-2xl py-32 gap-12 ">
+        <div className="flex flex-col max-w-3xl pt-32 pb-60 gap-8 w-full">
           <div ref={messagesStartRef} />
           {messages.map(message => (
-            <div key={message.id} className="whitespace-pre-wrap w-full">
-
-              <div className="flex space-x-2 w-full">
-                <div className="mt-4">
+            <div key={message.id} className="w-full group animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className={`flex w-full gap-4 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div className="mt-1 flex-shrink-0">
                   {message.role === 'user' ? (
-                    <Avatar className="w-8 h-8">
+                    <Avatar className="w-8 h-8 ring-2 ring-primary/20 shadow-lg">
                       <AvatarImage src="/placeholder.svg?height=32&width=32" alt="User" />
-                      <AvatarFallback>{message.role === 'user' ? 'U' : 'A'}</AvatarFallback>
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">U</AvatarFallback>
                     </Avatar>
                   ) : (
-                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600  rounded-full items-center justify-center flex">
-                      <Bot className="w-4 h-4" />
+                    <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-xl items-center justify-center flex shadow-lg shadow-indigo-500/20">
+                      <Bot className="w-5 h-5 text-white" />
                     </div>
                   )}
                 </div>
-                <div className="flex flex-col gap-2 w-full">
-                  <span className="text-gray-300 text-xs">{message.role === 'user' ? 'User: ' : 'AI: '}</span>
+
+                <div className={`flex flex-col gap-2 min-w-0 w-full ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
+                  <div className={`flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <span className="text-caption font-medium text-foreground">{message.role === 'user' ? 'You' : 'Unipilot AI'}</span>
+                    <span className="text-caption text-muted-foreground">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+
                   {message.parts.map((part, i) => {
                     switch (part.type) {
                       case 'text':
                         switch (message.role) {
                           case 'user':
                             return (
-                              <div key={`${message.id}-${i}`} className="glass p-4 rounded-lg">
-                                <div>{part.text}</div>
-                              </div>
+                              <GlassCard key={`${message.id}-${i}`} className="bg-white/5 border-white/5 shadow-lg shadow-black/40 max-w-[80%] px-5 py-3.5 rounded-2xl rounded-tr-sm">
+                                <div className="text-body-small">{part.text}</div>
+                              </GlassCard>
                             );
                           case 'assistant':
                             return (
-                              <StyledMarkdownRenderer
-                                content={part.text}
-                              />
+                              <div key={`${message.id}-${i}`} className="p-4 my-2 max-w-full border-l-2 border-primary/40">
+                                <StyledMarkdownRenderer content={part.text} />
+                              </div>
                             );
                         }
                       case 'tool-getInformation':
                         return (
-                          <div key={`${message.id}-${i}`}>
-                            <StyledMarkdownRenderer content={part.output} />
+                          <div key={`${message.id}-${i}`} className="p-4 my-2 max-w-full border-l-2 border-primary/40">
+                            <StyledMarkdownRenderer content={(part as any).output} />
                           </div>
                         );
                       case 'step-start':
                         return
                       default:
-                        return <div key={`${message.id}-${i}`}>[Unsupported part type: {part.type}]</div>;
+                        return null;
                     }
                   })}
                 </div>
               </div>
-              <div ref={messagesEndRef} />
             </div>
           ))}
+          <div ref={messagesEndRef} />
         </div>
       )}
 
-      {/* Rest of your JSX remains the same */}
       {messages.length === 0 && !historyLoading && (
-        <div className="flex flex-col justify-self-center space-y-2 items-center min-h-[200px] justify-center">
-          <h1 className="text-3xl text-center font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">{assignment.Title}</h1>
-          <span className="text-gray-300">Ask me anything about your assignment</span>
-          <div className="flex items-center space-x-2">
-            <div className="flex items-center space-x-2 p-2 rounded-lg glass">
-              <div className={`w-1.5 h-1.5 rounded-full ${assignment.Course.Color}`} />
-              <p className="text-white text-xs">{assignment.Course.Code}</p>
+        <div className="flex flex-col justify-self-center space-y-8 items-center min-h-[200px] justify-center animate-fade max-w-2xl px-4">
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-2xl items-center justify-center flex shadow-2xl shadow-indigo-500/30 mx-auto mb-6">
+              <Bot className="w-8 h-8 text-white" />
             </div>
-            <div className="flex items-center p-2 rounded-lg glass">
-              <p className="text-white text-xs">{formatDeadline(assignment.Deadline)}</p>
+            <h1 className="text-h2 font-bold tracking-tight">{assignment.Title}</h1>
+            <p className="text-body text-muted-foreground max-w-md mx-auto">
+              I've analyzed your assignment materials. How can I help you get started?
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass border border-white/5">
+              <div className={`w-2 h-2 rounded-full ${assignment.Course.Color}`} />
+              <span className="text-caption font-medium">{assignment.Course.Code}</span>
             </div>
+            <div className="flex items-center px-3 py-1.5 rounded-full glass border border-white/5">
+              <span className="text-caption font-medium">{formatDeadline(assignment.Deadline)}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full mt-4">
+            {["Summarize key requirements", "Create an outline", "Explain grading criteria", "List important deadlines"].map((suggestion) => (
+              <button
+                key={suggestion}
+                onClick={() => {
+                  setInput(suggestion);
+                  // Optional: auto-send logic could go here
+                }}
+                className="glass p-4 rounded-xl text-left hover:bg-white/5 hover:scale-[1.02] transition-all border border-white/5 group"
+              >
+                <p className="text-body-small font-medium group-hover:text-primary transition-colors">{suggestion}</p>
+              </button>
+            ))}
           </div>
         </div>
       )}
 
-      <div className="fixed w-full h-screen">
+      <div className="fixed bottom-8 w-full px-4">
         <form
           onSubmit={e => {
             e.preventDefault();
@@ -194,49 +249,46 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
             setInput('');
           }}
         >
-          <div className="absolute bottom-0 left-1/2 w-full max-w-3xl -translate-x-1/2">
-            <div className="absolute -right-14 -top-14 p-4">
+          <div className="relative w-full max-w-3xl mx-auto">
+            <div className="absolute -right-16 bottom-0 pb-2">
               <Button
                 type="button"
-                className="aspect-square p-3 glass hover:bg-white/50 rounded-full items-center justify-center flex"
+                className="h-10 w-10 rounded-full glass border border-white/10 hover:bg-white/10 transition-smooth"
                 onClick={scrollToTop}
               >
-                <ArrowUp className="w-4 h-4 text-white" />
+                <ArrowUp className="w-4 h-4 text-muted-foreground" />
               </Button>
             </div>
 
-            <div className="flex flex-col border border-gray-600 rounded-3xl overflow-hidden">
+            <div className="flex flex-col rounded-3xl glass border border-white/10 shadow-2xl shadow-black/20 overflow-hidden backdrop-blur-xl">
               <TextareaAutosize
-                className="w-full p-4 glass min-h-6 focus:outline-none"
+                className="w-full p-4 bg-transparent text-body placeholder:text-muted-foreground focus:outline-none resize-none"
                 value={input}
-                placeholder="Say something..."
+                placeholder="Ask a question..."
                 onChange={e => setInput(e.currentTarget.value)}
                 required
                 minRows={1}
                 maxRows={10}
-                style={{
-                  resize: 'none',
-                  
-                }}
               />
-              <div className="flex py-2 px-4 items-center justify-between glass">
+              <div className="flex py-3 px-4 items-center justify-between border-t border-white/5 bg-white/5">
                 <div>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     size="icon"
-                    className="w-8 h-8 items-center justify-center flex bg-transparent border-blue-600 hover:bg-blue-600/10"
+                    className="w-8 h-8 hover:bg-white/10 text-muted-foreground hover:text-primary transition-smooth"
                   >
-                    <FileText className="h-4 w-4 text-blue-400" />
+                    <FileText className="h-4 w-4" />
                   </Button>
                 </div>
                 <div>
                   <Button
                     type="submit"
                     disabled={!isMessageValid}
-                    className="w-8 h-8 items-center justify-center flex bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 transition-all duration-300"
+                    size="icon"
+                    className="w-8 h-8 rounded-full bg-primary hover:bg-primary/90 transition-smooth disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <Send className="h-4 w-4" color="white" />
+                    <Send className="h-4 w-4 text-primary-foreground" />
                   </Button>
                 </div>
               </div>

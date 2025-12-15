@@ -124,7 +124,7 @@ func SyncAssignment(syncLog models.LocalUpdate, remoteAssignments []map[string]s
 				return fmt.Errorf("remote assignment ID is 0")
 			}
 
-			if err := client.SendAssignmentUpdate(remote_id, syncLog.Column, syncLog.Value); err != nil {
+			if err := client.UpdateAssignment(remote_id, syncLog.Column, syncLog.Value); err != nil {
 				return err
 			}
 
@@ -203,7 +203,7 @@ func SyncCourse(syncLog models.LocalUpdate, remoteCourses []map[string]string, d
 				return fmt.Errorf("remote course ID is 0")
 			}
 
-			if err := client.SendCourseUpdate(remote_id, syncLog.Column, syncLog.Value); err != nil {
+			if err := client.UpdateCourse(remote_id, syncLog.Column, syncLog.Value); err != nil {
 				return err
 			}
 
@@ -227,7 +227,7 @@ func SyncNote(syncLog models.LocalUpdate, remoteNote map[string]string, db *gorm
 
 		sync_id_int := int(syncLog.EntityID)
 		sync_id := strconv.Itoa(sync_id_int)
-		if err := client.SendNoteUpdate(sync_id, syncLog.Column, syncLog.Value); err != nil {
+		if err := client.UpdateNote(sync_id, syncLog.Column, syncLog.Value); err != nil {
 			return err
 		}
 
@@ -241,7 +241,7 @@ func SyncNote(syncLog models.LocalUpdate, remoteNote map[string]string, db *gorm
 
 func SyncUser(syncLog models.LocalUpdate) error {
 
-	return client.SendUserUpdate(syncLog.Column, syncLog.Value)
+	return client.UpdateUser(syncLog.Column, syncLog.Value)
 }
 
 func findRemoteEntity(remoteEntities []map[string]string, localEntityID uint) map[string]string {

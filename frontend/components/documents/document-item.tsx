@@ -117,103 +117,89 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
     <>
       <div
         className="
-          flex items-center justify-between 
-          bg-gray-800/50 
-          border border-gray-600 
-          p-2.5
-          rounded-lg 
+          grid grid-cols-[auto,1fr,auto] items-center gap-3
+          bg-white/5 
+          border border-white/5 
+          p-3
+          rounded-xl 
           text-white
-          hover:bg-accent/50 transition-colors"
+          hover:bg-white/10 transition-all duration-300 group relative"
       >
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          {/* File Icon */}
-          <div className="flex-shrink-0">
-            {getFileIcon(doc.FileName)}
+        {/* File Icon */}
+        <div className="flex-shrink-0 p-2.5 rounded-lg bg-white/5 border border-white/5">
+          {getFileIcon(doc.FileName)}
+        </div>
+
+        {/* File Info */}
+        <div className="min-w-0 flex flex-col gap-1.5">
+          <p className="text-sm font-medium truncate text-gray-200 group-hover:text-white transition-colors">
+            {doc.FileName}
+          </p>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            <Badge
+              variant="secondary"
+              className={`text-[10px] border-0 px-1.5 py-0 font-medium h-5 ${getDocumentTypeColor(doc.Type)}`}
+            >
+              {doc.Type === "support" ? "Support" : "Submission"}
+            </Badge>
+
+            <Badge variant="outline" className="text-[10px] border-white/10 bg-white/5 text-gray-400 px-1.5 py-0 h-5">
+              v{doc.Version}
+            </Badge>
+
+            <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{formatFileSize(doc.FileSize)}</span>
+            
+            <span className="text-[10px] text-gray-600 flex items-center gap-1 ml-auto sm:ml-0">
+              <Clock className="h-3 w-3" />
+              {format(new Date(doc.UpdatedAt), "MMM d")}
+            </span>
           </div>
-
-          {/* File Info */}
-          <div className="flex-1 min-w-0 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium truncate">
-                {doc.FileName}
-              </p>
-              <div className="flex items-center">
-                <DropdownMenu className="glass border-gray-600">
-                  <DropdownMenuTrigger asChild>
-                    <Button size="sm" variant="ghost" className="p-0" disabled={isLoading}>
-                      <MoreVertical className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {(doc.HasLocalFile) && (
-                      <>
-
-                        <DropdownMenuItem onClick={handleOpen} disabled={!doc.HasLocalFile}>
-                          <Eye className="h-4 w-4" />
-                          Open
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleSaveAs} disabled={!doc.HasLocalFile}>
-                          <Download className="h-4 w-4" />
-                          Save As...
-                        </DropdownMenuItem>
-                      </>
-                    )}
-
-                    {!doc.HasLocalFile && (
-                      <DropdownMenuItem onClick={handleDownload} disabled={doc.HasLocalFile}>
-                        <Download className="h-4 w-4" />
-                        Download
-                      </DropdownMenuItem>
-                    )}
-
-
-                    <DropdownMenuItem onClick={handleUploadNewVersion}>
-                      <Upload className="h-4 w-4" />
-                      Upload New Version
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => setDeleteDialogOpen(true)}
-                      className="text-red-600 hover:text-red-600"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </div>
-
-            <div className="flex gap-x-1.5 items-center">
-              <Badge
-                variant="secondary"
-                className={`text-xs ${getDocumentTypeColor(doc.Type)}`}
-              >
-                {doc.Type === "support" ? "Support" : "Submission"}
-              </Badge>
-
-
-              <Badge variant="outline" className="text-xs">
-                v{doc.Version}
-              </Badge>
-
-              <span className="text-xs">{formatFileSize(doc.FileSize)}</span>
-
-
-            </div>
-
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {format(new Date(doc.UpdatedAt), "MMM d, yyyy hh:mm a")}
-              </span>
-
-            </div>
-
-          </div>
-        </div >
+        </div>
 
         {/* Actions */}
+        <div className="flex items-center">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="ghost" className="p-0 h-8 w-8 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-colors" disabled={isLoading}>
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="glass border-white/10 bg-black/90 backdrop-blur-xl">
+              {(doc.HasLocalFile) && (
+                <>
+                  <DropdownMenuItem onClick={handleOpen} disabled={!doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
+                    <Eye className="h-4 w-4 mr-2" />
+                    Open
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSaveAs} disabled={!doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
+                    <Download className="h-4 w-4 mr-2" />
+                    Save As...
+                  </DropdownMenuItem>
+                </>
+              )}
 
+              {!doc.HasLocalFile && (
+                <DropdownMenuItem onClick={handleDownload} disabled={doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuItem onClick={handleUploadNewVersion} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
+                <Upload className="h-4 w-4 mr-2" />
+                Upload New Version
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setDeleteDialogOpen(true)}
+                className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div >
 
       {/* Delete Confirmation Dialog */}
