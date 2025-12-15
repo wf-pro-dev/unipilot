@@ -4,9 +4,10 @@
 package sse
 
 import (
-	"log"
+	"context"
 	"net"
 
+	"unipilot/internal/server"
 	serverSSE "unipilot/internal/server/sse"
 	"unipilot/internal/server/sse/grpc/notifications"
 
@@ -49,10 +50,14 @@ import (
 //   - Requires SSE server instance for notification forwarding
 func StartGRPCServer(sseServer *serverSSE.SSEServer) {
 	// Step 1: Create TCP listener on port 9000 for gRPC connections
-	lis, err := net.Listen("tcp", ":9000")
+	ctx := context.WithValue(context.Background(), "component", "grpc")
+	lis, err := net.Listen("tcp4", "0.0.0.0:9000")
 	if err != nil {
-		// Fatal error if cannot bind to port (conflict, permissions, etc.)
-		log.Fatalf("failed to listen on port 9000: %v", err)
+		server.LogFatal(ctx, "Failed to listen on port 9000", err,
+			"tags", []string{"system", "network", "high"},
+			"error_type", "network",
+		)
+		return
 	}
 
 	// Step 2: Create notification service instance with SSE server reference
@@ -67,12 +72,17 @@ func StartGRPCServer(sseServer *serverSSE.SSEServer) {
 	notifications.RegisterNotificationsServiceServer(grpcServer, &s)
 
 	// Step 5: Log server startup for monitoring and debugging
-	log.Println("GRPC server listening on :9000...")
+	server.LogDebug(ctx, "gRPC server starting", "port", 9000,
+		"tags", []string{"system", "network", "high"},
+	)
 
 	// Step 6: Start serving gRPC requests (blocking operation)
 	if err := grpcServer.Serve(lis); err != nil {
 		// Fatal error if server fails during operation
-		log.Fatalf("failed to serve on port 9000: %v", err)
+		server.LogFatal(ctx, "Failed to serve gRPC on port 9000", err,
+			"tags", []string{"system", "network", "high"},
+			"error_type", "network",
+		)
 	}
 
 }

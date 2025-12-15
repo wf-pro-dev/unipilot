@@ -26,6 +26,32 @@ import { toast } from "sonner"
 import { AssignmentEditDialog } from "@/components/assignments/assignment-edit-dialog"
 import { AssignmentView } from "@/components/assignments/assignment-view"
 
+/**
+ * Main assignments management page component.
+ * 
+ * Provides a comprehensive interface for viewing and managing assignments with
+ * multiple view modes: Today, Week, Overdue, Exam, Calendar, and List views.
+ * Supports full CRUD operations with optimistic updates, URL-based state
+ * management, and real-time filtering.
+ * 
+ * Features:
+ * - Tab-based navigation with URL synchronization
+ * - Assignment CRUD operations (Create, Read, Update, Delete)
+ * - Optimistic UI updates for immediate feedback
+ * - Multiple view modes with filtered assignment lists
+ * - Calendar view with drag-and-drop date changes
+ * - Modal dialogs for assignment details and editing
+ * - Deep linking support via URL query parameters
+ * 
+ * URL Query Parameters:
+ * - `view`: Active tab view ("today" | "week" | "overdue" | "exam" | "calendar" | "list")
+ * - `course`: Course filter value
+ * - `status`: Status filter value
+ * - `priority`: Priority filter value
+ * - `assignment`: Assignment ID for deep linking to details modal
+ * 
+ * @returns {JSX.Element} The assignments page with tab navigation and assignment management UI
+ */
 export default function AssignmentsPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -70,12 +96,28 @@ export default function AssignmentsPage() {
     }
   }, [currentAssignment, assignments])
 
+  /**
+   * Handles assignment card click to open details modal.
+   * 
+   * @param {assignment.LocalAssignment} assignment - The assignment that was clicked
+   */
   const handleAssignmentClick = (assignment: assignment.LocalAssignment) => {
     setSelectedAssignmentID(assignment.ID)
   }
 
   console.log("filter (page)", { courseFilter, statusFilter, priorityFilter })
 
+  /**
+   * Handles assignment field updates with optimistic UI updates.
+   * 
+   * Updates a specific field of an assignment and provides immediate UI feedback
+   * through optimistic updates. Logs the change and shows success/error toast notifications.
+   * 
+   * @param {assignment.LocalAssignment} assignment - The assignment to update
+   * @param {string} column - The field name to update (e.g., "status_name", "deadline")
+   * @param {string} value - The new value for the field
+   * @returns {Promise<void>}
+   */
   const handleEditAssignment = async (assignment: assignment.LocalAssignment, column: string, value: string) => {
     const message = "[Frontend] assignment " + assignment.ID + " remote_id " + assignment.RemoteID + " " + column + " changed to " + value
     LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
@@ -95,11 +137,26 @@ export default function AssignmentsPage() {
     })
   }
 
+  /**
+   * Toggles assignment completion status between "Done" and "Not started".
+   * 
+   * @param {assignment.LocalAssignment} assignment - The assignment to toggle
+   * @returns {Promise<void>}
+   */
   const handleToggleComplete = async (assignment: assignment.LocalAssignment) => {
     const newStatus = assignment.StatusName === "Done" ? "Not started" : "Done"
     handleEditAssignment(assignment, "status_name", newStatus)
   }
 
+  /**
+   * Handles assignment deletion with optimistic UI updates.
+   * 
+   * Deletes an assignment and provides immediate UI feedback. Logs the deletion
+   * and shows success/error toast notifications.
+   * 
+   * @param {assignment.LocalAssignment} assignment - The assignment to delete
+   * @returns {Promise<void>}
+   */
   const handleDeleteAssignment = async (assignment: assignment.LocalAssignment) => {
     const message = "[Frontend] assignment " + assignment.Title + " deleted"
     LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
@@ -114,6 +171,15 @@ export default function AssignmentsPage() {
   }
 
 
+  /**
+   * Handles assignment creation with optimistic UI updates.
+   * 
+   * Creates a new assignment and provides immediate UI feedback. Logs the creation
+   * and shows success/error toast notifications.
+   * 
+   * @param {assignment.LocalAssignment} assignment - The assignment to create
+   * @returns {Promise<void>}
+   */
   const handleAddAssignment = async (assignment: assignment.LocalAssignment) => {
     const message = "[Frontend] assignment " + assignment.Title + " added"
     LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
@@ -127,6 +193,16 @@ export default function AssignmentsPage() {
     })
   }
 
+  /**
+   * Handles moving an assignment to a new deadline date.
+   * 
+   * Updates the assignment's deadline if the new date differs from the current one.
+   * Used primarily in the calendar view for drag-and-drop operations.
+   * 
+   * @param {assignment.LocalAssignment} assignment - The assignment to move
+   * @param {Date} date - The new deadline date
+   * @returns {Promise<void>}
+   */
   const handleMoveAssignment = async (assignment: assignment.LocalAssignment, date: Date) => {
     const newDeadline = format(date, "yyyy-MM-dd HH:mm:ssxxx")
     if (!isSameDay(assignment.Deadline, date)) {
@@ -134,7 +210,14 @@ export default function AssignmentsPage() {
     }
   }
 
-  // Handle tab change and update URL
+  /**
+   * Handles tab change and synchronizes the active view with URL query parameters.
+   * 
+   * Updates the URL to reflect the selected tab view while preserving other
+   * query parameters (filters, assignment ID, etc.).
+   * 
+   * @param {string} value - The tab value to switch to ("today" | "week" | "overdue" | "exam" | "calendar" | "list")
+   */
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString())
     params.set("view", value)
@@ -175,39 +258,58 @@ export default function AssignmentsPage() {
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <h1 className="text-h1 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
               Assignments
             </h1>
-            <p className="text-gray-400 mt-2">Track and manage your coursework deadlines</p>
+            <p className="text-body-small text-gray-400 mt-3">Track and manage your coursework deadlines</p>
           </div>
           <AddAssignmentDialog onAdd={handleAddAssignment} />
         </div>
 
         <Tabs value={activeView} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="grid w-full grid-cols-6 glass border-0 mb-4">
-            <TabsTrigger value="today" className="flex items-center space-x-2 ">
+          
+          <TabsList className="h-full flex flex-row bg-white/5 p-1 rounded-xl w-full mb-6 border border-white/5">
+            <TabsTrigger 
+              value="today" 
+              className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+            >
               <Clock className="h-4 w-4" />
-              <span>Today ({todayAssignments?.length || 0})</span>
+              <span className="hidden sm:inline text-sm font-medium">Today ({todayAssignments?.length || 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="week" className="flex items-center space-x-2 ">
+            <TabsTrigger 
+              value="week" 
+              className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+            >
               <CalendarDays className="h-4 w-4" />
-              <span>This Week ({weekAssignments?.length || 0})</span>
+              <span className="hidden sm:inline text-sm font-medium">This Week ({weekAssignments?.length || 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="overdue" className="flex items-center space-x-2 ">
+            <TabsTrigger 
+              value="overdue" 
+              className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+            >
               <AlertTriangle className="h-4 w-4" />
-              <span>Overdue ({overdueAssignments?.length || 0})</span>
+              <span className="hidden sm:inline text-sm font-medium">Overdue ({overdueAssignments?.length || 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="exam" className="flex items-center space-x-2 ">
+            <TabsTrigger 
+              value="exam" 
+              className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+            >
               <CheckCircle2 className="h-4 w-4" />
-              <span>Exam ({examAssignments?.length || 0})</span>
+              <span className="hidden sm:inline text-sm font-medium">Exam ({examAssignments?.length || 0})</span>
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="flex items-center space-x-2 ">
+            <TabsTrigger 
+              value="calendar" 
+              className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+            >
               <Calendar className="h-4 w-4" />
-              <span>Calendar</span>
+              <span className="hidden sm:inline text-sm font-medium">Calendar</span>
             </TabsTrigger>
-            <TabsTrigger value="list" className="flex items-center space-x-2 ">
+            <TabsTrigger 
+              value="list" 
+              className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+            >
               <List className="h-4 w-4" />
-              <span>All ({assignments?.length || 0})</span>
+              <span className="hidden sm:inline text-sm font-medium">All ({assignments?.length || 0})</span>
             </TabsTrigger>
           </TabsList>
 

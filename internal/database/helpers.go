@@ -20,6 +20,18 @@ import (
 	"gorm.io/gorm"
 )
 
+// GetDB returns the database connection
+func (h *Database) GetDB() *gorm.DB {
+	return h.db
+}
+
+// GetUser retrieves a user by ID
+func (h *Database) GetUser(id uint) (*user.User, error) {
+	var u user.User
+	err := h.db.First(&u, id).Error
+	return &u, err
+}
+
 // GetAssignment retrieves an assignment by ID
 func (h *Database) GetAssignment(id uint) (*assignment.LocalAssignment, error) {
 	return assignment.Get_Local_Assignment_byId(id, h.db)
@@ -30,31 +42,6 @@ func (h *Database) GetAssignments() ([]assignment.LocalAssignment, error) {
 	var LocalAssignment []assignment.LocalAssignment
 	err := h.db.Preload("Course").Preload("Type").Preload("Status").Order("deadline DESC").Order("created_at DESC").Find(&LocalAssignment).Error
 	return LocalAssignment, err
-}
-
-// GetCourse retrieves a course by ID
-func (h *Database) GetCourse(id uint) (*course.Course, error) {
-	return course.Get_Course_byId(id, h.db)
-}
-
-// GetCourses retrieves all courses for a user
-func (h *Database) GetCourses() ([]course.LocalCourse, error) {
-	h.db = h.db.Debug()
-	var LocalCourse []course.LocalCourse
-	err := h.db.Order("start_date DESC").Find(&LocalCourse).Error
-	return LocalCourse, err
-}
-
-// GetUser retrieves a user by ID
-func (h *Database) GetUser(id uint) (*user.User, error) {
-	var u user.User
-	err := h.db.First(&u, id).Error
-	return &u, err
-}
-
-// GetDB returns the database connection
-func (h *Database) GetDB() *gorm.DB {
-	return h.db
 }
 
 // CreateAssignment creates a new assignment
@@ -71,6 +58,19 @@ func (h *Database) UpdateAssignment(LocalAssignment *assignment.LocalAssignment,
 // DeleteAssignment deletes an assignment
 func (h *Database) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 	return h.db.Delete(assignment).Error
+}
+
+// GetCourse retrieves a course by ID
+func (h *Database) GetCourse(id uint) (*course.Course, error) {
+	return course.Get_Course_byId(id, h.db)
+}
+
+// GetCourses retrieves all courses for a user
+func (h *Database) GetCourses() ([]course.LocalCourse, error) {
+	h.db = h.db.Debug()
+	var LocalCourse []course.LocalCourse
+	err := h.db.Order("start_date DESC").Find(&LocalCourse).Error
+	return LocalCourse, err
 }
 
 // CreateCourse creates a new course

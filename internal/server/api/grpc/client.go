@@ -31,9 +31,9 @@ func NewGRPCClient() *notifications.NotificationsServiceClient {
 	if err != nil {
 		log.Fatalf("did not send heartbeat: %v", err)
 	}
-	server.LogDebug(context.Background(), "Heartbeat response: ",
-		"response", message.Body,
-		"tags", []string{"GRPC", "HEARTBEAT"},
+	ctx := context.WithValue(context.Background(), "component", "grpc")
+	server.LogDebug(ctx, "Heartbeat response received", "message", message.Body,
+		"tags", []string{"system", "network", "low"},
 	)
 
 	return &c
@@ -44,12 +44,15 @@ func CloseGRPCClient() {
 	ctx := context.Background()
 	if conn != nil {
 		if err := conn.Close(); err != nil {
+			ctx = context.WithValue(ctx, "component", "grpc")
 			server.LogError(ctx, "Failed to close gRPC connection", err,
-				"tags", []string{"GRPC", "CLOSE"},
+				"tags", []string{"system", "network", "low"},
+				"error_type", "network",
 			)
 		}
 	}
-	server.LogDebug(ctx, "Closed gRPC connection",
-		"tags", []string{"GRPC", "CLOSE"},
+	ctx = context.WithValue(ctx, "component", "grpc")
+	server.LogDebug(ctx, "gRPC connection closed",
+		"tags", []string{"system", "network", "low"},
 	)
 }

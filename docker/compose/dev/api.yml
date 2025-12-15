@@ -1,0 +1,48 @@
+services:
+  api:
+    build:
+      context: /home/will/unipilot
+      dockerfile: docker/Dockerfile.api
+      tags:
+        - unipilot-api:${IMAGE_TAG:-latest}
+    networks:
+      - unipilot
+    ports:
+      - "3000:3000" # API
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - SESSION_KEY=${SESSION_KEY}
+      - NOTION_API_KEY=${NOTION_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}  
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL}
+      - AWS_REGION=${AWS_REGION}
+      - GRPC_SSE_ADDR=${GRPC_SSE_ADDR}
+      - REDIS_ADDR=${REDIS_ADDR}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - QDRANT_HOST=${QDRANT_HOST:-unipilot-qdrant}
+      - LOG_LEVEL=${LOG_LEVEL}
+    volumes:
+      - server_data:/app/data
+      - server_uploads:/app/uploads
+      - server_logs:/app/logs
+    restart: unless-stopped 
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  server_data:
+  server_uploads:
+  server_logs:
+
+networks:
+  unipilot:
+    external: true

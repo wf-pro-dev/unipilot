@@ -86,7 +86,7 @@ func WriteDocument(document *document.LocalDocument, fileContent io.Reader, db *
 	}
 
 	// Write file to disk
-	if err := writeFile(document.FilePath, fileContent); err != nil {
+	if err := WriteFile(document.FilePath, fileContent); err != nil {
 		// Clean up database record
 		db.Delete(&document)
 		return &FileUploadResponse{
@@ -189,7 +189,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 		}, err
 	}
 	defer fileContent.Close()
-	if err := writeFile(filePath, fileContent); err != nil {
+	if err := WriteFile(filePath, fileContent); err != nil {
 		db.Delete(&newVersion)
 		return &FileUploadResponse{
 			Success: false,
@@ -252,7 +252,7 @@ func DeleteDocument(docID uint, userID uint, db *gorm.DB) error {
 }
 
 // writeFile writes content to a file path
-func writeFile(filePath string, content io.Reader) error {
+func WriteFile(filePath string, content io.Reader) error {
 	// Create the file
 	file, err := os.Create(filePath)
 	if err != nil {

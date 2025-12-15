@@ -1,6 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { GlassCard } from "@/components/ui/glass-card"
 import { AssignmentItem } from "./assignment-item"
 import { CalendarDays, CheckCircle2, Loader2 } from "lucide-react"
 import { assignment } from "@/wailsjs/go/models"
@@ -40,15 +41,20 @@ export function AssignmentView({
 
   return (
     <div className="space-y-4">
-      <Card className="glass p-4 border-0">
-        <CardHeader className="p-0">
-          <CardTitle className="flex items-center space-x-2 text-white">
-            <CalendarDays className="h-5 w-5" />
-            <span className="text-lg font-medium">{title}</span>
-            {isLoading && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
-          </CardTitle>
-        </CardHeader>
-      </Card>
+      <GlassCard className="p-4 border-white/5 bg-white/5 flex items-center justify-between shadow-lg shadow-black/20 backdrop-blur-xl rounded-xl">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/10">
+            <CalendarDays className="h-5 w-5 text-blue-400" />
+          </div>
+          <h2 className="text-h3 text-white tracking-tight">{title}</h2>
+        </div>
+        {isLoading && (
+          <div className="flex items-center gap-2 text-gray-400 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+            <span className="text-[10px] uppercase tracking-wider font-medium">Syncing</span>
+          </div>
+        )}
+      </GlassCard>
 
 
       <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-4">

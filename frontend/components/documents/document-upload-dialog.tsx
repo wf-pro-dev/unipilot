@@ -84,38 +84,38 @@ export function DocumentUploadDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="glass border-0 text-white sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
+      <DialogContent className="glass border-white/10 text-white sm:max-w-md p-0 overflow-hidden gap-0">
+        <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
+          <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+            <Upload className="h-5 w-5 text-blue-400" />
             Upload Document
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="p-6 space-y-6">
           {/* Document Type Selection */}
           <div className="space-y-2">
-            <Label htmlFor="document-type">Document Type</Label>
+            <Label htmlFor="document-type" className="text-gray-400 text-xs font-medium uppercase tracking-wider">Document Type</Label>
             <Select
               value={selectedType}
               onValueChange={(value: "support" | "submission") => setSelectedType(value)}
               disabled={uploadDocument.isPending}
 
             >
-              <SelectTrigger className="bg-gray-800/50 border-gray-600">
+              <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="glass border-gray-600">
+              <SelectContent className="glass border-white/10">
                 <SelectItem value="support">
                   <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Support Document
+                    <FileText className="h-4 w-4 text-blue-400" />
+                    <span className="text-sm">Support Document</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="submission">
                   <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Submission
+                    <FileText className="h-4 w-4 text-green-400" />
+                    <span className="text-sm">Submission</span>
                   </div>
                 </SelectItem>
               </SelectContent>
@@ -123,7 +123,7 @@ export function DocumentUploadDialog({
           </div>
 
           {/* Type Description */}
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-gray-400 bg-white/5 p-3 rounded-lg border border-white/5">
             {selectedType === "support" ? (
               <p>Support documents are reference materials, instructions, or resources related to this assignment.</p>
             ) : (
@@ -132,15 +132,15 @@ export function DocumentUploadDialog({
           </div>
 
           {/* File Size Limits */}
-          <div className="bg-gray-800/50 border border-gray-600 p-3 rounded-lg">
-            <div className="flex items-start gap-2">
-              <Info className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+          <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg">
+            <div className="flex items-start gap-3">
+              <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
               <div className="space-y-1 text-xs">
-                <p className="font-medium">File Limits:</p>
-                <ul className="space-y-0.5 text-muted-foreground">
-                  <li>• Maximum file size: 50 MB</li>
-                  <li>• Maximum per assignment: 200 MB</li>
-                  <li>• Total storage limit: 2 GB</li>
+                <p className="font-medium text-blue-200">File Limits:</p>
+                <ul className="space-y-1 text-blue-200/70 list-disc pl-3">
+                  <li>Maximum file size: 50 MB</li>
+                  <li>Maximum per assignment: 200 MB</li>
+                  <li>Total storage limit: 2 GB</li>
                 </ul>
               </div>
             </div>
@@ -148,10 +148,10 @@ export function DocumentUploadDialog({
 
           {/* Supported Formats */}
           <div className="space-y-2">
-            <Label className="text-sm font-medium">Supported Formats</Label>
-            <div className="flex flex-wrap gap-1">
+            <Label className="text-gray-400 text-xs font-medium uppercase tracking-wider">Supported Formats</Label>
+            <div className="flex flex-wrap gap-1.5">
               {getSupportedFormats().map((format) => (
-                <Badge key={format} variant="secondary" className="text-xs">
+                <Badge key={format} variant="secondary" className="text-[10px] bg-white/5 hover:bg-white/10 text-gray-300 border-white/10 font-normal">
                   {format}
                 </Badge>
               ))}
@@ -160,15 +160,15 @@ export function DocumentUploadDialog({
 
           {/* Status Messages */}
           {error && (
-            <div className="flex items-center gap-2 p-3 rounded-lg border border-red-200 bg-red-50 text-red-700">
-              <AlertCircle className="h-4 w-4" />
+            <div className="flex items-center gap-2 p-3 rounded-lg border border-red-500/20 bg-red-500/10 text-red-200">
+              <AlertCircle className="h-4 w-4 text-red-400" />
               <p className="text-sm">{error}</p>
             </div>
           )}
 
           {success && (
-            <div className="flex items-center gap-2 p-3 rounded-lg border border-green-200 bg-green-50 text-green-700">
-              <CheckCircle2 className="h-4 w-4" />
+            <div className="flex items-center gap-2 p-3 rounded-lg border border-green-500/20 bg-green-500/10 text-green-200">
+              <CheckCircle2 className="h-4 w-4 text-green-400" />
               <p className="text-sm">{success}</p>
             </div>
           )}
@@ -176,20 +176,20 @@ export function DocumentUploadDialog({
           {/* Upload Progress */}
           {uploadDocument.isPending && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between text-xs text-gray-400">
                 <span>Uploading...</span>
                 <span>Please wait</span>
               </div>
-              <Progress value={undefined} className="h-2" />
+              <Progress value={undefined} className="h-1.5 bg-white/10" indicatorClassName="bg-blue-500" />
             </div>
           )}
         </div>
 
-        <DialogFooter className="grid grid-cols-2 gap-2">
+        <DialogFooter className="p-6 pt-0 grid grid-cols-2 gap-3">
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 text-red-400 bg-transparent border-red-600 hover:bg-red-600/10"
+            className="flex-1 border-white/10 bg-transparent hover:bg-white/5 text-gray-300 hover:text-white h-10"
             onClick={handleClose}
           >
             Cancel
@@ -197,7 +197,7 @@ export function DocumentUploadDialog({
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 bg-transparent border-gray-600"
+            className="flex-1 bg-blue-600 hover:bg-blue-500 text-white border-0 h-10 shadow-[0_0_15px_rgba(37,99,235,0.2)]"
             onClick={handleUpload}
             disabled={uploadDocument.isPending}
           >

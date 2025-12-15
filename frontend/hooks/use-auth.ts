@@ -3,6 +3,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { user } from "@/wailsjs/go/models"
+import { 
+  GetCurrentUser, 
+  Login, 
+  UploadProfilePicture, 
+  Register, 
+  Logout, 
+  UpdateUser, 
+  GetFileAsDataURL,
+  GetAuthToken
+} from "@/wailsjs/go/main/App"
+import { useAuthContext } from '@/components/provider/auth-provider'
 
 // Query keys for auth
 export const authKeys = {
@@ -17,13 +28,22 @@ export function useCurrentUser() {
     queryKey: authKeys.user,
     queryFn: async (): Promise<user.User | null> => {
       try {
-        return await window.go.main.App.GetCurrentUser()
+        return await GetCurrentUser()
       } catch (error) {
         LogError("Failed to check authentication: " + error)
         return null
       }
     },
-    retry: false,
+    retry: false, // Don't retry if authentication fails ! IMPORTANT
+  })
+}
+
+export function useGetAuthToken() {
+  return useQuery({
+    queryKey: ['auth_token'],
+    queryFn: async () => {
+      return await GetAuthToken()
+    },
   })
 }
 
@@ -33,7 +53,7 @@ export function useLogin() {
 
   return useMutation({
     mutationFn: async ({ username, password }: { username: string; password: string }) => {
-      return await window.go.main.App.Login(username, password)
+      return await Login(username, password)
     },
     onSuccess: (user) => {
       // Update the user cache
@@ -67,7 +87,7 @@ export function useRegister() {
       university: string
       language: string
     }) => {
-      return await window.go.main.App.Register(username, email, password, university, language)
+      return await Register(username, email, password, university, language)
     },
     onSuccess: (user) => {
       queryClient.setQueryData(authKeys.user, user)
@@ -84,7 +104,7 @@ export function useLogout() {
 
   return useMutation({
     mutationFn: async () => {
-      return await window.go.main.App.Logout()
+      return await Logout()
     },
     onSuccess: () => {
       // Clear all auth-related cache
@@ -103,10 +123,10 @@ export function useUpdateUser() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ column, key , value }: { column: string; key:string ;value: string }) => {
-      return await window.go.main.App.UpdateUser(column, value)
+    mutationFn: async ({ column, key, value }: { column: string; key: string; value: string }) => {
+      return await UpdateUser(column, value)
     },
-    onMutate: async ({ column, key, value, }: { column: string; key: string; value: string  }) => {
+    onMutate: async ({ column, key, value, }: { column: string; key: string; value: string }) => {
       await queryClient.cancelQueries({ queryKey: authKeys.user })
       const previousUser = queryClient.getQueryData<user.User>(authKeys.user)
       queryClient.setQueryData(authKeys.user, { ...previousUser, [key]: value })
@@ -121,4 +141,59 @@ export function useUpdateUser() {
   })
 }
 
+export function useUploadProfilePicture() {
+  const queryClient = useQueryClient()
 
+  return useMutation({
+    mutationFn: async () => {
+      return await UploadProfilePicture()
+    },
+    onSuccess: (data) => {
+      const previousUser = queryClient.getQueryData<user.User>(authKeys.user)
+      queryClient.setQueryData(authKeys.user, { ...previousUser, Avatar: data })
+      // Invalidate avatar queries to refetch with new path
+      queryClient.invalidateQueries({ queryKey: ['avatar'] })
+    },
+    onError: (error) => {
+      LogError("Failed to upload profile picture: " + error)
+      const previousUser = queryClient.getQueryData<user.User>(authKeys.user)
+      queryClient.setQueryData(authKeys.user, previousUser)
+    },
+  })
+}
+
+export function useGetAvatarUrl() {
+  const { user: currentUser } = useAuthContext()
+  return useQuery({
+    queryKey: ['avatar', currentUser?.Avatar],
+    queryFn: async () => {
+      if (!currentUser?.Avatar) return "/placeholder.svg?height=40&width=40"
+
+      // If it's already a URL (http/https/data), return as is
+      if (currentUser.Avatar.startsWith("http://") ||
+        currentUser.Avatar.startsWith("https://") ||
+        currentUser.Avatar.startsWith("data:")) {
+        return currentUser.Avatar
+      }
+
+      // If it's a local file path, convert to data URL
+      if (currentUser.Avatar.startsWith("/")) {
+        try {
+          return await GetFileAsDataURL(currentUser.Avatar)
+        } catch (error) {
+          console.error("Failed to load avatar:", error)
+          return "/placeholder.svg?height=40&width=40"
+        }
+      }
+
+      // Fallback: treat as relative path
+      return currentUser.Avatar
+    },
+    enabled: !!currentUser?.Avatar,
+    // Remove staleTime: Infinity so the query refetches when Avatar path changes
+    // The query key includes currentUser?.Avatar, so React Query will automatically
+    // refetch when the Avatar path changes
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+  })
+}

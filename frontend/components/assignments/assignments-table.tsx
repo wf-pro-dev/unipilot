@@ -1,6 +1,7 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { CardContent } from "@/components/ui/card"
+import { GlassCard } from "@/components/ui/glass-card"
 import { AssignmentItem } from "./assignment-item"
 import { List, X } from "lucide-react"
 import { assignment } from "@/wailsjs/go/models"
@@ -104,25 +105,21 @@ export function AssignmentsTable({
 
   return (
     <div className="space-y-4">
-      <Card className="glass border-0">
-        <CardContent className="p-6">
+      <GlassCard className="border-white/5 bg-white/5 backdrop-blur-xl shadow-lg shadow-black/20">
+        <CardContent className="p-5">
           <div className="space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-6">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search assignments by title or course..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-gray-800/50 border-gray-600"
-                  />
-                </div>
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search assignments..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-white/5 border-white/10    transition-all duration-300 h-10"
+                />
               </div>
 
-              <div className="flex items-center gap-4">
-
-
+              <div className="flex items-center gap-3">
 
                 <div className="w-36">
                   <CoursesSelect
@@ -135,13 +132,13 @@ export function AssignmentsTable({
 
 
                 <Select value={selectedStatus} onValueChange={onStatusChange}>
-                  <SelectTrigger className="w-36 bg-gray-800/50 border-gray-600">
+                  <SelectTrigger className="w-36 bg-white/5 border-white/10 h-10 focus:border-blue-500 focus:ring-blue-500/20">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="glass border-gray-600">
-                    <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectContent className="glass border-white/10 bg-black/90 backdrop-blur-xl">
+                    <SelectItem value="all" className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">All Statuses</SelectItem>
                     {statuses.map((status) => (
-                      <SelectItem key={status} value={status}>
+                      <SelectItem key={status} value={status} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
                         {status}
                       </SelectItem>
                     ))}
@@ -150,13 +147,13 @@ export function AssignmentsTable({
 
 
                 <Select value={selectedPriority} onValueChange={onPriorityChange}>
-                  <SelectTrigger className="w-36 bg-gray-800/50 border-gray-600">
+                  <SelectTrigger className="w-36 bg-white/5 border-white/10 h-10 focus:border-blue-500 focus:ring-blue-500/20">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="glass border-gray-600">
-                    <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectContent className="glass border-white/10 bg-black/90 backdrop-blur-xl">
+                    <SelectItem value="all" className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">All Priorities</SelectItem>
                     {priorities.map((priority) => (
-                      <SelectItem key={priority} value={priority}>
+                      <SelectItem key={priority} value={priority} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
                         {priority}
                       </SelectItem>
                     ))}
@@ -164,47 +161,61 @@ export function AssignmentsTable({
                 </Select>
               </div>
             </div>
+
             {hasActiveFilters && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Filter className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm text-gray-400">Active filters:</span>
+              <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+                  <div className="flex items-center text-xs font-medium text-gray-400 uppercase tracking-wider mr-2">
+                    <Filter className="h-3.5 w-3.5 mr-1.5" />
+                    Filters:
+                  </div>
                   {searchTerm && (
-                    <Badge variant="secondary" className="bg-blue-500/20 text-blue-400">
+                    <Badge variant="secondary" className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 font-medium">
                       Search: {searchTerm}
                     </Badge>
                   )}
                   {selectedCourse !== "all" && (
-                    <Badge variant="secondary" className="bg-green-500/20 text-green-400">
+                    <Badge variant="secondary" className="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 font-medium">
                       {selectedCourse}
                     </Badge>
                   )}
                   {selectedStatus !== "all" && (
-                    <Badge variant="secondary" className="bg-purple-500/20 text-purple-400">
+                    <Badge variant="secondary" className="text-[10px] bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 font-medium">
                       {selectedStatus}
                     </Badge>
                   )}
                   {selectedPriority !== "all" && (
-                    <Badge variant="secondary" className="bg-orange-500/20 text-orange-400">
+                    <Badge variant="secondary" className="text-[10px] bg-orange-500/10 text-orange-400 border border-orange-500/20 px-2 py-0.5 font-medium">
                       {selectedPriority}
                     </Badge>
                   )}
                 </div>
-                <Button variant="ghost" size="sm" onClick={clearFilters} className="text-gray-400 hover:text-white">
-                  <X className="h-4 w-4 mr-1" />
-                  Clear
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="text-gray-400 hover:text-white hover:bg-white/10 h-8 text-xs"
+                >
+                  <X className="h-3.5 w-3.5 mr-1.5" />
+                  Clear All
                 </Button>
               </div>
             )}
           </div>
         </CardContent>
-      </Card>
+      </GlassCard>
 
       {filteredAssignments.length === 0 ? (
-        <div className="flex items-center justify-center h-32 text-gray-400">
-          <div className="text-center">
-            <List className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>No assignments found</p>
+        <div className="flex items-center justify-center py-16 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
+          <div className="flex flex-col items-center">
+            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+              <List className="h-8 w-8 text-gray-500" />
+            </div>
+            <h3 className="text-lg font-medium text-white mb-1">No assignments found</h3>
+            <p className="text-gray-400 text-sm">Try adjusting your filters or search terms</p>
+            <Button variant="outline" onClick={clearFilters} className="mt-4 bg-white/5 border-white/10 hover:bg-white/10 text-white">
+              Clear Filters
+            </Button>
           </div>
         </div>
       ) : (

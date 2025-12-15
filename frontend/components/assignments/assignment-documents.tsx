@@ -10,15 +10,14 @@ import { DocumentStorageInfo } from "../documents/document-storage-info"
 import {
   FileText,
   Upload,
-  Folder,
-  FileCheck,
-  Send,
   ChevronLeft,
   ChevronRight
 } from "lucide-react"
 import { assignment, document } from "@/wailsjs/go/models"
 import { useAssignmentDocumentData } from "@/hooks/use-documents"
 import useEmblaCarousel from 'embla-carousel-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import { GlassCard } from "../ui/glass-card"
 
 
 interface AssignmentDocumentsProps {
@@ -32,6 +31,14 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [uploadType, setUploadType] = useState<"support" | "submission">("support")
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [isSelectOpen, setIsSelectOpen] = useState(false)
+
+
+  const documentFilters: DocumentFilter[] = [
+    "all",
+    "support",
+    "submission"
+  ]
 
   // Embla Carousel setup
   const [emblaRef, emblaApi] = useEmblaCarousel({
@@ -145,64 +152,67 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
   }
 
   return (
-    <div className="space-y-4 ">
+    <div className="space-y-4">
       {/* Header */}
 
       <div
         className="
-          bg-gray-800/50 
-          border border-gray-600 
+          bg-white/5 
+          border border-white/5 
           p-4
-          rounded-lg
+          rounded-xl
           space-y-4"
       >
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-6">
           {/* Filter Tabs */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
-            <Button
-              variant={filter === "all" ? "default" : "outline"}
+          <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+
+            <Select open={isSelectOpen} onOpenChange={setIsSelectOpen} value={filter} onValueChange={(value) => setFilter(value as DocumentFilter)}>
+
+              <SelectTrigger onClick={() => setIsSelectOpen(!isSelectOpen)} className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 text-white flex space-x-2 h-10 transition-all focus:outline-none" >
+                <div className="h-10 w-full flex items-center  transition-all">
+ 
+                  <span className="text-sm">{filter}</span>
+                </div>
+              </SelectTrigger>
+
+              <SelectContent className="glass border-white/10 bg-black/90 backdrop-blur-xl">
+                {documentFilters.map((filter: DocumentFilter) => (
+                  <SelectItem key={filter} value={filter} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
+                    {filter}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button variant="outline"
               size="sm"
-              onClick={() => setFilter("all")}
-              className={`flex-1 text-sm  border-gray-600 flex items-center space-x-2 ${filter === "all" ? "bg-white text-black" : "bg-gray-800/50"}`}
-            >
-              <Folder className="mr-1 w-4 h-4" />
-              All ({allDocuments.data?.length || 0})
+              className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 text-white flex items-center justify-between h-10 transition-all"
+              onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}>
+
+              
+              <span className="text-sm">Upload</span>
+              <Upload className="w-1 h-1 text-slate-500" />
             </Button>
-            <Button
-              variant={filter === "support" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilter("support")}
-              className={`flex-1 text-sm  border-gray-600 flex items-center space-x-2 ${filter === "support" ? "bg-white text-black" : "bg-gray-800/50"}`}
-            >
-              <FileCheck className="mr-1 w-4 h-4" />
-              Support ({supportDocuments.data?.length || 0})
-            </Button>
-            <Button
-              variant={filter === "submission" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilter("submission")}
-              className={`flex-1 text-sm  border-gray-600 flex items-center space-x-2 ${filter === "submission" ? "bg-white text-black" : "bg-gray-800/50"}`}
-            >
-              <Send className="mr-1 w-4 h-4" />
-              Submissions ({submissionDocuments.data?.length || 0})
-            </Button>
+
+            <DocumentStorageInfo />
+
           </div>
 
           {/* Page indicators */}
 
           {documentPages.length > 1 && (
-            <Badge variant="outline" className="flex items-center p-2 bg-gray-800/50 border border-gray-600 rounded-full">
-              <p className="text-sm text-muted-foreground">{selectedIndex + 1} / <span className="text-white">{documentPages.length}</span></p>
+            <Badge variant="outline" className="flex items-center p-0 h-8 px-3 bg-white/5 border-white/10 rounded-lg">
+              <p className="text-xs text-gray-400 font-medium">{selectedIndex + 1} / <span className="text-white">{documentPages.length}</span></p>
             </Badge>
           )}
         </div>
 
-        <Separator className="bg-gray-600" />
 
         {/* Documents List */}
         <div className="flex flex-col">
           {filteredDocs.length > 0 ? (
-            <div className="relative">
+            <div className="relative group/carousel">
 
               {/* Carousel container */}
               <div className="overflow-hidden" ref={emblaRef}>
@@ -210,9 +220,9 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
                   {documentPages.map((page, pageIndex) => (
                     <div
                       key={pageIndex}
-                      className="flex-none w-full min-w-0"
+                      className="flex-none w-full min-w-0 px-1"
                     >
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-2 gap-3 min-h-[224px]">
                         {page.map((document) => (
                           <div key={document.ID}>
                             <DocumentItem
@@ -234,7 +244,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
                   <Button
                     variant="outline"
                     size="icon"
-                    className="left-0 absolute rounded-full top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-gray-800/50 border border-gray-600"
+                    className="left-0 absolute rounded-full top-1/2 -translate-y-1/2 -translate-x-3 z-10 h-8 w-8 bg-black/40 border-white/10 backdrop-blur-sm text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity"
                     onClick={scrollPrev}
                   >
                     <ChevronLeft className="h-4 w-4" />
@@ -243,7 +253,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
                   <Button
                     variant="outline"
                     size="icon"
-                    className="right-0 absolute rounded-full top-1/2 -translate-y-1/2 z-10 h-8 w-8 bg-gray-800/50 border border-gray-600"
+                    className="right-0 absolute rounded-full top-1/2 -translate-y-1/2 translate-x-3 z-10 h-8 w-8 bg-black/40 border-white/10 backdrop-blur-sm text-white opacity-0 group-hover/carousel:opacity-100 transition-opacity"
                     onClick={scrollNext}
                   >
                     <ChevronRight className="h-4 w-4" />
@@ -253,43 +263,32 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
 
             </div>
           ) : (
-            <div className="flex flex-col justify-center items-center py-8 text-center">
-              <FileText className="mb-2 w-12 h-12 text-muted-foreground" strokeWidth={1} />
-              <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col justify-center items-center py-12 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
+              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                <FileText className="w-8 h-8 text-gray-500" strokeWidth={1.5} />
+              </div>
+              <p className="text-sm text-gray-400 mb-4">
                 {filter === "all"
                   ? "No documents uploaded yet"
                   : filter === "support"
-                    ? "No support documents uploaded yet"
-                    : "No submissions uploaded yet"
+                    ? "No support documents"
+                    : "No submissions yet"
                 }
               </p>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}
-                className="mt-4 py-2 px-3 gap-2 flex-1 text-blue-400 bg-transparent border-blue-600 hover:bg-blue-600/10"
+                className="py-2 px-4 gap-2 text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 hover:text-blue-300 h-9"
               >
-                <Upload className="w-4 h-4" />
-                Upload
+                <Upload className="w-3.5 h-3.5" />
+                Upload Document
               </Button>
             </div>
           )}
         </div>
       </div>
 
-      <Separator className="bg-gray-700 w-[80%] mx-auto" />
-
-      <div className="w-full grid grid-cols-1 gap-2 md:grid-cols-2">
-        <Button variant="outline"
-          size="sm"
-          className="flex-1 bg-transparent border-gray-600 flex items-center space-x-2"
-          onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}>
-
-          <Upload className="w-4 h-4" />
-          <span className="text-sm text-gray-400">Upload</span>
-        </Button>
-        <DocumentStorageInfo />
-      </div>
 
       {/* Upload Dialog */}
       <DocumentUploadDialog

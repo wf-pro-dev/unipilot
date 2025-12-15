@@ -1,0 +1,39 @@
+
+services:
+  sse:
+    build:
+      context: /home/will/unipilot
+      dockerfile: docker/Dockerfile.sse
+    networks:
+      - unipilot
+    ports:
+      - "3002:3002"
+      - "9000:9000"
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - SESSION_KEY=${SESSION_KEY}
+      - NOTION_API_KEY=${NOTION_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}  
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - LOG_LEVEL=${LOG_LEVEL}
+    volumes:
+      - sse_logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  sse_logs:
+
+networks:
+  unipilot:
+    external: true

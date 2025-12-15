@@ -37,19 +37,21 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
       initial={{ opacity: 0, scale: 0.93 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.6, ease: "easeInOut" }}
-      className="w-full"
+      className="w-full flex items-center justify-center min-h-screen px-6"
     > 
-      <Card className="glass w-full max-w-md ">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">Welcome to Unipilot</CardTitle>
-          <CardDescription className="text-center">
+      <Card className="glass w-full max-w-md mx-auto shadow-xl border-white/10">
+        <CardHeader className="space-y-3 pb-8">
+          <CardTitle className="text-h2 text-center bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            Welcome to Unipilot
+          </CardTitle>
+          <CardDescription className="text-center text-body-small text-gray-400">
             Enter your credentials to access your account
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="pt-0">
+          <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username" className="text-body-small font-medium text-white">Username</Label>
               <Input
                 id="username"
                 type="text"
@@ -58,11 +60,11 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 onChange={(e) => setUsername(e.target.value)}
                 required
                 disabled={isLoading}
-                className="glass"
+                className="bg-background/50 border-gray-600/50 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-smooth h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-body-small font-medium text-white">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -71,12 +73,12 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
-                className="glass"
+                className="bg-background/50 border-gray-600/50 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 transition-smooth h-11"
               />
             </div>
           
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full h-11 transition-smooth hover:shadow-lg" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

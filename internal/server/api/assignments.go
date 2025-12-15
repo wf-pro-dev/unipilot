@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
+
 	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
 	notif "unipilot/internal/models/notifications"
@@ -51,24 +53,35 @@ import (
 //   - Logs successful retrieval with performance metrics
 //   - No database modifications (read-only operation)
 //   - Request duration tracking for performance monitoring
-func GetAssignmentHandler(w http.ResponseWriter, r *http.Request) {
+func GetAssignmentHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (timing, user, database connection)
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
-	currentUser := r.Context().Value("user").(user.User)
-	db := r.Context().Value("db").(*gorm.DB)
-	userID := currentUser.ID
+	startTime := c.Locals("start_time").(time.Time)
+	requestID := c.Locals("request_id").(string)
+	db := c.Locals("db").(*gorm.DB)
+
+	var userID uint
+	if id := c.Query("id"); id != "" {
+		idInt, err := strconv.Atoi(id)
+		if err != nil {
+			return server.ResponseError(c, err, fiber.StatusBadRequest, "Invalid assignment ID",
+				"tags", []string{"ASSIGNMENTS", "REQUEST"},
+			)
+		}
+		userID = uint(idInt)
+	} else {
+		currentUser := c.Locals("user").(user.User)
+		userID = currentUser.ID
+	}
 
 	// Step 2: Query user's assignments from database
 	var assignments []assignment.Assignment
 	if err := db.Where("user_id = ?", userID).Find(&assignments).Error; err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting assignments from database",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting assignments from database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"ASSIGNMENTS", "DB"},
 		)
-		return
 	}
 
 	// Step 3: Convert assignments to safe map format for JSON response
@@ -78,20 +91,10 @@ func GetAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 4: Send successful response with assignment data
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	return c.JSON(fiber.Map{
 		"message":     "User's Assignments retrieved successfully",
 		"assignments": assignmentsMap,
 	})
-
-	// Step 5: Log successful retrieval with performance metrics for monitoring
-	server.LogInfo(r.Context(), "Assignments retrieved successfully",
-		"request_id", requestID,
-		"user_id", userID,
-		"count", len(assignmentsMap),
-		"duration", time.Since(startTime).Milliseconds(),
-		"tags", []string{"ASSIGNMENTS", "READ"},
-	)
 }
 
 // CreateAssignmentHandler creates a new assignment for the authenticated user.
@@ -144,12 +147,12 @@ func GetAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 //   - Creates assignment record in database
 //   - Sends real-time notifications via SSE to course participants
 //   - Logs creation with performance metrics and assignment details
-func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
+func CreateAssignmentHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (timing, user, database connection)
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
-	currentUser := r.Context().Value("user").(user.User)
-	db := r.Context().Value("db").(*gorm.DB)
+	startTime := c.Locals("start_time").(time.Time)
+	requestID := c.Locals("request_id").(string)
+	currentUser := c.Locals("user").(user.User)
+	db := c.Locals("db").(*gorm.DB)
 	userID := currentUser.ID
 
 	// Step 2: Begin database transaction for atomic assignment creation
@@ -174,50 +177,48 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 		ParentID   string `json:"parent_id"`
 	}
 
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
+	if err := c.BodyParser(&input); err != nil {
+		return server.ResponseError(c, err, fiber.StatusBadRequest, "Invalid request body",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"ASSIGNMENTS", "REQUEST"},
 		)
-		return
 	}
 
 	// Step 4: Validate all required fields for assignment creation
 	// Validate all required fields
 	if input.LocalID == "" || input.CourseCode == "" || input.Title == "" || input.TypeName == "" || input.Deadline == "" {
-		server.ResponseError(r.Context(), w, fmt.Errorf("missing required fields"), http.StatusBadRequest, "Missing required fields",
+		return server.ResponseError(c, fmt.Errorf("missing required fields"), fiber.StatusBadRequest, "Missing required fields",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"ASSIGNMENTS", "MISSING_REQUIRED_FIELDS"},
 		)
-		return
+
 	}
 
 	// Step 5: Parse and validate deadline format (YYYY-MM-DD)
 	deadline, err := time.Parse(time.DateOnly, input.Deadline)
 	if err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid deadline format",
+		return server.ResponseError(c, err, fiber.StatusBadRequest, "Invalid deadline format",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"ASSIGNMENTS", "INVALID_DEADLINE"},
 		)
-		return
+
 	}
 
 	// Step 6: Convert and validate local_id format (string to integer)
 	local_id, err := strconv.Atoi(input.LocalID)
 	if err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error formatting local_id",
+		return server.ResponseError(c, err, fiber.StatusBadRequest, "Error formatting local_id",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"ASSIGNMENTS", "INVALID_LOCAL_ID"},
 		)
-		return
 	}
 
 	// Step 7: Handle optional parent_id for sub-assignment relationships
@@ -225,13 +226,12 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	if input.ParentID != "" {
 		parent_id, err = strconv.Atoi(input.ParentID)
 		if err != nil {
-			server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error formatting parent_id",
+			return server.ResponseError(c, err, fiber.StatusBadRequest, "Error formatting parent_id",
 				"request_id", requestID,
 				"user_id", userID,
 				"duration", time.Since(startTime).Milliseconds(),
 				"tags", []string{"ASSIGNMENTS", "INVALID_PARENT_ID"},
 			)
-			return
 		}
 	}
 
@@ -254,13 +254,12 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	result := tx.Create(&aVal)
 	if result.Error != nil {
 		tx.Rollback()
-		server.ResponseError(r.Context(), w, result.Error, http.StatusConflict, "Error creating assignment in database",
+		return server.ResponseError(c, result.Error, fiber.StatusConflict, "Error creating assignment in database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"ASSIGNMENTS", "DB"},
 		)
-		return
 	}
 
 	// Step 10: Retrieve complete assignment data with relationships for response
@@ -268,13 +267,12 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	a, err := assignment.Get_Assignment_byID(aObj.ID, userID, tx)
 	if err != nil {
 		tx.Rollback()
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting assignment from database",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting assignment from database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"ASSIGNMENTS", "DB"},
 		)
-		return
 	}
 
 	// Step 11: Convert assignment to safe map format for JSON response
@@ -282,13 +280,12 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	assignmentMap := a.ToMap()
 	if assignmentMap == nil {
 		tx.Rollback()
-		server.ResponseError(r.Context(), w, fmt.Errorf("failed to process assignment data"), http.StatusInternalServerError, "Error processing assignment data",
+		return server.ResponseError(c, fmt.Errorf("failed to process assignment data"), http.StatusInternalServerError, "Error processing assignment data",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"ASSIGNMENTS", "MARSHALLING"},
 		)
-		return
 	}
 
 	// Step 12: Commit transaction after successful assignment creation
@@ -299,36 +296,32 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	newA, err := assignment.Get_Assignment_byID(aObj.ID, userID, db)
 	if err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting assignment from database",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting assignment from database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"ASSIGNMENTS", "DB"},
 		)
-		return
 	}
 
 	// Serialize assignment data for notification payload
 	aJson, err := json.Marshal(newA)
 	if err != nil {
-		server.LogWarn(r.Context(), "Error marshalling notification", err,
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
-			"tags", []string{"ASSIGNMENTS", "MARSHALLING"},
+		server.LogWarn(context.Background(), "Failed to marshal notification", err,
+			"tags", []string{"notification", "network", "low"},
+			"error_type", "internal",
 		)
 	}
 
 	// Get all users linked to this course for notification distribution
 	link_users, err := newA.Course.GetLinkUsers(db)
 	if err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting users linked to course",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting users linked to course",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"ASSIGNMENTS", "DB"},
 		)
-		return
 	}
 
 	// Step 14: Send SSE notifications to linked users via gRPC (if available)
@@ -353,21 +346,10 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 15: Send successful response with created assignment data
-	// Return response
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	return c.JSON(fiber.Map{
 		"message":    "Assignment created successfully",
 		"assignment": assignmentMap,
 	})
-
-	// Step 16: Log successful creation with performance metrics for monitoring
-	server.LogInfo(r.Context(), "Assignment created successfully",
-		"request_id", requestID,
-		"user_id", userID,
-		"assignment_id", aObj.ID,
-		"duration", time.Since(startTime).Milliseconds(),
-		"tags", []string{"ASSIGNMENTS", "WRITE"},
-	)
 }
 
 // UpdateAssignmentHandler updates a specific field of an existing assignment.
@@ -410,13 +392,28 @@ func CreateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 //   - Modifies assignment record in database with timestamp update
 //   - Logs successful updates with change details for audit trail
 //   - Request duration tracking for performance monitoring
-func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
+func UpdateAssignmentHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (timing, user, database connection)
-	startTime := r.Context().Value("start_time").(time.Time)
-	requestID := r.Context().Value("request_id").(string)
-	currentUser := r.Context().Value("user").(user.User)
-	db := r.Context().Value("db").(*gorm.DB)
+	startTime := c.Locals("start_time").(time.Time)
+	requestID := c.Locals("request_id").(string)
+	currentUser := c.Locals("user").(user.User)
+	db := c.Locals("db").(*gorm.DB)
 	userID := currentUser.ID
+
+	var assignmentID uint
+	idStr := c.Params("id")
+	if idStr == "" {
+		return server.ResponseError(c, fmt.Errorf("assignment ID required"), fiber.StatusBadRequest, "Assignment ID required",
+			"tags", []string{"ASSIGNMENTS", "VALIDATION"},
+		)
+	}
+	int_id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return server.ResponseError(c, err, fiber.StatusBadRequest, "Error converting assignment ID to int",
+			"tags", []string{"ASSIGNMENTS", "VALIDATION"},
+		)
+	}
+	assignmentID = uint(int_id)
 
 	// Step 2: Begin database transaction for atomic assignment update
 	tx := db.Begin()
@@ -428,70 +425,111 @@ func UpdateAssignmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Step 3: Define and parse assignment update request structure
 	var updateData struct {
-		ID     string `json:"id"`
 		Value  string `json:"value"`
 		Column string `json:"column"`
 	}
 
-	err := json.NewDecoder(r.Body).Decode(&updateData)
+	err = c.BodyParser(&updateData)
 	if err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Invalid request body",
+		return server.ResponseError(c, err, fiber.StatusBadRequest, "Invalid request body",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"ASSIGNMENTS", "REQUEST"},
 		)
-		return
-	}
-
-	// Step 4: Convert assignment ID from string to integer for database query
-	int_id, err := strconv.Atoi(updateData.ID)
-	if err != nil {
-		server.ResponseError(r.Context(), w, err, http.StatusBadRequest, "Error converting assignment ID to int",
-			"request_id", requestID,
-			"user_id", userID,
-			"duration", time.Since(startTime).Milliseconds(),
-			"tags", []string{"ASSIGNMENTS", "VALIDATION"},
-		)
-		return
 	}
 
 	// Step 5: Validate assignment exists and user has ownership permissions
-	a, err := assignment.Get_Assignment_byID(uint(int_id), userID, tx)
+	a, err := assignment.Get_Assignment_byID(assignmentID, userID, tx)
 	if err != nil {
 		tx.Rollback()
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error getting assignment from database",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting assignment from database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"ASSIGNMENTS", "DB"},
 		)
-		return
 	}
 
 	// Step 6: Execute raw SQL update with automatic timestamp tracking
 	if err := tx.Exec(fmt.Sprintf("UPDATE assignments SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), a.ID).Error; err != nil {
 		tx.Rollback()
-		server.ResponseError(r.Context(), w, err, http.StatusInternalServerError, "Error updating assignment in database",
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error updating assignment in database",
 			"request_id", requestID,
 			"user_id", userID,
 			"duration", time.Since(startTime).Milliseconds(),
 			"tags", []string{"ASSIGNMENTS", "DB"},
 		)
-		return
 	}
 
 	// Step 7: Commit transaction after successful update
 	tx.Commit()
 
-	// Step 8: Log successful update with change details for audit trail
-	server.LogInfo(r.Context(), "Assignment updated successfully",
-		"request_id", requestID,
-		"user_id", userID,
-		"assignment_id", a.ID,
-		"update", updateData,
-		"duration", time.Since(startTime).Milliseconds(),
-		"tags", []string{"ASSIGNMENTS", "WRITE"},
-	)
+	// Step 8: Assignment update completed (logged by middleware)
+	return c.JSON(fiber.Map{"message": "Assignment updated successfully"})
+}
+
+func DeleteAssignmentHandler(c *fiber.Ctx) error {
+	// Step 1: Extract context values from middleware (timing, user, database connection)
+	startTime := c.Locals("start_time").(time.Time)
+	requestID := c.Locals("request_id").(string)
+	db := c.Locals("db").(*gorm.DB)
+	currentUser := c.Locals("user").(user.User)
+	userID := currentUser.ID
+
+	// Step 2: Extract assignment ID from path parameter
+	var assignmentID uint
+	idStr := c.Params("id")
+	if idStr == "" {
+		return server.ResponseError(c, fmt.Errorf("assignment ID required"), fiber.StatusBadRequest, "Assignment ID required",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "VALIDATION"},
+		)
+	}
+	int_id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return server.ResponseError(c, err, fiber.StatusBadRequest, "Error converting assignment ID to int",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"ASSIGNMENTS", "VALIDATION"},
+		)
+	}
+	assignmentID = uint(int_id)
+
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	a, err := assignment.Get_Assignment_byID(assignmentID, userID, tx)
+	if err != nil {
+		tx.Rollback()
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting assignment from database",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"assignment", "db", "low", "delete"},
+		)
+	}
+
+	if err := assignment.DeleteAssignment(*a, tx); err != nil {
+		tx.Rollback()
+		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error deleting assignment from database",
+			"request_id", requestID,
+			"user_id", userID,
+			"duration", time.Since(startTime).Milliseconds(),
+			"tags", []string{"assignment", "db", "medium", "delete"},
+		)
+	}
+
+	// Step 3:  Get Documents related to the assignment
+
+	tx.Commit()
+	return c.JSON(fiber.Map{"message": "Assignment deleted successfully"})
 }

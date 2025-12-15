@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Filter, X } from "lucide-react";
 import { course as Course } from "@/wailsjs/go/models";
-import { Card, CardContent } from "../ui/card";
+import { CardContent } from "../ui/card";
+import { GlassCard } from "../ui/glass-card";
 import { useRouter } from "next/navigation";
 
 interface Filter {
@@ -65,8 +66,8 @@ export default function CoursesTable({ courses, filter, onCourseClick, onEdit, o
     const hasActiveFilters = selectedSemester !== "all" || selectedInstructor !== "all" || searchTerm !== ""
     return (
         <div className="space-y-6">
-            <Card className="glass border-0">
-                <CardContent className="p-6">
+            <GlassCard className="border-white/5 bg-white/5 backdrop-blur-xl shadow-lg shadow-black/20">
+                <CardContent className="p-5">
                     <div className="space-y-4">
                         <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-6">
                             <div className="flex-1">
@@ -76,7 +77,7 @@ export default function CoursesTable({ courses, filter, onCourseClick, onEdit, o
                                         placeholder="Search courses by code, name or instructor..."
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="pl-10 bg-gray-800/50 border-gray-600"
+                                        className="pl-10 bg-white/5 border-white/10    transition-all duration-300 h-10"
                                     />
                                 </div>
                             </div>
@@ -84,7 +85,7 @@ export default function CoursesTable({ courses, filter, onCourseClick, onEdit, o
                             <div className="flex flex-wrap items-center gap-4">
 
                                 <Select value={selectedSemester} onValueChange={onSemesterChange}>
-                                    <SelectTrigger className="w-48 bg-gray-800/50 border-gray-600">
+                                    <SelectTrigger className="w-48 flex-1 bg-white/5 border-white/10 hover:bg-white/10 text-white flex space-x-2 h-10 transition-all focus:outline-none">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent className="glass border-gray-600">
@@ -97,9 +98,11 @@ export default function CoursesTable({ courses, filter, onCourseClick, onEdit, o
                                     </SelectContent>
                                 </Select>
 
+                               
+
 
                                 <Select value={selectedInstructor} onValueChange={onInstructorChange}>
-                                    <SelectTrigger className="w-48 bg-gray-800/50 border-gray-600">
+                                    <SelectTrigger className="w-48 flex-1 bg-white/5 border-white/10 hover:bg-white/10 text-white flex space-x-2 h-10 transition-all focus:outline-none">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent className="glass border-gray-600">
@@ -111,7 +114,7 @@ export default function CoursesTable({ courses, filter, onCourseClick, onEdit, o
                                         ))}
                                     </SelectContent>
                                 </Select>
-    
+
                             </div>
                         </div>
                         {hasActiveFilters && (
@@ -134,7 +137,7 @@ export default function CoursesTable({ courses, filter, onCourseClick, onEdit, o
                                             {selectedInstructor}
                                         </Badge>
                                     )}
-                                   
+
                                 </div>
                                 <Button variant="ghost" size="sm" onClick={clearFilters} className="text-gray-400 hover:text-white">
                                     <X className="h-4 w-4 mr-1" />
@@ -144,7 +147,7 @@ export default function CoursesTable({ courses, filter, onCourseClick, onEdit, o
                         )}
                     </div>
                 </CardContent>
-            </Card>
+            </GlassCard>
 
             <CoursesGrid
                 courses={filteredCourses}
@@ -155,3 +158,4 @@ export default function CoursesTable({ courses, filter, onCourseClick, onEdit, o
         </div>
     )
 }
+

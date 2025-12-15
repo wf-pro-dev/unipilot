@@ -3,10 +3,11 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"time"
 	"unipilot/internal/models/user"
 	"unipilot/internal/secrets"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func GetRemoteUsers() ([]user.User, error) {
@@ -17,25 +18,23 @@ func GetRemoteUsers() ([]user.User, error) {
 		Error   string                   `json:"error,omitempty"`
 	}
 
-	new_client, err := NewAuthClient()
-	if err != nil {
-		return nil, err
-	}
-
 	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Get(fmt.Sprintf("%s/users", api_url))
 
-	resp, err := new_client.Get(fmt.Sprintf("%s/users", api_url))
-	if err != nil {
+	if err := setAuthHeader(agent); err != nil {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("server returned %d", resp.StatusCode)
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return nil, errs[0]
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if statusCode != 200 {
+		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
+	}
+
+	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, err
 	}
 

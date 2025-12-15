@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"unipilot/internal/models/user"
+	cloudstorage "unipilot/internal/services/cloud_storage"
 
 	"gorm.io/gorm"
 )
@@ -96,7 +97,6 @@ func (d *Document) ValidateFileSize(db *gorm.DB) error {
 
 	return nil
 }
-
 
 // GetAppDataPath returns the application data directory for file storage
 func GetAppDataPath() (string, error) {
@@ -273,4 +273,26 @@ func UpdateStorageInfo(userID uint, db *gorm.DB) error {
 	}
 
 	return nil
+}
+
+func DeleteDocument(doc Document, db *gorm.DB) error {
+
+	// Delete the document on S3
+	if err := cloudstorage.DeleteFile(doc.FilePath); err != nil {
+		return fmt.Errorf("failed to delete document from storage: %w", err)
+	}
+
+	// Step 5: Remove document record from database
+	if err := db.Delete(&doc).Error; err != nil {
+		return fmt.Errorf("failed to delete document record: %w", err)
+	}
+
+	// Step 6: Update user storage quota information after deletion
+	// Update remote storage info for the user
+	if err := UpdateStorageInfo(doc.UserID, db); err != nil {
+		return fmt.Errorf("failed to update remote storage info: %w", err)
+	}
+
+	// Delete the document from the database
+	return db.Delete(&doc).Error
 }

@@ -15,10 +15,12 @@ export function CoursesGrid({ courses, onCourseClick, onEdit, onDelete, disabled
 
   if (courses.length === 0) {
     return (
-      <div className="py-12 text-center">
-        <BookOpen className="mx-auto mb-4 w-12 h-12 text-gray-400" />
-        <h3 className="mb-2 text-lg font-medium text-gray-300">No courses found</h3>
-        <p className="text-gray-400">Try adjusting your search or filters</p>
+      <div className="py-16 text-center">
+        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center mx-auto mb-6">
+          <BookOpen className="w-10 h-10 text-white/40" />
+        </div>
+        <h3 className="mb-2 text-h4 text-gray-300">No courses found</h3>
+        <p className="text-body-small text-gray-400">Try adjusting your search or filters</p>
       </div>
     )
   }

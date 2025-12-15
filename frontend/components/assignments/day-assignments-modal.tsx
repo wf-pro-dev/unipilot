@@ -43,17 +43,17 @@ export function DayAssignmentsModal({
     
   return (
     <Dialog open={isOpen} onOpenChange={onClose}  >
-      <DialogContent className={`glass border-0 text-white max-w-2xl max-h-[80vh] overflow-y-auto`}>
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
+      <DialogContent className={`glass border-white/10 text-white max-w-2xl max-h-[80vh] overflow-y-auto p-0 overflow-hidden gap-0`}>
+        <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
+          <DialogTitle className="flex items-center space-x-2 text-xl font-semibold">
             <Calendar className="h-5 w-5 text-blue-400" />
             <span>Assignments for {format(date, "MMMM d, yyyy")}</span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 mt-6">
+        <div className="p-6 space-y-6">
           {/* Summary */}
-          <div className={`flex items-center justify-between p-4 rounded-lg glass-dark`}>
+          <div className={`flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5`}>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
                 <BookOpen className="h-4 w-4 text-blue-400" />
@@ -64,27 +64,33 @@ export function DayAssignmentsModal({
               {totalCount > 0 && (
                 <div className="flex items-center space-x-2">
                   <CheckCircle2 className={`h-4 w-4 ${isDayComplete ? "text-green-400" : "text-gray-400"}`} />
-                  <span className={`${isDayComplete ? "text-green-400" : "text-gray-400"}`}>{completedCount} completed</span>
+                  <span className={`${isDayComplete ? "text-green-400" : "text-gray-400"} font-medium text-sm`}>{completedCount} completed</span>
                 </div>
               )}
             </div>
             <Button
               onClick={onAddAssignment}
               size="sm"
-              className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+              className="bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.2)] border-0"
             >
-              <Plus className="h-4 w-4 mr-1" />
+              <Plus className="h-4 w-4 mr-2" />
               Add Assignment
             </Button>
           </div>
 
           {/* Assignments List */}
           {dayAssignments.length === 0 ? (
-            <div className="text-center py-12">
-              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-300 mb-2">No assignments</h3>
-              <p className="text-gray-400 mb-4">No assignments are due on this date</p>
-              <Button onClick={onAddAssignment} variant="outline" className="border-gray-600 bg-transparent">
+            <div className="text-center py-12 border border-dashed border-white/10 rounded-xl bg-white/5">
+              <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+                <Calendar className="h-8 w-8 text-gray-500" />
+              </div>
+              <h3 className="text-lg font-medium text-white mb-1">No assignments</h3>
+              <p className="text-gray-400 mb-4 text-sm">No assignments are due on this date</p>
+              <Button 
+                onClick={onAddAssignment} 
+                variant="outline" 
+                className="border-white/10 bg-white/5 hover:bg-white/10 text-white"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Assignment
               </Button>

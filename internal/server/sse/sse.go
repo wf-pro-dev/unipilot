@@ -3,13 +3,15 @@
 package sse
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"sync"
 	"time"
+
+	"github.com/gofiber/fiber/v2"
 
 	"unipilot/internal/models"
 	"unipilot/internal/models/notifications"
@@ -73,15 +75,12 @@ func NewSSEServer() *SSEServer {
 //   - Monitoring system service verification
 //   - Docker container health status
 //   - Kubernetes readiness/liveness probes
-func HealthHandler(w http.ResponseWriter, r *http.Request) {
-	// Step 1: Set response headers for JSON content type
-	w.Header().Set("Content-Type", "application/json")
-
-	// Step 2: Return HTTP 200 OK status
-	w.WriteHeader(http.StatusOK)
-
+func HealthHandler(c *fiber.Ctx) error {
 	// Step 3: Write health status JSON with current timestamp
-	w.Write([]byte(`{"status": "healthy", "timestamp": "` + time.Now().Format(time.RFC3339) + `"}`))
+	return c.JSON(fiber.Map{
+		"status":    "healthy",
+		"timestamp": time.Now().Format(time.RFC3339),
+	})
 }
 
 // StartSSEServer initializes and starts the SSE HTTP server on port 3000.
@@ -112,24 +111,27 @@ func StartSSEServer() *SSEServer {
 	// Step 1: Create new SSE server instance with empty client map
 	sseServer := NewSSEServer()
 
-	// Step 2: Register public health check endpoint for monitoring
-	http.HandleFunc("/health", HealthHandler)
+	// Step 2: Initialize Fiber app for SSE server
+	app := fiber.New()
 
-	// Step 3: Register authenticated SSE endpoint with JWT middleware
-	http.HandleFunc("/unipilot/sse/v1", server.AuthMiddleware(sseServer.SSEHandler))
+	// Step 3: Register public health check endpoint for monitoring
+	app.Get("/health", HealthHandler)
 
-	// Step 4: Log server startup for monitoring and debugging
-	log.Println("SSE server listening on :3000...")
+	// Step 4: Register active clients count endpoint for monitoring
+	app.Get("/unipilot/sse/v1/count", sseServer.CountHandler)
 
-	// Step 5: Start HTTP server in background goroutine to avoid blocking
+	// Step 4: Register authenticated SSE endpoint with JWT middleware
+	app.Get("/unipilot/sse/v1", server.AuthMiddleware, sseServer.SSEHandler)
+
+	// Step 6: Start Fiber server in background goroutine to avoid blocking
 	go func() {
-		if err := http.ListenAndServe(":3000", nil); err != nil {
+		if err := app.Listen(":3002"); err != nil {
 			// Fatal error if server cannot start (port conflict, permissions, etc.)
 			log.Fatalf("SSE server error: %v", err)
 		}
 	}()
 
-	// Step 6: Return server instance for external notification sending
+	// Step 7: Return server instance for external notification sending
 	return sseServer
 }
 
@@ -162,27 +164,26 @@ func StartSSEServer() *SSEServer {
 //   - Creates new buffered channel (100 message capacity)
 //   - Previous client channels automatically garbage collected
 func (s *SSEServer) AddClient(userID uint) *SSEClient {
-	// Step 1: Acquire write lock for exclusive client map modification
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Step 2: Create new client instance with buffered message channel
-	client := &SSEClient{
-		UserID:    userID,                 // Authenticated user identifier
-		Messages:  make(chan []byte, 100), // 100-message buffer for notifications
-		Connected: true,                   // Initial connection status
+	// Close old client's channel if it exists (prevents goroutine leak)
+	if oldClient, exists := s.clients[userID]; exists {
+		close(oldClient.Messages)
 	}
 
-	// Step 3: Log new client registration for monitoring and debugging
-	server.LogDebug(context.Background(), "New SSE user id : ",
-		"user_id", userID, "tags",
-		[]string{"SSE", "NEW_USER"},
+	// Create new client...
+	client := &SSEClient{
+		UserID:    userID,
+		Messages:  make(chan []byte, 100),
+		Connected: true,
+	}
+	ctx := context.WithValue(context.Background(), "component", "sse")
+	server.LogDebug(ctx, "SSE client added", "user_id", userID,
+		"tags", []string{"notification", "network", "low"},
 	)
 
-	// Step 4: Add client to server's connection pool (replaces existing if present)
 	s.clients[userID] = client
-
-	// Step 5: Return client instance for connection management
 	return client
 }
 
@@ -222,6 +223,10 @@ func (s *SSEServer) RemoveClient(userID uint) {
 
 		// Step 4: Remove client from active connections map
 		delete(s.clients, userID)
+		ctx := context.WithValue(context.Background(), "component", "sse")
+		server.LogDebug(ctx, "SSE client removed", "user_id", userID,
+			"tags", []string{"notification", "network", "low"},
+		)
 	}
 }
 
@@ -258,9 +263,6 @@ func (s *SSEServer) SendToUser(userID uint, message []byte) bool {
 	// Step 1: Acquire read lock for concurrent client map access
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
-	// Step 2: Log active client count for monitoring
-	s.logActiveClients()
 
 	// Step 3: Check if target user is connected
 	if client, ok := s.clients[userID]; ok {
@@ -324,13 +326,13 @@ func (s *SSEServer) Broadcast(message []byte) {
 // logActiveClients outputs the current number of connected clients for monitoring.
 // Called during message sending operations to track connection health and usage patterns.
 // Uses structured logging for integration with monitoring and alerting systems.
-func (s *SSEServer) logActiveClients() {
+func (s *SSEServer) CountHandler(c *fiber.Ctx) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	server.LogDebug(context.Background(), "Active Clients: ",
-		"count", len(s.clients),
-		"tags", []string{"SSE", "ACTIVE_CLIENTS"},
-	)
+	return c.JSON(fiber.Map{
+		"count":     len(s.clients),
+		"timestamp": time.Now().Format(time.RFC3339),
+	})
 }
 
 // SSEHandler establishes and manages Server-Sent Event connections for authenticated users.
@@ -380,69 +382,89 @@ func (s *SSEServer) logActiveClients() {
 //   - Registers client in server connection pool
 //   - Starts heartbeat ticker for connection maintenance
 //   - Automatic cleanup on connection termination
-func (s *SSEServer) SSEHandler(w http.ResponseWriter, r *http.Request) {
-
-	// Step 1: Extract authenticated user ID from JWT token context
-	userID, ok := r.Context().Value("user_id").(uint)
+func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
+	// Step 1: Extract authenticated user ID from Fiber locals
+	userID, ok := c.Locals("user_id").(uint)
 	if !ok {
 		// User context missing - authentication middleware failed
-		return
+		return c.Status(fiber.StatusUnauthorized).SendString("Unauthorized")
 	}
 
 	// Step 2: Set Server-Sent Events protocol headers
-	w.Header().Set("Content-Type", "text/event-stream") // SSE MIME type
-	w.Header().Set("Cache-Control", "no-cache")         // Prevent caching
-	w.Header().Set("Connection", "keep-alive")          // Maintain connection
-	w.Header().Set("Access-Control-Allow-Origin", "*")  // CORS support
-	w.Header().Set("X-Accel-Buffering", "no")           // Disable proxy buffering
+	c.Set("Content-Type", "text/event-stream") // SSE MIME type
+	c.Set("Cache-Control", "no-cache")         // Prevent caching
+	c.Set("Connection", "keep-alive")          // Maintain connection
+	c.Set("Access-Control-Allow-Origin", "*")  // CORS support
+	c.Set("X-Accel-Buffering", "no")           // Disable proxy buffering
 
-	// Step 3: Verify client supports HTTP flushing for real-time streaming
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		// Client doesn't support flushing - cannot establish SSE connection
-		return
-	}
+	// Step 3: Register client connection and setup cleanup
+	client := s.AddClient(userID) // Cleanup ticker on exit
 
-	// Step 4: Register client connection and setup cleanup
-	client := s.AddClient(userID)
-	defer func() {
-		// Step 5: Cleanup client connection on function exit
-		server.LogDebug(r.Context(), "Removing client: ",
-			"tags", []string{"SSE", "REMOVE_CLIENT"},
-		)
-		s.RemoveClient(userID)
-	}()
+	// Step 6: Capture context before entering SetBodyStreamWriter
+	// The context may not be accessible inside the callback
+	ctxDone := c.Context().Done()
 
-	// Step 6: Initialize connection (optional initial message commented out)
-	//fmt.Fprintf(w, "event: connected\ndata: %s\n\n", "SSE connection established")
-	//flusher.Flush()
+	// Step 7: Use Fiber's streaming writer for SSE
+	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 
-	// Step 7: Setup heartbeat system for connection maintenance
-	heartbeatTicker := time.NewTicker(15 * time.Second) // 15-second intervals
-	defer heartbeatTicker.Stop()                        // Cleanup ticker on exit
-
-	// Step 8: Main event loop for message streaming and connection management
-	for {
-		select {
-		case msg := <-client.Messages:
-			// Step 9: Send notification message to client
-			fmt.Fprintf(w, "data: %s\n\n", msg)
-			flusher.Flush()
-
-		case <-heartbeatTicker.C:
-			// Step 10: Send heartbeat to maintain connection and prevent timeouts
-			client.LastActive = time.Now()
-			fmt.Fprintf(w, ": heartbeat\n\n")
-			flusher.Flush()
-
-		case <-r.Context().Done():
-			// Step 11: Handle client disconnection (browser close, network error, etc.)
-			server.LogDebug(r.Context(), "Client disconnected: ",
-				"tags", []string{"SSE", "DISCONNECTED"},
+		defer func() {
+			// Step 4: Cleanup client connection on function exit
+			ctx := context.WithValue(context.Background(), "component", "sse")
+			server.LogDebug(ctx, "SSE client removed",
+				"tags", []string{"notification", "network", "low"},
 			)
-			return
+			s.RemoveClient(userID)
+		}()
+
+		// Step 5: Setup heartbeat system for connection maintenance
+		heartbeatTicker := time.NewTicker(15 * time.Second) // 15-second intervals
+		defer heartbeatTicker.Stop()
+
+		for {
+			select {
+			case msg, ok := <-client.Messages: // Check 'ok' to detect closed channel
+				if !ok {
+					// Channel closed - client was removed/replaced
+					ctx := context.WithValue(context.Background(), "component", "sse")
+					server.LogDebug(ctx, "SSE client channel closed",
+						"tags", []string{"notification", "network", "low"},
+					)
+					return
+				}
+				// Step 9: Send notification message to client
+				fmt.Fprintf(w, "data: %s\n\n", msg)
+				if err := w.Flush(); err != nil {
+					ctx := context.WithValue(context.Background(), "component", "sse")
+					server.LogDebug(ctx, "SSE client disconnected (write error)",
+						"tags", []string{"notification", "network", "low"},
+					)
+					return
+				}
+
+			case <-heartbeatTicker.C:
+				// Step 10: Send heartbeat to maintain connection and prevent timeouts
+				client.LastActive = time.Now()
+				fmt.Fprintf(w, ": heartbeat\n\n")
+				if err := w.Flush(); err != nil {
+					ctx := context.WithValue(context.Background(), "component", "sse")
+					server.LogDebug(ctx, "SSE client disconnected (heartbeat error)",
+						"tags", []string{"notification", "network", "low"},
+					)
+					return
+				}
+
+			case <-ctxDone:
+				// Step 11: Handle client disconnection (browser close, network error, etc.)
+				ctx := context.WithValue(context.Background(), "component", "sse")
+				server.LogDebug(ctx, "SSE client disconnected",
+					"tags", []string{"notification", "network", "low"},
+				)
+				return
+			}
 		}
-	}
+	})
+
+	return nil
 }
 
 // SendNotification creates and sends a structured notification to a specific user.
@@ -503,7 +525,11 @@ func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity
 	jsonData, err := json.Marshal(notification)
 	if err != nil {
 		// Step 3: Log marshalling errors for debugging
-		log.Printf("[Error] error marshalling notification : %v ", err)
+		ctx := context.WithValue(context.Background(), "component", "sse")
+		server.LogWarn(ctx, "Failed to marshal notification", err,
+			"tags", []string{"notification", "io", "low"},
+			"error_type", "internal",
+		)
 		return err
 	}
 

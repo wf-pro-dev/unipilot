@@ -12,7 +12,7 @@ import (
 
 const (
 	Region = "us-west-2"
-	Bucket = "unipilot.bucket"
+	Bucket = "unipilot"
 )
 
 func S3Client() (*s3.Client, error) {

@@ -143,3 +143,13 @@ func GetCredentialFile() (string, error) {
 	}
 	return credentialsPath, nil
 }
+
+func GetProfilePicturePath() (string, error) {
+
+	fileDir, err := GetUserDir()
+	if err != nil {
+		return "", err
+	}
+	profilePicturePath := filepath.Join(fileDir, "profile_picture.png")
+	return profilePicturePath, nil
+}

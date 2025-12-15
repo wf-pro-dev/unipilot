@@ -46,6 +46,10 @@ export function DeleteDocument(arg1) {
   return window['go']['main']['App']['DeleteDocument'](arg1);
 }
 
+export function DeleteDocumentRAG(arg1, arg2) {
+  return window['go']['main']['App']['DeleteDocumentRAG'](arg1, arg2);
+}
+
 export function DeleteNote(arg1) {
   return window['go']['main']['App']['DeleteNote'](arg1);
 }
@@ -66,12 +70,20 @@ export function GetAssignment(arg1) {
   return window['go']['main']['App']['GetAssignment'](arg1);
 }
 
+export function GetAssignmentDocumentIDsRAG(arg1, arg2) {
+  return window['go']['main']['App']['GetAssignmentDocumentIDsRAG'](arg1, arg2);
+}
+
 export function GetAssignmentDocuments(arg1) {
   return window['go']['main']['App']['GetAssignmentDocuments'](arg1);
 }
 
 export function GetAssignments() {
   return window['go']['main']['App']['GetAssignments']();
+}
+
+export function GetAuthToken() {
+  return window['go']['main']['App']['GetAuthToken']();
 }
 
 export function GetConversationHistory(arg1) {
@@ -92,6 +104,10 @@ export function GetCourses() {
 
 export function GetCurrentUser() {
   return window['go']['main']['App']['GetCurrentUser']();
+}
+
+export function GetFileAsDataURL(arg1) {
+  return window['go']['main']['App']['GetFileAsDataURL'](arg1);
 }
 
 export function GetFollowers(arg1) {
@@ -228,4 +244,8 @@ export function UploadDocumentRAG(arg1) {
 
 export function UploadNewDocumentVersion(arg1) {
   return window['go']['main']['App']['UploadNewDocumentVersion'](arg1);
+}
+
+export function UploadProfilePicture() {
+  return window['go']['main']['App']['UploadProfilePicture']();
 }

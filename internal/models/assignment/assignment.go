@@ -32,7 +32,7 @@ type Assignment struct {
 	TypeName   string `gorm:"not null"`
 	StatusName string `gorm:"not null"`
 	Priority   string `gorm:"default:medium"`
-	ParentID   uint      `gorm:"default:0"`
+	ParentID   uint   `gorm:"default:0"`
 
 	User      user.User               `gorm:"foreignKey:UserID;references:ID"`
 	Course    course.Course           `gorm:"foreignKey:CourseCode;references:Code"`
@@ -140,6 +140,15 @@ func (a *Assignment) GetCourseAssignment(db *gorm.DB) (*course.Course, error) {
 	return c, nil
 }
 
+func GetAssignmentsbyCourse(courseCode string, db *gorm.DB) ([]Assignment, error) {
+	var assignments []Assignment
+	err := db.Where("course_code = ?", courseCode).Find(&assignments).Error
+	if err != nil {
+		return nil, err
+	}
+	return assignments, nil
+}
+
 // ToMap converts the Assignment struct to a map[string]string
 // This maintains compatibility with the existing database operations
 func (a *Assignment) ToMap() map[string]string {
@@ -163,13 +172,13 @@ func (a *Assignment) ToMap() map[string]string {
 	}
 }
 
-func (a *Assignment) GetDocuments(db *gorm.DB) ([]document.Document, error) {
-	return document.GetDocumentsByAssignment(a.ID, a.UserID, db)
+func GetDocuments(assignmentID, userID uint, db *gorm.DB) ([]document.Document, error) {
+	return document.GetDocumentsByAssignment(assignmentID, userID, db)
 }
 
 // GetLatestDocuments retrieves only the latest versions of documents for this assignment
-func (a *Assignment) GetLatestDocuments(db *gorm.DB) ([]document.Document, error) {
-	return document.GetLatestVersions(a.ID, a.UserID, db)
+func GetLatestDocuments(assignmentID, userID uint, db *gorm.DB) ([]document.Document, error) {
+	return document.GetLatestVersions(assignmentID, userID, db)
 }
 
 // GetSupportDocuments retrieves only support documents for this assignment
@@ -219,10 +228,32 @@ func (a *Assignment) GetDocumentStorageUsage(db *gorm.DB) (int64, error) {
 
 func (a *Assignment) GetChildren(db *gorm.DB) ([]Assignment, error) {
 	var children []Assignment
-	err := db.Where("parent_id = ? OR id = ?", a.ID, a.ID).
-	Find(&children).Error
+	err := db.Where("parent_id = ?", a.ID).
+		Find(&children).Error
 	if err != nil {
 		return nil, err
 	}
 	return children, nil
+}
+
+func DeleteAssignment(assignment Assignment, tx *gorm.DB) error {
+
+	documents, err := GetDocuments(assignment.ID, assignment.UserID, tx)
+	if err != nil {
+		return fmt.Errorf("failed to get documents: %w", err)
+	}
+
+	// Step 4: Delete all documents related to the assignment
+	for _, doc := range documents {
+		if err := document.DeleteDocument(doc, tx); err != nil {
+			return fmt.Errorf("failed to delete document: %w", err)
+		}
+	}
+
+	// Step 5: Delete the assignment from the database
+	if err := tx.Delete(&assignment).Error; err != nil {
+
+		return fmt.Errorf("failed to delete assignment: %w", err)
+	}
+	return nil
 }

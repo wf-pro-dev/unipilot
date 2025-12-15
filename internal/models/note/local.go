@@ -9,13 +9,12 @@ import (
 // LocalNote represents the note stored in the local database
 type LocalNote struct {
 	gorm.Model
-	RemoteID   uint `gorm:"unique"`
-	CourseCode string
-	Title      string `gorm:"not null"`
-	Subject    string `gorm:"not null"`
-	Content    string `gorm:"type:text"`
-	Keywords   string `gorm:"type:text"`
-	Videos     string `gorm:"type:text"`
+	RemoteID   uint   `gorm:"unique" json:"remote_id"`
+	CourseCode string `gorm:"not null" json:"course_code"`
+	Title      string `gorm:"not null" json:"title"`
+	Subject    string `gorm:"not null" json:"subject"`
+	Content    string `gorm:"type:text" json:"content"`
+	Videos     string `gorm:"type:text" json:"videos"`
 
 	Course course.LocalCourse `gorm:"foreignKey:CourseCode;references:Code"`
 }

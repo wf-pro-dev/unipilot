@@ -6,14 +6,13 @@ import (
 	"unipilot/internal/client"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
-	"unipilot/internal/storage"
+	"unipilot/internal/services/utils"
 )
-
 
 func sync_indexing_assignments() {
 
 	// Get the local database
-	db, _, err := storage.GetLocalDB()
+	db, err := utils.GetUserDB()
 	if err != nil {
 		fmt.Printf("ERROR : %s", err)
 		return
@@ -32,7 +31,7 @@ func sync_indexing_assignments() {
 		assignment_id := strconv.Itoa(int(assignment.ID))
 		remote_id := strconv.Itoa(int(assignment.RemoteID))
 
-		if err := client.SendAssignmentUpdate(remote_id, "local_id", assignment_id); err != nil {
+		if err := client.UpdateAssignment(remote_id, "local_id", assignment_id); err != nil {
 			fmt.Printf("ERROR : %s", err)
 		} else {
 			fmt.Printf("Updated assignment %s\n", assignment_id)
@@ -44,7 +43,7 @@ func sync_indexing_assignments() {
 func sync_indexing_courses() {
 
 	// Get the local database
-	db, _, err := storage.GetLocalDB()
+	db, err := utils.GetUserDB()
 	if err != nil {
 		fmt.Printf("ERROR : %s", err)
 		return
@@ -60,12 +59,11 @@ func sync_indexing_courses() {
 
 	// Upadete remote assignment local id with the local assignment id
 	for _, course := range courses {
-		
+
 		course_id := strconv.Itoa(int(course.ID))
 		remote_id := strconv.Itoa(int(course.RemoteID))
 
-
-		if err := client.SendCourseUpdate(remote_id, "local_id", course_id); err != nil {
+		if err := client.UpdateCourse(remote_id, "local_id", course_id); err != nil {
 			fmt.Printf("ERROR : %s", err)
 		} else {
 			fmt.Printf("Updated course %s\n", course_id)

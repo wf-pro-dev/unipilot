@@ -2,9 +2,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { SelectProps } from "@radix-ui/react-select"
 import { useAuthContext } from "../provider/auth-provider"
 import { course as courseType } from "@/wailsjs/go/models"
+import { GlassCard } from "../ui/glass-card"
 
 
-export function CoursesSelect({ value, onValueChange, children  }: SelectProps ) {
+export function CoursesSelect({ value, onValueChange, children }: SelectProps) {
     const { courses } = useAuthContext()
 
     const getCoursesBySemester = () => {
@@ -25,7 +26,7 @@ export function CoursesSelect({ value, onValueChange, children  }: SelectProps )
             value={value}
             onValueChange={onValueChange}
         >
-            <SelectTrigger className="bg-gray-800/50 border-gray-600">
+            <SelectTrigger className="bg-white/5 border-white/10">
                 {selectedCourse && (
                     <div className="flex items-center gap-2">
                         <div className={` h-2 w-2 rounded-full ${selectedCourse?.Color}`} />
@@ -40,21 +41,23 @@ export function CoursesSelect({ value, onValueChange, children  }: SelectProps )
                 )}
             </SelectTrigger>
 
-            <SelectContent className="glass border-gray-600">
-                {children}
-                {Object.keys(coursesBySemester)?.map((semester) => (
-                    <SelectGroup>
-                        <SelectLabel>{semester}</SelectLabel>
-                        {coursesBySemester[semester].map((course) => (
-                            <SelectItem key={course.Code} value={course.Code}>
-                                <div className="flex items-center gap-2">
-                                    <div className={` h-2 w-2 rounded-full ${course.Color}`} />
-                                    {course.Code} - {course.Name}
-                                </div>
-                            </SelectItem>
-                        ))}
-                    </SelectGroup>
-                ))}
+            <SelectContent>
+                <GlassCard>
+                    {children}
+                    {Object.keys(coursesBySemester)?.map((semester) => (
+                        <SelectGroup>
+                            <SelectLabel>{semester}</SelectLabel>
+                            {coursesBySemester[semester].map((course) => (
+                                <SelectItem key={course.Code} value={course.Code}>
+                                    <div className="flex items-center gap-2">
+                                        <div className={` h-2 w-2 rounded-full ${course.Color}`} />
+                                        {course.Code} - {course.Name}
+                                    </div>
+                                </SelectItem>
+                            ))}
+                        </SelectGroup>
+                    ))}
+                </GlassCard>
             </SelectContent>
         </Select>
     )
