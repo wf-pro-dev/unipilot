@@ -81,17 +81,17 @@ export function MarkdownRenderer({
         components={{
           // Custom components for better styling with proper spacing
           h1: ({ children }) => (
-            <h1 className="text-2xl font-bold text-foreground border-b border-border pb-2 mb-6 leading-tight">
+            <h1 className="text-2xl font-bold text-foreground border-b border-border pb-2 mb-4 leading-tight">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-xl font-semibold text-foreground border-b border-border pb-2 mb-5 leading-tight">
+            <h2 className="text-xl font-semibold text-foreground border-b border-border pb-2 mb-3 leading-tight">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-lg font-medium text-foreground mb-4 leading-tight">
+            <h3 className="text-lg font-medium text-foreground mb-2 leading-tight">
               {children}
             </h3>
           ),
@@ -108,7 +108,7 @@ export function MarkdownRenderer({
             if (inline) {
               return (
                 <code 
-                  className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-muted-foreground"
+                  className="bg-gray-800/50 border border-gray-600 px-1.5 py-0.5 rounded text-sm font-mono text-muted-foreground"
                   {...props}
                 >
                   {children}
@@ -119,7 +119,7 @@ export function MarkdownRenderer({
             // Block code (triple backticks) - render inline with text
             return (
               <code 
-                className={cn("bg-muted px-2 py-1 rounded text-sm font-mono text-muted-foreground inline-block", className)} 
+                className={cn("bg-gray-800/50 border border-gray-600 px-2 py-1 rounded text-sm font-mono text-muted-foreground inline-block", className)} 
                 {...props}
               >
                 {children}
@@ -129,7 +129,7 @@ export function MarkdownRenderer({
           pre: ({ children, ...props }) => (
             <div className="my-8">
               <pre
-                className="bg-muted rounded-lg p-4 overflow-x-auto text-sm font-mono border"
+                className="bg-gray-800/50 rounded-lg p-4 overflow-x-auto text-sm font-mono border border-gray-600"
                 {...props}
               >
                 {children}
@@ -171,7 +171,7 @@ export function MarkdownRenderer({
             return <div className={className} {...props}>{children}</div>
           },
           p: ({ children }) => (
-            <p className="mb-4 leading-relaxed">
+            <p className="mb-2 leading-relaxed">
               {children}
             </p>
           )

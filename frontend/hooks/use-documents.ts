@@ -15,7 +15,7 @@ import {
   DeleteDocument,
   DownloadDocument
 } from "@/wailsjs/go/main/App"
-import { assignmentKeys } from './use-assignments'
+import { UploadDocumentRAG } from "@/wailsjs/go/main/App"
 
 // Query keys for consistent cache management
 export const documentKeys = {
@@ -378,3 +378,12 @@ export function useAssignmentDocumentData(assignmentId: number) {
     error: allDocuments.error || supportDocuments.error || submissionDocuments.error,
   }
 } 
+
+// Hook for uploading documents to RAG
+export function useUploadDocumentRAG() {
+  return useMutation({
+    mutationFn: async (document: document.LocalDocument) => {
+      return await UploadDocumentRAG(document)
+    },
+  })
+}

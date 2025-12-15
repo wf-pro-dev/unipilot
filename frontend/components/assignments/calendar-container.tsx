@@ -30,7 +30,7 @@ function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMov
 
     return (
         <div
-            ref={drop}
+            ref={drop as any}
             key={index}
             className={`min-h-[120px] p-2 rounded-lg border ${
                 isOver ? "bg-blue-500/50" :

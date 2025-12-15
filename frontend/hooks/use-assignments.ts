@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { addDays, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns'
 import { assignment, course } from '@/wailsjs/go/models'
+import { useMemo } from 'react'
 
 // Query keys for consistent cache management
 export const assignmentKeys = {
@@ -26,62 +27,53 @@ export function useAssignments() {
         throw new Error(error instanceof Error ? error.message : "Failed to fetch assignments")
       }
     },
-    staleTime: 2 * 60 * 1000, // Consider fresh for 2 minutes
+    staleTime: 5 * 60 * 60 * 1000, // Consider fresh for 5 hours
     gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
   })
 }
 
-// Hook for updating assignments with optimistic updates
+
+
+
 export function useUpdateAssignment() {
   const queryClient = useQueryClient()
-
+  
   return useMutation({
-    mutationFn: async ({
-      assignment,
-      column,
-      value
-    }: {
-      assignment: assignment.LocalAssignment
-      column: string
-      value: string
-    }) => {
-      LogInfo("[Frontend] update mutation is called")
+    mutationFn: async ({ assignment, column, value }: { assignment: assignment.LocalAssignment, column: string, value: string }) => {
       return await window.go.main.App.UpdateAssignment(assignment, column, value)
     },
-
+    
     // Optimistic update for instant UI feedback
     onMutate: async ({ assignment, column, value }) => {
-      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: assignmentKeys.lists() })
-
-      // Snapshot the previous value
+      
       const previousAssignments = queryClient.getQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists())
-
-      // Optimistically update the cache
+      
       queryClient.setQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
         if (!old) return []
-        return old.map(a =>
-          a.ID === assignment.ID
+        return old.map(a => 
+          a.ID === assignment.ID 
             ? { ...a, [column]: value, UpdatedAt: new Date() } as assignment.LocalAssignment
             : a
         )
       })
-
+      
       return { previousAssignments }
     },
-
-    // If the mutation fails, rollback
+    
     onError: (err, variables, context) => {
       if (context?.previousAssignments) {
         queryClient.setQueryData(assignmentKeys.lists(), context.previousAssignments)
       }
       LogError("Failed to update assignment: " + err)
+      // Invalidate on error to ensure we have correct server state
     },
 
-    // Always refetch after error or success to ensure consistency
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: assignmentKeys.lists() })
     },
+    
+
   })
 }
 
@@ -193,12 +185,12 @@ export function useOverdueAssignments() {
 export function useTodayAssignments() {
   const { data: assignments, ...rest } = useAssignments()
 
-  const todayAssignments = assignments?.filter(assignment => {
+  const todayAssignments = useMemo(() => assignments?.filter(assignment => {
     if (!assignment.Deadline) return false
     const today = new Date()
     const deadline = new Date(assignment.Deadline)
     return deadline.toDateString() === today.toDateString()
-  }) || []
+  }) || [], [assignments]) // Memoize the result to avoid unnecessary re-renders
 
   return {
     data: todayAssignments,
@@ -223,11 +215,11 @@ export function useAssignmentsByCourse(courseId?: number) {
 export function useWeekAssignments() {
   const { data: assignments, ...rest } = useAssignments()
 
-  const weekAssignments = assignments?.filter(assignment => {
+  const weekAssignments = useMemo(() => assignments?.filter(assignment => {
     if (!assignment.Deadline) return false
     const deadline = new Date(assignment.Deadline)
     return isWithinInterval(deadline, { start: startOfWeek(new Date()), end: endOfWeek(new Date()) })
-  }) || []
+  }) || [], [assignments]) // Memoize the result to avoid unnecessary re-renders
 
   return {
     data: weekAssignments,
@@ -239,9 +231,9 @@ export function useWeekAssignments() {
 export function useCompletedAssignments() {
   const { data: assignments, ...rest } = useAssignments()
 
-  const completedAssignments = assignments?.filter(assignment =>
+  const completedAssignments = useMemo(() => assignments?.filter(assignment =>
     assignment.StatusName === 'Done'
-  ) || []
+  ) || [], [assignments]) // Memoize the result to avoid unnecessary re-renders
 
   return {
     data: completedAssignments,
@@ -253,9 +245,9 @@ export function useCompletedAssignments() {
 export function useExamAssignments() {
   const { data: assignments, ...rest } = useAssignments()
 
-  const examAssignments = assignments?.filter(assignment =>
+  const examAssignments = useMemo(() => assignments?.filter(assignment =>
     assignment.TypeName === 'Exam'
-  ) || []
+  ) || [], [assignments]) // Memoize the result to avoid unnecessary re-renders
 
   return {
     data: examAssignments,
@@ -288,6 +280,7 @@ export function useAcceptAssignment() {
     },
 
     onSettled: () => {
+      
       queryClient.invalidateQueries({ queryKey: assignmentKeys.lists() })
     },
   })
