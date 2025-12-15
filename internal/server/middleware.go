@@ -79,10 +79,11 @@ var routeTags = map[string][]string{
 	"POST /courses/:id/link-accept":  {"course", "db", "high"},
 
 	// Note routes
-	"GET /notes":        {"note", "db", "low", "read"},
-	"POST /notes":       {"note", "db", "medium", "create"},
-	"PUT /notes/:id":    {"note", "db", "medium", "update"},
-	"DELETE /notes/:id": {"note", "db", "medium", "delete"},
+	"GET /notes":         {"note", "db", "low", "read"},
+	"POST /notes":        {"note", "db", "medium", "create"},
+	"POST /notes/stream": {"note", "gemini", "high", "stream"},
+	"PUT /notes/:id":     {"note", "db", "medium", "update"},
+	"DELETE /notes/:id":  {"note", "db", "medium", "delete"},
 
 	// Document routes (includes RAG operations)
 	"GET /documents":                     {"document", "db", "low", "read"},

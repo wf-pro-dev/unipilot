@@ -670,8 +670,8 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	// Step 4: Delete associated file from AWS S3 cloud storage
-	// Delete the document on S3
+	// Step 4: Delete associated file from R2 cloud storage
+	// Delete the document on R2
 	if err := cloudstorage.DeleteFile(doc.FilePath); err != nil {
 		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error deleting document from storage",
 			"document_id", docID,

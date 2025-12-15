@@ -117,6 +117,7 @@ func StartServer() {
 
 	app.Get("/notes", server.AuthMiddleware, GetNotesHandler)
 	app.Post("/notes", server.AuthMiddleware, CreateNoteHandler)
+	app.Post("/notes/stream", server.AuthMiddleware, CreateNoteStreamHandler)
 	app.Put("/notes/:id", server.AuthMiddleware, UpdateNoteHandler)
 	app.Delete("/notes/:id", server.AuthMiddleware, DeleteNoteHandler)
 

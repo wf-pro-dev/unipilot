@@ -16,7 +16,6 @@ type Note struct {
 	Title      string `json:"title"`
 	Subject    string `json:"subject"`
 	Content    string `json:"content"`
-	Keywords   string `json:"keywords"`
 	Videos     string `json:"videos"`
 
 	User   user.User     `gorm:"foreignKey:UserID;references:ID"`
@@ -30,7 +29,6 @@ func (n *Note) ToMap() map[string]string {
 		"title":       n.Title,
 		"subject":     n.Subject,
 		"content":     n.Content,
-		"keywords":    n.Keywords,
 		"videos":      n.Videos,
 		"course_code": n.CourseCode,
 	}
