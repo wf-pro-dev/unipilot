@@ -1,11 +1,14 @@
 package main
 
 import (
-	server "unipilot/internal/server/sse"
+	"unipilot/internal/server"
+	"unipilot/internal/server/sse"
 	grpc "unipilot/internal/server/sse/grpc"
 )
 
 func main() {
-	sseServer := server.StartSSEServer()
+	server.InitLogger()
+	sseServer := sse.StartSSEServer()
 	grpc.StartGRPCServer(sseServer)
+
 }

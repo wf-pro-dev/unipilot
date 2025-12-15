@@ -19,12 +19,19 @@ var (
 func GetEnvVar(envName string) (string, error) {
 
 	var envVar = os.Getenv(envName)
-	if envVar == "" {
-		viper.SetConfigFile(".env")
-		err := viper.ReadInConfig()
-		if err != nil {
-			return "", fmt.Errorf("failed to read config for %s: %w", envName, err)
-		}
+	if envVar != "" {
+		return envVar, nil
+	}
+
+	// Only try to read file if not found in environment
+	viper.SetConfigFile(".env")
+	if err := viper.ReadInConfig(); err != nil {
+		// If file is missing, that's fine, we just can't look there.
+		// Only return error if it's a file permission/format error, NOT a NotExist error.
+		// For simplicity, we can just log/ignore or assume the var is missing.
+		// Better: Don't return error here. Just proceed to check viper.GetString
+	} else {
+		// Only try to get from viper if ReadInConfig succeeded
 		envVar = viper.GetString(envName)
 	}
 

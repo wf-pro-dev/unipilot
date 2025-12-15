@@ -1,16 +1,15 @@
 package server
 
 import (
-	"net/http"
-
+	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
 
-func GenerateChatIDHandler(w http.ResponseWriter, r *http.Request) {
+func GenerateChatIDHandler(c *fiber.Ctx) error {
 	var chatID uuid.UUID
 	chatID = uuid.New()
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"chat_id": "` + chatID.String() + `"}`))
+	return c.JSON(fiber.Map{
+		"chat_id": chatID.String(),
+	})
 }

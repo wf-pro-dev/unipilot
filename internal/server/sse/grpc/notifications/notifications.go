@@ -94,11 +94,9 @@ func (s *Server) SendNotification(ctx context.Context, notification *Notificatio
 	)
 
 	// Step 3: Log notification delivery attempt with structured data for monitoring
-	server.LogDebug(ctx, "Notification sent: ",
-		"title", notification.Title,
-		"sender_id", notification.SenderId,
-		"user_id", notification.UserId,
-		"tags", []string{"SSE", "GRPC", "NOTIFICATION"},
+	ctx = context.WithValue(ctx, "component", "grpc")
+	server.LogInfo(ctx, "Notification sent", "sender_id", notification.SenderId,
+		"tags", []string{"notification", "network", "low"},
 	)
 
 	// Step 4: Return gRPC response with success status based on delivery result
@@ -138,9 +136,9 @@ func (s *Server) SendNotification(ctx context.Context, notification *Notificatio
 //   - No persistent state changes
 func (s *Server) Heartbeat(ctx context.Context, message *Message) (*Message, error) {
 	// Step 1: Log heartbeat request for service monitoring and debugging
-	server.LogDebug(ctx, "Heartbeat from client: ",
-		"body", message.Body,
-		"tags", []string{"GRPC", "HEARTBEAT"},
+	ctx = context.WithValue(ctx, "component", "grpc")
+	server.LogDebug(ctx, "Heartbeat received",
+		"tags", []string{"system", "network", "low"},
 	)
 
 	// Step 2: Return confirmation message to client
