@@ -15,7 +15,32 @@ import { course } from "@/wailsjs/go/models"
 import { CourseDeleteDialog } from "./course-delete-dialog"
 import { LinkRequestModal } from "@/components/community/link-request-modal"
 
+/**
+ * Courses page component for course management and viewing.
+ * 
+ * Provides a comprehensive interface for viewing and managing courses with
+ * multiple view modes: Schedule (calendar view) and List (table view).
+ * Supports full CRUD operations with optimistic updates, URL-based state
+ * management, and course sharing functionality.
+ * 
+ * Features:
+ * - Tab-based navigation with URL synchronization
+ * - Course CRUD operations (Create, Read, Update, Delete)
+ * - Schedule and list view modes
+ * - Course details modal integration
+ * - Course sharing via link requests
+ * - Deep linking support via URL query parameters
+ * 
+ * URL Query Parameters:
+ * - `view`: Active tab view ("schedule" | "list")
+ * - `course`: Course code for deep linking to course details
+ * - `semester`: Semester filter value
+ * - `instructor`: Instructor filter value
+ * 
+ * @returns {JSX.Element} The courses page with tab navigation and course management UI
+ */
 export default function CoursesPage() {
+  // Fetch courses data with default empty array to prevent undefined errors
   const { data: courses = [], isLoading, error } = useCourses()
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
   const [selectedDeleteCourseId, setSelectedDeleteCourseId] = useState<number | null>(null)
@@ -24,10 +49,13 @@ export default function CoursesPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  // Get the current view from URL parameters, default to "today"
+  // Extract view from URL for deep linking, default to schedule view
   const currentView = searchParams.get("view") || "schedule"
+  // Extract course code from URL for deep linking to course details
   const currentCourse = searchParams.get("course") || null
 
+  // Sync selected course with URL parameter when course code is present
+  // Matches course code from URL to course ID for modal display
   useEffect(() => {
     if (currentCourse) {
       const course = courses.find((course) => course.Code === currentCourse)
@@ -37,10 +65,10 @@ export default function CoursesPage() {
     }
   }, [currentCourse, courses])
 
-  // Valid view values
+  // Valid view values for tab navigation
   const validViews = ["schedule", "list"]
 
-  // Ensure the current view is valid, otherwise default to "today"
+  // Validate and sanitize view parameter to prevent invalid states
   const activeView = validViews.includes(currentView) ? currentView : "schedule"
 
   const semester = searchParams.get("semester") || null
@@ -50,7 +78,17 @@ export default function CoursesPage() {
   const deleteMutation = useDeleteCourse()
   const createMutation = useCreateCourse()
 
-
+  /**
+   * Handles course field updates with optimistic UI updates.
+   * 
+   * Updates a specific field of a course and provides immediate UI feedback
+   * through optimistic updates. Logs the change for audit purposes.
+   * 
+   * @param {course.LocalCourse} courseData - The course to update
+   * @param {string} column - The field name to update
+   * @param {string} value - The new value for the field
+   * @returns {Promise<void>}
+   */
   const handleEditCourse = async (courseData: course.LocalCourse, column: string, value: string) => {
     const message = "course " + courseData.Code + " " + column + " changed to " + value
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
@@ -63,28 +101,62 @@ export default function CoursesPage() {
     })
   }
 
+  /**
+   * Handles course deletion with optimistic UI updates.
+   * 
+   * Deletes a course and provides immediate UI feedback. Logs the deletion
+   * for audit purposes. Note: This triggers the delete confirmation dialog.
+   * 
+   * @param {course.LocalCourse} course - The course to delete
+   * @returns {Promise<void>}
+   */
   const handleDeleteCourse = async (course: course.LocalCourse) => {
     const message = "course " + course.Code + " deleted"
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     deleteMutation.mutate(course)
   }
 
+  /**
+   * Handles course creation with optimistic UI updates.
+   * 
+   * Creates a new course and provides immediate UI feedback. Logs the creation
+   * for audit purposes.
+   * 
+   * @param {course.LocalCourse} course - The course to create
+   * @returns {Promise<void>}
+   */
   const handleAddCourse = async (course: course.LocalCourse) => {
     const message = "course " + course.Code + " added"
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     createMutation.mutate(course)
   }
 
-  // Handle course selection
+  /**
+   * Handles course card click to open details modal.
+   * 
+   * @param {course.LocalCourse} course - The course that was clicked
+   */
   const handleCourseClick = (course: course.LocalCourse) => {
     setSelectedCourseId(course.ID)
   }
 
+  /**
+   * Handles delete button click to open delete confirmation dialog.
+   * 
+   * @param {course.LocalCourse} course - The course to delete
+   */
   const handleDeleteCourseClick = (course: course.LocalCourse) => {
     setSelectedDeleteCourseId(course.ID)
   }
 
-  // Handle tab change and update URL
+  /**
+   * Handles tab change and synchronizes the active view with URL query parameters.
+   * 
+   * Updates the URL to reflect the selected tab view while preserving other
+   * query parameters (filters, course code, etc.).
+   * 
+   * @param {string} value - The tab value to switch to ("schedule" | "list")
+   */
   const handleTabChange = (value: string) => {
     const params = new URLSearchParams(searchParams.toString())
     params.set("view", value)
@@ -117,36 +189,44 @@ export default function CoursesPage() {
 
   return (
     <div className="page">
-      {/* Floating background elements */}
+      {/* Decorative background elements for visual depth */}
       <div className="absolute left-10 top-20 w-72 h-72 rounded-full blur-3xl bg-blue-500/10 animate-float"></div>
       <div className="absolute right-10 bottom-20 w-96 h-96 rounded-full blur-3xl bg-purple-500/10 animate-float-delayed"></div>
 
       <div className="relative z-10">
+        {/* Page header with course count and add course button */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+            <h1 className="text-h1 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
               Courses
             </h1>
-            <p className="mt-2 text-gray-400">
+            <p className="mt-3 text-body-small text-gray-400">
               Manage your enrolled courses ({courses.length} total)
             </p>
           </div>
           <AddCourseDialog onAdd={handleAddCourse} />
         </div>
 
+        {/* Tab navigation with URL synchronization */}
         <Tabs value={activeView} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="glass mb-4 border-0">
-            <TabsTrigger value="schedule" className="flex items-center space-x-2">
+          <TabsList className="h-full flex w-fit bg-white/5 p-1 rounded-xl mb-6 border border-white/5">
+            <TabsTrigger 
+              value="schedule" 
+              className="flex w-60 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+            >
               <Calendar className="w-4 h-4" />
-              <span>Schedule</span>
+              <span className="hidden sm:inline text-sm font-medium">Schedule</span>
             </TabsTrigger>
-            <TabsTrigger value="list" className="flex items-center space-x-2">
+            <TabsTrigger 
+              value="list" 
+              className="flex w-60 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+            >
               <List className="w-4 h-4" />
-              <span>All ({courses.length || 0})</span>
+              <span className="hidden sm:inline text-sm font-medium">All ({courses.length || 0})</span>
             </TabsTrigger>
           </TabsList>
 
-
+          {/* Schedule view: Calendar-based course display */}
           <TabsContent value="schedule">
             <CoursesSchedule
               onEdit={handleEditCourse}
@@ -156,6 +236,7 @@ export default function CoursesPage() {
             />
           </TabsContent>
 
+          {/* List view: Table-based course display with filtering */}
           <TabsContent value="list">
             <CoursesTable
               courses={courses || []}

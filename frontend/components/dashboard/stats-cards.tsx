@@ -53,21 +53,21 @@ export function StatsCards() {
   ]
 
   return (
-    <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
       {stats.map((stat, index) => (
         <Link href={stat.link} key={index}>
-        <Card className="glass border-0 hover:scale-105 transition-all duration-300">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-white">
+        <Card className="bg-white/5 border-white/5 hover:bg-white/10 hover:scale-[1.02] hover:shadow-xl shadow-lg shadow-black/20 transition-all duration-300 backdrop-blur-xl">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <CardTitle className="text-sm font-semibold text-white">
               {stat.title}
             </CardTitle>
-            <div className={`p-2 rounded-lg ${stat.bgColor}`}>
+            <div className={`p-2 rounded-xl ${stat.bgColor} border border-white/5`}>
               <stat.icon className={`h-4 w-4 ${stat.color}`} />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-white">{stat.value}</div>
-            <p className="text-xs text-gray-400">
+            <div className="text-2xl font-bold text-white mb-1 tracking-tight">{stat.value}</div>
+            <p className="text-xs text-gray-400 font-medium">
               {stat.change}
             </p>
           </CardContent>

@@ -9,8 +9,10 @@ import (
 
 var (
 	CONSTANTS = map[string]string{
-		"BASE_URL": "https://wwwill.dedyn.io",
-		"API_URL":  "https://wwwill.dedyn.io/unipilot/api/v1",
+		//"BASE_URL": "https://wwwill.dedyn.io",
+		//"API_URL":  "https://wwwill.dedyn.io/unipilot/api/v1",
+		"BASE_URL": "https://wwwill.xyz",
+		"API_URL":  "https://wwwill.xyz/unipilot/api/v1",
 	}
 )
 

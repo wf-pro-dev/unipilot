@@ -12,6 +12,7 @@ import { user } from "@/wailsjs/go/models"
 import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import { useAuthContext } from "../provider/auth-provider"
+import { GlassCard } from "../ui/glass-card"
 
 interface ExploreViewProps {
   users: user.User[] | undefined
@@ -28,14 +29,14 @@ export function ExploreView({ users }: ExploreViewProps) {
   const universities = Array.from(new Set(users?.map((user) => user.University) || [])).filter((university) => university !== "")
 
   const filteredUsers = (users || []).filter((user) => {
+
     const matchesSearch =
-      user.ID !== currentUser?.ID && 
       user.Username.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.Email.toLowerCase().includes(searchTerm.toLowerCase())
 
     const matchesUniversity = selectedUniversity === "All Universities" || user.University === selectedUniversity
 
-    return matchesSearch && matchesUniversity
+    return user.ID != currentUser?.ID && matchesSearch && matchesUniversity
   })
 
   const hasActiveFilters = searchTerm !== "" || selectedUniversity !== "All Universities"
@@ -52,28 +53,26 @@ export function ExploreView({ users }: ExploreViewProps) {
   return (
     <div className="space-y-6">
       {/* Search and Filters */}
-      <Card className="glass border-0">
-        <CardContent className="p-6">
+      <GlassCard className="border-white/5 bg-white/5 backdrop-blur-xl shadow-lg shadow-black/20">
+        <CardContent className="p-5">
           <div className="space-y-4">
-            <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-6">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search students by name or username..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-gray-800/50 border-gray-600"
-                  />
-                </div>
+            <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
+              
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search students by name or username..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-white/5 border-white/10 transition-all duration-300 h-10"
+                />
               </div>
 
-
               <Select value={selectedUniversity} onValueChange={setSelectedUniversity}>
-                <SelectTrigger className="w-60 bg-gray-800/50 border-gray-600">
+                <SelectTrigger className="w-60 bg-white/5 border-white/10 h-10">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-600">
+                <SelectContent className="glass border-white/10 bg-black/90 backdrop-blur-xl">
                   <SelectItem value="All Universities">All Universities</SelectItem>
                   {universities?.map((university) => (
                     <SelectItem key={university} value={university}>
@@ -82,6 +81,7 @@ export function ExploreView({ users }: ExploreViewProps) {
                   ))}
                 </SelectContent>
               </Select>
+
             </div>
             {hasActiveFilters && (
               <div className="flex items-center justify-between">
@@ -110,7 +110,7 @@ export function ExploreView({ users }: ExploreViewProps) {
 
 
         </CardContent>
-      </Card>
+      </GlassCard>
 
       {/* Users Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

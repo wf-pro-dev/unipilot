@@ -1,6 +1,7 @@
 package sse
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 	"unipilot/internal/client"
@@ -8,6 +9,12 @@ import (
 
 // NewSSEClientWithJWT creates an HTTP client for SSE with JWT authentication
 func NewSSEClient() (*http.Client, error) {
+
+	httpClient, err := client.NewAuthClient()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create auth client: %w", err)
+	}
+
 	// Configure transport specifically for SSE connections
 	transport := &http.Transport{
 		MaxIdleConns:          50,
@@ -21,15 +28,12 @@ func NewSSEClient() (*http.Client, error) {
 		ExpectContinueTimeout: 1 * time.Second,
 	}
 
-	// Create client with JWT authentication
-	client := &http.Client{
-		Transport: &client.JWTRoundTripper{
-			Base:  transport,
-			Token: "", // Will be loaded on first request
-		},
-
-		Timeout: 0, // No timeout for SSE connections
+	httpClient.Transport = &client.JWTRoundTripper{
+		Base:  transport,
+		Token: "", // Will be loaded on first request
 	}
 
-	return client, nil
+	httpClient.Timeout = 0
+
+	return httpClient, nil
 }

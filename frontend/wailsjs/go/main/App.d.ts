@@ -31,6 +31,8 @@ export function DeleteCourse(arg1:course.LocalCourse):Promise<void>;
 
 export function DeleteDocument(arg1:number):Promise<void>;
 
+export function DeleteDocumentRAG(arg1:number,arg2:number):Promise<void>;
+
 export function DeleteNote(arg1:note.LocalNote):Promise<void>;
 
 export function DeleteNotification(arg1:notifications.LocalNotification):Promise<void>;
@@ -41,9 +43,13 @@ export function Follow(arg1:number):Promise<boolean>;
 
 export function GetAssignment(arg1:number):Promise<assignment.LocalAssignment>;
 
+export function GetAssignmentDocumentIDsRAG(arg1:number,arg2:Array<number>):Promise<Array<number>>;
+
 export function GetAssignmentDocuments(arg1:number):Promise<Array<document.LocalDocument>>;
 
 export function GetAssignments():Promise<Array<assignment.LocalAssignment>>;
+
+export function GetAuthToken():Promise<string>;
 
 export function GetConversationHistory(arg1:number):Promise<Array<Record<string, any>>>;
 
@@ -54,6 +60,8 @@ export function GetCourseAssignments(arg1:course.LocalCourse):Promise<Array<assi
 export function GetCourses():Promise<Array<course.LocalCourse>>;
 
 export function GetCurrentUser():Promise<user.User>;
+
+export function GetFileAsDataURL(arg1:string):Promise<string>;
 
 export function GetFollowers(arg1:number):Promise<main.FollowResponse>;
 
@@ -93,7 +101,7 @@ export function RebuildNotificationDaemon():Promise<void>;
 
 export function Register(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<user.User>;
 
-export function RequestLinkCourse(arg1:string,arg2:Array<number>):Promise<void>;
+export function RequestLinkCourse(arg1:course.LocalCourse,arg2:Array<number>):Promise<void>;
 
 export function SaveDocumentAs(arg1:number):Promise<void>;
 
@@ -122,3 +130,5 @@ export function UploadDocument(arg1:number,arg2:number,arg3:string):Promise<docu
 export function UploadDocumentRAG(arg1:document.LocalDocument):Promise<void>;
 
 export function UploadNewDocumentVersion(arg1:number):Promise<document.LocalDocument>;
+
+export function UploadProfilePicture():Promise<string>;

@@ -16,19 +16,35 @@ import (
 	"unipilot/internal/storage"
 )
 
-// Login handles only authentication and saving the session cookie to a file.
+// Register creates a new user account and automatically authenticates the user.
+// Performs user registration, saves tokens, initializes SSE connection, and sets up local database.
+// Similar to Login but creates a new account instead of authenticating an existing one.
+//
+// Parameters:
+//   - username: Desired username (must be unique)
+//   - email: User's email address
+//   - password: User's password in plain text (will be hashed server-side)
+//   - university: User's university affiliation
+//   - language: User's preferred language
+//
+// Returns:
+//   - *user.User: Newly created user object with profile information
+//   - error: Error if registration fails, token saving fails, or database setup fails
 func (a *Auth) Register(username, email, password, university, language string) (*user.User, error) {
-
+	// Step 1: Create HTTP client (unauthenticated for registration)
+	// Registration endpoint doesn't require authentication
 	httpClient, err := client.NewAuthClient()
 	if err != nil {
 		return nil, fmt.Errorf("could not create http client: %w", err)
 	}
 
+	// Step 2: Prepare registration request payload
 	loginData := map[string]string{"username": username, "password": password, "email": email, "university": university, "language": language}
 	jsonData, _ := json.Marshal(loginData)
 
 	api_url := secrets.CONSTANTS["API_URL"]
 
+	// Step 3: Send registration request to API
 	resp, err := httpClient.Post(fmt.Sprintf("%s/register", api_url), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("http post failed: %w", err)
@@ -37,12 +53,14 @@ func (a *Auth) Register(username, email, password, university, language string) 
 
 	fmt.Println("Register response status code: ", resp.StatusCode)
 
+	// Step 4: Validate response status (accept both 200 OK and 201 Created)
+	// 201 Created is standard for resource creation, but 200 OK is also acceptable
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("register failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
-	// Parse the response to get user ID
+	// Step 5: Parse API response to extract user data and token
 	var response struct {
 		User  map[string]interface{} `json:"user"`
 		Token string                 `json:"token"`
@@ -51,6 +69,7 @@ func (a *Auth) Register(username, email, password, university, language string) 
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
+	// Step 6: Convert response map to User struct
 	response_user := user.User{
 		Username:   response.User["username"].(string),
 		Email:      response.User["email"].(string),
@@ -61,38 +80,43 @@ func (a *Auth) Register(username, email, password, university, language string) 
 		Language:   response.User["language"].(string),
 	}
 
+	// Parse timestamps from RFC3339 format
 	response_user.CreatedAt, _ = time.Parse(time.RFC3339, response.User["created_at"].(string))
 	response_user.UpdatedAt, _ = time.Parse(time.RFC3339, response.User["updated_at"].(string))
 
+	// Convert float64 ID to uint (JSON numbers are float64)
 	response_user.ID = uint(response.User["id"].(float64))
 
-	// Store the user in credentials
+	// Step 7: Persist user credentials to local storage
 	if err := utils.SetCredentials(&response_user); err != nil {
 		return nil, fmt.Errorf("failed to set credentials: %w", err)
 	}
 
+	// Step 8: Save JWT access token for authenticated API requests
 	log.Printf("Saving token: %s", response.Token)
 	if err := client.SaveToken(response.Token); err != nil {
 		return nil, fmt.Errorf("failed to save token: %w", err)
 	}
 
-	// Initialize the SSE connection early to ensure it's never nil
+	// Step 9: Initialize SSE connection for real-time notifications
+	// Initialize early to ensure it's never nil for subsequent operations
 	a.SSE = sse.NewSSE()
 
-	// Now try to get the local database and migrate data
-	// But handle the case where it might fail gracefully
+	// Step 10: Initialize local database schema for offline data storage
+	// Gracefully handle missing database directory (first-time registration scenario)
 	localDB, err := utils.GetUserDB()
 	if err != nil {
 		// If we can't get the local database, just log it and continue
 		// This might happen if the database directory doesn't exist yet
 		fmt.Printf("Warning: Could not get local database: %v\n", err)
 		fmt.Printf("Login successful, but database operations failed\n")
-		return &response_user, nil // Don't fail the login, just return success
+		return &response_user, nil // Don't fail the registration, just return success
 	}
-	// Initialize the database schema
+	// Initialize the database schema (create tables if they don't exist)
+	// Non-fatal operation - registration succeeds even if schema initialization fails
 	if err := storage.InitializeSchema(localDB); err != nil {
 		fmt.Printf("Warning: Failed to initialize database schema: %v\n", err)
-		// Don't fail the login, just continue
+		// Don't fail the registration, just continue
 	}
 
 	return &response_user, nil

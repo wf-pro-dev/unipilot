@@ -13,9 +13,11 @@ import {
   OpenDocument,
   SaveDocumentAs,
   DeleteDocument,
-  DownloadDocument
+  DownloadDocument,
+  UploadDocumentRAG,
+  DeleteDocumentRAG,
+  GetAssignmentDocumentIDsRAG
 } from "@/wailsjs/go/main/App"
-import { UploadDocumentRAG } from "@/wailsjs/go/main/App"
 
 // Query keys for consistent cache management
 export const documentKeys = {
@@ -24,6 +26,7 @@ export const documentKeys = {
   list: (assignmentId: number) => [...documentKeys.lists(), { assignmentId }] as const,
   support: (assignmentId: number) => [...documentKeys.all, 'support', assignmentId] as const,
   submissions: (assignmentId: number) => [...documentKeys.all, 'submissions', assignmentId] as const,
+  rag: (assignmentId: number) => [...documentKeys.all, 'rag', assignmentId] as const,
   storage: () => [...documentKeys.all, 'storage'] as const,
 }
 
@@ -381,9 +384,80 @@ export function useAssignmentDocumentData(assignmentId: number) {
 
 // Hook for uploading documents to RAG
 export function useUploadDocumentRAG() {
+  const queryClient = useQueryClient()
+
   return useMutation({
+    onMutate: async (document) => {
+      await queryClient.cancelQueries({ queryKey: documentKeys.rag(document.RemoteAssignmentID) })
+      
+      // Update all queries that match the base key
+      queryClient.setQueriesData<number[]>({ queryKey: documentKeys.rag(document.RemoteAssignmentID) }, (old) => {
+        if (!old) return [document.RemoteID]
+        return old.includes(document.RemoteID) ? old : [...old, document.RemoteID]
+      })
+    },
     mutationFn: async (document: document.LocalDocument) => {
       return await UploadDocumentRAG(document)
     },
+    onError: (err, variables, context) => {
+      // Since we updated multiple queries potentially, invalidation is the safest rollback
+      queryClient.invalidateQueries({ queryKey: documentKeys.rag(variables.RemoteAssignmentID) })
+      LogError("Failed to upload document to RAG: " + err)
+    },
+    onSettled: (data, error, variables, context) => {
+      if (!error) {
+        queryClient.invalidateQueries({ queryKey: documentKeys.rag(variables.RemoteAssignmentID) })
+      }
+    },
   })
 }
+
+// Hook for deleting documents from RAG
+export function useDeleteDocumentRAG() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    onMutate: async (document) => {
+      await queryClient.cancelQueries({ queryKey: documentKeys.rag(document.RemoteAssignmentID) })
+      
+      // Update all queries that match the base key
+      queryClient.setQueriesData<number[]>({ queryKey: documentKeys.rag(document.RemoteAssignmentID) }, (old) => {
+        if (!old) return []
+        return old.filter(id => id !== document.RemoteID)
+      })
+    },
+    mutationFn: async (document: document.LocalDocument) => {
+      return await DeleteDocumentRAG(document.RemoteAssignmentID, document.RemoteID)
+    },
+    onError: (err, variables, context) => {
+      queryClient.invalidateQueries({ queryKey: documentKeys.rag(variables.RemoteAssignmentID) })
+      LogError("Failed to delete document from RAG: " + err)
+    },
+    onSettled: (data, error, variables, context) => {
+      if (!error) {
+        queryClient.invalidateQueries({ queryKey: documentKeys.rag(variables.RemoteAssignmentID) })
+      }
+    },
+  })
+}
+
+// Hook for fetching all documents for an assignment
+export function useAssignmentDocumentIDsRAG(assignmentId: number, documentIDs: number[]) {
+  const queryClient = useQueryClient()
+  return useQuery({
+    queryKey: [...documentKeys.rag(assignmentId), { documentIDs }],
+    queryFn: async (): Promise<number[]> => {
+      try {
+        const docIds = await GetAssignmentDocumentIDsRAG(assignmentId, documentIDs)
+        return docIds
+      } catch (error) {
+        LogError("Failed to fetch assignment document IDs: " + error)
+        throw new Error(error instanceof Error ? error.message : "Failed to fetch document IDs")
+      }
+    },
+    enabled: !!assignmentId && documentIDs.length > 0,
+    staleTime: 60 * 60 * 1000, // Consider fresh for 1 hour
+    gcTime: 120 * 60 * 1000,    // Keep in cache for 2 hours
+    refetchOnMount: true, // ✅ Added: Always refetch when component mounts
+  })
+}
+

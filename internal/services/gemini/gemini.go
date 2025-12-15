@@ -26,7 +26,6 @@ type GeminiResponse struct {
 func GenerateNote(request *GeminiRequest) (*GeminiResponse, error) {
 	ctx := context.Background()
 
-
 	GEMINI_API_KEY, err := secrets.GetEnvVar("GEMINI_API_KEY")
 	if err != nil {
 		return nil, err

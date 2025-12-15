@@ -1,16 +1,14 @@
 package client
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"log"
-	"net/http"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/network"
 	"unipilot/internal/secrets"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func GetAssignments() ([]map[string]string, error) {
@@ -24,31 +22,23 @@ func GetAssignments() ([]map[string]string, error) {
 	isOnline := network.IsOnline()
 
 	if isOnline {
-
-		client, err := NewAuthClient()
-		if err != nil {
-			return nil, err
-		}
-
 		api_url := secrets.CONSTANTS["API_URL"]
-		if err != nil {
-			return nil, fmt.Errorf("failed to get api url: %w", err)
-		}
+		agent := fiber.Get(fmt.Sprintf("%s/assignments", api_url))
 
-		resp, err := client.Get(fmt.Sprintf("%s/assignments", api_url))
-
-		if err != nil {
+		if err := setAuthHeader(agent); err != nil {
 			return nil, err
 		}
 
-		defer resp.Body.Close()
-
-		if resp.StatusCode != http.StatusOK {
-			body, _ := io.ReadAll(resp.Body)
-			return nil, fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+		statusCode, body, errs := agent.Bytes()
+		if len(errs) > 0 {
+			return nil, errs[0]
 		}
 
-		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		if statusCode != 200 {
+			return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
+		}
+
+		if err := json.Unmarshal(body, &response); err != nil {
 			return nil, fmt.Errorf("failed to decode response: %w", err)
 		}
 
@@ -59,7 +49,6 @@ func GetAssignments() ([]map[string]string, error) {
 		if response.Assignments == nil {
 			return make([]map[string]string, 0), nil
 		}
-
 	}
 
 	return response.Assignments, nil
@@ -70,32 +59,21 @@ func CreateAssignment(a *assignment.Assignment) (map[string]interface{}, error) 
 
 	assignmentData := a.ToMap()
 
-	new_client, err := NewAuthClient()
-	if err != nil {
-		return nil, err
-	}
-
-	jsonData, _ := json.Marshal(assignmentData)
-
 	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Post(fmt.Sprintf("%s/assignments", api_url))
+	agent.JSON(assignmentData)
 
-	resp, err := new_client.Post(
-		fmt.Sprintf("%s/assignment", api_url),
-		"application/json",
-		bytes.NewBuffer(jsonData),
-	)
-
-	if err != nil {
+	if err := setAuthHeader(agent); err != nil {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
 
-	log.Printf("Response status code: %d\n", resp.StatusCode)
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+	if statusCode != 200 {
+		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
 	}
 
 	var response struct {
@@ -104,7 +82,7 @@ func CreateAssignment(a *assignment.Assignment) (map[string]interface{}, error) 
 		Error      string                 `json:"error,omitempty"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -119,39 +97,48 @@ func CreateAssignment(a *assignment.Assignment) (map[string]interface{}, error) 
 	return response.Assignment, nil
 }
 
-func SendAssignmentUpdate(id, column, value string) error {
+func UpdateAssignment(id, column, value string) error {
 
-	new_client, err := NewAuthClient()
-	if err != nil {
-
-		return err
-	}
-
-	updateData := map[string]interface{}{
-		"id":     id,
+	updateData := map[string]string{
 		"value":  value,
 		"column": column,
 	}
 
-	jsonData, _ := json.Marshal(updateData)
-
 	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Put(fmt.Sprintf("%s/assignments/%s", api_url, id))
+	agent.JSON(updateData)
 
-	resp, err := new_client.Post(
-		fmt.Sprintf("%s/assignment/update", api_url),
-		"application/json",
-		bytes.NewBuffer(jsonData),
-	)
-
-	if err != nil {
+	if err := setAuthHeader(agent); err != nil {
 		return err
 	}
 
-	defer resp.Body.Close()
+	statusCode, _, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return errs[0]
+	}
+	if statusCode != 200 {
+		return fmt.Errorf("server returned status %d", statusCode)
+	}
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+	return nil
+
+}
+
+func DeleteAssignment(id string) error {
+
+	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Delete(fmt.Sprintf("%s/assignments/%s", api_url, id))
+
+	if err := setAuthHeader(agent); err != nil {
+		return err
+	}
+
+	statusCode, _, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return errs[0]
+	}
+	if statusCode != 200 {
+		return fmt.Errorf("server returned status %d", statusCode)
 	}
 
 	return nil

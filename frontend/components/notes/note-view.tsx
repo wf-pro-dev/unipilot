@@ -12,6 +12,7 @@ import { Badge } from "../ui/badge"
 import { useRouter } from "next/navigation"
 import { useCoursesBySemester } from "@/hooks/use-courses"
 import { useAuthContext } from "../provider/auth-provider"
+import { GlassCard } from "../ui/glass-card"
 
 interface Filter {
   course: string | null
@@ -42,9 +43,8 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
     return notes
       .filter((note) => {
         const matchesSearch =
-          note.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          note.Keywords.toLowerCase().includes(searchTerm.toLowerCase())
-        const matchesCourse = selectedCourse === "all" || note.CourseCode === selectedCourse
+          note.title.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesCourse = selectedCourse === "all" || note.course_code === selectedCourse
         return matchesSearch && matchesCourse
       })
       .sort((a, b) => {
@@ -73,28 +73,26 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
   return (
     <div className="space-y-4">
       {/* Search and Filters */}
-      <Card className="glass border-0">
-        <CardContent className="p-6">
-          <div className="space-y-4">
-            <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-6">
-              <div className="flex-1">
-                <div className="relative">
+        <GlassCard className="border-white/5 bg-white/5 backdrop-blur-xl shadow-lg shadow-black/20">
+          <CardContent className="p-5">
+            <div className="space-y-4">
+              <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
+                <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <Input
                     placeholder="Search notes by title or keywords..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-gray-800/50 border-gray-600"
+                    className="pl-10 bg-white/5 border-white/10    transition-all duration-300 h-10"
                   />
                 </div>
-              </div>
 
 
               <Select value={selectedCourse} onValueChange={onCourseChange}>
-                <SelectTrigger className="w-48 bg-gray-800/50 border-gray-600">
+                <SelectTrigger className="w-60 bg-white/5 border-white/10 h-10">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="glass border-gray-600">
+                <SelectContent className="glass border-white/10 bg-black/90 backdrop-blur-xl">
                   <SelectItem value="all">All Courses</SelectItem>
                   {courseCodes.map((courseCode) => (
                     <SelectItem key={courseCode} value={courseCode}>
@@ -130,7 +128,7 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
 
           </div>
         </CardContent>
-      </Card>
+      </GlassCard>
       {(filteredNotes || []).length === 0 ? (
         <div className="flex flex-col items-center justify-center">
           <div className="my-32 p-10 glass rounded-lg text-center">
@@ -140,30 +138,24 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
           </div>
         </div>
       ) : (
-        <Card className="border-0 glass p-0">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2 text-white">
-              <CalendarDays className="w-5 h-5" />
-              <span>{title}</span>
-              {isLoading && <Loader2 className="ml-2 w-4 h-4 animate-spin" />}
-            </CardTitle>
-          </CardHeader>
 
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
-              {(filteredNotes || []).map((note, index) => (
-                <NoteItem
-                  key={note.ID}
-                  note={note}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  onNoteClick={onNoteClick}
-                  disabled={isLoading || !note.Content}
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+
+
+        <div>
+          <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
+            {(filteredNotes || []).map((note, index) => (
+              <NoteItem
+                key={note.ID}
+                note={note}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onNoteClick={onNoteClick}
+                disabled={isLoading || !note.content}
+              />
+            ))}
+          </div>
+        </div>
+
       )}
 
     </div >

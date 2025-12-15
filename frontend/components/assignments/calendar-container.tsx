@@ -32,34 +32,37 @@ function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMov
         <div
             ref={drop as any}
             key={index}
-            className={`min-h-[120px] p-2 rounded-lg border ${
-                isOver ? "bg-blue-500/50" :
+            className={`min-h-[120px] p-2 transition-colors duration-200 border border-white/10 ${
+                isOver ? "bg-blue-500/20" :
                 isCurrentMonth
-                ? "bg-gray-800/50 border-gray-600"
-                : "bg-gray-900/30 border-gray-700"
-                } ${isToday ? "ring-2 ring-blue-500" : ""}`}
+                ? ""
+                : "bg-black/40 opacity-50"
+                } ${isToday ? "bg-blue-500/5 relative overflow-hidden" : ""}`}
         >
+            {isToday && (
+                <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+            )}
 
-            <div className="flex items-center justify-between mb-2" onClick={() => onDateClick(day)}>
+            <div className="group hover:bg-white/5 flex items-center justify-between mb-2 cursor-pointer" onClick={() => onDateClick(day)}>
                 <span
-                    className={`text-sm font-medium ${isCurrentMonth
+                    className={`text-xs font-medium ${isCurrentMonth
                         ? isToday
                             ? "text-blue-400"
-                            : "text-white"
-                        : "text-gray-500"
+                            : "text-gray-400 group-hover:text-white transition-colors"
+                        : "text-gray-600"
                         }`}
                 >
                     {format(day, "d")}
                 </span>
                 {dayAssignments.length > 0 && (
-                    <span className="text-xs bg-blue-500 text-white px-1.5 py-0.5 rounded-full">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${isToday ? "bg-blue-500 text-white" : "bg-white/10 text-gray-300"}`}>
                         {dayAssignments.length}
                     </span>
                 )}
             </div>
 
-            <div className="space-y-1">
-                {dayAssignments.slice(0, 1).map((assignment) => (
+            <div className="space-y-1.5">
+                {dayAssignments.slice(0, 2).map((assignment) => (
                     <CalendarItem
                         key={assignment.ID}
                         assignment={assignment}
@@ -67,9 +70,9 @@ function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMov
                         onAssignmentClick={onAssignmentClick}
                     />
                 ))}
-                {dayAssignments.length > 1 && (
-                    <div className="text-xs text-gray-400 text-center">
-                        +{dayAssignments.length - 1} more
+                {dayAssignments.length > 2 && (
+                    <div className="text-[10px] text-gray-500 text-center font-medium hover:text-gray-300 transition-colors cursor-pointer pt-1" onClick={() => onDateClick(day)}>
+                        +{dayAssignments.length - 2} more
                     </div>
                 )}
             </div>
