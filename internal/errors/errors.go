@@ -46,7 +46,7 @@ func (e *AppError) Unwrap() error {
 	return e.Cause
 }
 
-func Inherit(err error, code ErrorCode) error {
+func Inherit(err error, code ErrorCode) *AppError {
 	if err == nil {
 		return nil
 	}

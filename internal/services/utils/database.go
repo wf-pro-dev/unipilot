@@ -1,8 +1,9 @@
 package utils
 
 import (
-	"fmt"
 	"unipilot/internal/storage"
+
+	"unipilot/internal/errors"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -13,7 +14,7 @@ func GetUserDB() (*gorm.DB, error) {
 	// Determine database path
 	dbPath, err := GetDBPath()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errors.FSPathNotFound, "Failed to get database path")
 	}
 
 	// Open database connection
@@ -21,19 +22,19 @@ func GetUserDB() (*gorm.DB, error) {
 		PrepareStmt: true, // Better performance
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to open SQLite database at %s: %w", dbPath, err)
+		return nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to open SQLite database")
 	}
 
 	// Configure connection pool
 	sqlDB, err := db.DB()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get SQL DB: %w", err)
+		return nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to set connection pool")
 	}
 	sqlDB.SetMaxOpenConns(1) // SQLite works best with single connection
 
 	// Initialize schema (including new document tables)
 	if err := storage.InitializeSchema(db); err != nil {
-		return nil, fmt.Errorf("failed to initialize schema: %w", err)
+		return nil, errors.Wrap(err, errors.DBQueryFailed, "Failed to initialize schema")
 	}
 
 	return db, nil
@@ -43,26 +44,26 @@ func GetUserDBWithID(userID uint) (*gorm.DB, error) {
 
 	dbPath, err := GetDBPathWithID(userID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errors.FSPathNotFound, "Failed to get database path")
 	}
 
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
 		PrepareStmt: true, // Better performance
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to open SQLite database at %s: %w", dbPath, err)
+		return nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to open SQLite database")
 	}
 
 	// Configure connection pool
 	sqlDB, err := db.DB()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get SQL DB: %w", err)
+		return nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to set connection pool")
 	}
 	sqlDB.SetMaxOpenConns(1) // SQLite works best with single connection
 
 	// Initialize schema (including new document tables)
 	if err := storage.InitializeSchema(db); err != nil {
-		return nil, fmt.Errorf("failed to initialize schema: %w", err)
+		return nil, errors.Wrap(err, errors.DBQueryFailed, "Failed to initialize schema")
 	}
 
 	return db, nil

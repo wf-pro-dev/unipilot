@@ -372,12 +372,7 @@ func AuthMiddleware(c *fiber.Ctx) error {
 	// Step 3: Retrieve server secret key for token validation
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		return errors.WrapServer(
-			err,
-			errors.ConfigEnvVarNotFound,
-			"Server configuration error",
-			fiber.StatusInternalServerError,
-		)
+		return errors.Inherit(err, errors.ConfigEnvVarNotFound).ToServerError(fiber.StatusInternalServerError)
 	}
 	// Step 4: Parse and validate JWT token with server secret
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
