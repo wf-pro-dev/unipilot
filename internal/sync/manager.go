@@ -15,7 +15,6 @@ type SyncManager struct {
 }
 
 func NewSyncManager(db *gorm.DB) *SyncManager {
-	db = db.Debug()
 	return &SyncManager{db: db}
 }
 
