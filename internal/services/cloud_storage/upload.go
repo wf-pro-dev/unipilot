@@ -7,9 +7,10 @@ import (
 	"io"
 	"os"
 
-	"errors"
-	"log"
+	Errors "errors"
 	"time"
+
+	"unipilot/internal/errors"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -22,26 +23,29 @@ func UploadFile(filePath, fileName, key string) error {
 	// Get S3 client
 	svc, err := S3Client()
 	if err != nil {
-		return err
+		return errors.Wrap(err, errors.StorageClientFailed, "Failed to get S3 client")
 	}
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		return fmt.Errorf("unable to open file: %w", err)
+		if Errors.Is(err, os.ErrNotExist) {
+			return errors.Wrap(err, errors.StorageFileNotFound, "File not found")
+		}
+		return errors.Wrap(err, errors.FSOpenFailed, "Unable to open file")
 	}
 	defer file.Close()
 
 	// Get file info
 	fileInfo, err := file.Stat()
 	if err != nil {
-		return fmt.Errorf("unable to get file info: %w", err)
+		return errors.Wrap(err, errors.InternalError, "Unable to get file info")
 	}
 
 	// Read the contents of the file into a buffer
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, file); err != nil {
-		fmt.Fprintln(os.Stderr, "Error reading file:", err)
-		return err
+
+		return errors.Wrap(err, errors.InternalError, "Unable to read file")
 	}
 
 	// Upload file
@@ -57,7 +61,15 @@ func UploadFile(filePath, fileName, key string) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("r2 operation failed: %w", err)
+		var apiErr *smithy.GenericAPIError
+		if Errors.As(err, &apiErr) {
+			switch apiErr.ErrorCode() {
+			case "AccessDenied":
+				return errors.Wrap(err, errors.AuthForbidden, "Access denied")
+			}
+			return errors.Wrap(err, errors.StorageApiFailed, "Failed to copy object")
+		}
+
 	}
 
 	return nil
@@ -67,24 +79,23 @@ func UploadProfilePicture(filePath, fileName, key string) (string, error) {
 	// Get S3 client
 	svc, err := S3Client()
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, errors.StorageClientFailed, "Failed to get S3 client")
 	}
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		return "", fmt.Errorf("unable to open file: %w", err)
+		return "", errors.Wrap(err, errors.StorageFileNotFound, "Unable to open file")
 	}
 	defer file.Close()
 
 	fileInfo, err := file.Stat()
 	if err != nil {
-		return "", fmt.Errorf("unable to get file info: %w", err)
+		return "", errors.Wrap(err, errors.InternalError, "Unable to get file info")
 	}
 
 	var buf bytes.Buffer
 	if _, err := io.Copy(&buf, file); err != nil {
-		fmt.Fprintln(os.Stderr, "Error reading file:", err)
-		return "", err
+		return "", errors.Wrap(err, errors.InternalError, "Unable to read file")
 	}
 
 	_, err = svc.PutObject(context.TODO(), &s3.PutObjectInput{
@@ -99,14 +110,20 @@ func UploadProfilePicture(filePath, fileName, key string) (string, error) {
 		},
 	})
 	if err != nil {
-		return "", err
-	}
+		var apiErr *smithy.GenericAPIError
+		if Errors.As(err, &apiErr) {
+			switch apiErr.ErrorCode() {
+			case "AccessDenied":
+				return "", errors.Wrap(err, errors.AuthForbidden, "Access denied")
+			}
+			return "", errors.Wrap(err, errors.StorageApiFailed, "Failed to copy object")
+		}
 
-	log.Printf("File uploaded to S3: %s", key)
+	}
 
 	// Construct and return the public URL
 	publicURL := fmt.Sprintf("https://s3.%s.amazonaws.com/%s/%s", Region, Bucket, key)
-	log.Printf("Public URL: %s", publicURL)
+
 	return publicURL, nil
 }
 
@@ -115,7 +132,7 @@ func DeleteFile(key string) error {
 	// Get S3 client
 	svc, err := S3Client()
 	if err != nil {
-		return err
+		return errors.Wrap(err, errors.StorageClientFailed, "Failed to get S3 client")
 	}
 
 	// Upload file
@@ -127,16 +144,16 @@ func DeleteFile(key string) error {
 	if err != nil {
 		var noKey *types.NoSuchKey
 		var apiErr *smithy.GenericAPIError
-		if errors.As(err, &noKey) {
-			log.Printf("Object %s does not exist in %s.\n", key, Bucket)
-			err = noKey
-		} else if errors.As(err, &apiErr) {
+		if Errors.As(err, &noKey) {
+			return errors.Wrap(err, errors.StorageFileNotFound, "Object not found")
+		} else if Errors.As(err, &apiErr) {
 			switch apiErr.ErrorCode() {
 			case "AccessDenied":
-				log.Printf("Access denied: cannot delete object %s from %s.\n", key, Bucket)
-				err = nil
+				return errors.Wrap(err, errors.AuthForbidden, "Access denied")
 			}
+			return errors.Wrap(err, errors.StorageApiFailed, "Failed to copy object")
 		}
+
 	}
 
 	return nil
@@ -147,7 +164,7 @@ func CopyFile(oldKey, newKey string) error {
 	// Get S3 client
 	svc, err := S3Client()
 	if err != nil {
-		return err
+		return errors.Wrap(err, errors.StorageClientFailed, "Failed to get S3 client")
 	}
 
 	_, err = svc.CopyObject(context.TODO(), &s3.CopyObjectInput{
@@ -156,7 +173,18 @@ func CopyFile(oldKey, newKey string) error {
 		Key:        aws.String(newKey),
 	})
 	if err != nil {
-		return err
+		var noKey *types.NoSuchKey
+		var apiErr *smithy.GenericAPIError
+		if Errors.As(err, &noKey) {
+			return errors.Wrap(err, errors.StorageFileNotFound, "Object not found")
+		} else if Errors.As(err, &apiErr) {
+			switch apiErr.ErrorCode() {
+			case "AccessDenied":
+				return errors.Wrap(err, errors.AuthForbidden, "Access denied")
+			}
+			return errors.Wrap(err, errors.StorageApiFailed, "Failed to copy object")
+		}
+
 	}
 
 	return nil
@@ -168,7 +196,7 @@ func DownloadFile(key string) (io.Reader, error) {
 	// Get S3 client
 	svc, err := S3Client()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errors.StorageClientFailed, "Failed to get S3 client")
 	}
 
 	// Download object
@@ -177,7 +205,18 @@ func DownloadFile(key string) (io.Reader, error) {
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return nil, err
+		var noKey *types.NoSuchKey
+		var apiErr *smithy.GenericAPIError
+		if Errors.As(err, &noKey) {
+			return nil, errors.Wrap(err, errors.StorageFileNotFound, "Object not found")
+		} else if Errors.As(err, &apiErr) {
+			switch apiErr.ErrorCode() {
+			case "AccessDenied":
+				return nil, errors.Wrap(err, errors.AuthForbidden, "Access denied")
+			}
+			return nil, errors.Wrap(err, errors.StorageApiFailed, "Failed to copy object")
+		}
+
 	}
 
 	return result.Body, nil

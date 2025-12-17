@@ -1,7 +1,12 @@
 package user
 
 import (
+	Errors "errors"
+
+	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
+
+	"unipilot/internal/errors"
 )
 
 // Follow represents a follow relationship between users
@@ -73,15 +78,21 @@ func CreateFollow(followerID, followedID uint, db *gorm.DB) error {
 		return err
 	}
 	if isFollowing {
-		return nil // Already following
+		return errors.WrapServer(Errors.New("already following"), errors.DBConstraintViolation, "Already following", fiber.StatusConflict)
 	}
 
 	follow := &Follow{
 		FollowerID: followerID,
 		FollowedID: followedID,
 	}
+	if err := db.Create(follow).Error; err != nil {
+		if err == gorm.ErrDuplicatedKey {
+			return errors.WrapServer(err, errors.DBConstraintViolation, "Already following", fiber.StatusConflict)
+		}
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error creating follow", fiber.StatusInternalServerError)
+	}
 
-	return db.Create(follow).Error
+	return nil
 }
 
 // Remove a follow relationship
@@ -140,4 +151,3 @@ func UpdateFollowStats(userID uint, db *gorm.DB) error {
 	stats.FollowingCount = followingCount
 	return db.Save(&stats).Error
 }
-

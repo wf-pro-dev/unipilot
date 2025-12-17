@@ -3,7 +3,6 @@ package document
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,6 +10,8 @@ import (
 	"unipilot/internal/secrets"
 
 	"github.com/google/uuid"
+
+	"unipilot/internal/errors"
 
 	"github.com/qdrant/go-client/qdrant"
 	"google.golang.org/genai"
@@ -20,7 +21,7 @@ func GetFileTextForDocx(filename string) (string, error) {
 	// Open the file for reading
 	file, err := os.Open(filename)
 	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
+		return "", errors.Wrap(err, errors.FSOpenFailed, "Error opening file")
 	}
 	defer file.Close()
 
@@ -28,8 +29,7 @@ func GetFileTextForDocx(filename string) (string, error) {
 	cmd := exec.Command("python3", "/app/scripts/python/extract_docx.py", filename)
 	output, err := cmd.Output()
 	if err != nil {
-		fmt.Printf("GetFileTextForDocx err : %s", err.Error())
-		return "", err
+		return "", errors.Wrap(err, errors.SysExecFailed, "Error executing command")
 	}
 	return string(output), nil
 }
@@ -37,7 +37,7 @@ func GetFileTextForDocx(filename string) (string, error) {
 func GetFileTextForPdf(filename string) (string, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
+		return "", errors.Wrap(err, errors.FSOpenFailed, "Error opening file")
 	}
 	defer file.Close()
 
@@ -45,8 +45,7 @@ func GetFileTextForPdf(filename string) (string, error) {
 	cmd := exec.Command("python3", "/app/scripts/python/extract_pdf.py", filename)
 	output, err := cmd.Output()
 	if err != nil {
-		fmt.Printf("GetFileTextForDocx err : %s", err.Error())
-		return "", err
+		return "", errors.Wrap(err, errors.SysExecFailed, "Error executing command")
 	}
 	return string(output), nil
 }
@@ -59,7 +58,7 @@ func GetFileText(filename, ext string) (string, error) {
 		return GetFileTextForPdf(filename)
 	}
 
-	return "", nil
+	return "", errors.Wrap(fmt.Errorf("file type not supported"), errors.FSFileTypeNotSupported, "File type not supported")
 }
 
 func GetFileChunks(text string) []string {
@@ -87,21 +86,21 @@ func GetFileChunks(text string) []string {
 	return chunks
 }
 
-func GetQdrantVectors(document *Document) ([]*qdrant.PointStruct, error) {
+func GetQdrantVectors(document *LocalDocument) ([]*qdrant.PointStruct, error) {
 	fmt.Println("GetQdrantVectors")
 	var vectors []*qdrant.PointStruct
 
 	//Get file text
 	text, err := GetFileText(document.FileName, filepath.Ext(document.FileName))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errors.QdrantTextError, "Error getting file text")
 	}
 
 	chunks := GetFileChunks(string(text))
 
 	embeddings, err := GetTextEmbedding(chunks)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errors.QdrantEmbeddingError, "Error getting text embedding")
 	}
 
 	for i, embedding := range embeddings {
@@ -128,13 +127,13 @@ func GetTextEmbedding(chunks []string) ([]*genai.ContentEmbedding, error) {
 
 	GEMINI_API_KEY, err := secrets.GetEnvVar("GEMINI_API_KEY")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errors.ConfigEnvVarNotFound, "Error getting Gemini API key")
 	}
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey: GEMINI_API_KEY,
 	})
 	if err != nil {
-		log.Fatal(err)
+		return nil, errors.Wrap(err, errors.GeminiFailed, "Error creating Gemini client")
 	}
 
 	outputDimensionality := int32(768)
@@ -149,7 +148,7 @@ func GetTextEmbedding(chunks []string) ([]*genai.ContentEmbedding, error) {
 		&genai.EmbedContentConfig{OutputDimensionality: &outputDimensionality, TaskType: "RETRIEVAL_DOCUMENT"},
 	)
 	if err != nil {
-		log.Fatal(err)
+		return nil, errors.Wrap(err, errors.GeminiFailed, "Error embedding content")
 	}
 
 	return result.Embeddings, nil

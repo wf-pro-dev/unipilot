@@ -31,6 +31,7 @@ import (
 //   - Logs logout event for audit trail
 //   - No server-side session state changes (stateless design)
 func LogoutHandler(c *fiber.Ctx) error {
+	c.Locals("message", "User logged out")
 	// Step 3: Log logout event for security audit trail and monitoring
 	server.LogInfo(context.Background(), "User logged out",
 		"tags", []string{"auth", "auth", "low"})

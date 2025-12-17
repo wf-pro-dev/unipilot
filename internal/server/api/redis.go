@@ -1,26 +1,28 @@
-package redis
+package server
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 
+	"unipilot/internal/errors"
 	"unipilot/internal/secrets"
 )
 
-func NewRedisClient() (*redis.Client, error) {
+var RedisClient *redis.Client
+
+func NewRedisClient() error {
 	redisAddr, err := secrets.GetEnvVar("REDIS_ADDR")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get redis url: %w", err)
+		return errors.Wrap(err, errors.ConfigEnvVarNotFound, "cannot get redis addr")
 	}
 	redisPass, err := secrets.GetEnvVar("REDIS_PASSWORD")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get redis password: %w", err)
+		return errors.Wrap(err, errors.ConfigEnvVarNotFound, "cannot get redis password")
 	}
 
-	client := redis.NewClient(&redis.Options{
+	RedisClient = redis.NewClient(&redis.Options{
 		Addr:            redisAddr,
 		Password:        redisPass,
 		DB:              0,
@@ -39,10 +41,20 @@ func NewRedisClient() (*redis.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := client.Ping(ctx).Err(); err != nil {
-		client.Close()
-		return nil, fmt.Errorf("failed to connect to redis: %w", err)
+	if err := RedisClient.Ping(ctx).Err(); err != nil {
+		RedisClient.Close()
+		return err
 	}
 
-	return client, nil
+	return nil
+}
+
+func CloseRedis() error {
+	if RedisClient != nil {
+		if err := RedisClient.Close(); err != nil {
+			return errors.Wrap(err, errors.RedisCloseFailed, "cannot close redis connection")
+		}
+	}
+
+	return nil
 }

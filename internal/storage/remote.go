@@ -9,18 +9,31 @@ import (
 	"gorm.io/gorm/schema"
 
 	"unipilot/internal/secrets"
+
+	"unipilot/internal/errors"
 )
 
 func GetRemoteDB() (*gorm.DB, error) {
 
 	host, err := secrets.GetEnvVar("DB_HOST")
-	port, err := secrets.GetEnvVar("DB_PORT")
-	user, err := secrets.GetEnvVar("DB_USER")
-	password, err := secrets.GetEnvVar("DB_PASSWORD")
-	dbname, err := secrets.GetEnvVar("DB_NAME")
-
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errors.ConfigEnvVarNotFound, "cannot get the database host")
+	}
+	port, err := secrets.GetEnvVar("DB_PORT")
+	if err != nil {
+		return nil, errors.Wrap(err, errors.ConfigEnvVarNotFound, "cannot get the database port")
+	}
+	user, err := secrets.GetEnvVar("DB_USER")
+	if err != nil {
+		return nil, errors.Wrap(err, errors.ConfigEnvVarNotFound, "cannot get the database user")
+	}
+	password, err := secrets.GetEnvVar("DB_PASSWORD")
+	if err != nil {
+		return nil, errors.Wrap(err, errors.ConfigEnvVarNotFound, "cannot get the database password")
+	}
+	dbname, err := secrets.GetEnvVar("DB_NAME")
+	if err != nil {
+		return nil, errors.Wrap(err, errors.ConfigEnvVarNotFound, "cannot get the database name")
 	}
 	// Updated connection string with SSL
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -35,7 +48,7 @@ func GetRemoteDB() (*gorm.DB, error) {
 		Logger: logger.Default.LogMode(logger.Silent), // Disable GORM's default logger
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to db: %w", err)
+		return nil, errors.Wrap(err, errors.DBConnectionFailed, "cannot connect to the database")
 	}
 
 	return db, nil

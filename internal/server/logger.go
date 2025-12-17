@@ -130,15 +130,16 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
-	"unipilot/internal/models/user"
 
-	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
+
+	"unipilot/internal/errors"
 )
 
 var Logger *zap.SugaredLogger
@@ -174,8 +175,7 @@ func InitLogger() {
 	fileEncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	fileEncoderConfig.EncodeLevel = zapcore.LowercaseLevelEncoder
 	fileEncoderConfig.MessageKey = "message"
-	fileEncoderConfig.LevelKey = "level"
-	fileEncoderConfig.CallerKey = "caller"
+	fileEncoderConfig.StacktraceKey = zapcore.OmitKey
 
 	var fileCores []zapcore.Core
 
@@ -234,7 +234,7 @@ func InitLogger() {
 			StacktraceKey:  "S",
 			LineEnding:     zapcore.DefaultLineEnding,
 			EncodeLevel:    zapcore.CapitalLevelEncoder,
-			EncodeTime:     zapcore.TimeEncoderOfLayout("15:04:05"), // HH:MM:SS format
+			EncodeTime:     zapcore.TimeEncoderOfLayout(time.RFC3339), // HH:MM:SS format
 			EncodeDuration: zapcore.SecondsDurationEncoder,
 			EncodeCaller:   zapcore.ShortCallerEncoder,
 		}
@@ -284,22 +284,14 @@ func parseLogLevel(levelStr string) zapcore.Level {
 // logWithLevel is a helper function that handles the common logging pattern:
 // extract console/file fields, merge with additional fields, remove tags from console,
 // and write to both console and file loggers at the specified level.
-func logWithLevel(ctx context.Context, level zapcore.Level, message string, err error, keysAndValues ...interface{}) {
+func logWithLevel(ctx context.Context, level zapcore.Level, message string, keysAndValues ...interface{}) {
 	// Step 1: Extract console fields (minimal for readability)
 	consoleFields := extractConsoleFields(ctx)
 	consoleAllFields := mergeFields(consoleFields, keysAndValues...)
-	// Remove tags from console output (they're for metrics, not debugging)
-	consoleAllFields = removeTagsFromFields(consoleAllFields)
 
 	// Step 2: Extract file fields (comprehensive for analysis)
 	fileFields := extractContextFields(ctx)
 	fileAllFields := mergeFields(fileFields, keysAndValues...)
-
-	// Step 3: Add error to fields if provided (for WARN/ERROR/FATAL)
-	if err != nil {
-		consoleAllFields = append(consoleAllFields, "error", err.Error())
-		fileAllFields = append(fileAllFields, "error", err.Error())
-	}
 
 	// Step 4: Write to console logger (if enabled and level permits)
 	if Logger != nil {
@@ -335,138 +327,36 @@ func logWithLevel(ctx context.Context, level zapcore.Level, message string, err 
 }
 
 func LogDebug(ctx context.Context, message string, keysAndValues ...interface{}) {
-	logWithLevel(ctx, zapcore.DebugLevel, message, nil, keysAndValues...)
+	logWithLevel(ctx, zapcore.DebugLevel, message, keysAndValues...)
 }
 
 func LogInfo(ctx context.Context, message string, keysAndValues ...interface{}) {
-	logWithLevel(ctx, zapcore.InfoLevel, message, nil, keysAndValues...)
+	logWithLevel(ctx, zapcore.InfoLevel, message, keysAndValues...)
 }
 
-func LogWarn(ctx context.Context, message string, err error, keysAndValues ...interface{}) {
-	logWithLevel(ctx, zapcore.WarnLevel, message, err, keysAndValues...)
+func LogWarn(ctx context.Context, err *errors.ServerError) {
+	// Flatten the error to a ...interface{} slice
+	fields := []interface{}{
+		"error_code", err.Code,
+		"root", errors.GetRootAppError(err),
+	}
+	ctx = context.WithValue(ctx, "status_code", err.StatusCode)
+	logWithLevel(ctx, zapcore.WarnLevel, err.Message, fields...)
 }
 
-func LogError(ctx context.Context, message string, err error, keysAndValues ...interface{}) {
-	logWithLevel(ctx, zapcore.ErrorLevel, message, err, keysAndValues...)
+func LogError(ctx context.Context, err *errors.ServerError) error {
+	fields := []interface{}{
+		"error_code", err.Code,
+		"root", errors.GetRootAppError(err),
+	}
+	ctx = context.WithValue(ctx, "status_code", err.StatusCode)
+	logWithLevel(ctx, zapcore.ErrorLevel, err.Message, fields...)
+	return err
 }
 
 func LogFatal(ctx context.Context, message string, err error, keysAndValues ...interface{}) {
-	logWithLevel(ctx, zapcore.FatalLevel, message, err, keysAndValues...)
-	// Ensure exit even if logger didn't call os.Exit (defensive programming)
+	logWithLevel(ctx, zapcore.FatalLevel, message, keysAndValues...)
 	os.Exit(1)
-}
-
-// errorPatterns maps error categories to their matching keywords for fast lookup.
-// Used to categorize errors for structured logging and metrics.
-var errorPatterns = map[string][]string{
-	"database":   {"database", "sql", "gorm", "record not found"},
-	"cache":      {"redis", "cache"},
-	"storage":    {"s3", "r2", "storage", "file"},
-	"network":    {"network", "connection", "grpc", "http"},
-	"auth":       {"auth", "token", "unauthorized", "permission"},
-	"validation": {"validation", "invalid", "bad request", "malformed"},
-}
-
-// getErrorType categorizes errors based on error message and context tags.
-// Returns error type for structured logging and metrics collection.
-func getErrorType(err error, keysAndValues ...interface{}) string {
-	errMsg := strings.ToLower(err.Error())
-
-	// Step 1: Check error message patterns (most common case)
-	// Iterate through patterns to find matching category
-	for errorType, patterns := range errorPatterns {
-		for _, pattern := range patterns {
-			if strings.Contains(errMsg, pattern) {
-				return errorType
-			}
-		}
-	}
-
-	// Step 2: Check context tags for hints (fallback if message doesn't match)
-	// Tags often contain operation type (db, cache, network, etc.)
-	for i := 0; i < len(keysAndValues)-1; i += 2 {
-		if key, ok := keysAndValues[i].(string); ok && key == "tags" {
-			if tags, ok := keysAndValues[i+1].([]string); ok {
-				// Check tags for known operation types
-				for _, tag := range tags {
-					tagUpper := strings.ToUpper(tag)
-					switch tagUpper {
-					case "DB", "DATABASE":
-						return "database"
-					case "REDIS", "CACHE":
-						return "cache"
-					case "STORAGE", "S3", "R2":
-						return "storage"
-					case "NETWORK", "GRPC":
-						return "network"
-					case "AUTH", "TOKEN":
-						return "auth"
-					}
-				}
-			}
-		}
-	}
-
-	// Step 3: Default to internal error if no pattern matches
-	return "internal"
-}
-
-// ResponseError sends an error response using Fiber
-func ResponseError(c *fiber.Ctx, err error, statusCode int, message string, keyvals ...interface{}) error {
-	// Create a context for logging
-	ctx := context.Background()
-
-	// Determine error type for structured logging and metrics
-	errorType := getErrorType(err, keyvals...)
-
-	// Prepend status_code and error_type to fields (most important for analysis)
-	fields := append([]interface{}{"status_code", statusCode, "error_type", errorType}, keyvals...)
-
-	// Log as ERROR for server errors (>=500), WARN for client errors (<500)
-	// This helps distinguish between bugs (ERROR) and bad requests (WARN)
-	if statusCode >= 500 {
-		LogError(ctx, message, err, fields...)
-	} else {
-		LogWarn(ctx, message, err, fields...)
-	}
-
-	// Build error response
-	response := fiber.Map{
-		"error":   message,
-		"message": err.Error(),
-	}
-
-	// Add additional key-value pairs to response
-	for i := 0; i < len(keyvals)-1; i += 2 {
-		if key, ok := keyvals[i].(string); ok {
-			response[key] = keyvals[i+1]
-		}
-	}
-
-	return c.Status(statusCode).JSON(response)
-}
-
-// ResponseErrorHTTP is the old HTTP version (kept for backward compatibility if needed)
-func ResponseErrorHTTP(ctx context.Context, w http.ResponseWriter, err error, code int, message string, keysAndValues ...interface{}) {
-	// Store status code in context so it's available for logging
-	ctx = context.WithValue(ctx, "status_code", code)
-
-	// Determine error type for structured logging and metrics
-	errorType := getErrorType(err, keysAndValues...)
-
-	// Prepend status_code and error_type to fields (most important for analysis)
-	fields := append([]interface{}{"status_code", code, "error_type", errorType}, keysAndValues...)
-
-	// Log as ERROR for server errors (>=500), WARN for client errors (<500)
-	// This helps distinguish between bugs (ERROR) and bad requests (WARN)
-	if code >= 500 {
-		LogError(ctx, message, err, fields...)
-	} else {
-		LogWarn(ctx, message, err, fields...)
-	}
-
-	// Send HTTP error response to client
-	http.Error(w, message, code)
 }
 
 // mergeFields merges context fields with additional key-value pairs.
@@ -484,32 +374,20 @@ func mergeFields(contextFields []interface{}, keysAndValues ...interface{}) []in
 		return contextFields
 	}
 
-	// Merge: context fields first, then provided fields (later override earlier)
-	return append(contextFields, keysAndValues...)
-}
+	NonLoggableFields := []string{"tags", "component", "remote_addr"}
 
-// removeTagsFromFields removes the "tags" field from the fields slice for console readability.
-// Tags are useful for file logs (metrics/analysis) but clutter console output.
-func removeTagsFromFields(fields []interface{}) []interface{} {
-	// Early return if insufficient fields (need at least key-value pair)
-	if len(fields) < 2 {
-		return fields
-	}
-
-	// Pre-allocate result slice with capacity (optimization: avoid multiple allocations)
-	result := make([]interface{}, 0, len(fields))
-
-	// Iterate through key-value pairs, skipping "tags" field
-	for i := 0; i < len(fields)-1; i += 2 {
-		key := fields[i]
-		// Skip "tags" field (type assertion to string for safety)
-		if keyStr, ok := key.(string); ok && keyStr == "tags" {
+	filteredKeysAndValues := []interface{}{}
+	for i := 0; i < len(keysAndValues)-1; i += 2 {
+		fieldName, ok := keysAndValues[i].(string)
+		if !ok {
 			continue
 		}
-		result = append(result, fields[i], fields[i+1])
+		if !slices.Contains(NonLoggableFields, fieldName) {
+			filteredKeysAndValues = append(filteredKeysAndValues, strings.ToUpper(fieldName[:1]))
+			filteredKeysAndValues = append(filteredKeysAndValues, keysAndValues[i+1])
+		}
 	}
-
-	return result
+	return append(contextFields, filteredKeysAndValues...)
 }
 
 // extractContextFields extracts all logging fields from the context for file logging.
@@ -522,19 +400,25 @@ func extractContextFields(ctx context.Context) []interface{} {
 	}
 
 	// Extract user_id from user context (if available from authentication middleware)
-	if userCtx := ctx.Value("user"); userCtx != nil {
-		if u, ok := userCtx.(user.User); ok {
-			fields = append(fields, "user_id", u.ID)
+	if userCtx := ctx.Value("user_id"); userCtx != nil {
+		if u, ok := userCtx.(uint); ok {
+			fields = append(fields, "user_id", u)
 		}
 	}
 
-	// Calculate duration from start_time (performance metric)
-	if startTime := ctx.Value("start_time"); startTime != nil {
-		if st, ok := startTime.(time.Time); ok {
-			duration := time.Since(st).Milliseconds()
-			fields = append(fields, "duration", duration)
+	if duration := ctx.Value("duration"); duration != nil {
+		if d, ok := duration.(int64); ok {
+			fields = append(fields, "duration", d)
+		} else {
+			if startTime := ctx.Value("start_time"); startTime != nil {
+				if st, ok := startTime.(time.Time); ok {
+					duration := time.Since(st).Milliseconds()
+					fields = append(fields, "duration", duration)
+				}
+			}
 		}
 	}
+	// Calculate duration from start_time (performance metric)
 
 	// Extract component (api, sse, grpc) for service identification
 	if component := ctx.Value("component"); component != nil {
@@ -563,17 +447,23 @@ func extractConsoleFields(ctx context.Context) []interface{} {
 	}
 
 	// Essential for user context (identify which user's request)
-	if userCtx := ctx.Value("user"); userCtx != nil {
-		if u, ok := userCtx.(user.User); ok {
-			fields = append(fields, "user_id", u.ID)
+	if userCtx := ctx.Value("user_id"); userCtx != nil {
+		if u, ok := userCtx.(uint); ok {
+			fields = append(fields, "user_id", u)
 		}
 	}
 
 	// Essential for performance debugging (identify slow operations)
-	if startTime := ctx.Value("start_time"); startTime != nil {
-		if st, ok := startTime.(time.Time); ok {
-			duration := time.Since(st).Milliseconds()
-			fields = append(fields, "duration", duration)
+	if duration := ctx.Value("duration"); duration != nil {
+		if d, ok := duration.(int64); ok {
+			fields = append(fields, "duration", d)
+		} else {
+			if startTime := ctx.Value("start_time"); startTime != nil {
+				if st, ok := startTime.(time.Time); ok {
+					duration := time.Since(st).Milliseconds()
+					fields = append(fields, "duration", duration)
+				}
+			}
 		}
 	}
 

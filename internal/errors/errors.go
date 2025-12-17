@@ -1,0 +1,174 @@
+package errors
+
+import (
+	Errors "errors"
+	"fmt"
+	"strings"
+)
+
+type AppError struct {
+	Code    ErrorCode
+	Message string
+	Cause   error
+}
+
+type ServerError struct {
+	AppError
+	StatusCode int
+}
+
+func NewAppError(code ErrorCode, message string, cause error) *AppError {
+	return &AppError{
+		Code:    code,
+		Message: message,
+		Cause:   cause,
+	}
+}
+
+func (e *AppError) Error() string {
+	if e.Cause != nil {
+		return fmt.Sprintf("{ \"error_code\": %s, \"message\": %s, \"cause\": %v }", e.Code, e.Message, e.Cause)
+	}
+	return e.Message
+}
+
+func Wrap(err error, code ErrorCode, message string) *AppError {
+	if err == nil {
+		return nil
+	}
+	return NewAppError(code, message, err)
+}
+
+func (e *AppError) Unwrap() error {
+	return e.Cause
+}
+
+func (e *AppError) Is(target error) bool {
+	if t, ok := target.(*AppError); ok {
+		return e.Code == t.Code
+	}
+	return Errors.Is(e.Cause, target)
+}
+
+func (e *AppError) GetCategory() string {
+	// Separate the code from "-"
+	parts := strings.Split(string(e.Code), "-")
+	return parts[0]
+}
+
+func (e *AppError) As(target interface{}) bool {
+	if t, ok := target.(**AppError); ok {
+		*t = e
+		return true
+	}
+	return Errors.As(e.Cause, target)
+}
+
+// HasCode checks if error has a specific error code (traverses entire chain)
+func HasCode(err error, code ErrorCode) bool {
+	// Traverse the error chain (via Cause/Unwrap)
+	for err != nil {
+		var appErr *AppError
+		// Use standard library errors.As() - it traverses the chain automatically
+		if Errors.As(err, &appErr) {
+			if appErr.Code == code {
+				return true
+			}
+		}
+		// Move to next error in chain
+		err = Errors.Unwrap(err)
+	}
+	return false
+}
+
+func HasAppError(err error) bool {
+	var appErr *AppError
+	return Errors.As(err, &appErr)
+}
+
+// GetRootAppError finds the root AppError in an error chain
+// Works with any error type, traverses via Unwrap()
+func GetRootAppError(err error) *AppError {
+	// Find first AppError in chain
+	var root *AppError
+	if !Errors.As(err, &root) {
+		return nil
+	}
+
+	// Traverse to deepest AppError
+	for {
+		unwrapped := Errors.Unwrap(root)
+		var next *AppError
+		if !Errors.As(unwrapped, &next) {
+			break // End of AppError chain
+		}
+		root = next
+	}
+	return root
+}
+
+// Method version for convenience
+func (e *AppError) GetRoot() *AppError {
+	if e == nil {
+		return nil // Handle nil receiver
+	}
+	return GetRootAppError(e)
+}
+
+// GetAllCodes can also use Unwrap()
+func GetAllCodes(err error) []ErrorCode {
+	var codes []ErrorCode
+
+	// Traverse entire chain
+	current := err
+	for current != nil {
+		var appErr *AppError
+		if Errors.As(current, &appErr) {
+			codes = append(codes, appErr.Code)
+		}
+		current = Errors.Unwrap(current)
+	}
+	return codes
+}
+
+// Method version
+func (e *AppError) GetAllCodes() []ErrorCode {
+	return GetAllCodes(e)
+}
+
+func (e *AppError) ToServerError(statusCode int) *ServerError {
+	return NewServerError(e.Code, e.Message, e.Cause, statusCode)
+}
+
+func NewServerError(code ErrorCode, message string, cause error, statusCode int) *ServerError {
+	return &ServerError{
+		AppError:   *NewAppError(code, message, cause),
+		StatusCode: statusCode,
+	}
+}
+
+func (e *ServerError) Error() string {
+	if e.Cause != nil {
+		return fmt.Sprintf("%s: %v", e.Message, e.Cause)
+	}
+	return e.Message
+}
+
+func (e *ServerError) Unwrap() error {
+	return e.AppError.Unwrap()
+}
+
+func (e *ServerError) Is(target error) bool {
+	return e.AppError.Is(target)
+}
+
+func (e *ServerError) As(target interface{}) bool {
+	return e.AppError.As(target)
+}
+
+func WrapServer(err error, code ErrorCode, message string, statusCode int) *ServerError {
+	if err == nil {
+		return nil
+	}
+	return NewServerError(code, message, err, statusCode)
+}

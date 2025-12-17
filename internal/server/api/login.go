@@ -1,10 +1,12 @@
 package server
 
 import (
-	"context"
+	"fmt"
 	"time"
 
 	//"github.com/gorilla/sessions"
+	Errors "errors"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
@@ -13,6 +15,8 @@ import (
 	"unipilot/internal/models/user"
 	"unipilot/internal/secrets"
 	"unipilot/internal/server"
+
+	"unipilot/internal/errors"
 )
 
 // LoginHandler handles user authentication requests.
@@ -47,43 +51,37 @@ import (
 //   - Logs authentication attempts (both successful and failed)
 //   - Generates new JWT tokens for each login session
 func LoginHandler(c *fiber.Ctx) error {
+	c.Locals("message", "User logging in")
 	var credentials struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
 	}
 
 	if err := c.BodyParser(&credentials); err != nil {
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "Invalid request body",
-			"tags", []string{"LOGIN", "INVALID_REQUEST_BODY"},
-		)
+		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
-	db := c.Locals("db").(*gorm.DB)
+	db, ok := c.Locals("db").(*gorm.DB)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
+	}
 
 	var userObj user.User
 	if err := db.Where("username = ?", credentials.Username).First(&userObj).Error; err != nil {
-		return server.ResponseError(c, err, fiber.StatusUnauthorized, "No user found",
-			"username", credentials.Username,
-			"tags", []string{"LOGIN", "USER", "DB"},
-		)
+		if Errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.WrapServer(err, errors.DBRecordNotFound, "No user found", fiber.StatusUnauthorized)
+		}
+		return errors.WrapServer(err, errors.DBQueryFailed, "No user found", fiber.StatusUnauthorized)
 	}
 
 	// Check password
 	if err := bcrypt.CompareHashAndPassword([]byte(userObj.PasswordHash), []byte(credentials.Password)); err != nil {
-		return server.ResponseError(c, err, fiber.StatusUnauthorized, "Invalid Password",
-			"user_id", userObj.ID,
-			"username", userObj.Username,
-			"tags", []string{"LOGIN", "PASSWORD"},
-		)
+		return errors.WrapServer(err, errors.AuthUnauthorized, "Invalid Password", fiber.StatusUnauthorized)
 	}
 
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Invalid session key:",
-			"user_id", userObj.ID,
-			"username", userObj.Username,
-			"tags", []string{"LOGIN", "SESSION_KEY"},
-		)
+		return errors.WrapServer(err, errors.ConfigEnvVarNotFound, "Invalid session key:", fiber.StatusInternalServerError)
 	}
 
 	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, server.Claims{
@@ -94,11 +92,7 @@ func LoginHandler(c *fiber.Ctx) error {
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error creating access token",
-			"user_id", userObj.ID,
-			"username", userObj.Username,
-			"tags", []string{"LOGIN", "ACCESS_TOKEN"},
-		)
+		return errors.WrapServer(err, errors.AuthTokenGeneration, "Error creating access token", fiber.StatusInternalServerError)
 	}
 
 	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, server.Claims{
@@ -109,15 +103,10 @@ func LoginHandler(c *fiber.Ctx) error {
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error creating refresh token",
-			"user_id", userObj.ID,
-			"username", userObj.Username,
-			"tags", []string{"LOGIN", "REFRESH_TOKEN"},
-		)
+		return errors.WrapServer(err, errors.AuthTokenGeneration, "Error creating refresh token", fiber.StatusInternalServerError)
 	}
 
-	server.LogInfo(context.Background(), "User logged in", "user_id", userObj.ID,
-		"tags", []string{"auth", "auth", "medium", "read"})
+	c.Locals("message", "User logged in")
 
 	return c.JSON(fiber.Map{
 		"message":       "Login successful",

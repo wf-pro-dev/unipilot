@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	Errors "errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -13,9 +14,9 @@ import (
 	"github.com/gorilla/sessions"
 	"gorm.io/gorm"
 
-	"unipilot/internal/secrets"
-
+	"unipilot/internal/errors"
 	"unipilot/internal/models/user"
+	"unipilot/internal/secrets"
 )
 
 // responseWriter wraps http.ResponseWriter to capture status code
@@ -222,6 +223,11 @@ func LoggerMiddleware(c *fiber.Ctx) error {
 	// Execute the next handler (route matching happens here)
 	err := c.Next()
 
+	if errorHandled, ok := c.Locals("error_handled").(bool); ok && errorHandled {
+		// Error was already logged and handled, don't log again
+		return err
+	}
+
 	// Get the route pattern from Fiber after route matching (e.g., "/assignments/:id")
 	// This is what we use for tag matching
 	routePattern := requestPath
@@ -243,9 +249,20 @@ func LoggerMiddleware(c *fiber.Ctx) error {
 	ctx = context.WithValue(ctx, "request_id", requestID)
 	ctx = context.WithValue(ctx, "start_time", startTime)
 	ctx = context.WithValue(ctx, "status_code", c.Response().StatusCode())
+	ctx = context.WithValue(ctx, "duration", duration)
 
-	// Determine log level based on request duration
-	// Slow requests (>1s) are logged as WARN for performance monitoring
+	userID, ok := c.Locals("user_id").(uint)
+	if !ok {
+		userID = 0
+	}
+	ctx = context.WithValue(ctx, "user_id", userID)
+
+	message, ok := c.Locals("message").(string)
+	if !ok {
+		message = "Request completed"
+		LogWarn(ctx, errors.WrapServer(fmt.Errorf("route message not found"), errors.ValidationInvalid, "Route message not found", fiber.StatusInternalServerError))
+	}
+
 	logLevel := "INFO"
 	if duration > 1000 {
 		logLevel = "WARN"
@@ -255,19 +272,11 @@ func LoggerMiddleware(c *fiber.Ctx) error {
 		}
 	}
 
-	// Log request completion using unified logging functions
-	// Use the actual request path (with IDs) for logging, not the route pattern
-	// This automatically handles both console (compact) and file (JSON) logging
-	if logLevel == "WARN" {
-		LogWarn(ctx, "Request completed",
-			fmt.Errorf("slow request: %dms", duration),
-			"method", c.Method(),
-			"path", requestPath,
-			"remote_addr", clientIP,
-			"tags", tags,
-		)
+	// Log slow request
+	if logLevel == "WARN" && err == nil {
+		LogWarn(ctx, errors.WrapServer(fmt.Errorf("slow request: %dms", duration), errors.SlowRequest, "Slow request", fiber.StatusInternalServerError))
 	} else {
-		LogInfo(ctx, "Request completed",
+		LogInfo(ctx, message,
 			"method", c.Method(),
 			"path", requestPath,
 			"remote_addr", clientIP,
@@ -342,47 +351,57 @@ func AuthMiddleware(c *fiber.Ctx) error {
 	// Step 1: Extract JWT token from Authorization header
 	authHeader := c.Get("Authorization")
 	if authHeader == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Authorization header required",
-		})
+		return errors.WrapServer(
+			fmt.Errorf("authorization header required"),
+			errors.AuthUnauthorized,
+			"Authorization header required",
+			fiber.StatusUnauthorized,
+		)
 	}
 
 	// Step 2: Parse Bearer token format ("Bearer <token>")
 	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 	if tokenString == authHeader {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Invalid authorization format. Expected: Bearer <token>",
-		})
+		return errors.WrapServer(
+			fmt.Errorf("authorization Token invalid"),
+			errors.AuthTokenInvalid,
+			"Authorization Token invalid",
+			fiber.StatusUnauthorized,
+		)
 	}
-
 	// Step 3: Retrieve server secret key for token validation
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Server configuration error",
-		})
+		return errors.WrapServer(
+			err,
+			errors.ConfigEnvVarNotFound,
+			"Server configuration error",
+			fiber.StatusInternalServerError,
+		)
 	}
-
 	// Step 4: Parse and validate JWT token with server secret
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(SESSION_KEY), nil // Use same secret as token generation
 	})
-
 	// Step 5: Validate token parsing and signature
 	if err != nil || !token.Valid {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Invalid or expired token",
-		})
+		return errors.WrapServer(
+			err,
+			errors.AuthTokenInvalid,
+			"Invalid or expired token",
+			fiber.StatusUnauthorized,
+		)
 	}
-
 	// Step 6: Extract and validate claims structure
 	claims, ok := token.Claims.(*Claims)
 	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Invalid token claims",
-		})
+		return errors.WrapServer(
+			fmt.Errorf("invalid token claims"),
+			errors.AuthTokenInvalid,
+			"Invalid token claims",
+			fiber.StatusUnauthorized,
+		)
 	}
-
 	// Step 7: Extract user object from validated claims
 	user := claims.User
 
@@ -463,4 +482,105 @@ func AuthMiddlewareV1(next http.HandlerFunc) http.HandlerFunc {
 		// Step 6: Continue to next handler with session-based authentication
 		next.ServeHTTP(w, r)
 	}
+}
+
+// ErrorHandlerMiddleware is the central error handling point for all API handlers.
+// It catches errors returned from handlers, logs them, and sends appropriate HTTP responses.
+// This ensures consistent error logging and response formatting across the entire API.
+//
+// Error Handling Flow:
+//  1. Catches errors returned from handlers (via c.Next())
+//  2. Checks if error is a ServerError (has status code)
+//  3. Logs error with appropriate level (ERROR/WARN based on status code)
+//  4. Sends JSON response with error details
+//  5. Returns nil to prevent double handling
+//
+// Usage:
+//   - Applied after LoggerMiddleware to have access to request context
+//   - Handlers should return *errors.ServerError or regular errors
+//   - Regular errors are wrapped as 500 Internal Server Error
+func ErrorHandlerMiddleware(c *fiber.Ctx) error {
+	// Execute handlers first
+	err := c.Next()
+
+	// If no error, continue normally
+	if err == nil {
+		return nil
+	}
+
+	// Extract context from Fiber locals (set by LoggerMiddleware)
+	ctx := context.Background()
+	if requestID := c.Locals("request_id"); requestID != nil {
+		ctx = context.WithValue(ctx, "request_id", requestID)
+	}
+	if startTime := c.Locals("start_time"); startTime != nil {
+		ctx = context.WithValue(ctx, "start_time", startTime)
+	}
+	ctx = context.WithValue(ctx, "component", "api")
+
+	// Try to extract ServerError from error chain
+	var serverErr *errors.ServerError
+	if Errors.As(err, &serverErr) {
+
+		// We have a ServerError with status code
+		ctx = context.WithValue(ctx, "status_code", serverErr.StatusCode)
+
+		// Log based on status code severity
+		if serverErr.StatusCode >= 500 {
+			LogError(ctx, serverErr)
+		} else {
+			// 4xx errors are client errors, log as WARN
+			LogWarn(ctx, serverErr)
+		}
+
+		// if c.Response().Header.ContentLength() > 0 || c.Response().StatusCode() != 0 {
+		// 	log.Println("Log from ErrorHandlerMiddleware: Response already sent")
+		// 	// Response already sent, just log
+		// 	if serverErr.StatusCode >= 500 {
+		// 		LogError(ctx, serverErr)
+		// 	} else {
+		// 		LogWarn(ctx, serverErr)
+		// 	}
+		// 	c.Locals("error_handled", true)
+		// 	return nil
+		// }
+
+		// Send JSON response
+		c.Locals("error_handled", true)
+		return c.Status(serverErr.StatusCode).JSON(fiber.Map{
+			"error":      serverErr.Message,
+			"error_code": serverErr.Code,
+		})
+	}
+
+	// Try to extract AppError (no status code)
+	var appErr *errors.AppError
+	if Errors.As(err, &appErr) {
+		// Convert AppError to ServerError with 500 status
+		serverErr = appErr.ToServerError(fiber.StatusInternalServerError)
+		ctx = context.WithValue(ctx, "status_code", serverErr.StatusCode)
+		LogError(ctx, serverErr)
+
+		c.Locals("error_handled", true)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error":      serverErr.Message,
+			"error_code": serverErr.Code,
+		})
+	}
+
+	// Unknown error type - wrap it
+	serverErr = errors.WrapServer(
+		err,
+		errors.InternalError,
+		"Internal server error",
+		fiber.StatusInternalServerError,
+	)
+	ctx = context.WithValue(ctx, "status_code", serverErr.StatusCode)
+	LogError(ctx, serverErr)
+
+	c.Locals("error_handled", true)
+	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		"error":      serverErr.Message,
+		"error_code": serverErr.Code,
+	})
 }

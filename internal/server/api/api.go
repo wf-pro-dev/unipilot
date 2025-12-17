@@ -2,37 +2,26 @@ package server
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 
 	"unipilot/internal/server"
-	grpc "unipilot/internal/server/api/grpc"
-	"unipilot/internal/server/qdrant"
-	"unipilot/internal/server/sse/grpc/notifications"
+
 	"unipilot/internal/storage"
 
-	"unipilot/internal/server/api/redis"
-
-	Qdrant "github.com/qdrant/go-client/qdrant"
-	Redis "github.com/redis/go-redis/v9"
-)
-
-var (
-	GrpcClient   notifications.NotificationsServiceClient
-	RedisClient  *Redis.Client
-	QdrantClient *Qdrant.Client
+	"unipilot/internal/errors"
 )
 
 func HealthHandler(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{
+	err := c.JSON(fiber.Map{
 		"status":    "healthy",
 		"timestamp": time.Now().Format(time.RFC3339),
 	})
+	return err
 }
 
-func StartServer() {
+func StartServer() error {
 	// Initialize logger first so we can use proper logging for startup errors
 	server.InitLogger()
 
@@ -44,82 +33,91 @@ func StartServer() {
 
 	db, err := storage.GetRemoteDB()
 	if err != nil {
-		server.LogFatal(ctx, "Failed to initialize database connection", err,
-			"tags", []string{"system", "db", "high"},
-			"error_type", "database",
-		)
-		return
+		return errors.Wrap(err, errors.DBConnectionFailed, "failed to initialize database connection")
 	}
 
-	GrpcClient = *grpc.NewGRPCClient()
-	defer grpc.CloseGRPCClient()
-
-	RedisClient, err = redis.NewRedisClient()
+	err = NewGRPCClient()
 	if err != nil {
-		server.LogFatal(ctx, "Failed to initialize Redis client", err,
-			"tags", []string{"cache", "network", "high"},
-			"error_type", "network",
-		)
-		return
+		return errors.Wrap(err, errors.GRPCFailed, "cannot connect to sse gRPC")
 	}
-	defer RedisClient.Close()
+	defer func() {
+		if err := CloseGRPC(); err != nil {
+			server.LogError(context.Background(), errors.WrapServer(err, errors.GRPCCloseFailed, "Failed to close gRPC client", fiber.StatusInternalServerError))
+		}
+	}()
 
-	QdrantClient, err = qdrant.NewQdrantClient()
+	err = NewRedisClient()
 	if err != nil {
-		server.LogFatal(ctx, "Failed to initialize Qdrant client", err,
-			"tags", []string{"rag", "network", "high"},
-			"error_type", "network",
-		)
-		return
+		return errors.Wrap(err, errors.RedisFailed, "cannot connect to redis")
 	}
-	defer QdrantClient.Close()
+	defer func() {
+		if err := CloseRedis(); err != nil {
+			server.LogError(context.Background(), errors.WrapServer(err, errors.RedisCloseFailed, "Failed to close redis client", fiber.StatusInternalServerError))
+		}
+	}()
+
+	err = NewQdrantClient()
+	if err != nil {
+		return errors.Wrap(err, errors.QdrantFailed, "cannot connect to qdrant")
+	}
+	defer func() {
+		if err := CloseQdrant(); err != nil {
+			server.LogError(context.Background(), errors.WrapServer(err, errors.QdrantCloseFailed, "Failed to close qdrant client", fiber.StatusInternalServerError))
+		}
+	}()
 
 	app.Get("/health", HealthHandler)
 
 	app.Use(server.LoggerMiddleware)
 	app.Use(server.DBMiddleware(db))
+	app.Use(server.ErrorHandlerMiddleware)
 
 	app.Post("/auth/register", RegisterHandler)
 	app.Post("/auth/login", LoginHandler)
-	app.Post("/auth/logout", server.AuthMiddleware, LogoutHandler)
-	app.Post("/auth/refresh-token", server.AuthMiddleware, RefreshTokenHandler)
 
-	app.Get("/users", server.AuthMiddleware, GetUsersHandler)
-	app.Get("/users/me", server.AuthMiddleware, GetUserHandler)
-	app.Post("/users/me", server.AuthMiddleware, UpdateUserHandler)
-	app.Post("/users/me/profile-picture", server.AuthMiddleware, UpdateProfilePictureHandler)
+	app.Use(server.AuthMiddleware)
+	// Protected routes
+	app.Post("/auth/logout", LogoutHandler)
+	app.Post("/auth/refresh-token", RefreshTokenHandler)
 
-	app.Post("/users/:id/follow", server.AuthMiddleware, HandleFollow)
-	app.Get("/users/:id/followers", server.AuthMiddleware, HandleGetFollowers)
-	app.Get("/users/:id/following", server.AuthMiddleware, HandleGetFollowing)
+	app.Get("/users", GetUsersHandler)
+	app.Get("/users/me", GetUserHandler)
+	app.Post("/users/me", UpdateUserHandler)
+	app.Post("/users/me/profile-picture", UpdateProfilePictureHandler)
 
-	app.Get("/assignments", server.AuthMiddleware, GetAssignmentHandler)
-	app.Post("/assignments", server.AuthMiddleware, CreateAssignmentHandler)
-	app.Put("/assignments/:id", server.AuthMiddleware, UpdateAssignmentHandler)
-	app.Delete("/assignments/:id", server.AuthMiddleware, DeleteAssignmentHandler)
+	app.Post("/users/:id/follow", HandleFollow)
+	app.Get("/users/:id/followers", HandleGetFollowers)
+	app.Get("/users/:id/following", HandleGetFollowing)
+	app.Get("/assignments", GetAssignmentHandler)
+	app.Post("/assignments", CreateAssignmentHandler)
+	app.Put("/assignments/:id", UpdateAssignmentHandler)
+	app.Delete("/assignments/:id", DeleteAssignmentHandler)
 
-	app.Get("/courses", server.AuthMiddleware, GetCoursesHandler)
-	app.Post("/courses", server.AuthMiddleware, CreateCourseHandler)
-	app.Put("/courses/:id", server.AuthMiddleware, UpdateCourseHandler)
-	app.Post("/courses/:id/link-request", server.AuthMiddleware, LinkRequestCourseHandler)
-	app.Post("/courses/:id/link-accept", server.AuthMiddleware, AcceptLinkCourseHandler)
-	app.Delete("/courses/:id", server.AuthMiddleware, DeleteCourseHandler)
+	app.Get("/courses", GetCoursesHandler)
+	app.Post("/courses", CreateCourseHandler)
+	app.Put("/courses/:id", UpdateCourseHandler)
+	app.Post("/courses/:id/link-request", LinkRequestCourseHandler)
+	app.Post("/courses/:id/link-accept", AcceptLinkCourseHandler)
+	app.Delete("/courses/:id", DeleteCourseHandler)
 
-	app.Get("/documents/assignments/:id", server.AuthMiddleware, GetAssignmentDocumentsHandler)
-	app.Get("/documents/assignments/:id/rag", server.AuthMiddleware, GetAssignmentDocumentIDsRAG)
+	app.Get("/documents/assignments/:id", GetAssignmentDocumentsHandler)
+	app.Get("/documents/assignments/:id/rag", GetAssignmentDocumentIDsRAG)
 
-	app.Get("/documents", server.AuthMiddleware, GetDocumentsHandler)
-	app.Post("/documents", server.AuthMiddleware, CreateDocumentHandler)
-	app.Post("/documents/:id/download", server.AuthMiddleware, DownloadDocumentHandler)
-	app.Delete("/documents/:id", server.AuthMiddleware, DeleteDocumentHandler)
-	app.Post("/documents/:id/rag", server.AuthMiddleware, UploadDocumentForRAGHandler)
-	app.Delete("/documents/:id/rag", server.AuthMiddleware, DeleteDocumentRAG)
+	app.Get("/documents", GetDocumentsHandler)
+	app.Post("/documents", CreateDocumentHandler)
+	app.Post("/documents/:id/download", DownloadDocumentHandler)
+	app.Delete("/documents/:id", DeleteDocumentHandler)
+	app.Post("/documents/:id/rag", UploadDocumentForRAGHandler)
+	app.Delete("/documents/:id/rag", DeleteDocumentRAG)
 
-	app.Get("/notes", server.AuthMiddleware, GetNotesHandler)
-	app.Post("/notes", server.AuthMiddleware, CreateNoteHandler)
-	app.Post("/notes/stream", server.AuthMiddleware, CreateNoteStreamHandler)
-	app.Put("/notes/:id", server.AuthMiddleware, UpdateNoteHandler)
-	app.Delete("/notes/:id", server.AuthMiddleware, DeleteNoteHandler)
+	app.Get("/notes", GetNotesHandler)
+	app.Post("/notes", CreateNoteHandler)
+	app.Post("/notes/stream", CreateNoteStreamHandler)
+	app.Put("/notes/:id", UpdateNoteHandler)
+	app.Delete("/notes/:id", DeleteNoteHandler)
 
-	log.Fatal(app.Listen(":3000"))
+	if err := app.Listen(":3000"); err != nil {
+		return errors.Wrap(err, errors.APIStartFailed, "cannot start api server")
+	}
+	return nil
 }

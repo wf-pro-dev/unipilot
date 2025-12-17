@@ -3,16 +3,16 @@ package fileops
 import (
 	"fmt"
 	"io"
-	"log"
 	"mime"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"gorm.io/gorm"
+
+	"unipilot/internal/errors"
 	"unipilot/internal/models/document"
 	"unipilot/internal/services/utils"
-
-	"gorm.io/gorm"
 )
 
 // FileUploadRequest represents a file upload request
@@ -58,7 +58,7 @@ var SupportedFileTypes = map[string]bool{
 func ValidateFileType(fileName string) error {
 	ext := strings.ToLower(filepath.Ext(fileName))
 	if !SupportedFileTypes[ext] {
-		return fmt.Errorf("file type %s is not supported", ext)
+		return errors.Wrap(fmt.Errorf("file type %s is not supported", ext), errors.FSFileTypeNotSupported, "File type not supported")
 	}
 	return nil
 }
@@ -82,7 +82,7 @@ func WriteDocument(document *document.LocalDocument, fileContent io.Reader, db *
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Failed to create directory",
-		}, err
+		}, errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create directory")
 	}
 
 	// Write file to disk
@@ -92,9 +92,8 @@ func WriteDocument(document *document.LocalDocument, fileContent io.Reader, db *
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Failed to write file",
-		}, err
+		}, errors.Wrap(err, errors.FSWriteFailed, "Failed to write file")
 	}
-	log.Println("Writing file to disk")
 
 	// Update HasLocalFile to true after successful write
 	document.HasLocalFile = true
@@ -102,10 +101,8 @@ func WriteDocument(document *document.LocalDocument, fileContent io.Reader, db *
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Failed to update HasLocalFile",
-		}, err
+		}, errors.Wrap(err, errors.DBQueryFailed, "Failed to update HasLocalFile")
 	}
-
-	log.Println("Updating HasLocalFile to true")
 
 	// Storage info is now calculated on-demand, no need to update cache
 
@@ -124,7 +121,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Original document not found",
-		}, err
+		}, errors.Wrap(err, errors.DBRecordNotFound, "Original document not found")
 	}
 
 	// Validate file type
@@ -132,7 +129,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 		return &FileUploadResponse{
 			Success: false,
 			Message: "File type not supported",
-		}, fmt.Errorf("unsupported file type")
+		}, errors.Wrap(err, errors.ValidationInvalid, "Invalid file")
 	}
 
 	// Create new version
@@ -156,7 +153,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Failed to get app data path",
-		}, err
+		}, errors.Wrap(err, errors.FSPathNotFound, "Failed to get app data path")
 	}
 
 	fileName := fmt.Sprintf("doc_%d_%d_v%d_%s", req.AssignmentID, req.UserID, newVersion.Version, req.FileName)
@@ -168,7 +165,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Failed to save new version",
-		}, err
+		}, errors.Wrap(err, errors.DBQueryFailed, "Failed to save new version")
 	}
 
 	// Create directory if needed
@@ -177,7 +174,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Failed to create directory",
-		}, err
+		}, errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create directory")
 	}
 
 	// Write file
@@ -186,7 +183,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Failed to open file",
-		}, err
+		}, errors.Wrap(err, errors.FSOpenFailed, "Failed to open file")
 	}
 	defer fileContent.Close()
 	if err := WriteFile(filePath, fileContent); err != nil {
@@ -194,12 +191,17 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Failed to write file",
-		}, err
+		}, errors.Wrap(err, errors.FSWriteFailed, "Failed to write file")
 	}
 
 	// Update HasLocalFile after successful write
 	newVersion.HasLocalFile = true
-	db.Save(&newVersion)
+	if err := db.Save(&newVersion).Error; err != nil {
+		return &FileUploadResponse{
+			Success: false,
+			Message: "Failed to update HasLocalFile",
+		}, errors.Wrap(err, errors.DBQueryFailed, "Failed to update HasLocalFile")
+	}
 
 	// Storage info is now calculated on-demand, no need to update cache
 
@@ -215,37 +217,37 @@ func DeleteDocument(docID uint, userID uint, db *gorm.DB) error {
 	// Get document record
 	var doc document.Document
 	if err := db.Where("id = ? AND user_id = ?", docID, userID).First(&doc).Error; err != nil {
-		return fmt.Errorf("document not found or access denied")
+		return errors.Wrap(err, errors.DBRecordNotFound, "Document not found or access denied")
 	}
 
 	// Get full path
 	fullPath, err := doc.GetFullPath()
 	if err != nil {
-		return fmt.Errorf("failed to get file path: %w", err)
+		return errors.Wrap(err, errors.FSPathNotFound, "Failed to get file path")
 	}
 
 	// Delete file from disk
 	if doc.FileExists() {
 		if err := os.Remove(fullPath); err != nil {
-			return fmt.Errorf("failed to delete file: %w", err)
+			return errors.Wrap(err, errors.FSDeleteFailed, "Failed to delete file")
 		}
 	}
 
 	// Delete all versions if this is the parent document
 	if doc.ParentDocID == nil {
 		if err := db.Where("parent_doc_id = ?", doc.ID).Delete(&document.Document{}).Error; err != nil {
-			return fmt.Errorf("failed to delete document versions: %w", err)
+			return errors.Wrap(err, errors.DBRecordNotFound, "Failed to delete document versions")
 		}
 	}
 
 	// Delete document record
 	if err := db.Delete(&doc).Error; err != nil {
-		return fmt.Errorf("failed to delete document record: %w", err)
+		return errors.Wrap(err, errors.DBQueryFailed, "Failed to delete document record")
 	}
 
 	// Update user storage info
 	if err := document.UpdateStorageInfo(userID, db); err != nil {
-		fmt.Printf("Warning: Failed to update storage info: %v\n", err)
+		return errors.Wrap(err, errors.DBQueryFailed, "Failed to update storage info")
 	}
 
 	return nil
@@ -256,14 +258,14 @@ func WriteFile(filePath string, content io.Reader) error {
 	// Create the file
 	file, err := os.Create(filePath)
 	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
+		return errors.Wrap(err, errors.FSCreateFailed, "Failed to create file")
 	}
 	defer file.Close()
 
 	// Copy content to file
 	_, err = io.Copy(file, content)
 	if err != nil {
-		return fmt.Errorf("failed to write file content: %w", err)
+		return errors.Wrap(err, errors.FSWriteFailed, "Failed to write file content")
 	}
 
 	return nil
@@ -277,13 +279,13 @@ func GetUserStorageInfo(userID uint, db *gorm.DB) (*document.DocumentStorageInfo
 		if err == gorm.ErrRecordNotFound {
 			// Create new storage info if it doesn't exist
 			if err := document.UpdateStorageInfo(userID, db); err != nil {
-				return nil, fmt.Errorf("failed to create storage info: %w", err)
+				return nil, errors.Wrap(err, errors.DBRecordNotFound, "Document storage info not found")
 			}
 			// Try again
 			err = db.Where("user_id = ?", userID).First(&storageInfo).Error
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to get storage info: %w", err)
+			return nil, errors.Wrap(err, errors.DBQueryFailed, "Failed to get storage info")
 		}
 	}
 

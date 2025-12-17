@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -12,6 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
+	"unipilot/internal/errors"
 	"unipilot/internal/models/user"
 	"unipilot/internal/secrets"
 	"unipilot/internal/server"
@@ -49,6 +50,7 @@ import (
 //   - Generates cryptographically secure password hash using bcrypt
 func RegisterHandler(c *fiber.Ctx) error {
 	// Step 2: Define input structure for JSON unmarshaling with required user fields
+	c.Locals("message", "Registration successful")
 	var registrationData struct {
 		Username   string `json:"username"`
 		Email      string `json:"email"`
@@ -60,34 +62,29 @@ func RegisterHandler(c *fiber.Ctx) error {
 	// Parse JSON request body into registration data structure
 	err := c.BodyParser(&registrationData)
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "Invalid request body",
-			"tags", []string{"REGISTER"},
-		)
+		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
 	// Extract database connection from middleware context
-	db := c.Locals("db").(*gorm.DB)
+	db, ok := c.Locals("db").(*gorm.DB)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
+	}
 
 	// Step 3: Validate all required fields are present (business rule enforcement)
 	if registrationData.Username == "" || registrationData.Email == "" || registrationData.Password == "" || registrationData.University == "" || registrationData.Language == "" {
-		return server.ResponseError(c, errors.New("missing required fields"), fiber.StatusBadRequest, "Username, email, password, university, and language are required",
-			"tags", []string{"REGISTER", "MISSING_REQUIRED_FIELDS"},
-		)
+		return errors.WrapServer(fmt.Errorf("missing required fields"), errors.ReqParamMissing, "Username, email, password, university, and language are required", fiber.StatusBadRequest)
 	}
 
 	// Step 4: Check username uniqueness constraint (prevents duplicate accounts)
 	if err := db.Where("username = ?", registrationData.Username).First(&user.User{}).Error; err == nil {
-		return server.ResponseError(c, errors.New("username already taken"), fiber.StatusConflict, "Username already taken",
-			"tags", []string{"REGISTER", "DB"},
-		)
+		return errors.WrapServer(fmt.Errorf("username already taken"), errors.DBConstraintViolation, "Username already taken", fiber.StatusConflict)
 	}
 
 	// Step 5: Hash password using bcrypt with default cost (currently 10 rounds)
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(registrationData.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error generating hashed password",
-			"tags", []string{"REGISTER", "PASSWORD"},
-		)
+		return errors.WrapServer(err, errors.ProcDataProcessingFailed, "Error generating hashed password", fiber.StatusInternalServerError)
 	}
 
 	// Step 6: Construct user object with validated data and hashed password
@@ -101,9 +98,7 @@ func RegisterHandler(c *fiber.Ctx) error {
 
 	// Persist new user to database
 	if err := db.Create(&userObj).Error; err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error creating user",
-			"tags", []string{"REGISTER", "DB"},
-		)
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error creating user", fiber.StatusInternalServerError)
 	}
 
 	// Convert user struct to map for safe JSON response (removes sensitive fields)
@@ -112,9 +107,7 @@ func RegisterHandler(c *fiber.Ctx) error {
 	// Step 7: Generate JWT tokens for immediate authentication after registration
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting session key",
-			"tags", []string{"REGISTER", "SESSION_KEY"},
-		)
+		return errors.WrapServer(err, errors.ConfigEnvVarNotFound, "Error getting session key", fiber.StatusInternalServerError)
 	}
 
 	// Create short-lived access token (15 minutes) for API access
@@ -126,10 +119,8 @@ func RegisterHandler(c *fiber.Ctx) error {
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error creating access token",
-			"user_id", userObj.ID,
-			"tags", []string{"REGISTER", "ACCESS_TOKEN"},
-		)
+		return errors.WrapServer(err, errors.AuthTokenGeneration, "Error creating access token", fiber.StatusInternalServerError)
+
 	}
 
 	// Create long-lived refresh token (30 days) for token renewal
@@ -141,37 +132,23 @@ func RegisterHandler(c *fiber.Ctx) error {
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error creating refresh token",
-			"user_id", userObj.ID,
-			"tags", []string{"REGISTER", "REFRESH_TOKEN"},
-		)
+		return errors.WrapServer(err, errors.AuthTokenGeneration, "Error creating refresh token", fiber.StatusInternalServerError)
 	}
 
 	// Step 8: Cache user data in Redis for performance optimization (non-blocking)
 	userJSON, err := json.Marshal(userMap)
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error marshalling user to json",
-			"user_id", userObj.ID,
-			"tags", []string{"REGISTER", "MARSHALLING"},
-		)
+		return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Error marshalling user to json", fiber.StatusInternalServerError)
 	}
 
 	// Store in Redis hash with user ID as key (failure is non-critical, only logged)
 	if err := RedisClient.HSet(context.Background(), "users", strconv.Itoa(int(userObj.ID)), userJSON).Err(); err != nil {
-		server.LogWarn(context.Background(), "Failed to cache user in Redis", err, "user_id", userObj.ID,
-			"tags", []string{"cache", "cache", "medium"},
-			"cache_status", "error",
-			"error_type", "cache",
-		)
+		return errors.WrapServer(err, errors.CacheOperationFailed, "Failed to cache user in Redis", fiber.StatusInternalServerError)
 	}
-
-	// Step 10: Log successful registration for audit trail and monitoring
-	server.LogInfo(context.Background(), "User registered", "user_id", userObj.ID,
-		"tags", []string{"user", "db", "high", "create"})
 
 	// Step 9: Send successful registration response with user data and tokens
 	return c.JSON(fiber.Map{
-		"message":       "Register successful",
+		"message":       c.Locals("message").(string),
 		"user":          userMap,
 		"token":         accessToken,
 		"refresh_token": refreshToken,

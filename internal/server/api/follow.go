@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"strconv"
 	"time"
-	"unipilot/internal/models/course"
-	"unipilot/internal/models/user"
-	"unipilot/internal/server"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
+
+	"unipilot/internal/errors"
+	"unipilot/internal/models/course"
+	"unipilot/internal/models/user"
+	"unipilot/internal/server"
 )
 
 // FollowRequest represents a follow/unfollow request payload.
@@ -107,8 +109,14 @@ type FollowStatusResponse struct {
 //   - Logs follow actions for social analytics
 func HandleFollow(c *fiber.Ctx) error {
 	// Step 2: Extract context values from middleware (user and database connection)
-	currentUser := c.Locals("user").(user.User)
-	db := c.Locals("db").(*gorm.DB)
+	currentUser, ok := c.Locals("user").(user.User)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
+	}
+	db, ok := c.Locals("db").(*gorm.DB)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	}
 	userID := currentUser.ID
 
 	// Step 3: Extract user ID from path parameter
@@ -117,13 +125,20 @@ func HandleFollow(c *fiber.Ctx) error {
 	var err error
 	idStr := c.Params("id")
 	if idStr == "" {
-		return server.ResponseError(c, fmt.Errorf("user ID required"), fiber.StatusBadRequest, "User ID required",
-			"tags", []string{"FOLLOWS", "INVALID_FOLLOWED_ID"},
+		return errors.WrapServer(
+			fmt.Errorf("user ID required"),
+			errors.ReqParamMissing,
+			"User ID required",
+			fiber.StatusBadRequest,
 		)
+
 	}
 	if int_followedID, err = strconv.Atoi(idStr); err != nil {
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "Error converting followed ID to uint",
-			"tags", []string{"FOLLOWS", "INVALID_FOLLOWED_ID"},
+		return errors.WrapServer(
+			err,
+			errors.ReqParamInvalid,
+			"Error converting followed ID to uint",
+			fiber.StatusBadRequest,
 		)
 	}
 	followedID = uint(int_followedID)
@@ -131,16 +146,22 @@ func HandleFollow(c *fiber.Ctx) error {
 	// Step 4: Validate followed_id parameter
 	if followedID == 0 {
 		err := fmt.Errorf("invalid followed_id")
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "Invalid followed_id",
-			"tags", []string{"FOLLOWS", "VALIDATION"},
+		return errors.WrapServer(
+			err,
+			errors.ReqParamInvalid,
+			"Invalid followed_id",
+			fiber.StatusBadRequest,
 		)
 	}
 
 	// Step 5: Prevent self-following for social integrity
 	if userID == followedID {
 		err := fmt.Errorf("cannot follow yourself")
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "Cannot follow yourself",
-			"tags", []string{"FOLLOWS", "VALIDATION"},
+		return errors.WrapServer(
+			err,
+			errors.ReqParamInvalid,
+			"Cannot follow yourself",
+			fiber.StatusBadRequest,
 		)
 	}
 
@@ -148,59 +169,47 @@ func HandleFollow(c *fiber.Ctx) error {
 	// Check if already following
 	isFollowing, err := user.IsFollowing(userID, followedID, db)
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error checking follow status",
-			"tags", []string{"FOLLOWS", "DB"},
-		)
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error checking follow status", fiber.StatusInternalServerError)
 	}
 
 	// Step 7: Handle follow/unfollow operation based on current status
 	var response FollowResponse
 	if isFollowing {
+		c.Locals("message", "Follow removed")
 		// Step 7a: Unfollow operation - remove existing relationship
 		if err := user.RemoveFollow(userID, followedID, db); err != nil {
-			return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error removing follow",
-				"tags", []string{"FOLLOWS", "DB"},
-			)
+			return errors.WrapServer(err, errors.DBQueryFailed, "Error removing follow", fiber.StatusInternalServerError)
 		}
 
 		// Update follow statistics for both users after unfollow
 		if err := user.UpdateFollowStats(userID, db); err != nil {
-			server.LogWarn(context.Background(), "Failed to update follow stats", err,
-				"tags", []string{"follow", "db", "medium"},
-				"error_type", "database",
-			)
+			return errors.WrapServer(err, errors.DBQueryFailed, "Error updating follow stats", fiber.StatusInternalServerError)
 		}
 		if err := user.UpdateFollowStats(followedID, db); err != nil {
-			server.LogWarn(context.Background(), "Failed to update follow stats", err,
-				"tags", []string{"follow", "db", "medium"},
-				"error_type", "database",
-			)
+			return errors.WrapServer(err, errors.DBQueryFailed, "Error updating follow stats", fiber.StatusInternalServerError)
 		}
 
 		response = FollowResponse{
 			Success: true,
 			Message: "Unfollowed successfully",
 		}
+
 	} else {
+		c.Locals("message", "New follower added")
 		// Step 7b: Follow operation - create new relationship
 		if err := user.CreateFollow(userID, followedID, db); err != nil {
-			return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error creating follow",
-				"tags", []string{"FOLLOWS", "DB"},
-			)
+			if errors.HasCode(err, errors.DBConstraintViolation) {
+				return errors.WrapServer(err, errors.DBConstraintViolation, "Already following", fiber.StatusConflict)
+			}
+			return errors.WrapServer(err, errors.DBQueryFailed, "Error creating follow", fiber.StatusInternalServerError)
 		}
 
 		// Update follow statistics for both users after follow
 		if err := user.UpdateFollowStats(userID, db); err != nil {
-			server.LogWarn(context.Background(), "Failed to update follow stats", err,
-				"tags", []string{"follow", "db", "medium"},
-				"error_type", "database",
-			)
+			return errors.WrapServer(err, errors.DBQueryFailed, "Error updating follow stats", fiber.StatusInternalServerError)
 		}
 		if err := user.UpdateFollowStats(followedID, db); err != nil {
-			server.LogWarn(context.Background(), "Failed to update follow stats", err,
-				"tags", []string{"follow", "db", "medium"},
-				"error_type", "database",
-			)
+			return errors.WrapServer(err, errors.DBQueryFailed, "Error updating follow stats", fiber.StatusInternalServerError)
 		}
 
 		response = FollowResponse{
@@ -211,10 +220,7 @@ func HandleFollow(c *fiber.Ctx) error {
 		// Step 8: Prepare notification data with social context
 		var followedUser user.User
 		if err := db.First(&followedUser, followedID).Error; err != nil {
-			server.LogWarn(context.Background(), "Failed to get followed user", err,
-				"tags", []string{"follow", "db", "low"},
-				"error_type", "database",
-			)
+			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting followed user", fiber.StatusInternalServerError)
 		}
 
 		// Calculate shared courses for enhanced social context in notifications
@@ -222,10 +228,7 @@ func HandleFollow(c *fiber.Ctx) error {
 		if err := db.Model(&course.Course{}).
 			Where("user_id = ? AND code IN (SELECT code FROM courses WHERE user_id = ?)", userID, followedID).
 			Count(&sharedCoursesCount).Error; err != nil {
-			server.LogWarn(context.Background(), "Failed to count shared courses", err,
-				"tags", []string{"course", "db", "low"},
-				"error_type", "database",
-			)
+			return errors.WrapServer(err, errors.DBQueryFailed, "Error counting shared courses", fiber.StatusInternalServerError)
 		}
 
 		/*if sseServer != nil {
@@ -306,22 +309,19 @@ func HandleGetFollowers(c *fiber.Ctx) error {
 	currentUser := c.Locals("user").(user.User)
 	db := c.Locals("db").(*gorm.DB)
 	_ = currentUser.ID // Available but not used for this endpoint
+	c.Locals("message", "Followers list retrieved")
 
 	// Step 3: Extract user ID from path parameter
 	userIDStr := c.Params("id")
 	if userIDStr == "" {
 		err := fmt.Errorf("user_id parameter required")
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "User ID parameter required",
-			"tags", []string{"FOLLOWS", "REQUEST"},
-		)
+		return errors.WrapServer(err, errors.ReqParamMissing, "User ID parameter required", fiber.StatusBadRequest)
 	}
 
 	// Step 4: Convert user ID string to integer for database operations
 	userID, err := strconv.ParseUint(userIDStr, 10, 32)
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "Error converting user ID",
-			"tags", []string{"FOLLOWS", "INVALID_USER_ID"},
-		)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting user ID", fiber.StatusBadRequest)
 	}
 
 	// Step 5: Parse pagination parameters with defaults
@@ -331,12 +331,15 @@ func HandleGetFollowers(c *fiber.Ctx) error {
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
 			limit = l
+		} else {
+			return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting limit to int", fiber.StatusBadRequest)
 		}
 	}
-
 	if offsetStr := c.Query("offset"); offsetStr != "" {
 		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
 			offset = o
+		} else {
+			return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting offset to int", fiber.StatusBadRequest)
 		}
 	}
 
@@ -344,9 +347,7 @@ func HandleGetFollowers(c *fiber.Ctx) error {
 	var cacheKey = fmt.Sprintf("followers:%d", userID)
 	followersHash, err := RedisClient.HGetAll(context.Background(), cacheKey).Result()
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting followers from redis",
-			"tags", []string{"FOLLOWS", "REDIS"},
-		)
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting followers from redis", fiber.StatusInternalServerError)
 	}
 
 	// Step 7: Cache hit - Convert Redis hash to user array and return cached followers
@@ -368,9 +369,7 @@ func HandleGetFollowers(c *fiber.Ctx) error {
 	// Step 8: Cache miss - Query followers from database and populate cache
 	followers, err := user.GetFollowers(uint(userID), limit, offset, db)
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting followers from database",
-			"tags", []string{"FOLLOWS", "DB"},
-		)
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting followers from database", fiber.StatusInternalServerError)
 	}
 	total := len(followers)
 
@@ -378,27 +377,16 @@ func HandleGetFollowers(c *fiber.Ctx) error {
 	for _, follower := range followers {
 		followerJSON, err := json.Marshal(follower)
 		if err != nil {
-			server.LogWarn(context.Background(), "Failed to marshal follower to JSON", err,
-				"tags", []string{"follow", "io", "low"},
-				"error_type", "internal",
-			)
-			continue
+			return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Failed to marshal follower to JSON", fiber.StatusInternalServerError)
 		}
 		if err := RedisClient.HSet(context.Background(), cacheKey, strconv.Itoa(int(follower.ID)), followerJSON).Err(); err != nil {
-			server.LogWarn(context.Background(), "Failed to cache follower in Redis", err,
-				"tags", []string{"cache", "cache", "medium"},
-				"cache_status", "error",
-				"error_type", "cache",
-			)
+			server.LogWarn(context.Background(), errors.WrapServer(err, errors.RedisFailed, "Error caching follower in redis", fiber.StatusInternalServerError))
 		}
 	}
 
 	// Step 10: Set cache expiration to 10 minutes for optimal balance of freshness and performance
 	if err := RedisClient.Expire(context.Background(), cacheKey, 10*time.Minute).Err(); err != nil {
-		server.LogWarn(context.Background(), "Failed to set cache expiration for followers", err,
-			"tags", []string{"cache", "cache", "low"},
-			"error_type", "cache",
-		)
+		server.LogWarn(context.Background(), errors.WrapServer(err, errors.RedisFailed, "Error setting cache expiration for followers", fiber.StatusInternalServerError))
 	}
 
 	// Step 11: Send successful response with followers list and total count
@@ -450,22 +438,18 @@ func HandleGetFollowing(c *fiber.Ctx) error {
 	currentUser := c.Locals("user").(user.User)
 	db := c.Locals("db").(*gorm.DB)
 	_ = currentUser.ID // Available but not used for this endpoint
-
+	c.Locals("message", "Following list retrieved")
 	// Step 3: Extract user ID from path parameter
 	userIDStr := c.Params("id")
 	if userIDStr == "" {
 		err := fmt.Errorf("user_id parameter required")
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "User ID parameter required",
-			"tags", []string{"FOLLOWS", "REQUEST"},
-		)
+		return errors.WrapServer(err, errors.ReqParamMissing, "User ID parameter required", fiber.StatusBadRequest)
 	}
 
 	// Step 4: Convert user ID string to integer for database operations
 	userID, err := strconv.ParseUint(userIDStr, 10, 32)
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "Error converting user ID",
-			"tags", []string{"FOLLOWS", "INVALID_USER_ID"},
-		)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting user ID", fiber.StatusBadRequest)
 	}
 
 	// Step 5: Parse pagination parameters with defaults
@@ -475,12 +459,16 @@ func HandleGetFollowing(c *fiber.Ctx) error {
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
 			limit = l
+		} else {
+			return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting limit to int", fiber.StatusBadRequest)
 		}
 	}
 
 	if offsetStr := c.Query("offset"); offsetStr != "" {
 		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
 			offset = o
+		} else {
+			return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting offset to int", fiber.StatusBadRequest)
 		}
 	}
 
@@ -488,9 +476,7 @@ func HandleGetFollowing(c *fiber.Ctx) error {
 	var cacheKey = fmt.Sprintf("following:%d", userID)
 	followingHash, err := RedisClient.HGetAll(context.Background(), cacheKey).Result()
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting following from redis",
-			"tags", []string{"FOLLOWS", "REDIS"},
-		)
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting following from redis", fiber.StatusInternalServerError)
 	}
 
 	// Step 7: Cache hit - Convert Redis hash to user array and return cached following list
@@ -512,9 +498,7 @@ func HandleGetFollowing(c *fiber.Ctx) error {
 	// Step 8: Cache miss - Query following list from database and populate cache
 	following, err := user.GetFollowing(uint(userID), limit, offset, db)
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting following from database",
-			"tags", []string{"FOLLOWS", "DB"},
-		)
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting following from database", fiber.StatusInternalServerError)
 	}
 	total := len(following)
 
@@ -522,27 +506,16 @@ func HandleGetFollowing(c *fiber.Ctx) error {
 	for _, followed := range following {
 		followedJSON, err := json.Marshal(followed)
 		if err != nil {
-			server.LogWarn(context.Background(), "Failed to marshal followed to JSON", err,
-				"tags", []string{"follow", "io", "low"},
-				"error_type", "internal",
-			)
-			continue
+			return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Failed to marshal followed to JSON", fiber.StatusInternalServerError)
 		}
 		if err := RedisClient.HSet(context.Background(), cacheKey, strconv.Itoa(int(followed.ID)), followedJSON).Err(); err != nil {
-			server.LogWarn(context.Background(), "Failed to cache followed in Redis", err,
-				"tags", []string{"cache", "cache", "medium"},
-				"cache_status", "error",
-				"error_type", "cache",
-			)
+			server.LogWarn(context.Background(), errors.WrapServer(err, errors.RedisFailed, "Error caching followed in redis", fiber.StatusInternalServerError))
 		}
 	}
 
 	// Step 10: Set cache expiration to 10 minutes for optimal balance of freshness and performance
 	if err := RedisClient.Expire(context.Background(), cacheKey, 10*time.Minute).Err(); err != nil {
-		server.LogWarn(context.Background(), "Failed to set cache expiration for following", err,
-			"tags", []string{"cache", "cache", "low"},
-			"error_type", "cache",
-		)
+		server.LogWarn(context.Background(), errors.WrapServer(err, errors.RedisFailed, "Error setting cache expiration for following", fiber.StatusInternalServerError))
 	}
 
 	// Step 11: Send successful response with following list and total count

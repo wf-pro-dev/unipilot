@@ -2,8 +2,8 @@ package server
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
+	Errors "errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -11,9 +11,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
+	"unipilot/internal/errors"
 	"unipilot/internal/models/note"
 	"unipilot/internal/models/user"
-	"unipilot/internal/server"
 	"unipilot/internal/services/gemini"
 )
 
@@ -49,17 +49,22 @@ import (
 //   - Logs successful retrieval with note count for monitoring
 //   - No database modifications (read-only operation)
 func GetNotesHandler(c *fiber.Ctx) error {
+	c.Locals("message", "User's notes retrieved successfully")
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser := c.Locals("user").(user.User)
-	db := c.Locals("db").(*gorm.DB)
+	currentUser, ok := c.Locals("user").(user.User)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
+	}
+	db, ok := c.Locals("db").(*gorm.DB)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
+	}
 	userID := currentUser.ID
 
 	// Step 2: Query user's notes from database
 	var notes []note.Note
 	if err := db.Where("user_id = ?", userID).Find(&notes).Error; err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting notes from database",
-			"tags", []string{"NOTES", "DB"},
-		)
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting notes from database", fiber.StatusInternalServerError)
 	}
 
 	// Step 3: Convert notes to safe map format for JSON response
@@ -131,59 +136,31 @@ func GetNotesHandler(c *fiber.Ctx) error {
 //   - Prepares notification data for future SSE implementation
 func CreateNoteHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser := c.Locals("user").(user.User)
-	db := c.Locals("db").(*gorm.DB)
+	currentUser, ok := c.Locals("user").(user.User)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
+	}
+	db, ok := c.Locals("db").(*gorm.DB)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
+	}
 	userID := currentUser.ID
-
-	// Step 2: Begin database transaction for atomic note creation
-	tx := db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
 
 	// Step 3: Define and parse note creation request structure
 	var input note.LocalNote
-
 	if err := c.BodyParser(&input); err != nil {
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "Invalid request body",
-			"tags", []string{"NOTES", "REQUEST"},
-		)
+		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
 	// Step 4: Validate all required fields for note creation
 	// Validate all required fields
 	if input.CourseCode == "" || input.Title == "" || input.Subject == "" {
 		err := fmt.Errorf("missing required fields: course code: %s, title: %s, subject: %s", input.CourseCode, input.Title, input.Subject)
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "Missing required fields",
-			"tags", []string{"NOTES", "MISSING_REQUIRED_FIELDS"},
-		)
+		return errors.WrapServer(err, errors.ReqParamMissing, "Missing required fields", fiber.StatusBadRequest)
 	}
 
 	// Step 5: Prepare content and keywords, with AI generation fallback
 	content := input.Content
-
-	// Generate note content using Gemini AI if both keywords and content are missing
-	// if keywords == "" && content == "" {
-	// 	// Step 6: Generate AI-powered content using Google Gemini service
-	// 	// Generate content and keywords using Gemini
-	// 	geminiRequest := &gemini.GeminiRequest{
-	// 		Title:      input.Title,
-	// 		Subject:    input.Subject,
-	// 		CourseName: input.CourseCode,
-	// 	}
-
-	// 	geminiResponse, err := gemini.GenerateNote(geminiRequest)
-	// 	if err != nil {
-	// 		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error generating note content with Gemini",
-	// 			"tags", []string{"NOTES", "GEMINI"},
-	// 		)
-	// 	}
-
-	// 	keywords = geminiResponse.Keywords
-	// 	content = geminiResponse.Content
-	// }
 
 	// Step 7: Construct note object with validated data and AI-generated content
 	nVal := note.Note{
@@ -196,26 +173,17 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 8: Create note record in database within transaction
-	result := tx.Create(&nVal)
+	result := db.Create(&nVal)
 	if result.Error != nil {
-		tx.Rollback()
-		return server.ResponseError(c, result.Error, fiber.StatusConflict, "Error creating note in database",
-			"tags", []string{"NOTES", "DB"},
-		)
+		return errors.WrapServer(result.Error, errors.DBQueryFailed, "Error creating note in database", fiber.StatusConflict)
 	}
 
 	// Step 9: Convert note to safe map format for JSON response
 	// Convert to map safely
 	noteMap := nVal.ToMap()
 	if noteMap == nil {
-		tx.Rollback()
-		return server.ResponseError(c, fmt.Errorf("failed to process note data"), fiber.StatusInternalServerError, "Error processing note data",
-			"tags", []string{"NOTES", "MARSHALLING"},
-		)
+		return errors.WrapServer(fmt.Errorf("failed to process note data"), errors.ProcJSONMarshalFailed, "Error processing note data", fiber.StatusInternalServerError)
 	}
-
-	// Step 10: Commit transaction after successful note creation
-	tx.Commit()
 
 	// Step 11: Prepare notification data for future SSE implementation
 	// gRPC -> c : TO BE MOVE IN DOCKER
@@ -223,29 +191,27 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 
 	newN, err := note.Get_Note_byID(nVal.ID, userID, db)
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting note from database",
-			"tags", []string{"NOTES", "DB"},
-		)
+		if Errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.WrapServer(err, errors.DBRecordNotFound, "Note not found", fiber.StatusNotFound)
+		}
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting note from database", fiber.StatusInternalServerError)
 	}
 
 	// Serialize note data for future notification payload
 	// nJson, err := json.Marshal(newN)
 	_, err = json.Marshal(newN)
 	if err != nil {
-		server.LogWarn(context.Background(), "Failed to marshal notification", err,
-			"tags", []string{"notification", "network", "low"},
-			"error_type", "internal",
-		)
+		return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Failed to marshal notification", fiber.StatusInternalServerError)
 	}
 
 	// Get linked users for future notification distribution
 	// link_users, err := newN.Course.GetLinkUsers(db)
 	_, err = newN.Course.GetLinkUsers(db)
 	if err != nil {
-		server.LogWarn(context.Background(), "Failed to get users linked to course", err,
-			"tags", []string{"course", "db", "medium"},
-			"error_type", "database",
-		)
+		if Errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.WrapServer(err, errors.DBRecordNotFound, "Users linked to course not found", fiber.StatusNotFound)
+		}
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError)
 	}
 
 	/*if sseServer != nil {
@@ -282,18 +248,14 @@ func CreateNoteStreamHandler(c *fiber.Ctx) error {
 	var input note.LocalNote
 
 	if err := c.BodyParser(&input); err != nil {
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "Invalid request body",
-			"tags", []string{"NOTES", "REQUEST"},
-		)
+		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
 	// Step 4: Validate all required fields for note creation
 	// Validate all required fields
 	if input.CourseCode == "" || input.Title == "" || input.Subject == "" {
 		err := fmt.Errorf("missing required fields: course code: %s, title: %s, subject: %s", input.CourseCode, input.Title, input.Subject)
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "Missing required fields",
-			"tags", []string{"NOTES", "MISSING_REQUIRED_FIELDS"},
-		)
+		return errors.WrapServer(err, errors.ReqParamMissing, "Missing required fields", fiber.StatusBadRequest)
 	}
 
 	// Step 5: Set up SSE headers for streaming response
@@ -318,7 +280,7 @@ func CreateNoteStreamHandler(c *fiber.Ctx) error {
 			// Use JSON encoding to reliably preserve Gemini's exact format
 			jsonData, err := json.Marshal(map[string]string{"chunk": chunk})
 			if err != nil {
-				return fmt.Errorf("failed to marshal chunk: %w", err)
+				return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Failed to marshal note chunk", fiber.StatusInternalServerError)
 			}
 			// Format as SSE event with JSON-encoded data
 			fmt.Fprintf(w, "data: %s\n\n", jsonData)
@@ -341,9 +303,7 @@ func CreateNoteStreamHandler(c *fiber.Ctx) error {
 	})
 
 	if geminiErr != nil {
-		return server.ResponseError(c, geminiErr, fiber.StatusInternalServerError, "Error generating note content with Gemini",
-			"tags", []string{"NOTES", "GEMINI"},
-		)
+		return errors.WrapServer(geminiErr, errors.ProcDataProcessingFailed, "Error generating note content with Gemini", fiber.StatusInternalServerError)
 
 	}
 
@@ -393,32 +353,26 @@ func CreateNoteStreamHandler(c *fiber.Ctx) error {
 //   - No notification system integration (updates are silent)
 func UpdateNoteHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser := c.Locals("user").(user.User)
-	db := c.Locals("db").(*gorm.DB)
+	currentUser, ok := c.Locals("user").(user.User)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
+	}
+	db, ok := c.Locals("db").(*gorm.DB)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
+	}
 	userID := currentUser.ID
 
 	var int_id int
 	var err error
 	idStr := c.Params("id")
 	if idStr == "" {
-		return server.ResponseError(c, fmt.Errorf("note ID required"), fiber.StatusBadRequest, "Note ID required",
-			"tags", []string{"NOTES", "INVALID_NOTE_ID"},
-		)
+		return errors.WrapServer(fmt.Errorf("note ID required"), errors.ReqParamMissing, "Note ID required", fiber.StatusBadRequest)
 	}
 	if int_id, err = strconv.Atoi(idStr); err != nil {
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "Error converting note ID to int",
-			"tags", []string{"NOTES", "INVALID_NOTE_ID"},
-		)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting note ID to int", fiber.StatusBadRequest)
 	}
 	noteID := uint(int_id)
-
-	// Step 2: Begin database transaction for atomic note update
-	tx := db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
 
 	// Step 3: Define and parse note update request structure
 	var updateData struct {
@@ -427,31 +381,23 @@ func UpdateNoteHandler(c *fiber.Ctx) error {
 	}
 
 	if err := c.BodyParser(&updateData); err != nil {
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "Invalid request body",
-			"tags", []string{"NOTES", "REQUEST"},
-		)
+		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
 	// Step 5: Validate note exists and user has ownership permissions
-	n, err := note.Get_Note_byID(noteID, userID, tx)
+	n, err := note.Get_Note_byID(noteID, userID, db)
 	if err != nil {
-		tx.Rollback()
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting note from database",
-			"tags", []string{"NOTES", "DB"},
-		)
+		if Errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.WrapServer(err, errors.DBRecordNotFound, "Note not found", fiber.StatusNotFound)
+		}
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting note from database", fiber.StatusInternalServerError)
 	}
 
 	// Step 6: Execute raw SQL update with automatic timestamp tracking
-	if err := tx.Exec(fmt.Sprintf("UPDATE notes SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
+	if err := db.Exec(fmt.Sprintf("UPDATE notes SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
 		updateData.Value, time.Now().Format(time.RFC3339), n.ID).Error; err != nil {
-		tx.Rollback()
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error updating note in database",
-			"tags", []string{"NOTES", "DB"},
-		)
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error updating note in database", fiber.StatusInternalServerError)
 	}
-
-	// Step 7: Commit transaction after successful update
-	tx.Commit()
 
 	// Step 8: Note update completed (logged by middleware)
 	return c.JSON(fiber.Map{"message": "Note updated successfully"})
@@ -459,26 +405,23 @@ func UpdateNoteHandler(c *fiber.Ctx) error {
 
 func DeleteNoteHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
-	db := c.Locals("db").(*gorm.DB)
+	db, ok := c.Locals("db").(*gorm.DB)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	}
 
 	idStr := c.Params("id")
 	if idStr == "" {
-		return server.ResponseError(c, fmt.Errorf("note ID required"), fiber.StatusBadRequest, "Note ID required",
-			"tags", []string{"NOTES", "INVALID_NOTE_ID"},
-		)
+		return errors.WrapServer(fmt.Errorf("note ID required"), errors.ReqParamMissing, "Note ID required", fiber.StatusBadRequest)
 	}
 	noteID, err := strconv.Atoi(idStr)
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusBadRequest, "Error converting note ID to int",
-			"tags", []string{"NOTES", "INVALID_NOTE_ID"},
-		)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting note ID to int", fiber.StatusBadRequest)
 	}
 
 	// Step 2: Begin database transaction for atomic note deletion
 	if err := note.DeleteNote(uint(noteID), db); err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error deleting note from database",
-			"tags", []string{"NOTES", "DB"},
-		)
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error deleting note from database", fiber.StatusInternalServerError)
 	}
 
 	return c.JSON(fiber.Map{"message": "Note deleted successfully"})

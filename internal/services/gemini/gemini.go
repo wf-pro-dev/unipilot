@@ -3,12 +3,11 @@ package gemini
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"log"
 
 	"google.golang.org/genai"
 
+	"unipilot/internal/errors"
 	"unipilot/internal/secrets"
 )
 
@@ -28,14 +27,14 @@ func GenerateNote(request *GeminiRequest) (*GeminiResponse, error) {
 
 	GEMINI_API_KEY, err := secrets.GetEnvVar("GEMINI_API_KEY")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errors.ConfigEnvVarNotFound, "Failed to get Gemini API key")
 	}
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey:  GEMINI_API_KEY,
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errors.GeminiFailed, "Failed to create Gemini client")
 	}
 
 	config := &genai.GenerateContentConfig{
@@ -53,7 +52,7 @@ func GenerateNote(request *GeminiRequest) (*GeminiResponse, error) {
 
 	prompt, err := GetPrompt(request)
 	if err != nil {
-		return nil, errors.New("failed to get prompt")
+		return nil, errors.Wrap(err, errors.GeminiFailed, "Failed to get prompt")
 	}
 
 	result, err := client.Models.GenerateContent(
@@ -63,13 +62,13 @@ func GenerateNote(request *GeminiRequest) (*GeminiResponse, error) {
 		config,
 	)
 	if err != nil {
-		log.Fatal(err)
+		return nil, errors.Wrap(err, errors.GeminiFailed, "Failed to generate content")
 	}
 
 	var response *GeminiResponse
 	err = json.Unmarshal([]byte(result.Text()), &response)
 	if err != nil {
-		return nil, errors.New("failed to unmarshal response")
+		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal response")
 	}
 
 	return response, nil
@@ -80,14 +79,14 @@ func GenerateNoteStream(request *GeminiRequest, writer func(string) error) error
 
 	GEMINI_API_KEY, err := secrets.GetEnvVar("GEMINI_API_KEY")
 	if err != nil {
-		return err
+		return errors.Wrap(err, errors.ConfigEnvVarNotFound, "Failed to get Gemini API key")
 	}
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey:  GEMINI_API_KEY,
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
-		return err
+		return errors.Wrap(err, errors.GeminiFailed, "Failed to create Gemini client")
 	}
 
 	config := &genai.GenerateContentConfig{
@@ -96,7 +95,7 @@ func GenerateNoteStream(request *GeminiRequest, writer func(string) error) error
 
 	prompt, err := GetPrompt(request)
 	if err != nil {
-		return errors.New("failed to get prompt")
+		return errors.Wrap(err, errors.GeminiFailed, "Failed to get prompt")
 	}
 
 	stream := client.Models.GenerateContentStream(
@@ -113,7 +112,7 @@ func GenerateNoteStream(request *GeminiRequest, writer func(string) error) error
 
 			// Send chunk as Markdown text
 			if err := writer(chunkText); err != nil {
-				return fmt.Errorf("failed to write chunk: %w", err)
+				return errors.Wrap(err, errors.GeminiFailed, "Failed to write chunk")
 			}
 		}
 	}

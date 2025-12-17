@@ -13,6 +13,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	"unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/models/notifications"
 	"unipilot/internal/server"
@@ -525,12 +526,7 @@ func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity
 	jsonData, err := json.Marshal(notification)
 	if err != nil {
 		// Step 3: Log marshalling errors for debugging
-		ctx := context.WithValue(context.Background(), "component", "sse")
-		server.LogWarn(ctx, "Failed to marshal notification", err,
-			"tags", []string{"notification", "io", "low"},
-			"error_type", "internal",
-		)
-		return err
+		return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Failed to marshal notification", fiber.StatusInternalServerError)
 	}
 
 	// Step 4: Attempt delivery to user's SSE connection (graceful failure if disconnected)

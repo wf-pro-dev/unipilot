@@ -1,12 +1,13 @@
 package server
 
 import (
-	"context"
+	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 
+	"unipilot/internal/errors"
 	"unipilot/internal/models/user"
 	"unipilot/internal/secrets"
 	"unipilot/internal/server"
@@ -44,15 +45,17 @@ import (
 //   - Logs token refresh events for audit trail
 //   - Previous tokens remain valid until natural expiration
 func RefreshTokenHandler(c *fiber.Ctx) error {
+	c.Locals("message", "Token refreshed")
 	// Step 2: Extract user context from request context (validated by AuthMiddleware)
-	userObj := c.Locals("user").(user.User)
+	userObj, ok := c.Locals("user").(user.User)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
+	}
 
 	// Step 3: Retrieve JWT signing key from environment for secure token generation
 	SESSION_KEY, err := secrets.GetEnvVar("SESSION_KEY")
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error getting session key",
-			"tags", []string{"TOKEN", "SESSION_KEY"},
-		)
+		return errors.WrapServer(err, errors.ConfigEnvVarNotFound, "Error getting session key", fiber.StatusInternalServerError)
 	}
 
 	// Step 4: Generate new access token with 15-minute expiration for API access
@@ -64,9 +67,7 @@ func RefreshTokenHandler(c *fiber.Ctx) error {
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error creating access token",
-			"tags", []string{"TOKEN", "ACCESS_TOKEN"},
-		)
+		return errors.WrapServer(err, errors.AuthTokenGeneration, "Error creating access token", fiber.StatusInternalServerError)
 	}
 
 	// Step 5: Generate new refresh token with 30-day expiration for long-term sessions
@@ -78,18 +79,12 @@ func RefreshTokenHandler(c *fiber.Ctx) error {
 		},
 	}).SignedString([]byte(SESSION_KEY))
 	if err != nil {
-		return server.ResponseError(c, err, fiber.StatusInternalServerError, "Error creating refresh token",
-			"tags", []string{"TOKEN", "REFRESH_TOKEN"},
-		)
+		return errors.WrapServer(err, errors.AuthTokenGeneration, "Error creating refresh token", fiber.StatusInternalServerError)
 	}
-
-	// Step 7: Log successful token refresh for audit trail and monitoring
-	server.LogInfo(context.Background(), "Token refreshed", "user_id", userObj.ID,
-		"tags", []string{"auth", "auth", "medium"})
 
 	// Step 6: Send successful response with both new tokens
 	return c.JSON(fiber.Map{
-		"message":       "Token refreshed successfully",
+		"message":       "Token refreshed",
 		"token":         accessToken,
 		"refresh_token": refreshToken,
 	})

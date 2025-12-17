@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/document"
@@ -240,20 +241,20 @@ func DeleteAssignment(assignment Assignment, tx *gorm.DB) error {
 
 	documents, err := GetDocuments(assignment.ID, assignment.UserID, tx)
 	if err != nil {
-		return fmt.Errorf("failed to get documents: %w", err)
+		return errors.Wrap(err, errors.DBQueryFailed, "Error getting assignment documents from database")
 	}
 
 	// Step 4: Delete all documents related to the assignment
 	for _, doc := range documents {
 		if err := document.DeleteDocument(doc, tx); err != nil {
-			return fmt.Errorf("failed to delete document: %w", err)
+			return errors.Wrap(err, errors.DBQueryFailed, "Error deleting assignment document from database")
 		}
 	}
 
 	// Step 5: Delete the assignment from the database
 	if err := tx.Delete(&assignment).Error; err != nil {
 
-		return fmt.Errorf("failed to delete assignment: %w", err)
+		return errors.Wrap(err, errors.DBQueryFailed, "Error deleting assignment from database")
 	}
 	return nil
 }
