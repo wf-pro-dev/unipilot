@@ -22,8 +22,9 @@ const (
 	// ============================================
 	// VALIDATION ERRORS (val-xxxx)
 	// ============================================
-	ValidationRequired ErrorCode = "val-0001" // validation required
-	ValidationInvalid  ErrorCode = "val-0002" // validation invalid
+	ValidationRequired  ErrorCode = "val-0001" // validation required
+	ValidationInvalid   ErrorCode = "val-0002" // validation invalid
+	NonParsableSchedule ErrorCode = "val-0100" // non parsable schedule
 
 	// ============================================
 	// NETWORK ERRORS (net-xxxx)
@@ -73,14 +74,15 @@ const (
 	// FILE SYSTEM ERRORS (fs-xxxx)
 	// ============================================
 	FSPathNotFound         ErrorCode = "fs-0001" // path not found
-	FSOpenFailed           ErrorCode = "fs-0002" // file open failed (covers read operations)
-	FSCreateFailed         ErrorCode = "fs-0003" // file create failed
-	FSWriteFailed          ErrorCode = "fs-0004" // file write failed
-	FSDeleteFailed         ErrorCode = "fs-0005" // file delete failed
-	FSDirCreateFailed      ErrorCode = "fs-0006" // directory create failed
-	FSFileNotFound         ErrorCode = "fs-0007" // local file not found
-	FSStreamFailed         ErrorCode = "fs-0008" // file stream failed
-	FSFileTypeNotSupported ErrorCode = "fs-0009" // file type not supported
+	FSFileNotFound         ErrorCode = "fs-0002" // local file not found
+	FSOpenFailed           ErrorCode = "fs-0003" // file open failed (covers read operations)
+	FSCreateFailed         ErrorCode = "fs-0004" // file create failed
+	FSWriteFailed          ErrorCode = "fs-0005" // file write failed
+	FSDeleteFailed         ErrorCode = "fs-0006" // file delete failed
+	FSDirCreateFailed      ErrorCode = "fs-0007" // directory create failed
+	FSFileTooLarge         ErrorCode = "fs-0008" // file size exceeded
+	FSStreamFailed         ErrorCode = "fs-0009" // file stream failed
+	FSFileTypeNotSupported ErrorCode = "fs-0010" // file type not supported
 
 	// ============================================
 	// AUTHENTICATION ERRORS (auth-xxxx)

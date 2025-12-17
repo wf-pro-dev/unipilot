@@ -4,6 +4,9 @@ import (
 	Errors "errors"
 	"fmt"
 	"strings"
+
+	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 type AppError struct {
@@ -43,6 +46,16 @@ func (e *AppError) Unwrap() error {
 	return e.Cause
 }
 
+func Inherit(err error, code ErrorCode) error {
+	if err == nil {
+		return nil
+	}
+	var appErr *AppError
+	if Errors.As(err, &appErr) {
+		return NewAppError(code, appErr.Message, appErr.Cause)
+	}
+	return NewAppError(code, err.Error(), err)
+}
 func (e *AppError) Is(target error) bool {
 	if t, ok := target.(*AppError); ok {
 		return e.Code == t.Code
@@ -171,4 +184,37 @@ func WrapServer(err error, code ErrorCode, message string, statusCode int) *Serv
 		return nil
 	}
 	return NewServerError(code, message, err, statusCode)
+}
+
+func HandleDBReadError(err error) *ServerError {
+	if err == nil {
+		return nil
+	}
+	if Errors.Is(err, gorm.ErrRecordNotFound) {
+		return NewServerError(DBRecordNotFound, "Record not found", err, fiber.StatusNotFound)
+	}
+	return NewServerError(DBQueryFailed, "Query failed", err, fiber.StatusInternalServerError)
+}
+
+func HandleDBWriteError(err error) *AppError {
+	if err == nil {
+		return nil
+	}
+	if Errors.Is(err, gorm.ErrRecordNotFound) {
+		return NewAppError(DBRecordNotFound, "Record not found", err)
+	}
+	return NewAppError(DBQueryFailed, "Query failed", err)
+}
+
+func HandleDBCreateError(err error) *AppError {
+	if err == nil {
+		return nil
+	}
+	if Errors.Is(err, gorm.ErrInvalidTransaction) {
+		return NewAppError(DBTransactionFailed, "Transaction failed", err)
+	}
+	if Errors.Is(err, gorm.ErrDuplicatedKey) {
+		return NewAppError(DBConstraintViolation, "Constraint violation", err)
+	}
+	return NewAppError(DBQueryFailed, "Query failed", err)
 }
