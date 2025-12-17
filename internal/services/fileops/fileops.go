@@ -73,7 +73,7 @@ func GetMimeType(fileName string) string {
 	return mimeType
 }
 
-// UploadDocument handles the local file upload process
+// WriteDocument writes a document to the local file system
 func WriteDocument(document *document.LocalDocument, fileContent io.Reader, db *gorm.DB) (*FileUploadResponse, error) {
 
 	// Create directory if it doesn't exist
