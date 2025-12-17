@@ -99,36 +99,8 @@ func Get_Assignment_byID(id, user_id uint, db *gorm.DB) (*Assignment, error) {
 		First(assignment).Error
 
 	if err != nil {
-		return nil, err
+		return nil, errors.HandleDBReadError(err)
 	}
-	return assignment, nil
-}
-
-func Get_Assignment_byLocalID(id, user_id uint, db *gorm.DB) (*Assignment, error) {
-	assignment := &Assignment{}
-	err := db.Preload("User").
-		Preload("Course", "user_id = ?", user_id).
-		Preload("Type").
-		Preload("Status").
-		Where("local_id = ? AND user_id = ?", id, user_id).
-		First(assignment).Error
-
-	if err != nil {
-		return nil, err
-	}
-	return assignment, nil
-}
-
-func Get_Assignment_byNotionID(notion_id string, db *gorm.DB) (*Assignment, error) {
-
-	assignment := &Assignment{}
-	err := db.Where("notion_id = ?", notion_id).First(assignment).Error
-
-	if err != nil {
-		log.Fatal(err)
-		return nil, err
-	}
-
 	return assignment, nil
 }
 
@@ -136,7 +108,7 @@ func (a *Assignment) GetCourseAssignment(db *gorm.DB) (*course.Course, error) {
 	var c *course.Course
 	err := db.Where("user_id = ? AND code = ?", a.UserID, a.CourseCode).First(&c).Error
 	if err != nil {
-		return nil, err
+		return nil, errors.HandleDBReadError(err)
 	}
 	return c, nil
 }
@@ -145,7 +117,7 @@ func GetAssignmentsbyCourse(courseCode string, db *gorm.DB) ([]Assignment, error
 	var assignments []Assignment
 	err := db.Where("course_code = ?", courseCode).Find(&assignments).Error
 	if err != nil {
-		return nil, err
+		return nil, errors.HandleDBReadError(err)
 	}
 	return assignments, nil
 }
@@ -174,12 +146,20 @@ func (a *Assignment) ToMap() map[string]string {
 }
 
 func GetDocuments(assignmentID, userID uint, db *gorm.DB) ([]document.Document, error) {
-	return document.GetDocumentsByAssignment(assignmentID, userID, db)
+	documents, err := document.GetDocumentsByAssignment(assignmentID, userID, db)
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return documents, nil
 }
 
 // GetLatestDocuments retrieves only the latest versions of documents for this assignment
 func GetLatestDocuments(assignmentID, userID uint, db *gorm.DB) ([]document.Document, error) {
-	return document.GetLatestVersions(assignmentID, userID, db)
+	documents, err := document.GetLatestVersions(assignmentID, userID, db)
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return documents, nil
 }
 
 // GetSupportDocuments retrieves only support documents for this assignment
@@ -191,7 +171,7 @@ func (a *Assignment) GetSupportDocuments(db *gorm.DB) ([]document.Document, erro
 		Find(&documents).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get support documents: %w", err)
+		return nil, errors.HandleDBReadError(err)
 	}
 
 	return documents, nil
@@ -206,7 +186,7 @@ func (a *Assignment) GetSubmissionDocuments(db *gorm.DB) ([]document.Document, e
 		Find(&documents).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get submission documents: %w", err)
+		return nil, errors.HandleDBReadError(err)
 	}
 
 	return documents, nil
@@ -221,7 +201,7 @@ func (a *Assignment) GetDocumentStorageUsage(db *gorm.DB) (int64, error) {
 		Scan(&totalSize).Error
 
 	if err != nil {
-		return 0, fmt.Errorf("failed to calculate document storage: %w", err)
+		return 0, errors.HandleDBReadError(err)
 	}
 
 	return totalSize, nil
@@ -232,7 +212,7 @@ func (a *Assignment) GetChildren(db *gorm.DB) ([]Assignment, error) {
 	err := db.Where("parent_id = ?", a.ID).
 		Find(&children).Error
 	if err != nil {
-		return nil, err
+		return nil, errors.HandleDBReadError(err)
 	}
 	return children, nil
 }

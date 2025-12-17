@@ -6,10 +6,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"gorm.io/gorm"
+
+	"unipilot/internal/errors"
 	"unipilot/internal/models/user"
 	cloudstorage "unipilot/internal/services/cloud_storage"
-
-	"gorm.io/gorm"
 )
 
 // DocumentType enum for different document categories
@@ -64,7 +65,7 @@ const (
 func (d *Document) ValidateFileSize(db *gorm.DB) error {
 	// Check individual file size
 	if d.FileSize > MaxFileSize {
-		return fmt.Errorf("file size %d bytes exceeds maximum of %d bytes", d.FileSize, MaxFileSize)
+		return errors.NewAppError(errors.ValidationInvalid, "File size exceeds maximum of 50MB", nil)
 	}
 
 	// Check assignment total size
@@ -74,11 +75,11 @@ func (d *Document) ValidateFileSize(db *gorm.DB) error {
 		Select("COALESCE(SUM(file_size), 0)").
 		Scan(&assignmentTotal).Error
 	if err != nil {
-		return fmt.Errorf("failed to calculate assignment storage: %w", err)
+		return errors.HandleDBReadError(err)
 	}
 
 	if assignmentTotal+d.FileSize > MaxAssignmentSize {
-		return fmt.Errorf("assignment storage would exceed %d bytes limit", MaxAssignmentSize)
+		return errors.NewAppError(errors.ValidationInvalid, "Assignment storage would exceed 200MB limit", nil)
 	}
 
 	// Check user quota
@@ -88,11 +89,11 @@ func (d *Document) ValidateFileSize(db *gorm.DB) error {
 		Select("COALESCE(SUM(file_size), 0)").
 		Scan(&userTotal).Error
 	if err != nil {
-		return fmt.Errorf("failed to calculate user storage: %w", err)
+		return errors.HandleDBReadError(err)
 	}
 
 	if userTotal+d.FileSize > MaxUserQuota {
-		return fmt.Errorf("user storage would exceed %d bytes quota", MaxUserQuota)
+		return errors.NewAppError(errors.ValidationInvalid, "User storage would exceed 2GB quota", nil)
 	}
 
 	return nil
@@ -102,14 +103,14 @@ func (d *Document) ValidateFileSize(db *gorm.DB) error {
 func GetAppDataPath() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "", fmt.Errorf("failed to get home directory: %w", err)
+		return "", errors.Wrap(err, errors.FSPathNotFound, "Failed to get home directory")
 	}
 
 	appDataPath := filepath.Join(homeDir, ".unipilot", "documents")
 
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(appDataPath, 0755); err != nil {
-		return "", fmt.Errorf("failed to create app data directory: %w", err)
+		return "", errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create app data directory")
 	}
 
 	return appDataPath, nil
@@ -119,7 +120,7 @@ func GetAppDataPath() (string, error) {
 func (d *Document) GenerateFilePath() (string, error) {
 	appDataPath, err := GetAppDataPath()
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, errors.FSPathNotFound, "Failed to get app data path")
 	}
 
 	// Create subdirectories: user_id/assignment_id/document_type/
@@ -131,7 +132,7 @@ func (d *Document) GenerateFilePath() (string, error) {
 
 	fullDir := filepath.Join(appDataPath, subDir)
 	if err := os.MkdirAll(fullDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create document directory: %w", err)
+		return "", errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create document directory")
 	}
 
 	// Generate unique filename with timestamp to avoid conflicts
@@ -146,7 +147,7 @@ func (d *Document) GenerateFilePath() (string, error) {
 func (d *Document) GetFullPath() (string, error) {
 	appDataPath, err := GetAppDataPath()
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, errors.FSPathNotFound, "Failed to get app data path")
 	}
 
 	return filepath.Join(appDataPath, d.FilePath), nil
@@ -173,7 +174,7 @@ func (d *Document) CreateNewVersion(newFileName string, newFileSize int64, newFi
 		Select("COALESCE(MAX(version), 0)").
 		Scan(&latestVersion).Error
 	if err != nil {
-		return nil, fmt.Errorf("failed to get latest version: %w", err)
+		return nil, errors.HandleDBReadError(err)
 	}
 
 	// Create new version
@@ -194,11 +195,11 @@ func (d *Document) CreateNewVersion(newFileName string, newFileSize int64, newFi
 
 	// Validate before creating
 	if err := newVersion.ValidateFileSize(db); err != nil {
-		return nil, err
+		return nil, errors.Inherit(err, errors.FSFileTooLarge)
 	}
 
 	if err := db.Create(newVersion).Error; err != nil {
-		return nil, fmt.Errorf("failed to create new version: %w", err)
+		return nil, errors.HandleDBCreateError(err)
 	}
 
 	return newVersion, nil
@@ -214,7 +215,7 @@ func GetDocumentsByAssignment(assignmentID, userID uint, db *gorm.DB) ([]Documen
 		Find(&documents).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get documents: %w", err)
+		return nil, errors.HandleDBReadError(err)
 	}
 
 	return documents, nil
@@ -238,7 +239,7 @@ func GetLatestVersions(assignmentID, userID uint, db *gorm.DB) ([]Document, erro
 		Find(&documents).Error
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get latest versions: %w", err)
+		return nil, errors.HandleDBReadError(err)
 	}
 
 	return documents, nil
@@ -255,7 +256,7 @@ func UpdateStorageInfo(userID uint, db *gorm.DB) error {
 		Select("COALESCE(SUM(file_size), 0), COUNT(*)").
 		Row().Scan(&totalSize, &documentCount)
 	if err != nil {
-		return fmt.Errorf("failed to calculate storage info: %w", err)
+		return errors.HandleDBReadError(err)
 	}
 
 	// Update or create storage info
@@ -268,7 +269,7 @@ func UpdateStorageInfo(userID uint, db *gorm.DB) error {
 
 	err = db.Save(storageInfo).Error
 	if err != nil {
-		return fmt.Errorf("failed to update storage info: %w", err)
+		return errors.HandleDBWriteError(err)
 
 	}
 
@@ -279,20 +280,27 @@ func DeleteDocument(doc Document, db *gorm.DB) error {
 
 	// Delete the document on S3
 	if err := cloudstorage.DeleteFile(doc.FilePath); err != nil {
-		return fmt.Errorf("failed to delete document from storage: %w", err)
+		if errors.HasCode(err, errors.StorageFileNotFound) || errors.HasCode(err, errors.AuthForbidden) {
+			return errors.Inherit(err, errors.StorageDeleteFailed)
+		}
+		return errors.Wrap(err, errors.StorageDeleteFailed, "Failed to delete document from storage")
 	}
 
 	// Step 5: Remove document record from database
 	if err := db.Delete(&doc).Error; err != nil {
-		return fmt.Errorf("failed to delete document record: %w", err)
+		return errors.HandleDBWriteError(err)
 	}
 
 	// Step 6: Update user storage quota information after deletion
 	// Update remote storage info for the user
 	if err := UpdateStorageInfo(doc.UserID, db); err != nil {
-		return fmt.Errorf("failed to update remote storage info: %w", err)
+		return errors.HandleDBWriteError(err)
 	}
 
 	// Delete the document from the database
-	return db.Delete(&doc).Error
+	err := db.Delete(&doc).Error
+	if err != nil {
+		return errors.HandleDBWriteError(err)
+	}
+	return nil
 }

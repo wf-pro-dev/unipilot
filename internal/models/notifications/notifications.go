@@ -4,10 +4,10 @@ import (
 	"strconv"
 	"time"
 
+	"gorm.io/gorm"
+
 	"unipilot/internal/models"
 	"unipilot/internal/models/user"
-
-	"gorm.io/gorm"
 )
 
 type NotificationType string

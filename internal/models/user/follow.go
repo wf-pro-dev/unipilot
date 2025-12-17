@@ -3,7 +3,6 @@ package user
 import (
 	Errors "errors"
 
-	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
@@ -53,21 +52,30 @@ func (f *Follow) ToMap() map[string]interface{} {
 func IsFollowing(followerID, followedID uint, db *gorm.DB) (bool, error) {
 	var count int64
 	err := db.Model(&Follow{}).Where("follower_id = ? AND followed_id = ?", followerID, followedID).Count(&count).Error
-	return count > 0, err
+	if err != nil {
+		return false, errors.HandleDBReadError(err)
+	}
+	return count > 0, nil
 }
 
 // Get followers count for a user
 func GetFollowersCount(userID uint, db *gorm.DB) (int, error) {
 	var count int64
 	err := db.Model(&Follow{}).Where("followed_id = ?", userID).Count(&count).Error
-	return int(count), err
+	if err != nil {
+		return 0, errors.HandleDBReadError(err)
+	}
+	return int(count), nil
 }
 
 // Get following count for a user
 func GetFollowingCount(userID uint, db *gorm.DB) (int, error) {
 	var count int64
 	err := db.Model(&Follow{}).Where("follower_id = ?", userID).Count(&count).Error
-	return int(count), err
+	if err != nil {
+		return 0, errors.HandleDBReadError(err)
+	}
+	return int(count), nil
 }
 
 // Create a follow relationship
@@ -75,10 +83,10 @@ func CreateFollow(followerID, followedID uint, db *gorm.DB) error {
 	// Check if already following
 	isFollowing, err := IsFollowing(followerID, followedID, db)
 	if err != nil {
-		return err
+		return errors.HandleDBReadError(err)
 	}
 	if isFollowing {
-		return errors.WrapServer(Errors.New("already following"), errors.DBConstraintViolation, "Already following", fiber.StatusConflict)
+		return errors.NewAppError(errors.DBConstraintViolation, "Already following", nil)
 	}
 
 	follow := &Follow{
@@ -86,10 +94,7 @@ func CreateFollow(followerID, followedID uint, db *gorm.DB) error {
 		FollowedID: followedID,
 	}
 	if err := db.Create(follow).Error; err != nil {
-		if err == gorm.ErrDuplicatedKey {
-			return errors.WrapServer(err, errors.DBConstraintViolation, "Already following", fiber.StatusConflict)
-		}
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error creating follow", fiber.StatusInternalServerError)
+		return errors.HandleDBCreateError(err)
 	}
 
 	return nil
@@ -97,7 +102,8 @@ func CreateFollow(followerID, followedID uint, db *gorm.DB) error {
 
 // Remove a follow relationship
 func RemoveFollow(followerID, followedID uint, db *gorm.DB) error {
-	return db.Where("follower_id = ? AND followed_id = ?", followerID, followedID).Delete(&Follow{}).Error
+	err := db.Where("follower_id = ? AND followed_id = ?", followerID, followedID).Delete(&Follow{}).Error
+	return errors.HandleDBWriteError(err)
 }
 
 // Get followers list for a user
@@ -107,7 +113,7 @@ func GetFollowers(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
 		Where("follows.followed_id = ? AND follows.deleted_at is NULL", userID).
 		Limit(limit).Offset(offset).
 		Find(&followers).Error
-	return followers, err
+	return followers, errors.HandleDBReadError(err)
 }
 
 // Get following list for a user
@@ -117,37 +123,45 @@ func GetFollowing(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
 		Where("follows.follower_id = ? AND follows.deleted_at is NULL", userID).
 		Limit(limit).Offset(offset).
 		Find(&following).Error
-	return following, err
+	return following, errors.HandleDBReadError(err)
 }
 
 // Update cached follow statistics for a user
 func UpdateFollowStats(userID uint, db *gorm.DB) error {
 	followersCount, err := GetFollowersCount(userID, db)
 	if err != nil {
-		return err
+		return errors.HandleDBReadError(err)
 	}
 
 	followingCount, err := GetFollowingCount(userID, db)
 	if err != nil {
-		return err
+		return errors.HandleDBReadError(err)
 	}
 
 	// Upsert follow stats
 	var stats FollowStats
 	err = db.Where("user_id = ?", userID).First(&stats).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if Errors.Is(err, gorm.ErrRecordNotFound) {
 			stats = FollowStats{
 				UserID:         userID,
 				FollowersCount: followersCount,
 				FollowingCount: followingCount,
 			}
-			return db.Create(&stats).Error
+			err = db.Create(&stats).Error
+			if err != nil {
+				return errors.HandleDBCreateError(err)
+			}
+			return nil
 		}
-		return err
+		return errors.HandleDBReadError(err)
 	}
 
 	stats.FollowersCount = followersCount
 	stats.FollowingCount = followingCount
-	return db.Save(&stats).Error
+	err = db.Save(&stats).Error
+	if err != nil {
+		return errors.HandleDBWriteError(err)
+	}
+	return nil
 }

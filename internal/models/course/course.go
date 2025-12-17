@@ -3,7 +3,6 @@ package course
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"time"
@@ -11,6 +10,8 @@ import (
 	"github.com/google/uuid"
 
 	"unipilot/internal/models/user"
+
+	"unipilot/internal/errors"
 
 	"gorm.io/gorm"
 )
@@ -46,7 +47,7 @@ func (c *Course) BeforeCreate(tx *gorm.DB) error {
 			return nil
 		}
 		// If it's not soft-deleted, return an error
-		return fmt.Errorf("course with code '%s' already exists for this user", c.Code)
+		return errors.NewAppError(errors.DBConstraintViolation, "Course with code already exists for this user", nil)
 	}
 	return nil
 }
@@ -83,7 +84,7 @@ func Get_Course_byId(id uint, db *gorm.DB) (*Course, error) {
 		First(course).Error
 
 	if err != nil {
-		return nil, err
+		return nil, errors.HandleDBReadError(err)
 	}
 	return course, nil
 }
@@ -94,7 +95,7 @@ func Get_Course_byLocalId(id, user_id uint, db *gorm.DB) (*Course, error) {
 		First(course).Error
 
 	if err != nil {
-		return nil, err
+		return nil, errors.HandleDBReadError(err)
 	}
 	return course, nil
 }
@@ -103,29 +104,17 @@ func Get_Course_byCode(code string, user_id uint, db *gorm.DB) (*Course, error) 
 	course := &Course{}
 	err := db.Where("code = ? AND user_id = ?", code, user_id).First(course).Error
 	if err != nil {
-		return nil, err
+		return nil, errors.HandleDBReadError(err)
 	}
 
 	return course, nil
-}
-
-func Get_Course_byNotionID(notion_id string, db *gorm.DB) *Course {
-
-	course := &Course{}
-	err := db.Where("notion_id = ?", notion_id).First(course).Error
-	if err != nil {
-		log.Fatalln("Error getting course with notion id: ", err)
-		return nil
-	}
-
-	return course
 }
 
 func (c *Course) GetLinkUsers(db *gorm.DB) ([]uint, error) {
 	var link_users []uint
 	err := db.Model(&Course{}).Where("link_id = ?", c.LinkID.String()).Pluck("user_id", &link_users).Error
 	if err != nil {
-		return nil, err
+		return nil, errors.HandleDBReadError(err)
 	}
 	return link_users, nil
 }

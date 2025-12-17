@@ -4,6 +4,9 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+
+	Errors "errors"
+	"unipilot/internal/errors"
 )
 
 // LocalDocument represents a document in the local database
@@ -75,7 +78,7 @@ func GetLocalDocumentsByAssignment(assignmentID uint, db *gorm.DB) ([]LocalDocum
 		Order("type ASC, created_at DESC").
 		Find(&documents).Error
 
-	return documents, err
+	return documents, errors.HandleDBReadError(err)
 }
 
 // SyncRemoteMetadata updates local document cache from remote metadata
@@ -85,26 +88,27 @@ func SyncRemoteMetadata(assignmentID uint, remoteDocuments []Document, db *gorm.
 
 		// Check if we already have this document locally
 		err := db.Where("id = ?", remoteDoc.LocalID).First(&localDoc).Error
+		if err != nil {
+			if Errors.Is(err, gorm.ErrRecordNotFound) {
+				// Create new local record
+				localDoc = LocalDocument{}
+				localDoc.FromRemoteDocument(&remoteDoc, false) // Assume no local file unless we uploaded it
 
-		if err == gorm.ErrRecordNotFound {
-			// Create new local record
-			localDoc = LocalDocument{}
-			localDoc.FromRemoteDocument(&remoteDoc, false) // Assume no local file unless we uploaded it
+				// Check if this is our own document (we might have the file)
+				// This would need to be determined by checking if file exists locally
 
-			// Check if this is our own document (we might have the file)
-			// This would need to be determined by checking if file exists locally
-
-			if err := db.Create(&localDoc).Error; err != nil {
-				return err
+				if err := db.Create(&localDoc).Error; err != nil {
+					return errors.HandleDBCreateError(err)
+				}
+			} else {
+				return errors.HandleDBWriteError(err)
 			}
-		} else if err == nil {
+		} else {
 			// Update existing record
 			localDoc.FromRemoteDocument(&remoteDoc, localDoc.HasLocalFile)
 			if err := db.Save(&localDoc).Error; err != nil {
-				return err
+				return errors.HandleDBWriteError(err)
 			}
-		} else {
-			return err
 		}
 	}
 
@@ -122,7 +126,7 @@ func GetUserStorageInfo(userID uint, db *gorm.DB) (*StorageInfo, error) {
 		Select("COALESCE(SUM(file_size), 0)").
 		Scan(&totalSize).Error
 	if err != nil {
-		return nil, err
+		return nil, errors.HandleDBReadError(err)
 	}
 
 	// Count local files
@@ -130,7 +134,7 @@ func GetUserStorageInfo(userID uint, db *gorm.DB) (*StorageInfo, error) {
 		Where("user_id = ? AND has_local_file = ?", userID, true).
 		Count(&count).Error
 	if err != nil {
-		return nil, err
+		return nil, errors.HandleDBReadError(err)
 	}
 
 	return &StorageInfo{

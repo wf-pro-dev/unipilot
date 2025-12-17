@@ -9,6 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+
+	"unipilot/internal/errors"
 )
 
 // ParsedSchedule represents a parsed course schedule
@@ -50,7 +52,7 @@ func (c *LocalCourse) BeforeCreate(tx *gorm.DB) error {
 			return nil
 		}
 		// If it's not soft-deleted, return an error
-		return fmt.Errorf("course with code '%s' already exists", c.Code)
+		return errors.NewAppError(errors.DBConstraintViolation, "Course with code already exists for this user", nil)
 	}
 	return nil
 }
@@ -76,7 +78,7 @@ func (c *LocalCourse) ToMap() map[string]string {
 // ParseSchedule parses a schedule string and returns a ParsedSchedule struct
 func (c *LocalCourse) ParseSchedule(schedule string) (*ParsedSchedule, error) {
 	if schedule == "" || schedule == "Async" || schedule == "Asynchronous" {
-		return nil, fmt.Errorf("non parsable schedule: %s", schedule)
+		return nil, errors.NewAppError(errors.NonParsableSchedule, "Non parsable schedule", nil)
 	}
 
 	// Day abbreviations mapping
@@ -94,7 +96,7 @@ func (c *LocalCourse) ParseSchedule(schedule string) (*ParsedSchedule, error) {
 	timePattern := regexp.MustCompile(`(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)`)
 	matches := timePattern.FindStringSubmatch(c.Schedule)
 	if matches == nil {
-		return nil, fmt.Errorf("invalid time format in schedule: %s", c.Schedule)
+		return nil, errors.NewAppError(errors.ValidationInvalid, "Invalid time format in schedule", nil)
 	}
 
 	// Extract time components
@@ -125,12 +127,12 @@ func (c *LocalCourse) ParseSchedule(schedule string) (*ParsedSchedule, error) {
 	// Parse days (everything before the time)
 	timeIndex := timePattern.FindStringIndex(c.Schedule)
 	if timeIndex == nil {
-		return nil, fmt.Errorf("could not find time pattern in schedule: %s", c.Schedule)
+		return nil, errors.NewAppError(errors.ValidationInvalid, "Could not find time pattern in schedule", nil)
 	}
 
 	daysPart := strings.TrimSpace(schedule[:timeIndex[0]])
 	if daysPart == "" {
-		return nil, fmt.Errorf("no days found in schedule: %s", c.Schedule)
+		return nil, errors.NewAppError(errors.ValidationInvalid, "No days found in schedule", nil)
 	}
 
 	// Split days by comma and space
@@ -150,7 +152,7 @@ func (c *LocalCourse) ParseSchedule(schedule string) (*ParsedSchedule, error) {
 	}
 
 	if len(days) == 0 {
-		return nil, fmt.Errorf("no valid days found in schedule: %s", c.Schedule)
+		return nil, errors.NewAppError(errors.ValidationInvalid, "No valid days found in schedule", nil)
 	}
 
 	return &ParsedSchedule{

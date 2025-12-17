@@ -1,12 +1,11 @@
 package models
 
 import (
-	"log"
 	"time"
 
-	"unipilot/internal/models/user"
-
 	"gorm.io/gorm"
+
+	"unipilot/internal/models/user"
 )
 
 // AssignmentType defines types like HW, Exam
@@ -15,16 +14,6 @@ type AssignmentType struct {
 	Name     string `gorm:"unique;not null"`
 	Color    string `gorm:"not null"`
 	NotionID string
-}
-
-func Get_AssignmentType_byName(name string, db *gorm.DB) *AssignmentType {
-	assignmentType := &AssignmentType{}
-	err := db.Where("name = ?", name).First(assignmentType).Error
-	if err != nil {
-		log.Fatalln("Error getting assignment type with name: ", err)
-		return nil
-	}
-	return assignmentType
 }
 
 func (a *AssignmentType) ToMap() map[string]string {
@@ -41,16 +30,6 @@ type AssignmentStatus struct {
 	Name     string `gorm:"unique;not null"`
 	Color    string `gorm:"not null"`
 	NotionID string
-}
-
-func Get_AssignmentStatus_byName(name string, db *gorm.DB) *AssignmentStatus {
-	assignmentStatus := &AssignmentStatus{}
-	err := db.Where("name = ?", name).First(assignmentStatus).Error
-	if err != nil {
-		log.Fatalln("Error getting assignment status with name: ", err)
-		return nil
-	}
-	return assignmentStatus
 }
 
 func (a *AssignmentStatus) ToMap() map[string]string {

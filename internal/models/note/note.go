@@ -2,10 +2,12 @@ package note
 
 import (
 	"strconv"
-	"unipilot/internal/models/course"
-	"unipilot/internal/models/user"
 
 	"gorm.io/gorm"
+
+	"unipilot/internal/errors"
+	"unipilot/internal/models/course"
+	"unipilot/internal/models/user"
 )
 
 // RemoteNote represents the note stored in the remote database (Notion)
@@ -41,7 +43,7 @@ func Get_Note_byID(id, user_id uint, db *gorm.DB) (*Note, error) {
 		First(note).Error
 
 	if err != nil {
-		return nil, err
+		return nil, errors.HandleDBReadError(err)
 	}
 	return note, nil
 }
@@ -49,7 +51,7 @@ func Get_Note_byID(id, user_id uint, db *gorm.DB) (*Note, error) {
 func DeleteNote(id uint, db *gorm.DB) error {
 	err := db.Delete(&Note{}, "id = ?", id).Error
 	if err != nil {
-		return err
+		return errors.HandleDBWriteError(err)
 	}
 	return nil
 }

@@ -1,10 +1,11 @@
 package user
 
 import (
-	"fmt"
 	"time"
 
 	"gorm.io/gorm"
+
+	"unipilot/internal/errors"
 )
 
 // User represents the application user
@@ -56,8 +57,7 @@ func Get_User_by_NotionID(notion_id string, db *gorm.DB) (*User, error) {
 	u := &User{}
 	err := db.Where("notion_id = ?", notion_id).First(u).Error
 	if err != nil {
-		return nil, fmt.Errorf("Error getting user with notion id: ", err)
+		return nil, errors.HandleDBReadError(err)
 	}
 	return u, nil
 }
-
