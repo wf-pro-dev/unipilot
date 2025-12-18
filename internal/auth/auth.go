@@ -41,10 +41,9 @@ func NewAuth() *Auth {
 		// This client includes JWT tokens for API requests
 		newAuth.Client, err = client.NewAuthClient()
 		if err != nil {
-			log.Println("Error creating client: ", err)
+			log.Printf("failed to create client: %v", err)
 		}
 
-		log.Printf("Auth: %v", newAuth.Client)
 	}
 
 	return newAuth

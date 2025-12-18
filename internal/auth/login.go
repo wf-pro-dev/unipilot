@@ -157,7 +157,6 @@ func PostLogin() error {
 	// Step 4: Migrate assignments from remote server to local database
 	// Non-fatal operation - allows offline access to assignments
 	// Note: Sync functions are temporarily disabled
-	fmt.Printf("Attempting to migrate assignments...\n")
 	if err := sync.MigrateAssignments(localDB); err != nil {
 		fmt.Printf("Warning: Failed to migrate assignments: %v\n", err)
 		// Don't rollback, continue with the transaction

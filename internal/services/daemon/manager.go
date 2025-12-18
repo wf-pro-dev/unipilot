@@ -3,7 +3,6 @@ package daemon
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -88,8 +87,6 @@ func getProjectDirectory() (string, error) {
 
 // BuildDaemon builds the notification daemon binary
 func (m *Manager) BuildDaemon() error {
-	log.Printf("[Daemon] Building notification daemon...")
-
 	// Check if daemon source exists
 	daemonSource := filepath.Join(m.projectDir, "internal", "daemon", "notifications-daemon.go")
 	if _, err := os.Stat(daemonSource); os.IsNotExist(err) {
@@ -104,8 +101,6 @@ func (m *Manager) BuildDaemon() error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	log.Printf("[Daemon] Running: go build -o %s %s", tempDaemonPath, daemonSource)
-
 	if err := cmd.Run(); err != nil {
 		// Clean up temp file on error
 		os.Remove(tempDaemonPath)
@@ -119,7 +114,6 @@ func (m *Manager) BuildDaemon() error {
 		return fmt.Errorf("failed to install daemon to system location: %w", err)
 	}
 
-	log.Printf("[Daemon] Notification daemon built and installed successfully: %s", m.daemonPath)
 	return nil
 }
 
@@ -139,17 +133,13 @@ func (m *Manager) moveBinaryToSystemLocation(tempPath string) error {
 		return fmt.Errorf("failed to execute privileged commands: %w", err)
 	}
 
-	log.Printf("[Daemon] Binary installed successfully: %s", m.daemonPath)
 	return nil
 }
 
 // InstallDaemon installs the notification daemon
 func (m *Manager) InstallDaemon() error {
-	log.Printf("[Daemon] Installing notification daemon for user %d", m.userID)
-
 	// Check if daemon binary exists, build if not
 	if _, err := os.Stat(m.daemonPath); os.IsNotExist(err) {
-		log.Printf("[Daemon] Daemon binary not found, building...")
 		if err := m.BuildDaemon(); err != nil {
 			return fmt.Errorf("failed to build daemon: %w", err)
 		}
@@ -170,14 +160,11 @@ func (m *Manager) InstallDaemon() error {
 		return fmt.Errorf("failed to load launch agent: %w", err)
 	}
 
-	log.Printf("[Daemon] Notification daemon installed successfully")
 	return nil
 }
 
 // UninstallDaemon removes the notification daemon
 func (m *Manager) UninstallDaemon() error {
-	log.Printf("[Daemon] Uninstalling notification daemon")
-
 	// Unload the launch agent
 	if err := m.unloadLaunchAgent(); err != nil {
 		return fmt.Errorf("failed to unload launch agent: %w", err)
@@ -190,10 +177,9 @@ func (m *Manager) UninstallDaemon() error {
 
 	// Remove the daemon binary from system location
 	if err := m.removeDaemonBinary(); err != nil {
-		log.Printf("[Daemon] Warning: failed to remove daemon binary: %v", err)
+		return fmt.Errorf("failed to remove daemon binary: %w", err)
 	}
 
-	log.Printf("[Daemon] Notification daemon uninstalled successfully")
 	return nil
 }
 
@@ -229,32 +215,27 @@ func (m *Manager) IsDaemonRunning() bool {
 // StartDaemon starts the daemon if it's not running
 func (m *Manager) StartDaemon() error {
 	if m.IsDaemonRunning() {
-		log.Printf("[Daemon] Daemon is already running")
 		return nil
 	}
 
-	log.Printf("[Daemon] Starting notification daemon")
 	return m.loadLaunchAgent()
 }
 
 // StopDaemon stops the daemon
 func (m *Manager) StopDaemon() error {
 	if !m.IsDaemonRunning() {
-		log.Printf("[Daemon] Daemon is not running")
 		return nil
 	}
 
-	log.Printf("[Daemon] Stopping notification daemon")
 	return m.unloadLaunchAgent()
 }
 
 // RebuildDaemon rebuilds the daemon binary
 func (m *Manager) RebuildDaemon() error {
-	log.Printf("[Daemon] Rebuilding notification daemon...")
 
 	// Remove existing binary from system location
 	if err := m.removeDaemonBinary(); err != nil {
-		log.Printf("[Daemon] Warning: failed to remove existing binary: %v", err)
+		return fmt.Errorf("failed to remove existing binary: %w", err)
 	}
 
 	// Build new binary

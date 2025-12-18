@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"unipilot/internal/models/document"
 	"unipilot/internal/secrets"
+
+	"unipilot/internal/errors"
+
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -118,12 +121,11 @@ func SendDocument(localDocument *document.LocalDocument) (*UploadResponse, error
 		defer fileContent.Close()
 
 		// Copy file content to form
-		bytesWritten, err := io.Copy(fileWriter, fileContent)
+		_, err = io.Copy(fileWriter, fileContent)
 		if err != nil {
 			return nil, fmt.Errorf("error copying file content: %v", err)
 		}
 
-		log.Printf("bytes written: %d\n", bytesWritten)
 	}
 
 	// Add metadata part
@@ -172,33 +174,22 @@ func SendDocument(localDocument *document.LocalDocument) (*UploadResponse, error
 		return nil, fmt.Errorf("error reading response: %v", err)
 	}
 
-	log.Printf("response: %v", resp.StatusCode)
-
-	// Handle different HTTP status codes
-	switch resp.StatusCode {
-	case http.StatusOK, http.StatusCreated:
-		// Success - parse response
-		var uploadResp UploadResponse
-		if err := json.Unmarshal(respBody, &uploadResp); err != nil {
-			return nil, fmt.Errorf("error parsing success response: %v", err)
-		}
-		return &uploadResp, nil
-
-	case http.StatusUnauthorized:
-		return nil, fmt.Errorf("authentication required. Please login first")
-
-	case http.StatusForbidden:
-		return nil, fmt.Errorf("access forbidden. You don't have permission to upload files")
-
-	case http.StatusRequestEntityTooLarge:
-		return nil, fmt.Errorf("file too large for server")
-
-	case http.StatusUnsupportedMediaType:
-		return nil, fmt.Errorf("file type not supported")
-
-	default:
-		return nil, fmt.Errorf("server error: %s - %s", resp.Status, string(respBody))
+	// Success - parse response
+	var uploadResp UploadResponse
+	if err := json.Unmarshal(respBody, &uploadResp); err != nil {
+		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse success response")
 	}
+
+	if resp.StatusCode != http.StatusOK {
+		var serverError *errors.AppError
+		if err := json.Unmarshal(respBody, &serverError); err != nil {
+			return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
+		}
+		return nil, serverError.ToServerError(resp.StatusCode)
+	}
+
+	return &uploadResp, nil
+
 }
 func DownloadDocument(document *document.LocalDocument) (io.Reader, error) {
 
@@ -270,12 +261,11 @@ func UploadDocumentRAG(document *document.LocalDocument) error {
 		defer fileContent.Close()
 
 		// Copy file content to form
-		bytesWritten, err := io.Copy(fileWriter, fileContent)
+		_, err = io.Copy(fileWriter, fileContent)
 		if err != nil {
 			return fmt.Errorf("error copying file content: %v", err)
 		}
 
-		log.Printf("bytes written: %d\n", bytesWritten)
 	}
 
 	// Add metadata part
@@ -325,33 +315,17 @@ func UploadDocumentRAG(document *document.LocalDocument) error {
 		return fmt.Errorf("error reading response: %v", err)
 	}
 
-	log.Printf("response: %v", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		var serverError *errors.AppError
 
-	// Handle different HTTP status codes
-	switch resp.StatusCode {
-	case http.StatusOK, http.StatusCreated:
-		// Success - parse response
-		var uploadResp UploadResponse
-		if err := json.Unmarshal(respBody, &uploadResp); err != nil {
-			return fmt.Errorf("error parsing success response: %v", err)
+		if err := json.Unmarshal(respBody, &serverError); err != nil {
+			return errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 		}
-		return nil
-
-	case http.StatusUnauthorized:
-		return fmt.Errorf("authentication required. Please login first")
-
-	case http.StatusForbidden:
-		return fmt.Errorf("access forbidden. You don't have permission to upload files")
-
-	case http.StatusRequestEntityTooLarge:
-		return fmt.Errorf("file too large for server")
-
-	case http.StatusUnsupportedMediaType:
-		return fmt.Errorf("file type not supported")
-
-	default:
-		return fmt.Errorf("server error: %s - %s", resp.Status, string(respBody))
+		log.Printf("error body: %s", serverError)
+		return serverError.ToServerError(resp.StatusCode)
 	}
+
+	return nil
 }
 
 func DeleteDocumentRAG(assignmentID, documentID uint) error {

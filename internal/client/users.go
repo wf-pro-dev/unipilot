@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+	"unipilot/internal/errors"
 	"unipilot/internal/models/user"
 	"unipilot/internal/secrets"
 
@@ -31,11 +32,15 @@ func GetRemoteUsers() ([]user.User, error) {
 	}
 
 	if statusCode != 200 {
-		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
+		var serverError *errors.AppError
+		if err := json.Unmarshal(body, &serverError); err != nil {
+			return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
+		}
+		return nil, serverError.ToServerError(statusCode)
 	}
 
 	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse response")
 	}
 
 	var users []user.User

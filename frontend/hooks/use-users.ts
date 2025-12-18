@@ -23,7 +23,7 @@ export function useUsers() {
         console.log("Users fetched", users)
         return users
       } catch (error) {
-        LogError("Failed to fetch users: " + error)
+        LogError(error as string)
         throw new Error(error instanceof Error ? error.message : "Failed to fetch users")
       }
     },

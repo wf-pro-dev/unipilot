@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"encoding/json"
 	Errors "errors"
 	"fmt"
 	"strings"
@@ -10,14 +11,14 @@ import (
 )
 
 type AppError struct {
-	Code    ErrorCode
-	Message string
-	Cause   error
+	Code    ErrorCode `json:"error_code"`
+	Message string    `json:"message"`
+	Cause   error     `json:"cause"`
 }
 
 type ServerError struct {
 	AppError
-	StatusCode int
+	StatusCode int `json:"status_code"`
 }
 
 func NewAppError(code ErrorCode, message string, cause error) *AppError {
@@ -28,11 +29,60 @@ func NewAppError(code ErrorCode, message string, cause error) *AppError {
 	}
 }
 
-func (e *AppError) Error() string {
-	if e.Cause != nil {
-		return fmt.Sprintf("{ \"error_code\": %s, \"message\": %s, \"cause\": %v }", e.Code, e.Message, e.Cause)
+// errorJSON represents the JSON structure of an error
+type errorJSON struct {
+	ErrorCode string      `json:"error_code"`
+	Message   string      `json:"message"`
+	Cause     interface{} `json:"cause,omitempty"`
+}
+
+// toErrorJSON converts an error to a JSON-serializable structure
+func toErrorJSON(err error) interface{} {
+	if err == nil {
+		return nil
 	}
-	return e.Message
+
+	var appErr *AppError
+	if Errors.As(err, &appErr) {
+		// Double-check that appErr is not nil
+		if appErr == nil {
+			return err
+		}
+
+		result := errorJSON{
+			ErrorCode: string(appErr.Code),
+			Message:   appErr.Message,
+		}
+		if appErr.Cause != nil {
+			result.Cause = toErrorJSON(appErr.Cause)
+		}
+		return result
+	}
+
+	// For non-AppError errors, safely get the error message
+	// Use fmt.Sprintf with %v to safely handle any error type
+	return fmt.Sprintf("%v", err)
+}
+
+func (e *AppError) Error() string {
+	if e == nil {
+		return ""
+	}
+
+	jsonStruct := errorJSON{
+		ErrorCode: string(e.Code),
+		Message:   e.Message,
+	}
+	if e.Cause != nil {
+		jsonStruct.Cause = toErrorJSON(e.Cause)
+	}
+
+	jsonBytes, err := json.MarshalIndent(jsonStruct, "", "   ")
+	if err != nil {
+		// Fallback to simple format if JSON marshaling fails
+		return fmt.Sprintf("error_code: %s, message: %s, cause: %v", e.Code, e.Message, e.Cause)
+	}
+	return "\n" + string(jsonBytes)
 }
 
 func Wrap(err error, code ErrorCode, message string) *AppError {
@@ -117,6 +167,7 @@ func GetRootAppError(err error) *AppError {
 		}
 		root = next
 	}
+
 	return root
 }
 

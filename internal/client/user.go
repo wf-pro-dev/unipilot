@@ -5,12 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"unipilot/internal/models/user"
 	"unipilot/internal/secrets"
+
+	"unipilot/internal/errors"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -101,12 +102,10 @@ func UpdateProfilePicture(path string) error {
 	defer fileContent.Close()
 
 	// Copy file content to form
-	bytesWritten, err := io.Copy(fileWriter, fileContent)
+	_, err = io.Copy(fileWriter, fileContent)
 	if err != nil {
 		return fmt.Errorf("error copying file content: %v", err)
 	}
-
-	log.Printf("bytes written: %d\n", bytesWritten)
 
 	// Close the writer to finalize the multipart message
 	writer.Close()
@@ -138,31 +137,13 @@ func UpdateProfilePicture(path string) error {
 		return fmt.Errorf("error reading response: %v", err)
 	}
 
-	log.Printf("response: %v", resp.StatusCode)
-
-	// Handle different HTTP status codes
-	switch resp.StatusCode {
-	case http.StatusOK, http.StatusCreated:
-		// Success - parse response
-		var uploadResp ProfilePictureResponse
-		if err := json.Unmarshal(respBody, &uploadResp); err != nil {
-			return fmt.Errorf("error parsing success response: %v", err)
+	if resp.StatusCode != http.StatusOK {
+		var serverError *errors.AppError
+		if err := json.Unmarshal(respBody, &serverError); err != nil {
+			return errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 		}
-		return nil
-
-	case http.StatusUnauthorized:
-		return fmt.Errorf("authentication required. Please login first")
-
-	case http.StatusForbidden:
-		return fmt.Errorf("access forbidden. You don't have permission to upload files")
-
-	case http.StatusRequestEntityTooLarge:
-		return fmt.Errorf("file too large for server")
-
-	case http.StatusUnsupportedMediaType:
-		return fmt.Errorf("file type not supported")
-
-	default:
-		return fmt.Errorf("server error: %s - %s", resp.Status, string(respBody))
+		return serverError.ToServerError(resp.StatusCode)
 	}
+
+	return nil
 }

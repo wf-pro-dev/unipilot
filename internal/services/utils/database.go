@@ -14,7 +14,7 @@ func GetUserDB() (*gorm.DB, error) {
 	// Determine database path
 	dbPath, err := GetDBPath()
 	if err != nil {
-		return nil, errors.Wrap(err, errors.FSPathNotFound, "Failed to get database path")
+		return nil, errors.Wrap(err, errors.FSFileNotFound, "Failed to get database path")
 	}
 
 	// Open database connection
@@ -44,7 +44,7 @@ func GetUserDBWithID(userID uint) (*gorm.DB, error) {
 
 	dbPath, err := GetDBPathWithID(userID)
 	if err != nil {
-		return nil, errors.Wrap(err, errors.FSPathNotFound, "Failed to get database path")
+		return nil, errors.Wrap(err, errors.FSFileNotFound, "Failed to get database path")
 	}
 
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{

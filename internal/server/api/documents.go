@@ -418,7 +418,7 @@ func WriteFileToDiskFiber(key string, fileHeader *multipart.FileHeader, c *fiber
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 		return "", 0, errors.Wrap(
 			err,
-			errors.FSDirCreateFailed,
+			errors.FSDirFailed,
 			"Error creating directory",
 		)
 	}
@@ -1005,7 +1005,7 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 		if err := os.MkdirAll(filepath.Dir(fileName), 0755); err != nil {
 			return errors.WrapServer(
 				err,
-				errors.FSDirCreateFailed,
+				errors.FSDirFailed,
 				"Error creating directory",
 				fiber.StatusInternalServerError,
 			)

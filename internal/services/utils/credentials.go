@@ -12,11 +12,13 @@ func GetUserFromFile() (*user.User, error) {
 
 	credentialsFile, err := GetCredentialFile()
 	if err != nil {
+		log.Println("Failed to get credential file: ", err)
 		return nil, errors.Wrap(err, errors.FSFileNotFound, "Failed to get credential file")
 	}
 
 	credentials, err := os.ReadFile(credentialsFile)
 	if err != nil {
+		log.Println("Failed to read credential file: ", err)
 		return nil, errors.Wrap(err, errors.FSOpenFailed, "Failed to read credential file")
 	}
 

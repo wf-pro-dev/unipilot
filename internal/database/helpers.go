@@ -44,7 +44,10 @@ func (h *Database) GetAssignment(id uint) (*assignment.LocalAssignment, error) {
 func (h *Database) GetAssignments() ([]assignment.LocalAssignment, error) {
 	var LocalAssignment []assignment.LocalAssignment
 	err := h.db.Preload("Course").Preload("Type").Preload("Status").Order("deadline DESC").Order("created_at DESC").Find(&LocalAssignment).Error
-	return LocalAssignment, errors.HandleDBReadError(err)
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return LocalAssignment, nil
 }
 
 // CreateAssignment creates a new assignment
@@ -77,6 +80,9 @@ func (h *Database) DeleteAssignment(assignment *assignment.LocalAssignment) erro
 
 // GetCourse retrieves a course by ID
 func (h *Database) GetCourse(id uint) (*course.Course, error) {
+	if h == nil || h.db == nil {
+		return nil, errors.NewAppError(errors.DBConnectionFailed, "Database connection failed", nil)
+	}
 	course, err := course.Get_Course_byId(id, h.db)
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
@@ -88,7 +94,10 @@ func (h *Database) GetCourse(id uint) (*course.Course, error) {
 func (h *Database) GetCourses() ([]course.LocalCourse, error) {
 	var LocalCourse []course.LocalCourse
 	err := h.db.Order("start_date DESC").Find(&LocalCourse).Error
-	return LocalCourse, errors.HandleDBReadError(err)
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return LocalCourse, nil
 }
 
 // CreateCourse creates a new course
@@ -124,7 +133,10 @@ func (h *Database) DeleteCourse(course *course.LocalCourse) error {
 func (h *Database) GetNotes() ([]note.LocalNote, error) {
 	var LocalNote []note.LocalNote
 	err := h.db.Preload("Course").Find(&LocalNote).Order("created_at DESC").Error
-	return LocalNote, errors.HandleDBReadError(err)
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return LocalNote, nil
 }
 
 // CreateNote creates a new note
@@ -162,7 +174,10 @@ func (h *Database) GetNotifications() ([]notifications.LocalNotification, error)
 		Where("type != ?", notifications.NotificationCourse).
 		Find(&LocalNotification).
 		Order("created_at DESC").Error
-	return LocalNotification, errors.HandleDBReadError(err)
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return LocalNotification, nil
 }
 
 func (h *Database) DeleteNotification(notification *notifications.LocalNotification) error {

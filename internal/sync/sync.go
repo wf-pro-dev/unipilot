@@ -90,8 +90,6 @@ func SyncAssignment(syncLog models.LocalUpdate, remoteAssignments []map[string]s
 			return fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"])
 		}
 
-		log.Println("[App] Remote assignment ID:", remote_id)
-
 		localAssignment.RemoteID = uint(remote_id)
 
 		if err := db.Save(localAssignment).Error; err != nil {

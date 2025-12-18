@@ -16,7 +16,7 @@ func getMainDir() (string, error) {
 
 	configDir, err := os.UserConfigDir()
 	if err != nil {
-		return "", errors.Wrap(err, errors.FSPathNotFound, "Failed to get user config directory")
+		return "", errors.Wrap(err, errors.FSDirFailed, "Failed to get user config directory")
 	}
 
 	fileDir := filepath.Join(configDir, appName)
@@ -32,14 +32,14 @@ func GetUserDir() (string, error) {
 
 	credentials, err := GetUserFromFile()
 	if err != nil {
-		return "", errors.Wrap(err, errors.FSFileNotFound, "Failed to get user from file")
+		return "", errors.Wrap(err, errors.FSFileFailed, "Failed to get user from file")
 	}
 
-	fileDir, err := getMainDir()
+	mainDir, err := getMainDir()
 	if err != nil {
-		return "", errors.Wrap(err, errors.FSPathNotFound, "Failed to get main directory")
+		return "", errors.Wrap(err, errors.FSFileFailed, "Failed to get main directory")
 	}
-	userDir := filepath.Join(fileDir, fmt.Sprintf("user_%d", credentials.ID))
+	userDir := filepath.Join(mainDir, fmt.Sprintf("user_%d", credentials.ID))
 
 	if err := os.MkdirAll(userDir, 0755); err != nil {
 		return "", errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create user directory")
@@ -50,12 +50,12 @@ func GetUserDir() (string, error) {
 
 func getUserDirWithID(userID uint) (string, error) {
 
-	fileDir, err := getMainDir()
+	mainDir, err := getMainDir()
 	if err != nil {
-		return "", errors.Wrap(err, errors.FSPathNotFound, "Failed to get main directory")
+		return "", errors.Wrap(err, errors.FSFileNotFound, "Failed to get main directory")
 	}
 
-	userDir := filepath.Join(fileDir, fmt.Sprintf("user_%d", userID))
+	userDir := filepath.Join(mainDir, fmt.Sprintf("user_%d", userID))
 
 	if err := os.MkdirAll(userDir, 0755); err != nil {
 		return "", errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create user directory")
@@ -66,12 +66,12 @@ func getUserDirWithID(userID uint) (string, error) {
 
 func GetDocumentDir() (string, error) {
 
-	fileDir, err := GetUserDir()
+	userDir, err := GetUserDir()
 	if err != nil {
 		return "", err
 	}
 
-	documentDir := filepath.Join(fileDir, "documents")
+	documentDir := filepath.Join(userDir, "documents")
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(documentDir, 0755); err != nil {
 		return "", errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create document directory")
@@ -82,12 +82,12 @@ func GetDocumentDir() (string, error) {
 
 func GetDBPath() (string, error) {
 
-	fileDir, err := GetUserDir()
+	userDir, err := GetUserDir()
 	if err != nil {
-		return "", errors.Wrap(err, errors.FSPathNotFound, "Failed to get user directory")
+		return "", errors.Wrap(err, errors.FSDirFailed, "Failed to get user directory")
 	}
 
-	dbPath := filepath.Join(fileDir, "data.db")
+	dbPath := filepath.Join(userDir, "data.db")
 
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_, err := os.Create(dbPath)
@@ -101,12 +101,12 @@ func GetDBPath() (string, error) {
 
 func GetDBPathWithID(userID uint) (string, error) {
 
-	fileDir, err := getUserDirWithID(userID)
+	userDir, err := getUserDirWithID(userID)
 	if err != nil {
-		return "", errors.Wrap(err, errors.FSPathNotFound, "Failed to get user directory")
+		return "", errors.Wrap(err, errors.FSDirFailed, "Failed to get user directory")
 	}
 
-	dbPath := filepath.Join(fileDir, "data.db")
+	dbPath := filepath.Join(userDir, "data.db")
 
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_, err := os.Create(dbPath)
@@ -121,22 +121,22 @@ func GetDBPathWithID(userID uint) (string, error) {
 // getCookieFilePath returns the canonical path for the cookie file.
 func GetCookieFilePath() (string, error) {
 
-	fileDir, err := GetUserDir()
+	userDir, err := GetUserDir()
 	if err != nil {
-		return "", errors.Wrap(err, errors.FSPathNotFound, "Failed to get user directory")
+		return "", errors.Wrap(err, errors.FSDirFailed, "Failed to get user directory")
 	}
-	cookiePath := filepath.Join(fileDir, "cookies.txt")
+	cookiePath := filepath.Join(userDir, "cookies.txt")
 
 	return cookiePath, nil
 }
 
 func GetCredentialFile() (string, error) {
 
-	fileDir, err := getMainDir()
+	mainDir, err := getMainDir()
 	if err != nil {
-		return "", errors.Wrap(err, errors.FSPathNotFound, "Failed to get main directory")
+		return "", errors.Wrap(err, errors.FSDirFailed, "Failed to get main directory")
 	}
-	credentialsPath := filepath.Join(fileDir, "credentials.json")
+	credentialsPath := filepath.Join(mainDir, "credentials.json")
 	if _, err := os.Stat(credentialsPath); os.IsNotExist(err) {
 		_, err := os.Create(credentialsPath)
 		if err != nil {
@@ -148,13 +148,13 @@ func GetCredentialFile() (string, error) {
 
 func GetProfilePicturePath() (string, error) {
 
-	fileDir, err := GetUserDir()
+	userDir, err := GetUserDir()
 	if err != nil {
-		return "", errors.Wrap(err, errors.FSPathNotFound, "Failed to get user directory")
+		return "", errors.Wrap(err, errors.FSDirFailed, "Failed to get user directory")
 	}
-	profilePicturePath := filepath.Join(fileDir, "profile_picture.png")
+	profilePicturePath := filepath.Join(userDir, "profile_picture.png")
 	if _, err := os.Stat(profilePicturePath); os.IsNotExist(err) {
-		return "", errors.Wrap(err, errors.FSFileNotFound, "Profile picture not found")
+		return "", errors.Wrap(err, errors.FSFileNotFound, "Profile picture file not found")
 	}
 	return profilePicturePath, nil
 }

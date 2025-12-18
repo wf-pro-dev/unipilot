@@ -11,6 +11,8 @@ import (
 	"unipilot/internal/secrets"
 	"unipilot/internal/services/utils"
 
+	Errors "unipilot/internal/errors"
+
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -27,7 +29,7 @@ func SaveToken(token string) error {
 	_, _, err := jwt.NewParser().ParseUnverified(token, claims)
 
 	if err != nil {
-		return fmt.Errorf("failed to parse token: %w", err)
+		return Errors.Wrap(err, Errors.AuthTokenInvalid, "Failed to parse token")
 	}
 
 	tokenData := TokenData{
@@ -43,7 +45,7 @@ func SaveToken(token string) error {
 
 	data, err := json.MarshalIndent(tokenData, "", "  ")
 	if err != nil {
-		return fmt.Errorf("could not marshal token: %w", err)
+		return Errors.Wrap(err, Errors.ProcJSONMarshalFailed, "Failed to marshal token")
 	}
 
 	return os.WriteFile(tokenFile, data, 0600) // Secure file permissions
@@ -56,7 +58,7 @@ func SaveRefreshToken(token string) error {
 	_, _, err := jwt.NewParser().ParseUnverified(token, claims)
 
 	if err != nil {
-		return fmt.Errorf("failed to parse token: %w", err)
+		return Errors.Wrap(err, Errors.AuthTokenInvalid, "Failed to parse token")
 	}
 
 	refreshTokenData := TokenData{
@@ -72,7 +74,7 @@ func SaveRefreshToken(token string) error {
 
 	data, err := json.MarshalIndent(refreshTokenData, "", "  ")
 	if err != nil {
-		return fmt.Errorf("could not marshal refresh token: %w", err)
+		return Errors.Wrap(err, Errors.ProcJSONMarshalFailed, "Failed to marshal refresh token")
 	}
 
 	return os.WriteFile(refreshTokenFile, data, 0600) // Secure file permissions
@@ -82,28 +84,21 @@ func SaveRefreshToken(token string) error {
 func LoadToken() (string, error) {
 	tokenFile, err := getTokenFilePath()
 	if err != nil {
-		return "", err
+		return "", Errors.Wrap(err, Errors.FSFileNotFound, "Failed to get token file")
 	}
 
 	if _, err := os.Stat(tokenFile); os.IsNotExist(err) {
-		return "", nil // No token file exists
+		return "", Errors.Wrap(err, Errors.FSFileNotFound, "Failed to get token file") // No token file exists
 	}
 
 	data, err := os.ReadFile(tokenFile)
 	if err != nil {
-		return "", fmt.Errorf("could not read token file: %w", err)
+		return "", Errors.Wrap(err, Errors.FSOpenFailed, "Failed to read token file")
 	}
 
 	var tokenData TokenData
 	if err := json.Unmarshal(data, &tokenData); err != nil {
-		return "", fmt.Errorf("could not unmarshal token: %w", err)
-	}
-
-	// Check if token is expired
-	if time.Now().After(tokenData.ExpiresAt) {
-		// Token expired, remove file
-		os.Remove(tokenFile)
-		return "", nil
+		return "", Errors.Wrap(err, Errors.ProcJSONUnmarshalFailed, "Failed to unmarshal token")
 	}
 
 	return tokenData.Token, nil
@@ -120,11 +115,11 @@ func LoadRefreshToken() (string, error) {
 	}
 	data, err := os.ReadFile(refreshTokenFile)
 	if err != nil {
-		return "", fmt.Errorf("could not read refresh token file: %w", err)
+		return "", Errors.Wrap(err, Errors.FSOpenFailed, "Failed to read refresh token file")
 	}
 	var refreshTokenData TokenData
 	if err := json.Unmarshal(data, &refreshTokenData); err != nil {
-		return "", fmt.Errorf("could not unmarshal refresh token: %w", err)
+		return "", Errors.Wrap(err, Errors.ProcJSONUnmarshalFailed, "Failed to unmarshal refresh token")
 	}
 
 	return refreshTokenData.Token, nil
@@ -135,18 +130,18 @@ func RefreshToken(refreshToken string) (string, string, error) {
 	// Set Authorization header
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/auth/refresh-token", api_url), nil)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to create request: %w", err)
+		return "", "", Errors.Wrap(err, Errors.ReqBodyInvalid, "Failed to create request")
 	}
 
 	req.Header.Set("Authorization", "Bearer "+refreshToken)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to refresh token: %w", err)
+		return "", "", Errors.Wrap(err, Errors.NetworkConnectionFailed, "Failed to refresh token")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", "", fmt.Errorf("failed to refresh token: %d", resp.StatusCode)
+		return "", "", Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to refresh token")
 	}
 	var response struct {
 		Message      string `json:"message"`
@@ -155,7 +150,7 @@ func RefreshToken(refreshToken string) (string, string, error) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return "", "", fmt.Errorf("failed to decode response: %w", err)
+		return "", "", Errors.Wrap(err, Errors.ProcJSONUnmarshalFailed, "Failed to decode response")
 	}
 
 	return response.Token, response.RefreshToken, nil
@@ -165,7 +160,7 @@ func RefreshToken(refreshToken string) (string, string, error) {
 func ClearToken() error {
 	tokenFile, err := getTokenFilePath()
 	if err != nil {
-		return err
+		return Errors.Wrap(err, Errors.FSFileNotFound, "Failed to get token file")
 	}
 	return os.Remove(tokenFile)
 }
@@ -192,7 +187,16 @@ func IsTokenValid() bool {
 func getTokenFilePath() (string, error) {
 	fileDir, err := utils.GetUserDir()
 	if err != nil {
-		return "", err
+		return "", Errors.Wrap(err, Errors.FSDirFailed, "Error getting user directory")
+	}
+	_, err = os.Stat(filepath.Join(fileDir, "auth_token.json"))
+	if err != nil {
+		credentialsFile, err := utils.GetCredentialFile()
+		if err != nil {
+			return "", Errors.Wrap(err, Errors.FSFileNotFound, "Credential file not found")
+		}
+		os.Remove(credentialsFile)
+		return "", Errors.Wrap(err, Errors.FSFileNotFound, "Token file not found")
 	}
 	return filepath.Join(fileDir, "auth_token.json"), nil
 }
@@ -200,7 +204,11 @@ func getTokenFilePath() (string, error) {
 func getRefreshTokenFilePath() (string, error) {
 	fileDir, err := utils.GetUserDir()
 	if err != nil {
-		return "", err
+		return "", Errors.Wrap(err, Errors.FSDirFailed, "Error getting user directory")
+	}
+	_, err = os.Stat(filepath.Join(fileDir, "refresh_token.json"))
+	if err != nil {
+		return "", Errors.Wrap(err, Errors.FSFileNotFound, "Refresh token file not found")
 	}
 	return filepath.Join(fileDir, "refresh_token.json"), nil
 }

@@ -64,15 +64,12 @@ func main() {
 
 		// Start SSE connection in background with authenticated client
 		go func() {
-			log.Printf("[Daemon] Starting authenticated SSE connection for event handler")
 			sseClient.Connect(httpClient)
 		}()
 
 		// Start event handler with the SSE client
 		if err := eventHandler.StartEventHandler(sseClient); err != nil {
 			log.Printf("Warning: Failed to start event handler: %v", err)
-		} else {
-			log.Printf("Event handler started for user %d", *userID)
 		}
 	}
 

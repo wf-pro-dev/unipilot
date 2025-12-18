@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 )
@@ -71,7 +70,6 @@ func (rt *JWTRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 		if err := SaveRefreshToken(newRefreshToken); err != nil {
 			return nil, fmt.Errorf("failed to save refresh token: %w", err)
 		}
-		log.Println("Token refreshed")
 
 	}
 

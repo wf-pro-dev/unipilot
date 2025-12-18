@@ -82,7 +82,7 @@ func WriteDocument(document *document.LocalDocument, fileContent io.Reader, db *
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Failed to create directory",
-		}, errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create directory")
+		}, errors.Wrap(err, errors.FSDirFailed, "Failed to create directory")
 	}
 
 	// Write file to disk
@@ -153,7 +153,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Failed to get app data path",
-		}, errors.Wrap(err, errors.FSPathNotFound, "Failed to get app data path")
+		}, errors.Wrap(err, errors.FSFileNotFound, "Failed to get app data path")
 	}
 
 	fileName := fmt.Sprintf("doc_%d_%d_v%d_%s", req.AssignmentID, req.UserID, newVersion.Version, req.FileName)
@@ -174,7 +174,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Failed to create directory",
-		}, errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create directory")
+		}, errors.Wrap(err, errors.FSDirFailed, "Failed to create directory")
 	}
 
 	// Write file
@@ -223,7 +223,7 @@ func DeleteDocument(docID uint, userID uint, db *gorm.DB) error {
 	// Get full path
 	fullPath, err := doc.GetFullPath()
 	if err != nil {
-		return errors.Wrap(err, errors.FSPathNotFound, "Failed to get file path")
+		return errors.Wrap(err, errors.FSFileNotFound, "Failed to get file path")
 	}
 
 	// Delete file from disk

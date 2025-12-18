@@ -2,7 +2,6 @@ package network
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 	"unipilot/internal/secrets"
@@ -22,7 +21,6 @@ func IsOnline() bool {
 	// Simple check - adjust as needed
 	client := http.Client{Timeout: 10 * time.Second}
 	_, err := client.Get(fmt.Sprintf("%s/health", api_url))
-	log.Printf("isOnline : %v", err)
 
 	onlineStatus = err == nil
 	lastChecked = time.Now()

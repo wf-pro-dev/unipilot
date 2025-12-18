@@ -1,8 +1,6 @@
 package client
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
@@ -12,30 +10,29 @@ import (
 func getAuthToken() (string, error) {
 	token, err := LoadToken()
 	if err != nil {
-		return "", fmt.Errorf("failed to load token: %w", err)
+		return "", err
 	}
 
 	// Refresh token if it is about to expire
-	if !IsTokenValid() {
-		refreshToken, err := LoadRefreshToken()
-		if err != nil {
-			return "", fmt.Errorf("failed to load refresh token: %w", err)
-		}
+	// if !IsTokenValid() {
+	// 	refreshToken, err := LoadRefreshToken()
+	// 	if err != nil {
+	// 		return "", fmt.Errorf("failed to load refresh token: %w", err)
+	// 	}
 
-		newToken, newRefreshToken, err := RefreshToken(refreshToken)
-		if err != nil {
-			return "", fmt.Errorf("failed to refresh token: %w", err)
-		}
+	// 	newToken, newRefreshToken, err := RefreshToken(refreshToken)
+	// 	if err != nil {
+	// 		return "", fmt.Errorf("failed to refresh token: %w", err)
+	// 	}
 
-		token = newToken
-		if err := SaveToken(newToken); err != nil {
-			return "", fmt.Errorf("failed to save token: %w", err)
-		}
-		if err := SaveRefreshToken(newRefreshToken); err != nil {
-			return "", fmt.Errorf("failed to save refresh token: %w", err)
-		}
-		log.Println("Token refreshed")
-	}
+	// 	token = newToken
+	// 	if err := SaveToken(newToken); err != nil {
+	// 		return "", fmt.Errorf("failed to save token: %w", err)
+	// 	}
+	// 	if err := SaveRefreshToken(newRefreshToken); err != nil {
+	// 		return "", fmt.Errorf("failed to save refresh token: %w", err)
+	// 	}
+	// }
 
 	return token, nil
 }

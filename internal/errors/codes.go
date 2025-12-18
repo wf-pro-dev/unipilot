@@ -38,6 +38,10 @@ const (
 	GeminiFailed            ErrorCode = "net-0007" // Gemini failed
 	SlowRequest             ErrorCode = "net-0008" // slow request
 
+	ClientRequestFailed   ErrorCode = "net-0109" // client request failed
+	ClientResponseInvalid ErrorCode = "net-0101" // client response invalid
+	ClientTimeout         ErrorCode = "net-0102" // client timeout
+
 	// Network - gRPC specific
 	GRPCClientFailed       ErrorCode = "net-0101" // gRPC client failed
 	GRPCUnreachable        ErrorCode = "net-0102" // gRPC unreachable
@@ -73,16 +77,20 @@ const (
 	// ============================================
 	// FILE SYSTEM ERRORS (fs-xxxx)
 	// ============================================
-	FSPathNotFound         ErrorCode = "fs-0001" // path not found
-	FSFileNotFound         ErrorCode = "fs-0002" // local file not found
-	FSOpenFailed           ErrorCode = "fs-0003" // file open failed (covers read operations)
-	FSCreateFailed         ErrorCode = "fs-0004" // file create failed
-	FSWriteFailed          ErrorCode = "fs-0005" // file write failed
-	FSDeleteFailed         ErrorCode = "fs-0006" // file delete failed
-	FSDirCreateFailed      ErrorCode = "fs-0007" // directory create failed
-	FSFileTooLarge         ErrorCode = "fs-0008" // file size exceeded
-	FSStreamFailed         ErrorCode = "fs-0009" // file stream failed
-	FSFileTypeNotSupported ErrorCode = "fs-0010" // file type not supported
+	FSFileFailed   ErrorCode = "fs-0001" // file operation failed (general - covers read/write/delete operations)
+	FSDirFailed    ErrorCode = "fs-0002" // directory create failed
+	FSStreamFailed ErrorCode = "fs-0003" // file stream failed
+
+	FSFileNotFound         ErrorCode = "fs-0101" // local file not found
+	FSOpenFailed           ErrorCode = "fs-0102" // file open failed (covers read operations)
+	FSCreateFailed         ErrorCode = "fs-0103" // file create failed
+	FSWriteFailed          ErrorCode = "fs-0104" // file write failed
+	FSDeleteFailed         ErrorCode = "fs-0105" // file delete failed
+	FSFileTooLarge         ErrorCode = "fs-0106" // file size exceeded
+	FSFileTypeNotSupported ErrorCode = "fs-0203" // file type not supported
+
+	FSDirNotFound     ErrorCode = "fs-0201" // directory not found
+	FSDirCreateFailed ErrorCode = "fs-0202" // directory create failed
 
 	// ============================================
 	// AUTHENTICATION ERRORS (auth-xxxx)

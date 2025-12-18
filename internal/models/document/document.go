@@ -103,14 +103,14 @@ func (d *Document) ValidateFileSize(db *gorm.DB) error {
 func GetAppDataPath() (string, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "", errors.Wrap(err, errors.FSPathNotFound, "Failed to get home directory")
+		return "", errors.Wrap(err, errors.FSFileNotFound, "Failed to get home directory")
 	}
 
 	appDataPath := filepath.Join(homeDir, ".unipilot", "documents")
 
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(appDataPath, 0755); err != nil {
-		return "", errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create app data directory")
+		return "", errors.Wrap(err, errors.FSDirFailed, "Failed to create app data directory")
 	}
 
 	return appDataPath, nil
@@ -120,7 +120,7 @@ func GetAppDataPath() (string, error) {
 func (d *Document) GenerateFilePath() (string, error) {
 	appDataPath, err := GetAppDataPath()
 	if err != nil {
-		return "", errors.Wrap(err, errors.FSPathNotFound, "Failed to get app data path")
+		return "", errors.Wrap(err, errors.FSFileNotFound, "Failed to get app data path")
 	}
 
 	// Create subdirectories: user_id/assignment_id/document_type/
@@ -132,7 +132,7 @@ func (d *Document) GenerateFilePath() (string, error) {
 
 	fullDir := filepath.Join(appDataPath, subDir)
 	if err := os.MkdirAll(fullDir, 0755); err != nil {
-		return "", errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create document directory")
+		return "", errors.Wrap(err, errors.FSDirFailed, "Failed to create document directory")
 	}
 
 	// Generate unique filename with timestamp to avoid conflicts
@@ -147,7 +147,7 @@ func (d *Document) GenerateFilePath() (string, error) {
 func (d *Document) GetFullPath() (string, error) {
 	appDataPath, err := GetAppDataPath()
 	if err != nil {
-		return "", errors.Wrap(err, errors.FSPathNotFound, "Failed to get app data path")
+		return "", errors.Wrap(err, errors.FSFileNotFound, "Failed to get app data path")
 	}
 
 	return filepath.Join(appDataPath, d.FilePath), nil

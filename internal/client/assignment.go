@@ -2,11 +2,12 @@ package client
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/network"
 	"unipilot/internal/secrets"
+
+	"unipilot/internal/errors"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -35,7 +36,11 @@ func GetAssignments() ([]map[string]string, error) {
 		}
 
 		if statusCode != 200 {
-			return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
+			var serverError *errors.ServerError
+			if err := json.Unmarshal(body, &serverError); err != nil {
+				return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
+			}
+			return nil, serverError
 		}
 
 		if err := json.Unmarshal(body, &response); err != nil {
@@ -86,8 +91,12 @@ func CreateAssignment(a *assignment.Assignment) (map[string]interface{}, error) 
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	if response.Error != "" {
-		return nil, errors.New(response.Error)
+	if statusCode != 200 {
+		var serverError *errors.ServerError
+		if err := json.Unmarshal(body, &serverError); err != nil {
+			return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
+		}
+		return nil, serverError
 	}
 
 	if response.Assignment == nil {
