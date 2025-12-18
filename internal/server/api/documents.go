@@ -400,8 +400,8 @@ func WriteFileToDisk(key string, w http.ResponseWriter, r *http.Request) (string
 	return filePath, bytesWritten, nil
 }
 
-// WriteFileToDiskFiber extracts file from Fiber multipart form and writes it to local disk storage.
-func WriteFileToDiskFiber(key string, fileHeader *multipart.FileHeader, c *fiber.Ctx) (string, int64, error) {
+// WriteMultipartFile extracts file from Fiber multipart form and writes it to local disk storage.
+func WriteMultipartFile(key string, fileHeader *multipart.FileHeader, c *fiber.Ctx) (string, int64, error) {
 	src, err := fileHeader.Open()
 	if err != nil {
 		return "", 0, errors.Wrap(
@@ -413,8 +413,7 @@ func WriteFileToDiskFiber(key string, fileHeader *multipart.FileHeader, c *fiber
 	defer src.Close()
 
 	// Use uploads directory from Docker volume
-	uploadsDir := "/app/uploads"
-	filePath := filepath.Join(uploadsDir, key)
+	filePath := filepath.Join("/app/uploads/", key)
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 		return "", 0, errors.Wrap(
 			err,
@@ -441,6 +440,42 @@ func WriteFileToDiskFiber(key string, fileHeader *multipart.FileHeader, c *fiber
 			err,
 			errors.FSWriteFailed,
 			"Error writing file",
+		)
+	}
+
+	return filePath, bytesWritten, nil
+}
+
+func WriteFile(key string, file io.Reader, c *fiber.Ctx) (string, int64, error) {
+
+	filePath := filepath.Join("/app/uploads/", key)
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		return "", 0, errors.WrapServer(
+			err,
+			errors.FSDirCreateFailed,
+			"Error creating directory",
+			fiber.StatusInternalServerError,
+		)
+	}
+
+	destFile, err := os.Create(filePath)
+	if err != nil {
+		return "", 0, errors.WrapServer(
+			err,
+			errors.FSCreateFailed,
+			"Error creating file",
+			fiber.StatusInternalServerError,
+		)
+	}
+	defer destFile.Close()
+
+	bytesWritten, err := io.Copy(destFile, file)
+	if err != nil {
+		return "", 0, errors.WrapServer(
+			err,
+			errors.FSWriteFailed,
+			"Error copying file content",
+			fiber.StatusInternalServerError,
 		)
 	}
 
@@ -499,7 +534,7 @@ func UploadFileLegacy(localDoc document.LocalDocument, key string, w http.Respon
 
 // UploadFileToS3Fiber handles the complete file upload pipeline from Fiber multipart form to AWS S3.
 func UploadFile(localDoc document.LocalDocument, key string, fileHeader *multipart.FileHeader, c *fiber.Ctx) error {
-	filePath, _, err := WriteFileToDiskFiber(key, fileHeader, c)
+	filePath, _, err := WriteMultipartFile(key, fileHeader, c)
 	if err != nil {
 		return errors.Wrap(
 			err,
@@ -939,10 +974,8 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 //   - Processes files for machine learning embeddings
 //   - Logs RAG processing metrics for monitoring
 func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
-	currentUser := c.Locals("user").(user.User)
-	userID := currentUser.ID
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "message", "Document uploaded for RAG successfully")
+
+	c.Locals("message", "Document uploaded for RAG successfully")
 
 	metadata := c.FormValue("metadata")
 	if metadata == "" {
@@ -964,13 +997,6 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	assignmentDir := fmt.Sprintf("users_data/user_%d/documents/assign_%d", userID, localDoc.RemoteAssignmentID)
-	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().Unix(), localDoc.FileName)
-	newKey := fmt.Sprintf("%s/%s", assignmentDir, uniqueFileName)
-
-	var fileName string
-	var err error
-
 	if localDoc.HasLocalFile {
 		fileHeader, err := c.FormFile("file")
 		if err != nil {
@@ -981,7 +1007,7 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 				fiber.StatusBadRequest,
 			)
 		}
-		fileName, _, err = WriteFileToDiskFiber(newKey, fileHeader, c)
+		_, _, err = WriteMultipartFile(localDoc.StorageKey, fileHeader, c)
 		if err != nil {
 			return errors.WrapServer(
 				err,
@@ -991,7 +1017,7 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 			)
 		}
 	} else {
-		fileName = newKey
+
 		fileReader, err := cloudstorage.DownloadFile(localDoc.StorageKey)
 		if err != nil {
 			return errors.WrapServer(
@@ -1002,35 +1028,16 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 			)
 		}
 
-		if err := os.MkdirAll(filepath.Dir(fileName), 0755); err != nil {
-			return errors.WrapServer(
-				err,
-				errors.FSDirFailed,
-				"Error creating directory",
-				fiber.StatusInternalServerError,
-			)
-		}
-
-		destFile, err := os.Create(fileName)
-		if err != nil {
-			return errors.WrapServer(
-				err,
-				errors.FSCreateFailed,
-				"Error creating file",
-				fiber.StatusInternalServerError,
-			)
-		}
-		defer destFile.Close()
-
-		_, err = io.Copy(destFile, fileReader)
+		_, _, err = WriteFile(localDoc.StorageKey, fileReader, c)
 		if err != nil {
 			return errors.WrapServer(
 				err,
 				errors.FSWriteFailed,
-				"Error copying file content",
+				"Error writing file to disk",
 				fiber.StatusInternalServerError,
 			)
 		}
+
 	}
 
 	vectors, err := document.GetQdrantVectors(&localDoc)
@@ -1060,7 +1067,8 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 			fiber.StatusInternalServerError,
 		)
 	}
-	collectionName := fmt.Sprintf("unipilot-qdrant-db-%d", localDoc.AssignmentID)
+
+	collectionName := fmt.Sprintf("unipilot-qdrant-db-%d", localDoc.RemoteAssignmentID)
 
 	if !slices.Contains(collections, collectionName) {
 		err = QdrantClient.CreateCollection(context.Background(), &qdrant.CreateCollection{
@@ -1078,6 +1086,7 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 				fiber.StatusInternalServerError,
 			)
 		}
+
 	}
 
 	if _, err = QdrantClient.Upsert(context.Background(), &qdrant.UpsertPoints{
@@ -1099,8 +1108,8 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 }
 
 func DeleteDocumentRAG(c *fiber.Ctx) error {
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "message", "Document deleted from RAG successfully")
+
+	c.Locals("message", "Document deleted from RAG successfully")
 	// Step 1: Extract and validate document IDs from query parameters
 	var input struct {
 		AssignmentID uint `json:"assignment_id"`
@@ -1145,8 +1154,7 @@ func DeleteDocumentRAG(c *fiber.Ctx) error {
 func GetAssignmentDocumentIDsRAG(c *fiber.Ctx) error {
 	// Step 1: Extract assignment ID from path parameter
 	idStr := c.Params("id")
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "message", "Assignment document IDs retrieved successfully")
+	c.Locals("message", "Assignment document IDs retrieved successfully")
 	if idStr == "" {
 
 		return errors.WrapServer(

@@ -574,8 +574,5 @@ func ErrorHandlerMiddleware(c *fiber.Ctx) error {
 	LogError(ctx, serverErr)
 
 	c.Locals("error_handled", true)
-	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-		"error":      serverErr.Message,
-		"error_code": serverErr.Code,
-	})
+	return c.Status(fiber.StatusInternalServerError).JSON(serverErr)
 }

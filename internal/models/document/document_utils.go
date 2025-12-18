@@ -91,7 +91,8 @@ func GetQdrantVectors(document *LocalDocument) ([]*qdrant.PointStruct, error) {
 	var vectors []*qdrant.PointStruct
 
 	//Get file text
-	text, err := GetFileText(document.FileName, filepath.Ext(document.FileName))
+	fsFileName := filepath.Join("/app/uploads/", document.StorageKey)
+	text, err := GetFileText(fsFileName, filepath.Ext(document.FileName))
 	if err != nil {
 		return nil, errors.Wrap(err, errors.QdrantTextError, "Error getting file text")
 	}
@@ -109,7 +110,7 @@ func GetQdrantVectors(document *LocalDocument) ([]*qdrant.PointStruct, error) {
 			Vectors: qdrant.NewVectors(embedding.Values...),
 			Payload: qdrant.NewValueMap(map[string]any{
 				"user_id":       document.UserID,
-				"document_id":   document.ID,
+				"document_id":   document.RemoteID,
 				"assignment_id": document.AssignmentID,
 				"chunk_id":      i,
 				"chunk_text":    chunks[i],

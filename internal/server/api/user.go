@@ -185,7 +185,7 @@ func UpdateProfilePictureHandler(c *fiber.Ctx) error {
 
 	// Step 4: Extract file from multipart form and write to local disk
 	// Local storage is required as intermediate step before S3 upload
-	filePath, _, err := WriteFileToDiskFiber(newKey, file, c)
+	filePath, _, err := WriteMultipartFile(newKey, file, c)
 	if err != nil {
 		return errors.WrapServer(err, errors.FSWriteFailed, "Error writing file to disk", fiber.StatusInternalServerError)
 	}
