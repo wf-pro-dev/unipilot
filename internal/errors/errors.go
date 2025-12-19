@@ -356,3 +356,62 @@ func HandleDBCreateError(err error) *AppError {
 	}
 	return NewAppError(DBQueryFailed, "Query failed", err)
 }
+
+// Helper function to parse ServerError from JSON response
+func ParseServerError(body []byte, statusCode int) *ServerError {
+	// Use a temporary struct that matches the JSON structure
+	var temp struct {
+		ErrorCode  string          `json:"error_code"`
+		Message    string          `json:"message"`
+		StatusCode int             `json:"status_code"`
+		Cause      json.RawMessage `json:"cause,omitempty"`
+	}
+
+	if err := json.Unmarshal(body, &temp); err != nil {
+		// If unmarshaling fails, create a ServerError with the raw body as message
+		return NewServerError(
+			ClientResponseInvalid,
+			fmt.Sprintf("Failed to parse error response: %s", string(body)),
+			fmt.Errorf("json unmarshal failed: %w", err),
+			statusCode,
+		)
+	}
+
+	// Parse the cause if it exists
+	var cause error
+	if len(temp.Cause) > 0 {
+		// Try to unmarshal cause as an AppError first
+		var causeAppErr struct {
+			ErrorCode string          `json:"error_code"`
+			Message   string          `json:"message"`
+			Cause     json.RawMessage `json:"cause,omitempty"`
+		}
+		if err := json.Unmarshal(temp.Cause, &causeAppErr); err == nil {
+			// It's an AppError structure
+			var nestedCause error
+			if len(causeAppErr.Cause) > 0 {
+				nestedCause = fmt.Errorf("%s", string(causeAppErr.Cause))
+			}
+			cause = NewAppError(
+				ErrorCode(causeAppErr.ErrorCode),
+				causeAppErr.Message,
+				nestedCause,
+			)
+		} else {
+			// It's a plain string or other type
+			var causeStr string
+			if err := json.Unmarshal(temp.Cause, &causeStr); err == nil {
+				cause = fmt.Errorf(causeStr)
+			} else {
+				cause = fmt.Errorf("%s", string(temp.Cause))
+			}
+		}
+	}
+
+	return NewServerError(
+		ErrorCode(temp.ErrorCode),
+		temp.Message,
+		cause,
+		temp.StatusCode,
+	)
+}

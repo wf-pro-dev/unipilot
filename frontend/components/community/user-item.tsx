@@ -10,6 +10,7 @@ import { format } from "date-fns"
 import { useUsers } from "@/hooks/use-users"
 import { useAuthContext } from "../provider/auth-provider"
 import { Skeleton } from "../ui/skeleton"
+import { toast } from "sonner"
 
 interface UserItemProps {
   userID: number
@@ -35,9 +36,22 @@ export function UserItem({ userID }: UserItemProps) {
 
 
   const handleFollow = () => {
-    const message = "following " + user?.Username
-    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-    followMutation.mutate(user!)
+    followMutation.mutate(user!, {
+      onSuccess: () => {
+        if (isFollowed) {
+          toast.success("You just unfollowed " + user?.Username)
+        } else {
+          toast.success("You are now following " + user?.Username)
+        }
+      },
+      onError: () => {
+        if (isFollowed) {
+          toast.error("Failed to unfollow " + user?.Username)
+        } else {
+          toast.error("Failed to follow " + user?.Username)
+        }
+      }
+    })
   }
 
   return (

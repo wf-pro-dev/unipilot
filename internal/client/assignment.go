@@ -12,13 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func GetAssignments() ([]map[string]string, error) {
-
-	var response struct {
-		Message     string              `json:"message"`
-		Assignments []map[string]string `json:"assignments"`
-		Error       string              `json:"error,omitempty"`
-	}
+func GetAssignments() ([]assignment.Assignment, error) {
 
 	isOnline := network.IsOnline()
 
@@ -36,37 +30,27 @@ func GetAssignments() ([]map[string]string, error) {
 		}
 
 		if statusCode != 200 {
-			var serverError *errors.ServerError
-			if err := json.Unmarshal(body, &serverError); err != nil {
-				return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
-			}
+			serverError := errors.ParseServerError(body, statusCode)
 			return nil, serverError
 		}
 
+		var response []assignment.Assignment
 		if err := json.Unmarshal(body, &response); err != nil {
-			return nil, fmt.Errorf("failed to decode response: %w", err)
+			return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 		}
 
-		if response.Error != "" {
-			return nil, fmt.Errorf(response.Error)
-		}
-
-		if response.Assignments == nil {
-			return make([]map[string]string, 0), nil
-		}
+		return response, nil
 	}
 
-	return response.Assignments, nil
+	return nil, nil
 
 }
 
-func CreateAssignment(a *assignment.Assignment) (map[string]interface{}, error) {
-
-	assignmentData := a.ToMap()
+func CreateAssignment(a *assignment.Assignment) (*assignment.Assignment, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Post(fmt.Sprintf("%s/assignments", api_url))
-	agent.JSON(assignmentData)
+	agent.JSON(a)
 
 	if err := setAuthHeader(agent); err != nil {
 		return nil, err
@@ -78,20 +62,6 @@ func CreateAssignment(a *assignment.Assignment) (map[string]interface{}, error) 
 	}
 
 	if statusCode != 200 {
-		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
-	}
-
-	var response struct {
-		Message    string                 `json:"message"`
-		Assignment map[string]interface{} `json:"assignment"`
-		Error      string                 `json:"error,omitempty"`
-	}
-
-	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	if statusCode != 200 {
 		var serverError *errors.ServerError
 		if err := json.Unmarshal(body, &serverError); err != nil {
 			return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
@@ -99,11 +69,12 @@ func CreateAssignment(a *assignment.Assignment) (map[string]interface{}, error) 
 		return nil, serverError
 	}
 
-	if response.Assignment == nil {
-		return nil, fmt.Errorf("no assignment data in response")
+	var response *assignment.Assignment
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return response.Assignment, nil
+	return response, nil
 }
 
 func UpdateAssignment(id, column, value string) error {

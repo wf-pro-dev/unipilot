@@ -184,7 +184,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 
 	//Online operation
 	isOnline := network.IsOnline()
-	var responseAssignment map[string]interface{}
+	var responseAssignment *assignment.Assignment
 	var clientErr error
 	if isOnline {
 		responseAssignment, clientErr = client.CreateAssignment(remoteAssignment)
@@ -215,19 +215,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 	}
 
 	// Server operation succeeded
-	str_remote_id, ok := responseAssignment["id"].(string)
-	if !ok {
-		tx.Rollback()
-		return nil, Errors.Wrap(fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"]), Errors.ClientRequestFailed, "Invalid remote assignment ID")
-	}
-
-	remote_id, err := strconv.Atoi(str_remote_id)
-	if err != nil {
-		tx.Rollback()
-		return nil, Errors.Wrap(err, Errors.ClientRequestFailed, "Invalid remote assignment ID")
-	}
-
-	localAssignment.RemoteID = uint(remote_id)
+	localAssignment.RemoteID = responseAssignment.ID
 
 	if err := tx.Save(localAssignment).Error; err != nil {
 		tx.Rollback()
@@ -1402,7 +1390,11 @@ func (a *App) GetAssignments() ([]assignment.LocalAssignment, error) {
 	if a.DB == nil {
 		return []assignment.LocalAssignment{}, nil
 	}
-	return a.DB.GetAssignments()
+	assignments, err := a.DB.GetAssignments()
+	if err != nil {
+		return nil, Errors.HandleDBReadError(err)
+	}
+	return assignments, nil
 }
 
 // GetCourses returns all courses for the current user

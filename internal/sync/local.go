@@ -22,29 +22,19 @@ func MigrateAssignments(db *gorm.DB) error {
 
 	for _, ra := range remoteAssignments {
 
-		deadline, err := time.Parse(time.DateOnly, ra["deadline"])
-		if err != nil {
-			return errors.Wrap(err, errors.SyncDataConversionError, "Failed to parse assignment deadline")
-		}
-
-		remote_id, err := strconv.Atoi(ra["id"])
-		if err != nil {
-			return errors.Wrap(err, errors.SyncDataConversionError, "Failed to convert assignment remote ID to int")
-		}
-
 		localAssignment := assignment.LocalAssignment{
-			RemoteID:   uint(remote_id),
-			Title:      ra["title"],
-			Todo:       ra["todo"],
-			Deadline:   deadline,
-			Link:       ra["link"],
-			CourseCode: ra["course_code"],
-			TypeName:   ra["type"],
-			StatusName: ra["status"],
-			Priority:   ra["priority"],
+			RemoteID:   ra.ID,
+			Title:      ra.Title,
+			Todo:       ra.Todo,
+			Deadline:   ra.Deadline,
+			Link:       ra.Link,
+			CourseCode: ra.CourseCode,
+			TypeName:   ra.TypeName,
+			StatusName: ra.StatusName,
+			Priority:   ra.Priority,
 		}
 
-		if err := db.First(&localAssignment, "remote_id = ?", remote_id).Error; err == nil {
+		if err := db.First(&localAssignment, "remote_id = ?", ra.ID).Error; err == nil {
 			continue
 		}
 
