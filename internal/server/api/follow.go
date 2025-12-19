@@ -189,6 +189,18 @@ func HandleFollow(c *fiber.Ctx) error {
 			return errors.WrapServer(err, errors.DBQueryFailed, "Error updating follow stats", fiber.StatusInternalServerError)
 		}
 
+		// Update Redis caches: remove user from followers and following lists (non-blocking)
+		followersCacheKey := fmt.Sprintf("followers:%d", followedID)
+		followingCacheKey := fmt.Sprintf("following:%d", userID)
+		// Remove current user from followed user's followers list
+		if err := RedisClient.HDel(context.Background(), followersCacheKey, strconv.Itoa(int(userID))).Err(); err != nil {
+			server.LogWarn(context.Background(), errors.WrapServer(err, errors.CacheOperationFailed, "Failed to remove user from followers cache", fiber.StatusInternalServerError))
+		}
+		// Remove followed user from current user's following list
+		if err := RedisClient.HDel(context.Background(), followingCacheKey, strconv.Itoa(int(followedID))).Err(); err != nil {
+			server.LogWarn(context.Background(), errors.WrapServer(err, errors.CacheOperationFailed, "Failed to remove user from following cache", fiber.StatusInternalServerError))
+		}
+
 		response = FollowResponse{
 			Success: true,
 			Message: "Unfollowed successfully",
@@ -212,15 +224,35 @@ func HandleFollow(c *fiber.Ctx) error {
 			return errors.WrapServer(err, errors.DBQueryFailed, "Error updating follow stats", fiber.StatusInternalServerError)
 		}
 
-		response = FollowResponse{
-			Success: true,
-			Message: "Followed successfully",
-		}
-
-		// Step 8: Prepare notification data with social context
+		// Step 8: Prepare notification data with social context and get followed user for cache update
 		var followedUser user.User
 		if err := db.First(&followedUser, followedID).Error; err != nil {
 			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting followed user", fiber.StatusInternalServerError)
+		}
+
+		// Update Redis caches: add user to followers and following lists (non-blocking)
+		followersCacheKey := fmt.Sprintf("followers:%d", followedID)
+		followingCacheKey := fmt.Sprintf("following:%d", userID)
+
+		// Add current user to followed user's followers list
+		currentUserJSON, err := json.Marshal(currentUser)
+		if err == nil {
+			if err := RedisClient.HSet(context.Background(), followersCacheKey, strconv.Itoa(int(userID)), currentUserJSON).Err(); err != nil {
+				server.LogWarn(context.Background(), errors.WrapServer(err, errors.CacheOperationFailed, "Failed to add user to followers cache", fiber.StatusInternalServerError))
+			}
+		}
+
+		// Add followed user to current user's following list
+		followedUserJSON, err := json.Marshal(followedUser)
+		if err == nil {
+			if err := RedisClient.HSet(context.Background(), followingCacheKey, strconv.Itoa(int(followedID)), followedUserJSON).Err(); err != nil {
+				server.LogWarn(context.Background(), errors.WrapServer(err, errors.CacheOperationFailed, "Failed to add user to following cache", fiber.StatusInternalServerError))
+			}
+		}
+
+		response = FollowResponse{
+			Success: true,
+			Message: "Followed successfully",
 		}
 
 		// Calculate shared courses for enhanced social context in notifications
@@ -245,14 +277,6 @@ func HandleFollow(c *fiber.Ctx) error {
 			)
 		}*/
 	}
-
-	// Step 10: Log follow action for social analytics and audit trail
-	action := "follow"
-	if isFollowing {
-		action = "unfollow"
-	}
-	server.LogInfo(context.Background(), "Follow action completed", "followed_id", followedID, "action", action,
-		"tags", []string{"follow", "db", "medium", "update"})
 
 	// Step 9: Send successful response with follow operation result
 	return c.JSON(response)
@@ -279,9 +303,11 @@ func HandleFollow(c *fiber.Ctx) error {
 // Caching Strategy:
 //   - Redis key pattern: "followers:{user_id}"
 //   - Cache structure: Hash with follower ID as field, JSON user object as value
-//   - TTL: 10 minutes for social feed freshness
+//   - TTL: 30 minutes for social feed freshness
 //   - Cache hit: Returns cached followers directly
 //   - Cache miss: Queries database, populates cache, returns fresh data
+//   - Cache is updated immediately on follow/unfollow operations (no stale data)
+//   - TTL rationale: Moderate query cost (JOIN), high access frequency, cache updated on changes
 //
 // Database Operations:
 //   - Queries followers through user model relationships
@@ -301,7 +327,7 @@ func HandleFollow(c *fiber.Ctx) error {
 //   - 500 Internal Server Error: Database query or Redis failures
 //
 // Side Effects:
-//   - Populates Redis cache on cache miss with 10-minute TTL
+//   - Populates Redis cache on cache miss with 30-minute TTL
 //   - Logs cache hit/miss events for performance monitoring
 //   - No database modifications (read-only operation)
 func HandleGetFollowers(c *fiber.Ctx) error {
@@ -384,8 +410,10 @@ func HandleGetFollowers(c *fiber.Ctx) error {
 		}
 	}
 
-	// Step 10: Set cache expiration to 10 minutes for optimal balance of freshness and performance
-	if err := RedisClient.Expire(context.Background(), cacheKey, 10*time.Minute).Err(); err != nil {
+	// Step 10: Set cache expiration to 30 minutes for optimal balance of freshness and performance
+	// Rationale: Moderate query cost (JOIN), high access frequency, cache updated immediately on follow/unfollow
+	// Longer TTL reduces database load while maintaining freshness through cache updates
+	if err := RedisClient.Expire(context.Background(), cacheKey, 30*time.Minute).Err(); err != nil {
 		server.LogWarn(context.Background(), errors.WrapServer(err, errors.RedisFailed, "Error setting cache expiration for followers", fiber.StatusInternalServerError))
 	}
 
@@ -419,9 +447,11 @@ func HandleGetFollowers(c *fiber.Ctx) error {
 // Caching Strategy:
 //   - Redis key pattern: "following:{user_id}"
 //   - Cache structure: Hash with followed user ID as field, JSON user object as value
-//   - TTL: 10 minutes for social feed freshness
+//   - TTL: 30 minutes for social feed freshness
 //   - Cache hit: Returns cached following list directly
 //   - Cache miss: Queries database, populates cache, returns fresh data
+//   - Cache is updated immediately on follow/unfollow operations (no stale data)
+//   - TTL rationale: Moderate query cost (JOIN), high access frequency, cache updated on changes
 //
 // Error Responses:
 //   - 400 Bad Request: Missing user_id parameter or invalid format
@@ -430,7 +460,7 @@ func HandleGetFollowers(c *fiber.Ctx) error {
 //   - 500 Internal Server Error: Database query or Redis failures
 //
 // Side Effects:
-//   - Populates Redis cache on cache miss with 10-minute TTL
+//   - Populates Redis cache on cache miss with 30-minute TTL
 //   - Logs cache hit/miss events for performance monitoring
 //   - No database modifications (read-only operation)
 func HandleGetFollowing(c *fiber.Ctx) error {
@@ -513,8 +543,10 @@ func HandleGetFollowing(c *fiber.Ctx) error {
 		}
 	}
 
-	// Step 10: Set cache expiration to 10 minutes for optimal balance of freshness and performance
-	if err := RedisClient.Expire(context.Background(), cacheKey, 10*time.Minute).Err(); err != nil {
+	// Step 10: Set cache expiration to 30 minutes for optimal balance of freshness and performance
+	// Rationale: Moderate query cost (JOIN), high access frequency, cache updated immediately on follow/unfollow
+	// Longer TTL reduces database load while maintaining freshness through cache updates
+	if err := RedisClient.Expire(context.Background(), cacheKey, 30*time.Minute).Err(); err != nil {
 		server.LogWarn(context.Background(), errors.WrapServer(err, errors.RedisFailed, "Error setting cache expiration for following", fiber.StatusInternalServerError))
 	}
 

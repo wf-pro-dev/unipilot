@@ -37,9 +37,10 @@ import (
 // Caching Strategy:
 //   - Redis key: "users" (hash structure)
 //   - Cache hit: Returns cached data directly (excludes current user)
-//   - Cache miss: Queries database, populates cache with 1-hour TTL
+//   - Cache miss: Queries database, populates cache with 3-hour TTL
 //   - Individual user caching allows partial cache updates
 //   - Non-blocking cache operations (warnings logged on failure)
+//   - TTL rationale: Expensive query (N+1: all users + course codes), moderate data volatility
 //
 // Security Features:
 //   - Current user excluded from results (prevents self-disclosure)
@@ -51,7 +52,7 @@ import (
 //   - 500 Internal Server Error: Database query, Redis operations, or JSON serialization failure
 //
 // Side Effects:
-//   - Populates Redis cache on cache miss with 1-hour expiration
+//   - Populates Redis cache on cache miss with 3-hour expiration
 //   - Logs cache hit/miss events for monitoring
 //   - No database modifications (read-only operation)
 func GetUsersHandler(c *fiber.Ctx) error {
@@ -113,8 +114,11 @@ func GetUsersHandler(c *fiber.Ctx) error {
 		}
 	}
 
-	// Step 7: Set cache expiration to 1 hour for optimal balance of freshness and performance
-	if err := RedisClient.Expire(context.Background(), "users", time.Hour).Err(); err != nil {
+	// Step 7: Set cache expiration to 3 hours for optimal balance of freshness and performance
+	// Rationale: User list query is expensive (N+1 problem: all users + course codes per user)
+	// User data changes moderately (profile updates), but course codes change less frequently
+	// Longer TTL reduces database load while maintaining acceptable freshness
+	if err := RedisClient.Expire(context.Background(), "users", 3*time.Hour).Err(); err != nil {
 		return errors.WrapServer(err, errors.CacheOperationFailed, "Failed to set cache expiration", fiber.StatusInternalServerError)
 	}
 

@@ -89,18 +89,8 @@ func GetAssignmentHandler(c *fiber.Ctx) error {
 
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting assignments from database", fiber.StatusInternalServerError)
 	}
-
-	// Step 3: Convert assignments to safe map format for JSON response
-	var assignmentsMap []map[string]string
-	for _, a := range assignments {
-		assignmentsMap = append(assignmentsMap, a.ToMap())
-	}
-
 	// Step 4: Send successful response with assignment data
-	return c.JSON(fiber.Map{
-		"message":     "User's Assignments retrieved successfully",
-		"assignments": assignmentsMap,
-	})
+	return c.JSON(assignments)
 }
 
 // CreateAssignmentHandler creates a new assignment for the authenticated user.

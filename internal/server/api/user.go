@@ -208,7 +208,18 @@ func UpdateProfilePictureHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error updating user profile picture in database", fiber.StatusInternalServerError)
 	}
 
-	// Step 8: Send successful response with confirmation message
+	// Step 8: Update Redis cache with new user data including updated avatar (non-blocking)
+	userMap := currentUser.ToMap()
+	if userMap != nil {
+		userJSON, err := json.Marshal(userMap)
+		if err == nil {
+			if err := RedisClient.HSet(context.Background(), "users", strconv.Itoa(int(userID)), userJSON).Err(); err != nil {
+				server.LogWarn(c.Context(), errors.WrapServer(err, errors.CacheOperationFailed, "Failed to cache user in Redis after profile picture update", fiber.StatusInternalServerError))
+			}
+		}
+	}
+
+	// Step 9: Send successful response with confirmation message
 	return c.JSON(fiber.Map{
 		"success": true,
 		"message": "Profile picture updated successfully",

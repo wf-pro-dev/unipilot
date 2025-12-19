@@ -164,8 +164,8 @@ services:
     depends_on:
       - redis
     environment:
-      - RI_REDIS_HOST=${REDIS_HOST}
-      - RI_REDIS_ALIAS=${REDIS_ALIAS}
+      - RI_REDIS_HOST=${REDIS_HOST:-unipilot_redis}
+      - RI_REDIS_ALIAS=${REDIS_HOST:-unipilot_redis}
       - RI_REDIS_PASSWORD=${REDIS_PASSWORD}
 
 volumes:
