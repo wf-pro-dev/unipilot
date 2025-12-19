@@ -78,12 +78,12 @@ func SyncAssignment(syncLog models.LocalUpdate, remoteAssignments []assignment.A
 			Priority:   localAssignment.Priority,
 		}
 
-		responseAssignment, err := client.CreateAssignment(remoteAssignment)
+		remoteID, err := client.CreateAssignment(remoteAssignment)
 		if err != nil {
 			return err
 		}
 
-		localAssignment.RemoteID = responseAssignment.ID
+		localAssignment.RemoteID = remoteID
 
 		if err := db.Save(localAssignment).Error; err != nil {
 			return errors.HandleDBWriteError(err)

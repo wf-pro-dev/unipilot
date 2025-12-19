@@ -46,35 +46,37 @@ func GetAssignments() ([]assignment.Assignment, error) {
 
 }
 
-func CreateAssignment(a *assignment.Assignment) (*assignment.Assignment, error) {
+func CreateAssignment(a *assignment.Assignment) (uint, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Post(fmt.Sprintf("%s/assignments", api_url))
 	agent.JSON(a)
 
 	if err := setAuthHeader(agent); err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	statusCode, body, errs := agent.Bytes()
 	if len(errs) > 0 {
-		return nil, errs[0]
+		return 0, errs[0]
 	}
 
 	if statusCode != 200 {
 		var serverError *errors.ServerError
 		if err := json.Unmarshal(body, &serverError); err != nil {
-			return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
+			return 0, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 		}
-		return nil, serverError
+		return 0, serverError
 	}
 
-	var response *assignment.Assignment
+	var response struct {
+		RemoteID uint `json:"remote_id"`
+	}
 	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return 0, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return response, nil
+	return response.RemoteID, nil
 }
 
 func UpdateAssignment(id, column, value string) error {

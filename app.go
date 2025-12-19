@@ -180,14 +180,15 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 		StatusName: localAssignment.StatusName,
 		Priority:   localAssignment.Priority,
 		Link:       localAssignment.Link,
+		ParentID:   localAssignment.ParentID,
 	}
 
 	//Online operation
 	isOnline := network.IsOnline()
-	var responseAssignment *assignment.Assignment
+	var remoteID uint
 	var clientErr error
 	if isOnline {
-		responseAssignment, clientErr = client.CreateAssignment(remoteAssignment)
+		remoteID, clientErr = client.CreateAssignment(remoteAssignment)
 	} else {
 
 		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
@@ -215,7 +216,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 	}
 
 	// Server operation succeeded
-	localAssignment.RemoteID = responseAssignment.ID
+	localAssignment.RemoteID = remoteID
 
 	if err := tx.Save(localAssignment).Error; err != nil {
 		tx.Rollback()
@@ -1039,12 +1040,12 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 		return err
 	}
 
-	assignment_id_str := strconv.Itoa(int(assignment.ID))
+	remote_assignment_id_str := strconv.Itoa(int(assignment.RemoteID))
 
 	isOnline := network.IsOnline()
 	var clientErr error
 	if isOnline {
-		clientErr = client.DeleteAssignment(assignment_id_str)
+		clientErr = client.DeleteAssignment(remote_assignment_id_str)
 	} else {
 		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
 	}
