@@ -1,10 +1,6 @@
 package server
 
 import (
-	"context"
-
-	"unipilot/internal/server"
-
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -32,9 +28,6 @@ import (
 //   - No server-side session state changes (stateless design)
 func LogoutHandler(c *fiber.Ctx) error {
 	c.Locals("message", "User logged out")
-	// Step 3: Log logout event for security audit trail and monitoring
-	server.LogInfo(context.Background(), "User logged out",
-		"tags", []string{"auth", "auth", "low"})
 
 	// Step 2: Send successful logout acknowledgment (no server-side token invalidation needed)
 	return c.JSON(fiber.Map{

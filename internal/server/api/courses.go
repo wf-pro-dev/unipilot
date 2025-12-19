@@ -573,7 +573,7 @@ func AcceptLinkCourseHandler(c *fiber.Ctx) error {
 	var responseAssignments []assignment.Assignment
 	for _, assign := range courseAssignments {
 		// Fetch documents for this assignment - needed for complete course sync
-		assignmentDocuments, err := assignment.GetDocuments(assign.ID, userID, db)
+		assignmentDocuments, err := assignment.GetDocuments(assign.ID, db)
 
 		if err != nil {
 			return errors.WrapServer(
@@ -686,7 +686,7 @@ func DeleteCourseHandler(c *fiber.Ctx) error {
 		}
 
 		for _, assign := range assignments {
-			if err := assignment.DeleteAssignment(assign, tx); err != nil {
+			if err := assignment.DeleteAssignment(assign.ID, tx); err != nil {
 				return errors.WrapServer(
 					err,
 					errors.DBQueryFailed,

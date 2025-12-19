@@ -145,8 +145,8 @@ func (a *Assignment) ToMap() map[string]string {
 	}
 }
 
-func GetDocuments(assignmentID, userID uint, db *gorm.DB) ([]document.Document, error) {
-	documents, err := document.GetDocumentsByAssignment(assignmentID, userID, db)
+func GetDocuments(assignmentID uint, db *gorm.DB) ([]document.Document, error) {
+	documents, err := document.GetDocumentsByAssignment(assignmentID, db)
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
@@ -217,9 +217,9 @@ func (a *Assignment) GetChildren(db *gorm.DB) ([]Assignment, error) {
 	return children, nil
 }
 
-func DeleteAssignment(assignment Assignment, tx *gorm.DB) error {
+func DeleteAssignment(id uint, tx *gorm.DB) error {
 
-	documents, err := GetDocuments(assignment.ID, assignment.UserID, tx)
+	documents, err := GetDocuments(id, tx)
 	if err != nil {
 		return errors.Wrap(err, errors.DBQueryFailed, "Error getting assignment documents from database")
 	}
@@ -232,7 +232,7 @@ func DeleteAssignment(assignment Assignment, tx *gorm.DB) error {
 	}
 
 	// Step 5: Delete the assignment from the database
-	if err := tx.Delete(&assignment).Error; err != nil {
+	if err := tx.Delete(&Assignment{}, id).Error; err != nil {
 
 		return errors.Wrap(err, errors.DBQueryFailed, "Error deleting assignment from database")
 	}

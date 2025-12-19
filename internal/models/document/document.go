@@ -206,11 +206,11 @@ func (d *Document) CreateNewVersion(newFileName string, newFileSize int64, newFi
 }
 
 // GetDocumentsByAssignment retrieves all documents for an assignment
-func GetDocumentsByAssignment(assignmentID, userID uint, db *gorm.DB) ([]Document, error) {
+func GetDocumentsByAssignment(assignmentID uint, db *gorm.DB) ([]Document, error) {
 	var documents []Document
 	err := db.Preload("User").
 		Preload("ParentDoc").
-		Where("assignment_id = ? AND user_id = ?", assignmentID, userID).
+		Where("assignment_id = ?", assignmentID).
 		Order("type ASC, created_at DESC").
 		Find(&documents).Error
 

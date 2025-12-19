@@ -28,9 +28,6 @@ func StartServer() error {
 	// Initialize Fiber app
 	app := fiber.New()
 
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "component", "system")
-
 	db, err := storage.GetRemoteDB()
 	if err != nil {
 		return errors.Wrap(err, errors.DBConnectionFailed, "failed to initialize database connection")

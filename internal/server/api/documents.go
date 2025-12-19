@@ -734,7 +734,7 @@ func GetAssignmentDocumentsHandler(c *fiber.Ctx) error {
 	// Step 4: Query documents for the specified assignment with user information
 	var documents []document.Document
 
-	if documents, err = document.GetDocumentsByAssignment(uint(assignmentID), currentUserID, db); err != nil {
+	if documents, err = document.GetDocumentsByAssignment(uint(assignmentID), db); err != nil {
 		return errors.WrapServer(
 			err,
 			errors.DBQueryFailed,

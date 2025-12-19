@@ -6,7 +6,6 @@ import (
 	Errors "errors"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -157,70 +156,23 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 
 	c.Locals("message", "Assignment created successfully")
 
-	// Step 3: Define and parse assignment creation request structure
-	var input struct {
-		LocalID    string `json:"local_id"`
-		Title      string `json:"title"`
-		Todo       string `json:"todo"`
-		Deadline   string `json:"deadline"`
-		CourseCode string `json:"course_code"`
-		TypeName   string `json:"type"`
-		StatusName string `json:"status"`
-		Priority   string `json:"priority"`
-		Link       string `json:"link"`
-		ParentID   string `json:"parent_id"`
-	}
-
+	var input assignment.Assignment
 	if err := c.BodyParser(&input); err != nil {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
 	// Step 4: Validate all required fields for assignment creation
 	// Validate all required fields
-	if input.LocalID == "" || input.CourseCode == "" || input.Title == "" || input.TypeName == "" || input.Deadline == "" {
+	if input.LocalID == 0 || input.CourseCode == "" || input.Title == "" || input.TypeName == "" {
 		return errors.WrapServer(fmt.Errorf("missing required fields"), errors.ReqParamMissing, "Missing required fields", fiber.StatusBadRequest)
 
 	}
 
-	// Step 5: Parse and validate deadline format (YYYY-MM-DD)
-	deadline, err := time.Parse(time.DateOnly, input.Deadline)
-	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Invalid deadline format", fiber.StatusBadRequest)
-
-	}
-
-	// Step 6: Convert and validate local_id format (string to integer)
-	local_id, err := strconv.Atoi(input.LocalID)
-	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error formatting local_id", fiber.StatusBadRequest)
-	}
-
-	// Step 7: Handle optional parent_id for sub-assignment relationships
-	var parent_id = 0
-	if input.ParentID != "" {
-		parent_id, err = strconv.Atoi(input.ParentID)
-		if err != nil {
-			return errors.WrapServer(err, errors.ReqParamInvalid, "Error formatting parent_id", fiber.StatusBadRequest)
-		}
-	}
-
-	// Step 8: Construct assignment object with validated data
-	aVal := assignment.Assignment{
-		Title:      input.Title,
-		UserID:     userID,
-		LocalID:    uint(local_id),
-		Todo:       input.Todo,
-		Deadline:   deadline,
-		CourseCode: input.CourseCode,
-		TypeName:   input.TypeName,
-		StatusName: input.StatusName,
-		Priority:   input.Priority,
-		Link:       input.Link,
-		ParentID:   uint(parent_id),
-	}
+	// update the user id
+	input.UserID = userID
 
 	// Step 9: Create assignment record in database within transaction
-	result := db.Create(&aVal)
+	result := db.Create(&input).Preload("Course").First(&input)
 	if result.Error != nil {
 		if Errors.Is(result.Error, gorm.ErrDuplicatedKey) {
 			return errors.WrapServer(result.Error, errors.DBConstraintViolation, "Assignment already exists", fiber.StatusConflict)
@@ -229,47 +181,15 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(result.Error, errors.DBQueryFailed, "Error creating assignment in database", fiber.StatusInternalServerError)
 	}
 
-	// Step 10: Retrieve complete assignment data with relationships for response
-	aObj := &aVal
-	a, err := assignment.Get_Assignment_byID(aObj.ID, userID, db)
-	if err != nil {
-
-		if Errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.WrapServer(err, errors.DBRecordNotFound, "Assignment not found", fiber.StatusNotFound)
-		}
-
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting assignment from database", fiber.StatusInternalServerError)
-	}
-
-	// Step 11: Convert assignment to safe map format for JSON response
-	// Convert to map safely
-	assignmentMap := a.ToMap()
-	if assignmentMap == nil {
-		return errors.WrapServer(fmt.Errorf("assignment map is nil"), errors.ProcJSONMarshalFailed, "Error processing assignment data", fiber.StatusInternalServerError)
-	}
-
-	// Step 13: Send real-time notifications to all users linked to the course
-	// Send a notification to all the users linked
-
-	newA, err := assignment.Get_Assignment_byID(aObj.ID, userID, db)
-	if err != nil {
-
-		if Errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.WrapServer(err, errors.DBRecordNotFound, "Assignment not found", fiber.StatusNotFound)
-		}
-
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting assignment from database", fiber.StatusInternalServerError)
-	}
-
 	// Serialize assignment data for notification payload
-	aJson, err := json.Marshal(newA)
+	aJson, err := json.Marshal(input)
 	if err != nil {
 
 		return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Error processing assignment data", fiber.StatusInternalServerError)
 	}
 
 	// Get all users linked to this course for notification distribution
-	link_users, err := newA.Course.GetLinkUsers(db)
+	link_users, err := input.Course.GetLinkUsers(db)
 	if err != nil {
 
 		if Errors.Is(err, gorm.ErrRecordNotFound) {
@@ -288,10 +208,10 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 						UserId:   uint32(sendeeID),
 						SenderId: uint32(userID),
 						Entity:   string(models.EntityAssignment),
-						EntityId: uint32(newA.Course.ID),
+						EntityId: uint32(input.Course.ID),
 						Type:     string(notif.NotificationAssignmentUpdate),
-						Title:    newA.Title,
-						Message:  fmt.Sprintf("%s shared a new assignment on %s", newA.User.Username, newA.CourseCode),
+						Title:    input.Title,
+						Message:  fmt.Sprintf("%s shared a new assignment on %s", input.User.Username, input.CourseCode),
 						Action:   "assignment",
 						Data:     string(aJson),
 					},
@@ -305,8 +225,7 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 
 	// Step 15: Send successful response with created assignment data
 	return c.JSON(fiber.Map{
-		"message":    "Assignment created successfully",
-		"assignment": assignmentMap,
+		"remote_id": input.ID,
 	})
 }
 
@@ -353,15 +272,10 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 func UpdateAssignmentHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (timing, user, database connection)
 
-	currentUser, ok := c.Locals("user").(user.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
-	}
 	db, ok := c.Locals("db").(*gorm.DB)
 	if !ok {
 		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
 	}
-	userID := currentUser.ID
 	c.Locals("message", "Assignment updated successfully")
 
 	var assignmentID uint
@@ -375,14 +289,6 @@ func UpdateAssignmentHandler(c *fiber.Ctx) error {
 	}
 	assignmentID = uint(int_id)
 
-	// Step 2: Begin database transaction for atomic assignment update
-	tx := db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
 	// Step 3: Define and parse assignment update request structure
 	var updateData struct {
 		Value  string `json:"value"`
@@ -394,33 +300,14 @@ func UpdateAssignmentHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
-	// Step 5: Validate assignment exists and user has ownership permissions
-	a, err := assignment.Get_Assignment_byID(assignmentID, userID, tx)
-	if err != nil {
-		tx.Rollback()
-
-		if Errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.WrapServer(err, errors.DBRecordNotFound, "Assignment not found", fiber.StatusNotFound)
-		}
-
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting assignment from database", fiber.StatusInternalServerError)
-	}
-
 	// Step 6: Execute raw SQL update with automatic timestamp tracking
-	if err := tx.Exec(fmt.Sprintf("UPDATE assignments SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
-		updateData.Value, time.Now().Format(time.RFC3339), a.ID).Error; err != nil {
-		tx.Rollback()
+	if err := db.Model(&assignment.Assignment{}).Where("id = ?", assignmentID).Update(updateData.Column, updateData.Value).Error; err != nil {
 
 		if Errors.Is(err, gorm.ErrDuplicatedKey) {
 			return errors.WrapServer(err, errors.DBConstraintViolation, "Assignment already exists", fiber.StatusConflict)
 		}
 
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error updating assignment in database", fiber.StatusInternalServerError)
-	}
-
-	// Step 7: Commit transaction after successful update
-	if err := tx.Commit().Error; err != nil {
-		return errors.WrapServer(err, errors.DBTransactionFailed, "Error committing assignment update transaction", fiber.StatusInternalServerError)
 	}
 
 	// Step 8: Assignment update completed (logged by middleware)
@@ -430,19 +317,13 @@ func UpdateAssignmentHandler(c *fiber.Ctx) error {
 func DeleteAssignmentHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (timing, user, database connection)
 
-	currentUser, ok := c.Locals("user").(user.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
-	}
 	db, ok := c.Locals("db").(*gorm.DB)
 	if !ok {
 		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
 	}
-	userID := currentUser.ID
 
 	c.Locals("message", "Assignment deleted successfully")
 	// Step 2: Extract assignment ID from path parameter
-	var assignmentID uint
 	idStr := c.Params("id")
 	if idStr == "" {
 		return errors.WrapServer(fmt.Errorf("assignment ID required"), errors.ReqParamMissing, "Assignment ID required", fiber.StatusBadRequest)
@@ -451,44 +332,22 @@ func DeleteAssignmentHandler(c *fiber.Ctx) error {
 	if err != nil {
 		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to int", fiber.StatusBadRequest)
 	}
-	assignmentID = uint(int_id)
+	assignmentID := uint(int_id)
 
-	tx := db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
+	db.Transaction(func(tx *gorm.DB) error {
+		if err := assignment.DeleteAssignment(assignmentID, tx); err != nil {
+
+			if Errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.WrapServer(err, errors.DBRecordNotFound, "Assignment not found", fiber.StatusNotFound)
+			}
+			if Errors.Is(err, gorm.ErrForeignKeyViolated) {
+				return errors.WrapServer(err, errors.DBConstraintViolation, "Assignment has dependencies", fiber.StatusConflict)
+			}
+
+			return errors.WrapServer(err, errors.DBTransactionFailed, "Error transaction ; failed to delete assignment from database", fiber.StatusInternalServerError)
 		}
-	}()
+		return nil
+	})
 
-	a, err := assignment.Get_Assignment_byID(assignmentID, userID, tx)
-	if err != nil {
-		tx.Rollback()
-
-		if Errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.WrapServer(err, errors.DBRecordNotFound, "Assignment not found", fiber.StatusNotFound)
-		}
-
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting assignment from database", fiber.StatusInternalServerError)
-	}
-
-	if err := assignment.DeleteAssignment(*a, tx); err != nil {
-		tx.Rollback()
-
-		if Errors.Is(err, gorm.ErrModelValueRequired) {
-			return errors.WrapServer(err, errors.DBConstraintViolation, "Deleting assignment violates foreign key constraints", fiber.StatusConflict)
-		}
-
-		if Errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.WrapServer(err, errors.DBRecordNotFound, "Assignment not found", fiber.StatusNotFound)
-		}
-
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error deleting assignment from database", fiber.StatusInternalServerError)
-	}
-
-	// Step 3:  Get Documents related to the assignment
-
-	if err := tx.Commit().Error; err != nil {
-		return errors.WrapServer(err, errors.DBTransactionFailed, "Error committing assignment delete transaction", fiber.StatusInternalServerError)
-	}
-	return c.JSON(fiber.Map{"message": "Assignment deleted successfully"})
+	return nil
 }
