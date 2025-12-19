@@ -814,6 +814,7 @@ func GetAssignmentDocumentsHandler(c *fiber.Ctx) error {
 //   - Logs deletion for audit trail
 func DeleteDocumentHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
+	c.Locals("message", "Document deleted successfully")
 	currentUser, ok := c.Locals("user").(user.User)
 	if !ok {
 		return errors.WrapServer(

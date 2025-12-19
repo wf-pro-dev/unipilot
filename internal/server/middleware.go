@@ -528,24 +528,9 @@ func ErrorHandlerMiddleware(c *fiber.Ctx) error {
 			LogWarn(ctx, serverErr)
 		}
 
-		// if c.Response().Header.ContentLength() > 0 || c.Response().StatusCode() != 0 {
-		// 	log.Println("Log from ErrorHandlerMiddleware: Response already sent")
-		// 	// Response already sent, just log
-		// 	if serverErr.StatusCode >= 500 {
-		// 		LogError(ctx, serverErr)
-		// 	} else {
-		// 		LogWarn(ctx, serverErr)
-		// 	}
-		// 	c.Locals("error_handled", true)
-		// 	return nil
-		// }
-
 		// Send JSON response
 		c.Locals("error_handled", true)
-		return c.Status(serverErr.StatusCode).JSON(fiber.Map{
-			"error":      serverErr.Message,
-			"error_code": serverErr.Code,
-		})
+		return c.Status(serverErr.StatusCode).JSON(serverErr)
 	}
 
 	// Try to extract AppError (no status code)
@@ -557,10 +542,7 @@ func ErrorHandlerMiddleware(c *fiber.Ctx) error {
 		LogError(ctx, serverErr)
 
 		c.Locals("error_handled", true)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":      serverErr.Message,
-			"error_code": serverErr.Code,
-		})
+		return c.Status(fiber.StatusInternalServerError).JSON(serverErr)
 	}
 
 	// Unknown error type - wrap it

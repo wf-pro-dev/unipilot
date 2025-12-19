@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap/zapcore"
 	"gorm.io/gorm"
 )
 
@@ -34,6 +35,14 @@ type errorJSON struct {
 	ErrorCode string      `json:"error_code"`
 	Message   string      `json:"message"`
 	Cause     interface{} `json:"cause,omitempty"`
+}
+
+// serverErrorJSON represents the JSON structure of a ServerError
+type serverErrorJSON struct {
+	ErrorCode  string      `json:"error_code"`
+	Message    string      `json:"message"`
+	StatusCode int         `json:"status_code"`
+	Cause      interface{} `json:"cause,omitempty"`
 }
 
 // toErrorJSON converts an error to a JSON-serializable structure
@@ -77,12 +86,35 @@ func (e *AppError) Error() string {
 		jsonStruct.Cause = toErrorJSON(e.Cause)
 	}
 
-	jsonBytes, err := json.MarshalIndent(jsonStruct, "", "   ")
+	jsonBytes, err := json.Marshal(jsonStruct)
 	if err != nil {
 		// Fallback to simple format if JSON marshaling fails
-		return fmt.Sprintf("error_code: %s, message: %s, cause: %v", e.Code, e.Message, e.Cause)
+		return fmt.Sprintf(`{"error_code":"%s","message":"%s"}`, e.Code, e.Message)
 	}
-	return "\n" + string(jsonBytes)
+	return string(jsonBytes)
+}
+
+func (e *AppError) String() string {
+	return e.Error()
+}
+
+// MarshalLogObject implements zapcore.ObjectMarshaler for proper JSON logging
+func (e *AppError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	if e == nil {
+		return nil
+	}
+	enc.AddString("error_code", string(e.Code))
+	enc.AddString("message", e.Message)
+	if e.Cause != nil {
+		// Recursively marshal the cause if it's also an AppError
+		var appErr *AppError
+		if Errors.As(e.Cause, &appErr) {
+			return enc.AddObject("cause", appErr)
+		}
+		// For non-AppError causes, add as string
+		enc.AddString("cause", e.Cause.Error())
+	}
+	return nil
 }
 
 func Wrap(err error, code ErrorCode, message string) *AppError {
@@ -219,10 +251,49 @@ func NewServerError(code ErrorCode, message string, cause error, statusCode int)
 }
 
 func (e *ServerError) Error() string {
-	if e.Cause != nil {
-		return fmt.Sprintf("%s: %v", e.Message, e.Cause)
+	if e == nil {
+		return ""
 	}
-	return e.Message
+
+	jsonStruct := serverErrorJSON{
+		ErrorCode:  string(e.Code),
+		Message:    e.Message,
+		StatusCode: e.StatusCode,
+	}
+	if e.Cause != nil {
+		jsonStruct.Cause = toErrorJSON(e.Cause)
+	}
+
+	jsonBytes, err := json.Marshal(jsonStruct)
+	if err != nil {
+		// Fallback to simple format if JSON marshaling fails
+		return fmt.Sprintf(`{"error_code":"%s","message":"%s","status_code":%d}`, e.Code, e.Message, e.StatusCode)
+	}
+	return string(jsonBytes)
+}
+
+func (e *ServerError) String() string {
+	return e.Error()
+}
+
+// MarshalLogObject implements zapcore.ObjectMarshaler for proper JSON logging
+func (e *ServerError) MarshalLogObject(enc zapcore.ObjectEncoder) error {
+	if e == nil {
+		return nil
+	}
+	enc.AddString("error_code", string(e.Code))
+	enc.AddString("message", e.Message)
+	enc.AddInt("status_code", e.StatusCode)
+	if e.Cause != nil {
+		// Recursively marshal the cause if it's also an AppError
+		var appErr *AppError
+		if Errors.As(e.Cause, &appErr) {
+			return enc.AddObject("cause", appErr)
+		}
+		// For non-AppError causes, add as string
+		enc.AddString("cause", e.Cause.Error())
+	}
+	return nil
 }
 
 func (e *ServerError) Unwrap() error {
