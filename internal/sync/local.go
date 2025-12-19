@@ -1,10 +1,10 @@
 package sync
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 	"unipilot/internal/client"
+	"unipilot/internal/errors"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
 
@@ -17,21 +17,19 @@ func MigrateAssignments(db *gorm.DB) error {
 
 	remoteAssignments, err := client.GetAssignments()
 	if err != nil {
-		fmt.Printf("ERROR : %s", err)
-		return err
+		return errors.Wrap(err, errors.SyncFailed, "Failed to get remote assignments for migration")
 	}
 
 	for _, ra := range remoteAssignments {
 
 		deadline, err := time.Parse(time.DateOnly, ra["deadline"])
 		if err != nil {
-
-			return fmt.Errorf("Error formating deadline : %s", err)
+			return errors.Wrap(err, errors.SyncDataConversionError, "Failed to parse assignment deadline")
 		}
 
 		remote_id, err := strconv.Atoi(ra["id"])
 		if err != nil {
-			return fmt.Errorf("Error formating remote_id : %s", err)
+			return errors.Wrap(err, errors.SyncDataConversionError, "Failed to convert assignment remote ID to int")
 		}
 
 		localAssignment := assignment.LocalAssignment{
@@ -52,7 +50,7 @@ func MigrateAssignments(db *gorm.DB) error {
 
 		if err := db.Create(&localAssignment).Error; err != nil {
 			count++
-			return err
+			return errors.HandleDBCreateError(err)
 		}
 		count++
 	}
@@ -66,29 +64,28 @@ func MigrateCourses(db *gorm.DB) error {
 
 	remoteCourses, err := client.GetCourses()
 	if err != nil {
-		fmt.Printf("ERROR : %s", err)
-		return err
+		return errors.Wrap(err, errors.SyncFailed, "Failed to get remote courses for migration")
 	}
 
 	for _, rc := range remoteCourses {
 		remote_id, err := strconv.Atoi(rc["id"])
 		if err != nil {
-			return fmt.Errorf("Error formating remote_id : %s", err)
+			return errors.Wrap(err, errors.SyncDataConversionError, "Failed to convert course remote ID to int")
 		}
 
 		start_date, err := time.Parse(time.DateOnly, rc["start_date"])
 		if err != nil {
-			return fmt.Errorf("Error formating start_date : %s", err)
+			return errors.Wrap(err, errors.SyncDataConversionError, "Failed to parse course start date")
 		}
 
 		end_date, err := time.Parse(time.DateOnly, rc["end_date"])
 		if err != nil {
-			return fmt.Errorf("Error formating end_date : %s", err)
+			return errors.Wrap(err, errors.SyncDataConversionError, "Failed to parse course end date")
 		}
 
 		credits, err := strconv.Atoi(rc["credits"])
 		if err != nil {
-			return fmt.Errorf("Error formating credits : %s", err)
+			return errors.Wrap(err, errors.SyncDataConversionError, "Failed to convert course credits to int")
 		}
 
 		localCourse := course.LocalCourse{
@@ -112,7 +109,7 @@ func MigrateCourses(db *gorm.DB) error {
 
 		if err := db.Create(&localCourse).Error; err != nil {
 			count++
-			return err
+			return errors.HandleDBCreateError(err)
 		}
 		count++
 	}

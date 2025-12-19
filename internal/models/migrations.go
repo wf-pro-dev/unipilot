@@ -1,6 +1,7 @@
 package models
 
 import (
+	"unipilot/internal/errors"
 	"unipilot/internal/models/document"
 	"unipilot/internal/models/user"
 
@@ -17,7 +18,7 @@ func MigrateDocuments(db *gorm.DB) error {
 	)
 
 	if err != nil {
-		return err
+		return errors.Wrap(err, errors.DBQueryFailed, "Failed to migrate document models")
 	}
 
 	return nil
@@ -32,7 +33,7 @@ func MigrateLocalDocuments(db *gorm.DB) error {
 	)
 
 	if err != nil {
-		return err
+		return errors.Wrap(err, errors.DBQueryFailed, "Failed to migrate local document models")
 	}
 
 	return nil
@@ -59,7 +60,7 @@ func MigrateFollows(db *gorm.DB) error {
 	)
 
 	if err != nil {
-		return err
+		return errors.Wrap(err, errors.DBQueryFailed, "Failed to migrate follow models")
 	}
 
 	return nil

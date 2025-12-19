@@ -1,10 +1,10 @@
 package sse
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 	"unipilot/internal/client"
+	"unipilot/internal/errors"
 )
 
 // NewSSEClientWithJWT creates an HTTP client for SSE with JWT authentication
@@ -12,7 +12,7 @@ func NewSSEClient() (*http.Client, error) {
 
 	httpClient, err := client.NewAuthClient()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create auth client: %w", err)
+		return nil, errors.Wrap(err, errors.ClientRequestFailed, "Failed to create auth client")
 	}
 
 	// Configure transport specifically for SSE connections

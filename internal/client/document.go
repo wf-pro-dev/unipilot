@@ -121,11 +121,11 @@ func SendDocument(localDocument *document.LocalDocument) (*UploadResponse, error
 		defer fileContent.Close()
 
 		// Copy file content to form
-		_, err = io.Copy(fileWriter, fileContent)
+		bytesWritten, err := io.Copy(fileWriter, fileContent)
 		if err != nil {
 			return nil, fmt.Errorf("error copying file content: %v", err)
 		}
-
+		log.Printf("bytes written: %d", bytesWritten)
 	}
 
 	// Add metadata part
@@ -179,6 +179,8 @@ func SendDocument(localDocument *document.LocalDocument) (*UploadResponse, error
 	if err := json.Unmarshal(respBody, &uploadResp); err != nil {
 		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse success response")
 	}
+
+	log.Printf("uploadResp: %+v", resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
 		var serverError *errors.AppError

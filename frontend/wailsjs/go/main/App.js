@@ -106,10 +106,6 @@ export function GetCurrentUser() {
   return window['go']['main']['App']['GetCurrentUser']();
 }
 
-export function GetFileAsDataURL(arg1) {
-  return window['go']['main']['App']['GetFileAsDataURL'](arg1);
-}
-
 export function GetFollowers(arg1) {
   return window['go']['main']['App']['GetFollowers'](arg1);
 }

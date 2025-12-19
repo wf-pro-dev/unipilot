@@ -240,28 +240,24 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 
 	var response *fileops.FileUploadResponse
 
-	err = h.db.Transaction(func(tx *gorm.DB) error {
+	if err := h.db.Create(&localDoc).Error; err != nil {
+		return nil, errors.HandleDBCreateError(err)
+	}
 
-		if err := tx.Create(&localDoc).Error; err != nil {
-			return errors.HandleDBCreateError(err)
+	if hasLocalFile {
+		// Upload the document locally
+		response, err = fileops.WriteDocument(&localDoc, uploadReq.FileContent, h.db)
+		if err != nil {
+			return nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to write document on disk")
 		}
-
-		if hasLocalFile {
-			// Upload the document locally
-			response, err = fileops.WriteDocument(&localDoc, uploadReq.FileContent, tx)
-			if err != nil {
-				return errors.Wrap(err, errors.FSWriteFailed, "Failed to write document on disk")
-			}
-		} else {
-			response = &fileops.FileUploadResponse{
-				LocalDocument: &localDoc,
-				Success:       true,
-				Message:       "Upload successful",
-			}
+	} else {
+		response = &fileops.FileUploadResponse{
+			LocalDocument: &localDoc,
+			Success:       true,
+			Message:       "Upload successful",
 		}
+	}
 
-		return nil
-	})
 	if err != nil {
 		return nil, errors.Wrap(err, errors.DBTransactionFailed, "Failed to create document")
 	}

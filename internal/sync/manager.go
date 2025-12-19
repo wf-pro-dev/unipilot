@@ -4,6 +4,7 @@ import (
 	"log"
 	"time"
 	"unipilot/internal/client"
+	"unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/network"
 
@@ -55,20 +56,29 @@ func (sm *SyncManager) CreateSyncLog(entity models.Entity, entityID uint, action
 		LastError:   err.Error(),
 	}
 
-	return sm.db.Create(update).Error
+	if err := sm.db.Create(update).Error; err != nil {
+		return errors.HandleDBCreateError(err)
+	}
+	return nil
 }
 
 func (sm *SyncManager) GetSyncLog(entity models.Entity, entityID uint, action, column string) (models.LocalUpdate, error) {
 	var update models.LocalUpdate
 	err := sm.db.Where("entity = ? AND entity_id = ? AND action = ? AND column = ? AND deleted_at IS NULL", entity, entityID, action, column).First(&update).Error
-	return update, err
+	if err != nil {
+		return update, errors.HandleDBReadError(err)
+	}
+	return update, nil
 }
 
 // GetPendingSyncs returns syncs that are ready to be retried
 func (sm *SyncManager) GetPendingSyncs() ([]models.LocalUpdate, error) {
 	var updates []models.LocalUpdate
 	err := sm.db.Where("deleted_at IS NULL AND next_retry_at <= ?", time.Now()).Find(&updates).Error
-	return updates, err
+	if err != nil {
+		return updates, errors.HandleDBReadError(err)
+	}
+	return updates, nil
 }
 
 // MarkSyncAttempted updates retry count and next retry time
@@ -76,12 +86,18 @@ func (sm *SyncManager) MarkSyncAttempted(update *models.LocalUpdate, err error) 
 	update.RetryCount++
 	update.LastError = err.Error()
 	update.NextRetryAt = time.Now().Add(GetBackoffDuration(update.RetryCount))
-	return sm.db.Save(update).Error
+	if err := sm.db.Save(update).Error; err != nil {
+		return errors.HandleDBWriteError(err)
+	}
+	return nil
 }
 
 // MarkSyncCompleted marks a sync as successful
 func (sm *SyncManager) MarkSyncCompleted(update *models.LocalUpdate) error {
-	return sm.db.Delete(update).Error
+	if err := sm.db.Delete(update).Error; err != nil {
+		return errors.HandleDBWriteError(err)
+	}
+	return nil
 }
 
 // BackgroundSync runs periodic sync in the background
@@ -104,21 +120,23 @@ func (sm *SyncManager) BackgroundSync() {
 func (sm *SyncManager) ProcessPendingSyncs() error {
 	pendingSyncs, err := sm.GetPendingSyncs()
 	if err != nil {
-		return err
+		return errors.Wrap(err, errors.SyncFailed, "Failed to get pending syncs")
 	}
 
 	// Get remote assignments
 	remoteAssignments, err := client.GetAssignments()
 	if err != nil {
-		log.Println("[Sync] Error getting remote assignments", err)
-		return err
+		wrappedErr := errors.Wrap(err, errors.SyncFailed, "Failed to get remote assignments")
+		log.Println("[Sync] Error getting remote assignments", wrappedErr)
+		return wrappedErr
 	}
 
 	// Get remote courses
 	remoteCourses, err := client.GetCourses()
 	if err != nil {
-		log.Println("[Sync] Error getting remote courses", err)
-		return err
+		wrappedErr := errors.Wrap(err, errors.SyncFailed, "Failed to get remote courses")
+		log.Println("[Sync] Error getting remote courses", wrappedErr)
+		return wrappedErr
 	}
 
 	// // Get remote notes
@@ -171,6 +189,8 @@ func (sm *SyncManager) ProcessSync(syncLog models.LocalUpdate, remoteAssignments
 
 // Undo sync log entry for an entity
 func (sm *SyncManager) Undo(entity models.Entity, entityID uint) error {
-
-	return sm.db.Delete(&models.LocalUpdate{Entity: entity, EntityID: entityID}).Error
+	if err := sm.db.Delete(&models.LocalUpdate{Entity: entity, EntityID: entityID}).Error; err != nil {
+		return errors.HandleDBWriteError(err)
+	}
+	return nil
 }

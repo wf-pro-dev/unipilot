@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os/exec"
 
+	"unipilot/internal/errors"
+
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -22,7 +24,7 @@ func NewAuthorizationManager(ctx context.Context) *AuthorizationManager {
 // RequestPrivilegesAndExecute requests privileges and executes commands in a single session
 func (am *AuthorizationManager) RequestPrivilegesAndExecute(commands []string) error {
 	if am.authorized {
-		return fmt.Errorf("already authorized, use ExecuteWithPrivileges for additional commands")
+		return errors.NewAppError(errors.ValidationInvalid, "Already authorized, use ExecuteWithPrivileges for additional commands", nil)
 	}
 
 	// Show a dialog explaining what we're doing
@@ -47,7 +49,7 @@ func (am *AuthorizationManager) RequestPrivilegesAndExecute(commands []string) e
 	cmd.Stderr = nil
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("privileged execution failed: %w", err)
+		return errors.Wrap(err, errors.SysExecFailed, "Privileged execution failed")
 	}
 
 	am.authorized = true

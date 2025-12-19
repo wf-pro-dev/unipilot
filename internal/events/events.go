@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 
+	"unipilot/internal/errors"
 	"unipilot/internal/sse"
 
 	"gorm.io/gorm"
@@ -24,7 +25,8 @@ func NewEvents(db *gorm.DB) *Events {
 // Start now accepts the sseClient as a parameter.
 func (h *Events) Start(sseClient *sse.SSE) {
 	if sseClient == nil {
-		log.Fatal("[EventHandler] Fatal: SSE client is nil.")
+		err := errors.NewAppError(errors.InitDatabaseNotInitialized, "SSE client is nil", nil)
+		log.Fatalf("[EventHandler] Fatal: %v", err)
 		return
 	}
 
@@ -68,7 +70,8 @@ func (h *Events) HandleEvent(event sse.Event) {
 	}
 
 	if err := json.Unmarshal(event.Data, &notification); err != nil {
-		log.Printf("[EventHandler] Error parsing notification: %v", err)
+		wrappedErr := errors.Wrap(err, errors.EventParseFailed, "Failed to parse notification event")
+		log.Printf("[EventHandler] Error parsing notification: %v", wrappedErr)
 		return
 	}
 

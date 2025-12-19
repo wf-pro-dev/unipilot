@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -31,7 +29,6 @@ import (
 	"unipilot/internal/models/notifications"
 	"unipilot/internal/models/user"
 	"unipilot/internal/network"
-	"unipilot/internal/secrets"
 	"unipilot/internal/services/daemon"
 	"unipilot/internal/services/fileops"
 	"unipilot/internal/services/utils"
@@ -53,7 +50,7 @@ func NewApp() *App {
 
 	user, err := utils.GetUserFromFile()
 	if err != nil {
-		log.Printf("Failed to get user from file: %v", Errors.Wrap(err, Errors.FSFileNotFound, "Failed to get user from file"))
+		log.Println(Errors.Wrap(err, Errors.FSFileNotFound, "Failed to get user from file").Error())
 	}
 	authService.User = user
 	var dbService *database.Database
@@ -61,7 +58,7 @@ func NewApp() *App {
 		var err error
 		dbService, err = database.NewDatabase(authService.User)
 		if err != nil {
-			log.Fatalf("Failed to initialize database: %v", Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to initialize database"))
+			log.Fatal(Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to initialize database").Error())
 		}
 
 	}
@@ -83,35 +80,19 @@ func NewApp() *App {
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// if err != nil {
-	// 	log.Printf("Warning: Could not get user from file: %v", err)
-	// }
-
-	if a.Auth.User != nil {
-
-		// Initialize authenticated client
-		httpClient, err := client.NewAuthClient()
-		if err != nil {
-			log.Printf("Warning: Could not create http client from stored cookies: %v", err)
-		}
-
-		a.Auth.Client = httpClient
-
-	}
-
 	// Initialize daemon manager
 
 	if a.Auth.User != nil && a.Auth.User.ID > 0 {
 		daemon, err := daemon.NewManager(a.Auth.User.ID, a.ctx)
 		if err != nil {
-			log.Printf("Warning: Could not initialize daemon manager: %v", err)
+			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to initialize daemon manager").Error())
 		} else {
 			a.Daemon = daemon
 
 			// Auto-install daemon if not already installed
 			if !daemon.IsDaemonInstalled() {
 				if err := daemon.InstallDaemon(); err != nil {
-					log.Printf("Warning: Could not install notification daemon: %v", err)
+					log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to install notification daemon").Error())
 					runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
 						Type:    runtime.ErrorDialog,
 						Title:   "Notification Setup",
@@ -123,7 +104,7 @@ func (a *App) Startup(ctx context.Context) {
 			// Start daemon if not running
 			if !daemon.IsDaemonRunning() {
 				if err := daemon.StartDaemon(); err != nil {
-					log.Printf("Warning: Could not start notification daemon: %v", err)
+					log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to start notification daemon").Error())
 
 				}
 			}
@@ -132,21 +113,20 @@ func (a *App) Startup(ctx context.Context) {
 
 	// Check if user is already authenticated and initialize HTTP client if needed
 	if a.Auth.IsAuthenticated() {
-		if a.Auth.Client != nil {
-			if network.IsOnline() {
-				// Start background sync manager
-				syncManager := sync.NewSyncManager(a.DB.GetDB())
-				go syncManager.BackgroundSync()
 
-				// Process any pending syncs on startup
-				go func() {
-					if err := syncManager.ProcessPendingSyncs(); err != nil {
-						log.Printf("Startup sync error: %v", err)
-					}
-				}()
-			}
+		if network.IsOnline() {
+			// Start background sync manager
+			syncManager := sync.NewSyncManager(a.DB.GetDB())
+			go syncManager.BackgroundSync()
 
+			// Process any pending syncs on startup
+			go func() {
+				if err := syncManager.ProcessPendingSyncs(); err != nil {
+					log.Println(Errors.Wrap(err, Errors.DBQueryFailed, "Failed to process pending syncs").Error())
+				}
+			}()
 		}
+
 	}
 }
 
@@ -158,15 +138,8 @@ func (a *App) Startup(ctx context.Context) {
 func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*assignment.LocalAssignment, error) {
 
 	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
-
-	tx := a.DB.GetDB().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
 
 	localAssignment := &assignment.LocalAssignment{
 		Title:      assignmentData.Title,
@@ -180,13 +153,20 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 	}
 
 	if !a.Auth.IsAuthenticated() {
-		return nil, fmt.Errorf("user not authenticated")
+		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
+
+	tx := a.DB.GetDB().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
 	// Create the assignment locally first
 	if err := tx.Create(localAssignment).Error; err != nil {
 		tx.Rollback()
-		return nil, err
+		return nil, Errors.HandleDBWriteError(err)
 	}
 
 	// Always try to sync with server
@@ -203,7 +183,6 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 	}
 
 	//Online operation
-
 	isOnline := network.IsOnline()
 	var responseAssignment map[string]interface{}
 	var clientErr error
@@ -211,7 +190,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 		responseAssignment, clientErr = client.CreateAssignment(remoteAssignment)
 	} else {
 
-		clientErr = fmt.Errorf("user is offline")
+		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
 	}
 
 	if clientErr != nil {
@@ -226,7 +205,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 			clientErr,
 		); syncErr != nil {
 			tx.Rollback()
-			return nil, fmt.Errorf("failed to create sync log: %w", syncErr)
+			return nil, Errors.Wrap(syncErr, Errors.ClientRequestFailed, "Failed to create sync log")
 		}
 
 		//Commit the transaction with the sync log
@@ -239,23 +218,25 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 	str_remote_id, ok := responseAssignment["id"].(string)
 	if !ok {
 		tx.Rollback()
-		return nil, fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"])
+		return nil, Errors.Wrap(fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"]), Errors.ClientRequestFailed, "Invalid remote assignment ID")
 	}
 
 	remote_id, err := strconv.Atoi(str_remote_id)
 	if err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("invalid remote assignment ID %v", responseAssignment["id"])
+		return nil, Errors.Wrap(err, Errors.ClientRequestFailed, "Invalid remote assignment ID")
 	}
 
 	localAssignment.RemoteID = uint(remote_id)
 
 	if err := tx.Save(localAssignment).Error; err != nil {
 		tx.Rollback()
-		return nil, err
+		return nil, Errors.HandleDBWriteError(err)
 	}
 
-	tx.Commit()
+	if err := tx.Commit().Error; err != nil {
+		return nil, Errors.Wrap(err, Errors.DBTransactionFailed, "Failed to commit transaction")
+	}
 
 	return localAssignment, nil
 }
@@ -263,15 +244,12 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 // CreateCourse creates a new course
 func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
-	tx := a.DB.GetDB().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
+	if !a.Auth.IsAuthenticated() {
+		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
+	}
 
 	localCourse := &course.LocalCourse{
 		Name:            courseData.Name,
@@ -287,9 +265,12 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 		EndDate:         courseData.EndDate,
 	}
 
-	if !a.Auth.IsAuthenticated() {
-		return fmt.Errorf("user not authenticated")
-	}
+	tx := a.DB.GetDB().Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
 	// Check if a soft-deleted course with the same code exists
 	var existingCourse course.LocalCourse
@@ -297,14 +278,14 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 		// A soft-deleted course with this code exists, permanently delete it first
 		if err := tx.Unscoped().Delete(&existingCourse).Error; err != nil {
 			tx.Rollback()
-			return fmt.Errorf("failed to clean up soft-deleted course: %w", err)
+			return Errors.HandleDBWriteError(err)
 		}
 	}
 
 	// Create the course within the transaction
 	if err := tx.Create(localCourse).Error; err != nil {
 		tx.Rollback()
-		return err
+		return Errors.HandleDBWriteError(err)
 	}
 
 	remoteCourse := &course.Course{
@@ -328,7 +309,7 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 	if isOnline {
 		responseCourse, clientErr = client.CreateCourse(remoteCourse)
 	} else {
-		clientErr = fmt.Errorf("user is offline")
+		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
 	}
 
 	if clientErr != nil {
@@ -342,7 +323,7 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 			clientErr,
 		); syncErr != nil {
 			tx.Rollback()
-			return fmt.Errorf("failed to create sync log: %w", syncErr)
+			return Errors.Wrap(syncErr, Errors.ClientRequestFailed, "Failed to create sync log")
 		}
 		tx.Commit()
 		return nil
@@ -351,23 +332,25 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 	str_remote_id, ok := responseCourse["id"].(string)
 	if !ok {
 		tx.Rollback()
-		return fmt.Errorf("invalid remote course ID %v", responseCourse["id"])
+		return Errors.Wrap(fmt.Errorf("invalid remote course ID %v", responseCourse["id"]), Errors.ClientRequestFailed, "Invalid remote course ID")
 	}
 
 	remote_id, err := strconv.Atoi(str_remote_id)
 	if err != nil {
 		tx.Rollback()
-		return fmt.Errorf("invalid remote course ID %v", responseCourse["id"])
+		return Errors.Wrap(err, Errors.ClientResponseInvalid, "Invalid remote course ID")
 	}
 
 	localCourse.RemoteID = uint(remote_id)
 
 	if err := tx.Save(localCourse).Error; err != nil {
 		tx.Rollback()
-		return err
+		return Errors.HandleDBWriteError(err)
 	}
 
-	tx.Commit()
+	if err := tx.Commit().Error; err != nil {
+		return Errors.Wrap(err, Errors.DBTransactionFailed, "Failed to commit transaction")
+	}
 
 	return nil
 }
@@ -375,11 +358,19 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 func (a *App) CreateNote(noteData *note.LocalNote) error {
 
 	if !network.IsOnline() {
-		return fmt.Errorf("no network connection")
+		return Errors.Wrap(fmt.Errorf("no network connection"), Errors.NetworkOffline, "No network connection")
 	}
 
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
+	}
+
+	if noteData.Content == "" {
+		return Errors.Wrap(fmt.Errorf("note data is missing"), Errors.ValidationRequired, "Note data is missing")
 	}
 
 	tx := a.DB.GetDB().Begin()
@@ -389,23 +380,15 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 		}
 	}()
 
-	if !a.Auth.IsAuthenticated() {
-		return fmt.Errorf("user not authenticated")
-	}
-
-	if noteData.Content == "" {
-		return fmt.Errorf("note data is missing")
-	}
-
 	// Create the note within the transaction
 	if err := tx.Create(noteData).Error; err != nil {
-		return err
+		return Errors.HandleDBWriteError(err)
 	}
 
 	responseNote, err := client.CreateNote(noteData)
 	if err != nil {
 		tx.Rollback()
-		return err
+		return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to create note")
 	}
 
 	noteData.Content = responseNote["content"]
@@ -413,17 +396,19 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 	int_remote_id, err := strconv.Atoi(responseNote["id"])
 	if err != nil {
 		tx.Rollback()
-		return fmt.Errorf("invalid remote note ID %v", responseNote["id"])
+		return Errors.Wrap(fmt.Errorf("invalid remote note ID %v", responseNote["id"]), Errors.ClientResponseInvalid, "Invalid remote note ID")
 	}
 
 	noteData.RemoteID = uint(int_remote_id)
 
 	if err := tx.Save(&noteData).Error; err != nil {
 		tx.Rollback()
-		return err
+		return Errors.HandleDBWriteError(err)
 	}
 
-	tx.Commit()
+	if err := tx.Commit().Error; err != nil {
+		return Errors.Wrap(err, Errors.DBTransactionFailed, "Failed to commit transaction")
+	}
 
 	return nil
 
@@ -433,16 +418,16 @@ func (a *App) CreateNote(noteData *note.LocalNote) error {
 func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documentType string) (*document.LocalDocument, error) {
 
 	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	if !a.Auth.IsAuthenticated() {
-		return nil, fmt.Errorf("user not authenticated")
+		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 
 	// Validate document type
 	if documentType != string(document.DocumentTypeSupport) && documentType != string(document.DocumentTypeSubmission) {
-		return nil, fmt.Errorf("invalid document type: %s", documentType)
+		return nil, Errors.Wrap(fmt.Errorf("invalid document type: %s", documentType), Errors.ValidationInvalid, "Invalid document type")
 	}
 
 	// Open file dialog
@@ -467,22 +452,22 @@ func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documen
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file dialog: %w", err)
+		return nil, Errors.Wrap(err, Errors.FSOpenFailed, "Failed to open file dialog")
 	}
 
 	if filePath == "" {
-		return nil, fmt.Errorf("no file selected")
+		return nil, Errors.Wrap(fmt.Errorf("no file selected"), Errors.ValidationRequired, "No file selected")
 	}
 
 	// Get file info
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get file info: %w", err)
+		return nil, Errors.Wrap(err, Errors.FSFileNotFound, "File not found")
 	}
 
 	fileContent, err := os.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
+		return nil, Errors.Wrap(err, Errors.FSOpenFailed, "Failed to open file")
 	}
 	defer fileContent.Close()
 
@@ -501,7 +486,7 @@ func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documen
 
 	document, err := a.CreateDocument(uploadReq, true)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create document: %w", err)
+		return nil, Errors.HandleDBWriteError(err)
 	}
 
 	return document, nil
@@ -511,11 +496,11 @@ func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documen
 func (a *App) UploadProfilePicture() (string, error) {
 
 	if a.DB == nil {
-		return "", fmt.Errorf("database not initialized")
+		return "", Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	if !a.Auth.IsAuthenticated() {
-		return "", fmt.Errorf("user not authenticated")
+		return "", Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 
 	// Open file dialog
@@ -533,106 +518,67 @@ func (a *App) UploadProfilePicture() (string, error) {
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("failed to open file dialog: %w", err)
+		return "", Errors.Wrap(err, Errors.FSOpenFailed, "Failed to open file dialog")
 	}
 
 	if filePath == "" {
-		return "", fmt.Errorf("no file selected")
+		return "", Errors.Wrap(fmt.Errorf("no file selected"), Errors.ValidationRequired, "No file selected")
 	}
 
 	fileContent, err := os.Open(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
+		return "", Errors.Wrap(err, Errors.FSOpenFailed, "Failed to open file")
 	}
 
 	// Copy the file to the user's profile picture directory
 	profilePicturePath, err := utils.GetProfilePicturePath()
 	if err != nil {
-		return "", fmt.Errorf("failed to get user directory: %w", err)
+		return "", Errors.Wrap(err, Errors.FSFileNotFound, "Failed to get user directory")
 	}
 	if err := fileops.WriteFile(profilePicturePath, fileContent); err != nil {
-		return "", fmt.Errorf("failed to move file to profile picture directory: %w", err)
+		return "", Errors.Wrap(err, Errors.FSWriteFailed, "Failed to move file to profile picture directory")
 	}
 
 	a.Auth.User.Avatar = profilePicturePath
 	if err := utils.SetCredentials(a.Auth.User); err != nil {
-		return "", fmt.Errorf("failed to set user to storage: %w", err)
+		return "", Errors.Wrap(err, Errors.FSWriteFailed, "Failed to set user to storage")
 	}
 
 	//Update the user's profile picture in the database
 	clientErr := client.UpdateProfilePicture(profilePicturePath)
 	if clientErr != nil {
-		return "", fmt.Errorf("failed to send profile picture: %w", clientErr)
+		return "", Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send profile picture")
 	}
 
 	return profilePicturePath, nil
 
 }
 
-// GetFileAsDataURL reads a local file and returns it as a data URL (base64 encoded)
-// This is needed because webviews block file:// URLs for security reasons
-func (a *App) GetFileAsDataURL(filePath string) (string, error) {
-	if filePath == "" {
-		return "", fmt.Errorf("file path is empty")
-	}
-
-	// Check if file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return "", fmt.Errorf("file not found: %s", filePath)
-	}
-
-	// Read file
-	fileData, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read file: %w", err)
-	}
-
-	// Detect MIME type based on file extension
-	mimeType := "image/png" // default
-	ext := strings.ToLower(filepath.Ext(filePath))
-	switch ext {
-	case ".jpg", ".jpeg":
-		mimeType = "image/jpeg"
-	case ".png":
-		mimeType = "image/png"
-	case ".gif":
-		mimeType = "image/gif"
-	case ".svg":
-		mimeType = "image/svg+xml"
-	case ".webp":
-		mimeType = "image/webp"
-	}
-
-	// Encode to base64
-	base64Data := base64.StdEncoding.EncodeToString(fileData)
-
-	// Return as data URL
-	return fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data), nil
-}
-
 func (a *App) CreateDocument(uploadReq fileops.FileUploadRequest, hasLocalFile bool) (*document.LocalDocument, error) {
+
+	var response *document.LocalDocument
+	var err error
 
 	uploadResp, err := a.DB.CreateDocument(a.ctx, uploadReq, hasLocalFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create document: %w", err)
+		return nil, Errors.HandleDBWriteError(err)
 	}
 
-	response, err := a.SendDocument(uploadResp)
+	response, err = a.SendDocument(uploadResp)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send document: %w", err)
+		return nil, Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to send document")
 	}
 
-	return response, nil
-
+	return response, err
 }
 
 func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse) (*document.LocalDocument, error) {
 
 	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
-	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
+	if a.Auth.IsAuthenticated() {
 
 		db := a.DB.GetDB()
 		tx := db.Begin()
@@ -644,13 +590,13 @@ func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse) (*document.Lo
 
 		serverResponse, clientErr := client.SendDocument(uploadResp.LocalDocument)
 		if clientErr != nil {
-			return nil, fmt.Errorf("failed to send document: %w", clientErr)
+			return nil, Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
 		}
 
 		uploadResp.LocalDocument.StorageKey = serverResponse.Document.StorageKey
 		uploadResp.LocalDocument.RemoteID = serverResponse.Document.ID
 		if err := tx.Save(uploadResp.LocalDocument).Error; err != nil {
-			return nil, fmt.Errorf("failed to save document: %w", err)
+			return nil, Errors.HandleDBWriteError(err)
 		}
 
 		tx.Commit()
@@ -665,7 +611,7 @@ func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse) (*document.Lo
 func (a *App) DownloadDocument(doc *document.LocalDocument) error {
 
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	db := a.DB.GetDB()
@@ -673,17 +619,17 @@ func (a *App) DownloadDocument(doc *document.LocalDocument) error {
 	// Send document to Server to create remote document & download from cloud
 	downloadResp, err := client.DownloadDocument(doc)
 	if err != nil {
-		return fmt.Errorf("failed to download document: %w", err)
+		return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to download document")
 	}
 
 	// test if file is empty
 	if downloadResp == nil {
-		return fmt.Errorf("file not found")
+		return Errors.Wrap(fmt.Errorf("file not found"), Errors.FSFileNotFound, "File not found")
 	}
 
 	// write file to disk
 	if _, err := fileops.WriteDocument(doc, downloadResp, db); err != nil {
-		return fmt.Errorf("failed to write file: %w", err)
+		return Errors.Wrap(err, Errors.FSWriteFailed, "Failed to write file")
 	}
 
 	return nil
@@ -693,14 +639,14 @@ func (a *App) DownloadDocument(doc *document.LocalDocument) error {
 func (a *App) UploadDocumentRAG(doc *document.LocalDocument) error {
 
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
-	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
+	if a.Auth.IsAuthenticated() {
 
 		clientErr := client.UploadDocumentRAG(doc)
 		if clientErr != nil {
-			return clientErr
+			return Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to upload document to RAG")
 		}
 
 	}
@@ -712,11 +658,11 @@ func (a *App) UploadDocumentRAG(doc *document.LocalDocument) error {
 func (a *App) DeleteDocumentRAG(assignmentID, documentID uint) error {
 
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	if err := client.DeleteDocumentRAG(assignmentID, documentID); err != nil {
-		return fmt.Errorf("failed to delete document: %w", err)
+		return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to delete document from RAG")
 	}
 
 	return nil
@@ -724,12 +670,12 @@ func (a *App) DeleteDocumentRAG(assignmentID, documentID uint) error {
 
 func (a *App) GetAssignmentDocumentIDsRAG(assignmentID uint, documentIDs []uint) ([]uint, error) {
 	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	docIds, err := client.GetAssignmentDocumentIDsRAG(assignmentID, documentIDs)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get assignment document IDs: %w", err)
+		return nil, Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to get assignment document IDs")
 	}
 
 	return docIds, nil
@@ -743,7 +689,7 @@ func (a *App) GetAssignmentDocumentIDsRAG(assignmentID uint, documentIDs []uint)
 func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, column, value string) error {
 
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	db := a.DB.GetDB()
@@ -761,7 +707,7 @@ func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, colu
 	if isOnline {
 		clientErr = client.UpdateAssignment(assignment_id, column, value)
 	} else {
-		clientErr = fmt.Errorf("user is offline")
+		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
 	}
 
 	if clientErr != nil {
@@ -779,14 +725,14 @@ func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, colu
 				value,
 				clientErr,
 			); syncErr != nil {
-				return fmt.Errorf("failed to create sync log: %w", syncErr)
+				return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
 			}
 			return nil
 		}
 		// If a sync log is found, update it
 		syncLog.Value = value
 		if err := db.Save(&syncLog).Error; err != nil {
-			return fmt.Errorf("failed to save sync log: %w", err)
+			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to save sync log")
 		}
 		return nil
 	}
@@ -797,7 +743,7 @@ func (a *App) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, colu
 // UpdateCourse updates an existing course
 func (a *App) UpdateCourse(course *course.LocalCourse, column, value string) error {
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	db := a.DB.GetDB()
@@ -828,13 +774,13 @@ func (a *App) UpdateCourse(course *course.LocalCourse, column, value string) err
 				value,
 				clientErr,
 			); syncErr != nil {
-				return fmt.Errorf("failed to create sync log: %w", syncErr)
+				return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
 			}
 			return nil
 		}
 		syncLog.Value = value
 		if err := db.Save(&syncLog).Error; err != nil {
-			return fmt.Errorf("failed to save sync log: %w", err)
+			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to save sync log")
 		}
 		return nil
 	}
@@ -844,7 +790,7 @@ func (a *App) UpdateCourse(course *course.LocalCourse, column, value string) err
 
 func (a *App) UpdateNote(LocalNote *note.LocalNote, column, value string) error {
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	db := a.DB.GetDB()
@@ -862,7 +808,7 @@ func (a *App) UpdateNote(LocalNote *note.LocalNote, column, value string) error 
 	if isOnline {
 		clientErr = client.UpdateNote(note_id, column, value)
 	} else {
-		clientErr = fmt.Errorf("user is offline")
+		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
 	}
 
 	if clientErr != nil {
@@ -877,13 +823,13 @@ func (a *App) UpdateNote(LocalNote *note.LocalNote, column, value string) error 
 				value,
 				clientErr,
 			); syncErr != nil {
-				return fmt.Errorf("failed to create sync log: %w", syncErr)
+				return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
 			}
 			return nil
 		}
 		syncLog.Value = value
 		if err := db.Save(&syncLog).Error; err != nil {
-			return fmt.Errorf("failed to save sync log: %w", err)
+			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to save sync log")
 		}
 		return nil
 	}
@@ -894,11 +840,11 @@ func (a *App) UpdateNote(LocalNote *note.LocalNote, column, value string) error 
 // UploadNewDocumentVersion uploads a new version of an existing document
 func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.LocalDocument, error) {
 	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	if !a.Auth.IsAuthenticated() {
-		return nil, fmt.Errorf("user not authenticated")
+		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 
 	userID := a.Auth.User.ID
@@ -906,7 +852,7 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 	// Verify the existing document belongs to the user
 	var existingDoc document.LocalDocument
 	if err := a.DB.GetDB().Where("id = ? AND user_id = ?", existingDocumentID, userID).First(&existingDoc).Error; err != nil {
-		return nil, fmt.Errorf("document not found or access denied")
+		return nil, Errors.Wrap(err, Errors.DBRecordNotFound, "Document not found or access denied")
 	}
 
 	// Open file dialog
@@ -931,23 +877,23 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file dialog: %w", err)
+		return nil, Errors.Wrap(err, Errors.FSOpenFailed, "Failed to open file dialog")
 	}
 
 	if filePath == "" {
-		return nil, fmt.Errorf("no file selected")
+		return nil, Errors.Wrap(fmt.Errorf("no file selected"), Errors.ValidationRequired, "No file selected")
 	}
 
 	// Get file info
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get file info: %w", err)
+		return nil, Errors.Wrap(err, Errors.FSFileNotFound, "Failed to get file info")
 	}
 
 	// Open the file
 	fileContent, err := os.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
+		return nil, Errors.Wrap(err, Errors.FSOpenFailed, "Failed to open file")
 	}
 	defer fileContent.Close()
 
@@ -965,36 +911,36 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*document.Local
 	// Upload new version locally
 	response, err := fileops.UploadNewVersion(existingDocumentID, uploadReq, a.DB.GetDB())
 	if err != nil {
-		return nil, fmt.Errorf("version upload failed: %w", err)
+		return nil, Errors.Wrap(err, Errors.StorageUploadFailed, "Version upload failed")
 	}
 
 	if !response.Success {
-		return nil, fmt.Errorf("version upload failed: %s", response.Message)
+		return nil, Errors.Wrap(fmt.Errorf("%s", response.Message), Errors.StorageUploadFailed, "Version upload failed")
 	}
 
-	// Also update metadata remotely for sharing (async)
-	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
-		metadataReq := map[string]interface{}{
-			"assignment_id": existingDoc.AssignmentID,
-			"local_id":      existingDoc.ID,
-			"type":          string(existingDoc.Type),
-			"file_name":     filepath.Base(filePath),
-			"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
-			"file_size":     fileInfo.Size(),
-			"version":       response.LocalDocument.Version,
-		}
+	// // Also update metadata remotely for sharing (async)
+	// if a.Auth.IsAuthenticated() {
+	// 	metadataReq := map[string]interface{}{
+	// 		"assignment_id": existingDoc.AssignmentID,
+	// 		"local_id":      existingDoc.ID,
+	// 		"type":          string(existingDoc.Type),
+	// 		"file_name":     filepath.Base(filePath),
+	// 		"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
+	// 		"file_size":     fileInfo.Size(),
+	// 		"version":       response.LocalDocument.Version,
+	// 	}
 
-		api_url := secrets.CONSTANTS["API_URL"]
+	// 	api_url := secrets.CONSTANTS["API_URL"]
 
-		go func() {
-			jsonData, _ := json.Marshal(metadataReq)
-			resp, err := a.Auth.Client.Post(fmt.Sprintf("%s/documents/metadata", api_url),
-				"application/json", strings.NewReader(string(jsonData)))
-			if err == nil {
-				defer resp.Body.Close()
-			}
-		}()
-	}
+	// 	go func() {
+	// 		jsonData, _ := json.Marshal(metadataReq)
+	// 		resp, err := http.Post(fmt.Sprintf("%s/documents/metadata", api_url),
+	// 			"application/json", strings.NewReader(string(jsonData)))
+	// 		if err == nil {
+	// 			defer resp.Body.Close()
+	// 		}
+	// 	}()
+	// }
 
 	return response.LocalDocument, nil
 }
@@ -1004,7 +950,7 @@ func (a *App) UpdateUser(column, value string) (*user.User, error) {
 	currentUser := a.Auth.User
 
 	if currentUser == nil {
-		return nil, fmt.Errorf("current user not found")
+		return nil, Errors.Wrap(fmt.Errorf("current user not found"), Errors.DBRecordNotFound, "Current user not found")
 	}
 
 	// Update the specific field
@@ -1024,7 +970,7 @@ func (a *App) UpdateUser(column, value string) (*user.User, error) {
 	case "avatar":
 		currentUser.Avatar = value
 	default:
-		return nil, fmt.Errorf("unknown column: %s", column)
+		return nil, Errors.Wrap(fmt.Errorf("unknown column: %s", column), Errors.ValidationInvalid, "Unknown column")
 	}
 
 	// Update the timestamp
@@ -1035,7 +981,7 @@ func (a *App) UpdateUser(column, value string) (*user.User, error) {
 
 	// Set the user to the storage
 	if err := utils.SetCredentials(currentUser); err != nil {
-		return nil, fmt.Errorf("failed to set user to storage: %w", err)
+		return nil, Errors.Wrap(err, Errors.FSWriteFailed, "Failed to set user to storage")
 	}
 
 	isOnline := network.IsOnline()
@@ -1043,7 +989,7 @@ func (a *App) UpdateUser(column, value string) (*user.User, error) {
 	if isOnline {
 		clientErr = client.UpdateUser(column, value)
 	} else {
-		clientErr = fmt.Errorf("user is offline")
+		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
 	}
 
 	if clientErr != nil {
@@ -1059,14 +1005,14 @@ func (a *App) UpdateUser(column, value string) (*user.User, error) {
 				value,
 				clientErr,
 			); syncErr != nil {
-				return nil, fmt.Errorf("failed to create sync log: %w", syncErr)
+				return nil, Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
 			}
 			return currentUser, nil
 		}
 		syncLog.Value = value
 
 		if err := db.Save(&syncLog).Error; err != nil {
-			return nil, fmt.Errorf("failed to save sync log: %w", err)
+			return nil, Errors.Wrap(err, Errors.DBQueryFailed, "Failed to save sync log")
 		}
 		return currentUser, nil
 	}
@@ -1081,7 +1027,7 @@ func (a *App) UpdateUser(column, value string) (*user.User, error) {
 // DeleteAssignment deletes an assignment
 func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	db := a.DB.GetDB()
@@ -1097,7 +1043,7 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 	for _, document := range documents {
 		// Delete the document from the database
 		if err := db.Delete(document).Error; err != nil {
-			return fmt.Errorf("failed to delete document record: %w", err)
+			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to delete document record")
 		}
 	}
 
@@ -1112,7 +1058,7 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 	if isOnline {
 		clientErr = client.DeleteAssignment(assignment_id_str)
 	} else {
-		clientErr = fmt.Errorf("user is offline")
+		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
 	}
 
 	if clientErr != nil {
@@ -1128,13 +1074,13 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 				deleted_at,
 				clientErr,
 			); syncErr != nil {
-				return fmt.Errorf("failed to create sync log: %w", syncErr)
+				return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
 			}
 			return nil
 		}
 
 		if err := sm.Undo(models.EntityAssignment, assignment.ID); err != nil {
-			return fmt.Errorf("failed to delete sync log: %w", err)
+			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to delete sync log")
 		}
 
 		return nil
@@ -1146,7 +1092,7 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 // DeleteCourse deletes a course
 func (a *App) DeleteCourse(course *course.LocalCourse) error {
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	db := a.DB.GetDB()
@@ -1177,7 +1123,7 @@ func (a *App) DeleteCourse(course *course.LocalCourse) error {
 	if isOnline {
 		clientErr = client.DeleteCourse(course_id_str)
 	} else {
-		clientErr = fmt.Errorf("user is offline")
+		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
 	}
 
 	if clientErr != nil {
@@ -1193,13 +1139,13 @@ func (a *App) DeleteCourse(course *course.LocalCourse) error {
 				deleted_at,
 				clientErr,
 			); syncErr != nil {
-				return fmt.Errorf("failed to create sync log: %w", syncErr)
+				return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
 			}
 			return nil
 		}
 
 		if err := sm.Undo(models.EntityCourse, course.ID); err != nil {
-			return fmt.Errorf("failed to save sync log: %w", err)
+			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to save sync log")
 		}
 
 		return nil
@@ -1211,55 +1157,56 @@ func (a *App) DeleteCourse(course *course.LocalCourse) error {
 // DeleteDocument removes a document and its file
 func (a *App) DeleteDocument(documentID uint) error {
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	if !a.Auth.IsAuthenticated() {
-		return fmt.Errorf("user not authenticated")
+		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
-
-	userID := a.Auth.User.ID
 
 	// Get local document record
 	var doc document.LocalDocument
-	if err := a.DB.GetDB().Where("id = ? AND user_id = ?", documentID, userID).First(&doc).Error; err != nil {
-		return fmt.Errorf("document not found or access denied")
+	if err := a.DB.GetDB().Where("id = ?", documentID).First(&doc).Error; err != nil {
+		return Errors.Wrap(err, Errors.DBRecordNotFound, "Document not found or access denied")
 	}
 
 	// Delete physical file if it exists
 	if doc.HasLocalFile && doc.FilePath != "" {
 		if err := os.Remove(doc.FilePath); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("failed to delete file: %w", err)
+			return Errors.Wrap(err, Errors.FSDeleteFailed, "Failed to delete file")
 		}
 	}
 
-	tx := a.DB.GetDB().Begin()
+	db := a.DB.GetDB()
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+
+		if err := tx.Delete(&doc).Error; err != nil {
+			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to delete document record")
+		}
+
+		// Also store metadata remotely for sharing
+		if !a.Auth.IsAuthenticated() {
+			return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
+		}
+
+		if err := client.DeleteDocument(doc.RemoteID); err != nil {
+			return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to delete document metadata")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return Errors.Wrap(err, Errors.DBTransactionFailed, "Failed to delete document transaction")
+	}
 	// Delete database record
-	if err := tx.Delete(&doc).Error; err != nil {
-		tx.Rollback()
-		return fmt.Errorf("failed to delete document record: %w", err)
-	}
-
-	// Storage info is now calculated on-demand, no need to update cache
-
-	// Also store metadata remotely for sharing
-	if a.Auth.IsAuthenticated() && a.Auth.Client != nil {
-
-		if err := client.DeleteDocument(documentID); err != nil {
-			tx.Rollback()
-			return fmt.Errorf("failed to delete document metadata: %w", err)
-		}
-
-	}
-
-	tx.Commit()
 
 	return nil
 }
 
 func (a *App) DeleteNote(note *note.LocalNote) error {
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	db := a.DB.GetDB()
@@ -1277,7 +1224,7 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 	if isOnline {
 		clientErr = client.UpdateNote(note_id_str, "deleted_at", deleted_at)
 	} else {
-		clientErr = fmt.Errorf("user is offline")
+		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
 	}
 	if clientErr != nil {
 		sm := sync.NewSyncManager(db)
@@ -1292,13 +1239,13 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 				deleted_at,
 				clientErr,
 			); syncErr != nil {
-				return fmt.Errorf("failed to create sync log: %w", syncErr)
+				return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
 			}
 			return nil
 		}
 
 		if err := sm.Undo(models.EntityNote, note.RemoteID); err != nil {
-			return fmt.Errorf("failed to save sync log: %w", err)
+			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to save sync log")
 		}
 
 		return nil
@@ -1309,7 +1256,7 @@ func (a *App) DeleteNote(note *note.LocalNote) error {
 
 func (a *App) DeleteNotification(notification *notifications.LocalNotification) error {
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 	return a.DB.DeleteNotification(notification)
 }
@@ -1367,7 +1314,8 @@ func (a *App) Logout() error {
 
 	var dbService *database.Database
 	if authService.User != nil {
-		dbService, err := database.NewDatabase(authService.User)
+		var err error
+		dbService, err = database.NewDatabase(authService.User)
 		if err != nil {
 			log.Fatalf("Failed to initialize database: %v", Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to initialize database"))
 		}
@@ -1398,17 +1346,17 @@ func (a *App) GetCurrentUser() (*user.User, error) {
 // Sync performs synchronization of local changes with the remote server
 func (a *App) Sync() error {
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	// Check if user is authenticated
 	if !a.Auth.IsAuthenticated() {
-		return fmt.Errorf("user not authenticated")
+		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 
 	// Check if we're online
 	if !network.IsOnline() {
-		return fmt.Errorf("not online, cannot sync")
+		return Errors.Wrap(fmt.Errorf("not online, cannot sync"), Errors.NetworkOffline, "Not online, cannot sync")
 	}
 
 	sm := sync.NewSyncManager(a.DB.GetDB())
@@ -1428,7 +1376,7 @@ func (a *App) GetAuthToken() (string, error) {
 // GetAssignment returns an assignment by ID
 func (a *App) GetAssignment(id uint) (*assignment.LocalAssignment, error) {
 	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 	return a.DB.GetAssignment(id)
 }
@@ -1436,7 +1384,7 @@ func (a *App) GetAssignment(id uint) (*assignment.LocalAssignment, error) {
 // GetCourse returns a course by ID
 func (a *App) GetCourse(id uint) (*course.Course, error) {
 	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 	return a.DB.GetCourse(id)
 }
@@ -1444,7 +1392,7 @@ func (a *App) GetCourse(id uint) (*course.Course, error) {
 // GetUser returns a user by ID
 func (a *App) GetUser(id uint) (*user.User, error) {
 	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 	return a.DB.GetUser(id)
 }
@@ -1486,11 +1434,11 @@ func (a *App) GetNotifications() ([]notifications.LocalNotification, error) {
 // GetAssignmentDocuments retrieves all documents for an assignment
 func (a *App) GetAssignmentDocuments(assignmentID uint) ([]document.LocalDocument, error) {
 	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	if !a.Auth.IsAuthenticated() {
-		return nil, fmt.Errorf("user not authenticated")
+		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 	// Use LocalDocument and only return documents we have locally
 	var documents []document.LocalDocument
@@ -1505,11 +1453,11 @@ func (a *App) GetAssignmentDocuments(assignmentID uint) ([]document.LocalDocumen
 // GetSupportDocuments retrieves only support documents for an assignment
 func (a *App) GetSupportDocuments(assignmentID uint) ([]document.LocalDocument, error) {
 	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	if !a.Auth.IsAuthenticated() {
-		return nil, fmt.Errorf("user not authenticated")
+		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 
 	var documents []document.LocalDocument
@@ -1524,11 +1472,11 @@ func (a *App) GetSupportDocuments(assignmentID uint) ([]document.LocalDocument, 
 // GetSubmissionDocuments retrieves only submission documents for an assignment
 func (a *App) GetSubmissionDocuments(assignmentID uint) ([]document.LocalDocument, error) {
 	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	if !a.Auth.IsAuthenticated() {
-		return nil, fmt.Errorf("user not authenticated")
+		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 
 	var documents []document.LocalDocument
@@ -1542,14 +1490,14 @@ func (a *App) GetSubmissionDocuments(assignmentID uint) ([]document.LocalDocumen
 
 func (a *App) SaveUIMessage(assignmentID uint, vercelMessage map[string]interface{}) error {
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 	return a.DB.SaveUIMessage(assignmentID, vercelMessage)
 }
 
 func (a *App) GetConversationHistory(assignmentID uint) ([]map[string]interface{}, error) {
 	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 	return a.DB.GetConversationHistory(assignmentID)
 }
@@ -1557,29 +1505,29 @@ func (a *App) GetConversationHistory(assignmentID uint) ([]map[string]interface{
 // OpenDocument opens a document file with the system default application
 func (a *App) OpenDocument(documentID uint) error {
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	if !a.Auth.IsAuthenticated() {
-		return fmt.Errorf("user not authenticated")
+		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 
 	// Get local document record
 	var doc document.LocalDocument
 	if err := a.DB.GetDB().Where("id = ?", documentID).First(&doc).Error; err != nil {
-		return fmt.Errorf("document not found or access denied")
+		return Errors.Wrap(err, Errors.DBRecordNotFound, "Document not found or access denied")
 	}
 
 	// Check if we have the file locally
 	if !doc.HasLocalFile {
-		return fmt.Errorf("file not available offline - please sync to download")
+		return Errors.Wrap(fmt.Errorf("file not available offline"), Errors.NetworkOffline, "File not available offline - please sync to download")
 	}
 
 	// Check if file actually exists on disk
 	if _, err := os.Stat(doc.FilePath); os.IsNotExist(err) {
 		// Update database to reflect missing file
 		a.DB.GetDB().Model(&doc).Update("has_local_file", false)
-		return fmt.Errorf("file not found on disk")
+		return Errors.Wrap(err, Errors.FSFileNotFound, "File not found on disk")
 	}
 
 	// Open with system default application
@@ -1590,29 +1538,29 @@ func (a *App) OpenDocument(documentID uint) error {
 // SaveDocumentAs opens a save dialog and copies the document to chosen location
 func (a *App) SaveDocumentAs(documentID uint) error {
 	if a.DB == nil {
-		return fmt.Errorf("database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	if !a.Auth.IsAuthenticated() {
-		return fmt.Errorf("user not authenticated")
+		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 
 	// Get local document record
 	var doc document.LocalDocument
 	if err := a.DB.GetDB().Where("id = ?", documentID).First(&doc).Error; err != nil {
-		return fmt.Errorf("document not found or access denied")
+		return Errors.Wrap(err, Errors.DBRecordNotFound, "Document not found or access denied")
 	}
 
 	// Check if we have the file locally
 	if !doc.HasLocalFile {
-		return fmt.Errorf("file not available offline - please sync to download")
+		return Errors.Wrap(fmt.Errorf("file not available offline"), Errors.NetworkOffline, "File not available offline - please sync to download")
 	}
 
 	// Check if file actually exists on disk
 	if _, err := os.Stat(doc.FilePath); os.IsNotExist(err) {
 		// Update database to reflect missing file
 		a.DB.GetDB().Model(&doc).Update("has_local_file", false)
-		return fmt.Errorf("file not found on disk")
+		return Errors.Wrap(err, Errors.FSFileNotFound, "File not found on disk")
 	}
 
 	// Open save dialog
@@ -1622,29 +1570,29 @@ func (a *App) SaveDocumentAs(documentID uint) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("failed to open save dialog: %w", err)
+		return Errors.Wrap(err, Errors.FSOpenFailed, "Failed to open save dialog")
 	}
 
 	if savePath == "" {
-		return fmt.Errorf("no save location selected")
+		return Errors.Wrap(fmt.Errorf("no save location selected"), Errors.ValidationRequired, "No save location selected")
 	}
 
 	// Copy file
 	sourceFile, err := os.Open(doc.FilePath)
 	if err != nil {
-		return fmt.Errorf("failed to open source file: %w", err)
+		return Errors.Wrap(err, Errors.FSOpenFailed, "Failed to open source file")
 	}
 	defer sourceFile.Close()
 
 	destFile, err := os.Create(savePath)
 	if err != nil {
-		return fmt.Errorf("failed to create destination file: %w", err)
+		return Errors.Wrap(err, Errors.FSCreateFailed, "Failed to create destination file")
 	}
 	defer destFile.Close()
 
 	_, err = io.Copy(destFile, sourceFile)
 	if err != nil {
-		return fmt.Errorf("failed to copy file: %w", err)
+		return Errors.Wrap(err, Errors.StorageCopyFailed, "Failed to copy file")
 	}
 
 	return nil
@@ -1653,11 +1601,11 @@ func (a *App) SaveDocumentAs(documentID uint) error {
 // GetUserStorageInfo returns storage statistics for the current user
 func (a *App) GetUserStorageInfo() (*document.StorageInfo, error) {
 	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	if !a.Auth.IsAuthenticated() {
-		return nil, fmt.Errorf("user not authenticated")
+		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 
 	userID := a.Auth.User.ID
@@ -1665,7 +1613,7 @@ func (a *App) GetUserStorageInfo() (*document.StorageInfo, error) {
 	// Calculate storage info on-demand
 	storageInfo, err := document.GetUserStorageInfo(userID, a.DB.GetDB())
 	if err != nil {
-		return nil, fmt.Errorf("failed to get storage info: %w", err)
+		return nil, Errors.Wrap(err, Errors.DBQueryFailed, "Failed to get storage info")
 	}
 
 	return storageInfo, nil
@@ -1673,11 +1621,11 @@ func (a *App) GetUserStorageInfo() (*document.StorageInfo, error) {
 
 func (a *App) GetCourseAssignments(course *course.LocalCourse) ([]assignment.LocalAssignment, error) {
 	if a.DB == nil {
-		return nil, fmt.Errorf("database not initialized")
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	if !a.Auth.IsAuthenticated() {
-		return nil, fmt.Errorf("user not authenticated")
+		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 
 	var assignments []assignment.LocalAssignment
@@ -1746,7 +1694,7 @@ func (a *App) GetNetworkStatus() map[string]interface{} {
 // InstallNotificationDaemon installs the notification daemon
 func (a *App) InstallNotificationDaemon() error {
 	if a.Daemon == nil {
-		return fmt.Errorf("daemon manager not initialized")
+		return Errors.Wrap(fmt.Errorf("daemon manager not initialized"), Errors.InitDatabaseNotInitialized, "Daemon manager not initialized")
 	}
 	return a.Daemon.InstallDaemon()
 }
@@ -1754,7 +1702,7 @@ func (a *App) InstallNotificationDaemon() error {
 // UninstallNotificationDaemon uninstalls the notification daemon
 func (a *App) UninstallNotificationDaemon() error {
 	if a.Daemon == nil {
-		return fmt.Errorf("daemon manager not initialized")
+		return Errors.Wrap(fmt.Errorf("daemon manager not initialized"), Errors.InitDatabaseNotInitialized, "Daemon manager not initialized")
 	}
 	return a.Daemon.UninstallDaemon()
 }
@@ -1778,7 +1726,7 @@ func (a *App) IsNotificationDaemonRunning() bool {
 // StartNotificationDaemon starts the daemon
 func (a *App) StartNotificationDaemon() error {
 	if a.Daemon == nil {
-		return fmt.Errorf("daemon manager not initialized")
+		return Errors.Wrap(fmt.Errorf("daemon manager not initialized"), Errors.InitDatabaseNotInitialized, "Daemon manager not initialized")
 	}
 	return a.Daemon.StartDaemon()
 }
@@ -1786,7 +1734,7 @@ func (a *App) StartNotificationDaemon() error {
 // StopNotificationDaemon stops the daemon
 func (a *App) StopNotificationDaemon() error {
 	if a.Daemon == nil {
-		return fmt.Errorf("daemon manager not initialized")
+		return Errors.Wrap(fmt.Errorf("daemon manager not initialized"), Errors.InitDatabaseNotInitialized, "Daemon manager not initialized")
 	}
 	return a.Daemon.StopDaemon()
 }
@@ -1811,7 +1759,7 @@ func (a *App) GetNotificationDaemonStatus() map[string]interface{} {
 // Add method to rebuild daemon (for updates)
 func (a *App) RebuildNotificationDaemon() error {
 	if a.Daemon == nil {
-		return fmt.Errorf("daemon manager not initialized")
+		return Errors.Wrap(fmt.Errorf("daemon manager not initialized"), Errors.InitDatabaseNotInitialized, "Daemon manager not initialized")
 	}
 	return a.Daemon.RebuildDaemon()
 }
@@ -1953,7 +1901,7 @@ func (a *App) AcceptNote(noteData string) error {
 	}
 
 	if err := a.CreateNote(&localNote); err != nil {
-		return fmt.Errorf("failed to create note: %w", err)
+		return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to create note")
 	}
 
 	return nil

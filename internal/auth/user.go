@@ -2,10 +2,10 @@ package auth
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"unipilot/internal/errors"
 	"unipilot/internal/secrets"
 )
 
@@ -23,14 +23,14 @@ func (a *Auth) GetUser() (map[string]interface{}, error) {
 	// Client includes JWT token in Authorization header automatically
 	resp, err := a.Client.Get(fmt.Sprintf("%s/user", api_url))
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		return nil, errors.Wrap(err, errors.ClientRequestFailed, "Request failed")
 	}
 	defer resp.Body.Close()
 
 	// Step 2: Validate response status code
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("server returned %d: %s", resp.StatusCode, string(body))
+		io.ReadAll(resp.Body) // Read body to clear it
+		return nil, errors.NewAppError(errors.ClientResponseInvalid, "Server returned error", nil).ToServerError(resp.StatusCode)
 	}
 
 	// Step 3: Parse JSON response
@@ -41,17 +41,17 @@ func (a *Auth) GetUser() (map[string]interface{}, error) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to decode response")
 	}
 
 	// Step 4: Check for error in response body
 	if response.Error != "" {
-		return nil, errors.New(response.Error)
+		return nil, errors.NewAppError(errors.ClientResponseInvalid, response.Error, nil)
 	}
 
 	// Step 5: Validate user data exists in response
 	if response.User == nil {
-		return nil, fmt.Errorf("no user data in response")
+		return nil, errors.NewAppError(errors.ClientResponseInvalid, "No user data in response", nil)
 	}
 
 	return response.User, nil

@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 func GetUserDB() (*gorm.DB, error) {
@@ -20,6 +21,7 @@ func GetUserDB() (*gorm.DB, error) {
 	// Open database connection
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
 		PrepareStmt: true, // Better performance
+		Logger:      logger.Default.LogMode(logger.Error),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to open SQLite database")
@@ -49,6 +51,7 @@ func GetUserDBWithID(userID uint) (*gorm.DB, error) {
 
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
 		PrepareStmt: true, // Better performance
+		Logger:      logger.Default.LogMode(logger.Error),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to open SQLite database")

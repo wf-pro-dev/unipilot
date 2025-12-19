@@ -1,8 +1,7 @@
 package storage
 
 import (
-	"fmt"
-	"sync"
+	"unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/models/aimessage"
 	"unipilot/internal/models/assignment"
@@ -12,11 +11,6 @@ import (
 	"unipilot/internal/models/notifications"
 
 	"gorm.io/gorm"
-)
-
-var (
-	dbLock      sync.Mutex
-	dbInstances = make(map[uint]*gorm.DB)
 )
 
 func InitializeSchema(db *gorm.DB) error {
@@ -34,7 +28,7 @@ func InitializeSchema(db *gorm.DB) error {
 	)
 
 	if err != nil {
-		return fmt.Errorf("failed to migrate schema: %s", err)
+		return errors.Wrap(err, errors.DBQueryFailed, "Failed to migrate schema")
 	}
 
 	types := []*models.LocalAssignmentType{
@@ -53,7 +47,7 @@ func InitializeSchema(db *gorm.DB) error {
 		if err := db.Where("id = ?", t.ID).First(&models.LocalAssignmentType{}).Error; err != nil {
 			err = db.Create(t).Error
 			if err != nil {
-				return err
+				return errors.HandleDBCreateError(err)
 			}
 		}
 	}
@@ -62,7 +56,7 @@ func InitializeSchema(db *gorm.DB) error {
 		if err := db.Where("id = ?", status.ID).First(&models.LocalAssignmentStatus{}).Error; err != nil {
 			err = db.Create(status).Error
 			if err != nil {
-				return err
+				return errors.HandleDBCreateError(err)
 			}
 		}
 	}

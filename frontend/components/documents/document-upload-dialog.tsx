@@ -15,6 +15,7 @@ import {
   Info
 } from "lucide-react"
 import { useUploadDocument } from "@/hooks/use-documents"
+import { toast } from 'sonner'
 
 interface DocumentUploadDialogProps {
   isOpen: boolean
@@ -33,7 +34,7 @@ export function DocumentUploadDialog({
   remoteAssignmentId,
   documentType
 }: DocumentUploadDialogProps) {
-  const [selectedType, setSelectedType] = useState<"support" | "submission">(documentType)
+  const [selectedType, setSelectedType] = useState<"support" | "submission" | "all">(documentType)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
@@ -48,6 +49,13 @@ export function DocumentUploadDialog({
         assignmentId,
         remoteAssignmentId,
         documentType: selectedType
+      }, {
+        onSuccess: () => {
+          toast.success("Document uploaded successfully")
+        },
+        onError: () => {
+          toast.error("Failed to upload document")
+        }
       })
 
       if (result) {

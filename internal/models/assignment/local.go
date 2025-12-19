@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"time"
 
+	"unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/document"
@@ -57,7 +58,7 @@ func Get_Local_Assignment_byId(id uint, db *gorm.DB) (*LocalAssignment, error) {
 		First(assignment).Error
 
 	if err != nil {
-		return nil, err
+		return nil, errors.HandleDBReadError(err)
 	}
 	return assignment, nil
 }

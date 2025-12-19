@@ -1,9 +1,9 @@
 package client
 
 import (
-	"fmt"
 	"net/http"
 	"time"
+	"unipilot/internal/errors"
 )
 
 // NewAuthClient creates a client with JWT token authentication
@@ -60,15 +60,15 @@ func (rt *JWTRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 		// call /refresh-token endpoint to get a new token
 		newToken, newRefreshToken, err := RefreshToken(rt.RefreshToken)
 		if err != nil {
-			return nil, fmt.Errorf("failed to refresh token: %w", err)
+			return nil, errors.Wrap(err, errors.ClientRequestFailed, "Failed to refresh token")
 		}
 		rt.Token = newToken
 		if err := SaveToken(newToken); err != nil {
-			return nil, fmt.Errorf("failed to save token: %w", err)
+			return nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to save token")
 		}
 		rt.RefreshToken = newRefreshToken
 		if err := SaveRefreshToken(newRefreshToken); err != nil {
-			return nil, fmt.Errorf("failed to save refresh token: %w", err)
+			return nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to save refresh token")
 		}
 
 	}

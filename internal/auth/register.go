@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
 	"unipilot/internal/client"
+	"unipilot/internal/errors"
 	"unipilot/internal/models/user"
 	"unipilot/internal/secrets"
 	"unipilot/internal/services/utils"
@@ -35,7 +35,7 @@ func (a *Auth) Register(username, email, password, university, language string) 
 	// Registration endpoint doesn't require authentication
 	httpClient, err := client.NewAuthClient()
 	if err != nil {
-		return nil, fmt.Errorf("could not create http client: %w", err)
+		return nil, errors.Wrap(err, errors.ClientRequestFailed, "Could not create HTTP client")
 	}
 
 	// Step 2: Prepare registration request payload
@@ -47,7 +47,7 @@ func (a *Auth) Register(username, email, password, university, language string) 
 	// Step 3: Send registration request to API
 	resp, err := httpClient.Post(fmt.Sprintf("%s/register", api_url), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, fmt.Errorf("http post failed: %w", err)
+		return nil, errors.Wrap(err, errors.NetworkConnectionFailed, "HTTP POST failed")
 	}
 	defer resp.Body.Close()
 
@@ -56,8 +56,8 @@ func (a *Auth) Register(username, email, password, university, language string) 
 	// Step 4: Validate response status (accept both 200 OK and 201 Created)
 	// 201 Created is standard for resource creation, but 200 OK is also acceptable
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("register failed with status %d: %s", resp.StatusCode, string(body))
+		io.ReadAll(resp.Body) // Read body to clear it
+		return nil, errors.NewAppError(errors.ValidationInvalid, "Register failed", nil).ToServerError(resp.StatusCode)
 	}
 
 	// Step 5: Parse API response to extract user data and token
@@ -66,7 +66,7 @@ func (a *Auth) Register(username, email, password, university, language string) 
 		Token string                 `json:"token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse registration response")
 	}
 
 	// Step 6: Convert response map to User struct
@@ -89,13 +89,12 @@ func (a *Auth) Register(username, email, password, university, language string) 
 
 	// Step 7: Persist user credentials to local storage
 	if err := utils.SetCredentials(&response_user); err != nil {
-		return nil, fmt.Errorf("failed to set credentials: %w", err)
+		return nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to set credentials")
 	}
 
 	// Step 8: Save JWT access token for authenticated API requests
-	log.Printf("Saving token: %s", response.Token)
 	if err := client.SaveToken(response.Token); err != nil {
-		return nil, fmt.Errorf("failed to save token: %w", err)
+		return nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to save token")
 	}
 
 	// Step 9: Initialize SSE connection for real-time notifications

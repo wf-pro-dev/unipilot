@@ -38,15 +38,15 @@ const (
 	GeminiFailed            ErrorCode = "net-0007" // Gemini failed
 	SlowRequest             ErrorCode = "net-0008" // slow request
 
-	ClientRequestFailed   ErrorCode = "net-0109" // client request failed
-	ClientResponseInvalid ErrorCode = "net-0101" // client response invalid
-	ClientTimeout         ErrorCode = "net-0102" // client timeout
+	ClientRequestFailed   ErrorCode = "net-0101" // client request failed
+	ClientResponseInvalid ErrorCode = "net-0102" // client response invalid
+	ClientTimeout         ErrorCode = "net-0103" // client timeout
 
 	// Network - gRPC specific
-	GRPCClientFailed       ErrorCode = "net-0101" // gRPC client failed
-	GRPCUnreachable        ErrorCode = "net-0102" // gRPC unreachable
-	GRPCCloseFailed        ErrorCode = "net-0103" // gRPC close failed
-	GRPCNotificationFailed ErrorCode = "net-0104" // gRPC notification failed
+	GRPCClientFailed       ErrorCode = "net-0201" // gRPC client failed
+	GRPCUnreachable        ErrorCode = "net-0202" // gRPC unreachable
+	GRPCCloseFailed        ErrorCode = "net-0203" // gRPC close failed
+	GRPCNotificationFailed ErrorCode = "net-0204" // gRPC notification failed
 
 	// Network - Redis specific
 	RedisUnreachable ErrorCode = "net-0201" // Redis unreachable
@@ -150,4 +150,28 @@ const (
 	// SYSTEM ERRORS (sys-xxxx)
 	// ============================================
 	SysExecFailed ErrorCode = "sys-0001" // system execute failed
+
+	// ============================================
+	// EVENT ERRORS (event-xxxx)
+	// ============================================
+	EventParseFailed      ErrorCode = "event-0001" // event parsing failed
+	EventProcessingFailed ErrorCode = "event-0002" // event processing failed
+	EventHandlerFailed    ErrorCode = "event-0003" // event handler failed
+
+	// ============================================
+	// DAEMON ERRORS (daemon-xxxx)
+	// ============================================
+	DaemonBuildFailed     ErrorCode = "daemon-0001" // daemon build failed
+	DaemonInstallFailed   ErrorCode = "daemon-0002" // daemon installation failed
+	DaemonUninstallFailed ErrorCode = "daemon-0003" // daemon uninstallation failed
+	DaemonSourceNotFound  ErrorCode = "daemon-0004" // daemon source file not found
+	DaemonProjectNotFound ErrorCode = "daemon-0005" // project directory not found
+
+	// ============================================
+	// SYNC ERRORS (sync-xxxx)
+	// ============================================
+	SyncFailed              ErrorCode = "sync-0001" // sync operation failed
+	SyncRemoteNotFound      ErrorCode = "sync-0002" // remote entity not found
+	SyncInvalidRemoteID     ErrorCode = "sync-0003" // invalid remote ID format
+	SyncDataConversionError ErrorCode = "sync-0004" // sync data conversion failed
 )

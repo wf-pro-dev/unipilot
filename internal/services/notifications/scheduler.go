@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"unipilot/internal/errors"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/notifications"
@@ -44,7 +45,7 @@ func NewScheduler() (*Scheduler, error) {
 	db, err := utils.GetUserDB()
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("failed to get database: %w", err)
+		return nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to get user database")
 	}
 
 	scheduler := &Scheduler{
@@ -75,7 +76,7 @@ func (s *Scheduler) StartScheduler() error {
 	defer s.mu.Unlock()
 
 	if s.isRunning {
-		return fmt.Errorf("scheduler is already running")
+		return errors.NewAppError(errors.ValidationInvalid, "Scheduler is already running", nil)
 	}
 
 	// Schedule morning notifications at 8:00 AM
@@ -84,7 +85,7 @@ func (s *Scheduler) StartScheduler() error {
 		s.SendDailyNotifications("morning")
 	})
 	if err != nil {
-		return fmt.Errorf("failed to schedule morning notifications: %w", err)
+		return errors.Wrap(err, errors.InternalError, "Failed to schedule morning notifications")
 	}
 
 	// Schedule evening notifications at 8:00 PM
@@ -93,7 +94,7 @@ func (s *Scheduler) StartScheduler() error {
 		s.SendDailyNotifications("evening")
 	})
 	if err != nil {
-		return fmt.Errorf("failed to schedule evening notifications: %w", err)
+		return errors.Wrap(err, errors.InternalError, "Failed to schedule evening notifications")
 	}
 
 	// Schedule course entry notifications every 5 minutes instead of every minute
@@ -103,7 +104,7 @@ func (s *Scheduler) StartScheduler() error {
 		s.SendCourseEntryNotifications()
 	})
 	if err != nil {
-		return fmt.Errorf("failed to schedule course entry notifications: %w", err)
+		return errors.Wrap(err, errors.InternalError, "Failed to schedule course entry notifications")
 	}
 
 	// Schedule cache refresh every hour to keep course data fresh
@@ -112,7 +113,7 @@ func (s *Scheduler) StartScheduler() error {
 		s.refreshCourseCache()
 	})
 	if err != nil {
-		return fmt.Errorf("failed to schedule cache refresh: %w", err)
+		return errors.Wrap(err, errors.InternalError, "Failed to schedule cache refresh")
 	}
 
 	s.cron.Start()
@@ -211,7 +212,7 @@ func (s *Scheduler) SendDailyNotifications(session string) {
 	grouped := s.groupAssignmentsByCourse(assignments)
 
 	// Send course-based notifications
-	s.sendCourseBasedNotifications(grouped, session)
+	s.sendCourseBasedNotifications(grouped)
 }
 
 // getWeeklyAssignments queries database for assignments due in the next 7 days
@@ -230,7 +231,7 @@ func (s *Scheduler) getWeeklyAssignments() ([]assignment.LocalAssignment, error)
 	var assignments []assignment.LocalAssignment
 	err := s.db.Model(&assignment.LocalAssignment{}).Where(query).Order("deadline ASC").Find(&assignments).Error
 	if err != nil {
-		return nil, fmt.Errorf("failed to query assignments: %w", err)
+		return nil, errors.HandleDBReadError(err)
 	}
 
 	log.Printf("[Scheduler] Retrieved %d assignments for user %d", len(assignments), s.user.ID)
@@ -250,7 +251,7 @@ func (s *Scheduler) groupAssignmentsByCourse(assignments []assignment.LocalAssig
 }
 
 // sendCourseBasedNotifications sends course-based notifications
-func (s *Scheduler) sendCourseBasedNotifications(grouped map[string][]assignment.LocalAssignment, session string) {
+func (s *Scheduler) sendCourseBasedNotifications(grouped map[string][]assignment.LocalAssignment) {
 	log.Printf("[Scheduler] Sending notifications for %d courses", len(grouped))
 
 	for courseCode, assignments := range grouped {

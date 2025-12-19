@@ -2,10 +2,10 @@ package auth
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 
 	"unipilot/internal/client"
+	"unipilot/internal/errors"
 	"unipilot/internal/secrets"
 	"unipilot/internal/services/utils"
 )
@@ -39,19 +39,18 @@ func (a *Auth) Logout() error {
 	// Step 3: Validate server response (200 OK indicates successful logout acknowledgment)
 	// Only consider status 200 OK as successful logout
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("logout failed with status: %d", resp.StatusCode)
+		return errors.NewAppError(errors.AuthUnauthorized, "Logout failed", nil).ToServerError(resp.StatusCode)
 	}
 
 	// Step 4: Clear local cookies regardless of server response
 	// Ensures complete local cleanup even if server request fails
 	if err := client.ClearCookies(); err != nil {
-		return fmt.Errorf("failed to clear local cookies: %w", err)
+		return errors.Wrap(err, errors.FSDeleteFailed, "Failed to clear local cookies")
 	}
 
 	// Step 5: Clear saved user credentials from local storage
-	log.Println("Logout: Clearing credentials")
 	if err := utils.ClearCredentials(); err != nil {
-		return fmt.Errorf("failed to clear local credentials: %w", err)
+		return errors.Wrap(err, errors.FSDeleteFailed, "Failed to clear local credentials")
 	}
 
 	return nil

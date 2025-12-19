@@ -61,8 +61,6 @@ export function GetCourses():Promise<Array<course.LocalCourse>>;
 
 export function GetCurrentUser():Promise<user.User>;
 
-export function GetFileAsDataURL(arg1:string):Promise<string>;
-
 export function GetFollowers(arg1:number):Promise<main.FollowResponse>;
 
 export function GetFollowing(arg1:number):Promise<main.FollowResponse>;

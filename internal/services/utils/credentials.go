@@ -53,7 +53,6 @@ func SetCredentials(user *user.User) error {
 }
 
 func ClearCredentials() error {
-	log.Println("Clearing credentials")
 	credentialsFile, err := GetCredentialFile()
 	if err != nil {
 		return errors.Wrap(err, errors.FSFileNotFound, "Failed to found credential file")

@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"unipilot/internal/errors"
 )
 
 // Manager handles daemon installation and management
@@ -23,13 +25,13 @@ func NewManager(userID uint, ctx context.Context) (*Manager, error) {
 	// Get user's home directory
 	userHome, err := os.UserHomeDir()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user home directory: %w", err)
+		return nil, errors.Wrap(err, errors.FSDirFailed, "Failed to get user home directory")
 	}
 
 	// Get the project directory (where the main app is running from)
 	projectDir, err := getProjectDirectory()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get project directory: %w", err)
+		return nil, errors.Wrap(err, errors.DaemonProjectNotFound, "Failed to get project directory")
 	}
 
 	// Set the daemon path to professional standard location
@@ -82,7 +84,7 @@ func getProjectDirectory() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("could not find project directory (no go.mod found)")
+	return "", errors.NewAppError(errors.DaemonProjectNotFound, "Could not find project directory (no go.mod found)", nil)
 }
 
 // BuildDaemon builds the notification daemon binary
@@ -90,7 +92,7 @@ func (m *Manager) BuildDaemon() error {
 	// Check if daemon source exists
 	daemonSource := filepath.Join(m.projectDir, "internal", "daemon", "notifications-daemon.go")
 	if _, err := os.Stat(daemonSource); os.IsNotExist(err) {
-		return fmt.Errorf("daemon source file not found: %s", daemonSource)
+		return errors.NewAppError(errors.DaemonSourceNotFound, "Daemon source file not found", err)
 	}
 
 	// Build the daemon to a temporary location in /tmp
@@ -104,14 +106,14 @@ func (m *Manager) BuildDaemon() error {
 	if err := cmd.Run(); err != nil {
 		// Clean up temp file on error
 		os.Remove(tempDaemonPath)
-		return fmt.Errorf("failed to build daemon: %w", err)
+		return errors.Wrap(err, errors.DaemonBuildFailed, "Failed to build daemon")
 	}
 
 	// Move the binary to the professional location with authorization
 	if err := m.moveBinaryToSystemLocation(tempDaemonPath); err != nil {
 		// Clean up temp file
 		os.Remove(tempDaemonPath)
-		return fmt.Errorf("failed to install daemon to system location: %w", err)
+		return errors.Wrap(err, errors.DaemonInstallFailed, "Failed to install daemon to system location")
 	}
 
 	return nil
@@ -130,7 +132,7 @@ func (m *Manager) moveBinaryToSystemLocation(tempPath string) error {
 	}
 
 	if err := authMgr.RequestPrivilegesAndExecute(commands); err != nil {
-		return fmt.Errorf("failed to execute privileged commands: %w", err)
+		return errors.Wrap(err, errors.DaemonInstallFailed, "Failed to execute privileged commands")
 	}
 
 	return nil
@@ -141,23 +143,23 @@ func (m *Manager) InstallDaemon() error {
 	// Check if daemon binary exists, build if not
 	if _, err := os.Stat(m.daemonPath); os.IsNotExist(err) {
 		if err := m.BuildDaemon(); err != nil {
-			return fmt.Errorf("failed to build daemon: %w", err)
+			return errors.Wrap(err, errors.DaemonInstallFailed, "Failed to build daemon")
 		}
 	}
 
 	// Create necessary directories
 	if err := m.createDirectories(); err != nil {
-		return fmt.Errorf("failed to create directories: %w", err)
+		return errors.Wrap(err, errors.DaemonInstallFailed, "Failed to create directories")
 	}
 
 	// Create the plist file
 	if err := m.createPlistFile(); err != nil {
-		return fmt.Errorf("failed to create plist file: %w", err)
+		return errors.Wrap(err, errors.DaemonInstallFailed, "Failed to create plist file")
 	}
 
 	// Load the launch agent
 	if err := m.loadLaunchAgent(); err != nil {
-		return fmt.Errorf("failed to load launch agent: %w", err)
+		return errors.Wrap(err, errors.DaemonInstallFailed, "Failed to load launch agent")
 	}
 
 	return nil
@@ -167,17 +169,17 @@ func (m *Manager) InstallDaemon() error {
 func (m *Manager) UninstallDaemon() error {
 	// Unload the launch agent
 	if err := m.unloadLaunchAgent(); err != nil {
-		return fmt.Errorf("failed to unload launch agent: %w", err)
+		return errors.Wrap(err, errors.DaemonUninstallFailed, "Failed to unload launch agent")
 	}
 
 	// Remove the plist file
 	if err := m.removePlistFile(); err != nil {
-		return fmt.Errorf("failed to remove plist file: %w", err)
+		return errors.Wrap(err, errors.DaemonUninstallFailed, "Failed to remove plist file")
 	}
 
 	// Remove the daemon binary from system location
 	if err := m.removeDaemonBinary(); err != nil {
-		return fmt.Errorf("failed to remove daemon binary: %w", err)
+		return errors.Wrap(err, errors.DaemonUninstallFailed, "Failed to remove daemon binary")
 	}
 
 	return nil
@@ -235,7 +237,7 @@ func (m *Manager) RebuildDaemon() error {
 
 	// Remove existing binary from system location
 	if err := m.removeDaemonBinary(); err != nil {
-		return fmt.Errorf("failed to remove existing binary: %w", err)
+		return errors.Wrap(err, errors.DaemonBuildFailed, "Failed to remove existing binary")
 	}
 
 	// Build new binary
@@ -257,7 +259,7 @@ func (m *Manager) createDirectories() error {
 
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+			return errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create directory")
 		}
 	}
 

@@ -18,6 +18,7 @@ import {
   DeleteDocumentRAG,
   GetAssignmentDocumentIDsRAG
 } from "@/wailsjs/go/main/App"
+import { toast } from 'sonner'
 
 // Query keys for consistent cache management
 export const documentKeys = {
@@ -292,17 +293,19 @@ export function  useDeleteDocument() {
           queryClient.setQueryData(queryKey as readonly unknown[], data)
         })
       }
-      LogError("Failed to delete document: " + err)
+      toast.error("Failed to delete document")
     },
     
     onSuccess: () => {
       // Invalidate storage info to refresh quota
       queryClient.invalidateQueries({ queryKey: documentKeys.storage() })
+      toast.success("Document deleted successfully")
     },
     
     // Always refetch after error or success to ensure consistency
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: documentKeys.all })
+
     },
   })
 }

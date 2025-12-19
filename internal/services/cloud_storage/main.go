@@ -2,8 +2,8 @@ package cloudstorage
 
 import (
 	"context"
-	"fmt"
 
+	"unipilot/internal/errors"
 	"unipilot/internal/secrets"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -19,15 +19,14 @@ func S3Client() (*s3.Client, error) {
 
 	region, err := secrets.GetEnvVar("AWS_REGION")
 	if err != nil {
-		return nil, err
+		return nil, errors.Inherit(err, errors.ConfigEnvVarNotFound)
 	}
 
 	// Load default config
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
 
 	if err != nil {
-		fmt.Println("Error loading default config:", err)
-		return nil, err
+		return nil, errors.Wrap(err, errors.StorageClientFailed, "Failed to load AWS config")
 	}
 
 	// Create new S3 client

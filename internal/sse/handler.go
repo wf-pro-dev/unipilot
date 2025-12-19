@@ -5,13 +5,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"sync"
 	"time"
+	"unipilot/internal/errors"
 	"unipilot/internal/secrets"
 )
 
@@ -83,7 +83,7 @@ func (c *SSE) establishAndStream(httpClient *http.Client) error {
 
 	req, err := http.NewRequestWithContext(c.ctx, "GET", url, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return errors.Wrap(err, errors.ClientRequestFailed, "Failed to create SSE request")
 	}
 
 	req.Header.Set("Accept", "text/event-stream")
@@ -97,12 +97,12 @@ func (c *SSE) establishAndStream(httpClient *http.Client) error {
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("http request failed: %w", err)
+		return errors.Wrap(err, errors.NetworkConnectionFailed, "HTTP request failed")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("received non-200 status code: %d", resp.StatusCode)
+		return errors.NewAppError(errors.ClientResponseInvalid, "Received non-200 status code", nil)
 	}
 
 	log.Println("[SSEClient] Connection established. Streaming events...")
@@ -116,9 +116,9 @@ func (c *SSE) establishAndStream(httpClient *http.Client) error {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
 			if err == io.EOF {
-				return errors.New("server closed connection (EOF)")
+				return errors.NewAppError(errors.NetworkConnectionFailed, "Server closed connection (EOF)", nil)
 			}
-			return fmt.Errorf("error reading from stream: %w", err)
+			return errors.Wrap(err, errors.FSStreamFailed, "Error reading from SSE stream")
 		}
 
 		if bytes.HasPrefix(line, []byte("data:")) {

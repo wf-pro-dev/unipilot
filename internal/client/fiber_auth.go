@@ -3,6 +3,8 @@ package client
 import (
 	"net/http"
 
+	"unipilot/internal/errors"
+
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -10,29 +12,29 @@ import (
 func getAuthToken() (string, error) {
 	token, err := LoadToken()
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, errors.FSFileNotFound, "Failed to load token")
 	}
 
 	// Refresh token if it is about to expire
-	// if !IsTokenValid() {
-	// 	refreshToken, err := LoadRefreshToken()
-	// 	if err != nil {
-	// 		return "", fmt.Errorf("failed to load refresh token: %w", err)
-	// 	}
+	if !IsTokenValid() {
+		refreshToken, err := LoadRefreshToken()
+		if err != nil {
+			return "", errors.Wrap(err, errors.FSFileNotFound, "Failed to load refresh token")
+		}
 
-	// 	newToken, newRefreshToken, err := RefreshToken(refreshToken)
-	// 	if err != nil {
-	// 		return "", fmt.Errorf("failed to refresh token: %w", err)
-	// 	}
+		newToken, newRefreshToken, err := RefreshToken(refreshToken)
+		if err != nil {
+			return "", errors.Wrap(err, errors.ClientRequestFailed, "Failed to refresh token")
+		}
 
-	// 	token = newToken
-	// 	if err := SaveToken(newToken); err != nil {
-	// 		return "", fmt.Errorf("failed to save token: %w", err)
-	// 	}
-	// 	if err := SaveRefreshToken(newRefreshToken); err != nil {
-	// 		return "", fmt.Errorf("failed to save refresh token: %w", err)
-	// 	}
-	// }
+		token = newToken
+		if err := SaveToken(newToken); err != nil {
+			return "", errors.Wrap(err, errors.FSWriteFailed, "Failed to save token")
+		}
+		if err := SaveRefreshToken(newRefreshToken); err != nil {
+			return "", errors.Wrap(err, errors.FSWriteFailed, "Failed to save refresh token")
+		}
+	}
 
 	return token, nil
 }

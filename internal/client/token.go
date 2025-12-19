@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -27,7 +28,6 @@ func SaveToken(token string) error {
 	// Parse token to get expiration
 	claims := &jwt.RegisteredClaims{}
 	_, _, err := jwt.NewParser().ParseUnverified(token, claims)
-
 	if err != nil {
 		return Errors.Wrap(err, Errors.AuthTokenInvalid, "Failed to parse token")
 	}
@@ -40,7 +40,7 @@ func SaveToken(token string) error {
 
 	tokenFile, err := getTokenFilePath()
 	if err != nil {
-		return err
+		return Errors.Wrap(err, Errors.FSFileFailed, "Failed to get token file path")
 	}
 
 	data, err := json.MarshalIndent(tokenData, "", "  ")
@@ -48,7 +48,11 @@ func SaveToken(token string) error {
 		return Errors.Wrap(err, Errors.ProcJSONMarshalFailed, "Failed to marshal token")
 	}
 
-	return os.WriteFile(tokenFile, data, 0600) // Secure file permissions
+	if err := os.WriteFile(tokenFile, data, 0600); err != nil {
+		log.Printf("Failed to write token file: %s\n", tokenFile)
+		return Errors.Wrap(err, Errors.FSWriteFailed, "Failed to write token file")
+	}
+	return nil
 }
 
 // SaveRefreshToken saves the refresh token to a secure file
@@ -108,7 +112,7 @@ func LoadRefreshToken() (string, error) {
 	refreshTokenFile, err := getRefreshTokenFilePath()
 
 	if err != nil {
-		return "", err
+		return "", Errors.Wrap(err, Errors.FSFileNotFound, "Failed to load refresh token")
 	}
 	if _, err := os.Stat(refreshTokenFile); os.IsNotExist(err) {
 		return "", nil // No refresh token file exists
@@ -189,16 +193,22 @@ func getTokenFilePath() (string, error) {
 	if err != nil {
 		return "", Errors.Wrap(err, Errors.FSDirFailed, "Error getting user directory")
 	}
-	_, err = os.Stat(filepath.Join(fileDir, "auth_token.json"))
+	tokenFilePath := filepath.Join(fileDir, "auth_token.json")
+	_, err = os.Stat(tokenFilePath)
 	if err != nil {
-		credentialsFile, err := utils.GetCredentialFile()
-		if err != nil {
-			return "", Errors.Wrap(err, Errors.FSFileNotFound, "Credential file not found")
+
+		if os.IsNotExist(err) {
+			credentialsFile, credRrr := utils.GetCredentialFile()
+			if credRrr != nil {
+				return "", Errors.Wrap(credRrr, Errors.FSFileNotFound, "Credential file not found")
+			}
+			os.Remove(credentialsFile)
+			return tokenFilePath, nil // Token file not found
 		}
-		os.Remove(credentialsFile)
+
 		return "", Errors.Wrap(err, Errors.FSFileNotFound, "Token file not found")
 	}
-	return filepath.Join(fileDir, "auth_token.json"), nil
+	return tokenFilePath, nil
 }
 
 func getRefreshTokenFilePath() (string, error) {

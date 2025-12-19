@@ -2,11 +2,11 @@ package events
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"strconv"
 	"time"
 
+	"unipilot/internal/errors"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/notifications"
 )
@@ -38,19 +38,22 @@ func (h *Events) HandleAssignmentCreate(data json.RawMessage, message string) {
 
 	var ar AssignmentResponse
 	if err := json.Unmarshal(data, &ar); err != nil {
-		log.Printf("Error unmarshalling assignment: %v", err)
+		wrappedErr := errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal assignment data")
+		log.Printf("Error unmarshalling assignment: %v", wrappedErr)
 		return
 	}
 
 	id, err := strconv.Atoi(ar.ID)
 	if err != nil {
-		log.Printf("Error converting ID to int: %v", err)
+		wrappedErr := errors.Wrap(err, errors.ProcDataConversionFailed, "Failed to convert assignment ID to int")
+		log.Printf("Error converting ID to int: %v", wrappedErr)
 		return
 	}
 
 	deadline, err := time.Parse(time.RFC3339, ar.Deadline)
 	if err != nil {
-		log.Printf("Error parsing deadline: %v", err)
+		wrappedErr := errors.Wrap(err, errors.ProcDataProcessingFailed, "Failed to parse assignment deadline")
+		log.Printf("Error parsing deadline: %v", wrappedErr)
 		return
 	}
 
@@ -66,7 +69,8 @@ func (h *Events) HandleAssignmentCreate(data json.RawMessage, message string) {
 	}
 	if err := tx.Create(&a).Error; err != nil {
 		tx.Rollback()
-		log.Printf("Error creating assignment: %v", err)
+		wrappedErr := errors.HandleDBCreateError(err)
+		log.Printf("Error creating assignment: %v", wrappedErr)
 		return
 	}
 
@@ -93,20 +97,23 @@ func (h *Events) HandleAssignmentUpdate(data json.RawMessage, message string) {
 	}
 
 	if err := json.Unmarshal(data, &update); err != nil {
-		log.Printf("Error parsing update: %v", err)
+		wrappedErr := errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal assignment update data")
+		log.Printf("Error parsing update: %v", wrappedErr)
 		return
 	}
 
 	if err := tx.Model(&assignment.LocalAssignment{}).Where("remote_id = ?", update.ID).Update(update.Column, update.Value).Error; err != nil {
-		fmt.Printf("Error updating assignment %s with %s = %s\n", update.ID, update.Column, update.Value)
+		wrappedErr := errors.HandleDBWriteError(err)
+		log.Printf("Error updating assignment %s with %s = %s: %v", update.ID, update.Column, update.Value, wrappedErr)
 		tx.Rollback()
-		panic(err)
+		return
 	}
 
 	var a assignment.LocalAssignment
 	err := tx.Model(&assignment.LocalAssignment{}).Where("remote_id = ?", update.ID).First(&a).Error
 	if err != nil {
-		log.Printf("Error getting assignment: %v", err)
+		wrappedErr := errors.HandleDBReadError(err)
+		log.Printf("Error getting assignment: %v", wrappedErr)
 		return
 	}
 
@@ -128,20 +135,23 @@ func (h *Events) HandleAssignmentDelete(data json.RawMessage, message string) {
 
 	var ar AssignmentResponse
 	if err := json.Unmarshal(data, &ar); err != nil {
-		log.Printf("Error unmarshalling assignment: %v", err)
+		wrappedErr := errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal assignment data")
+		log.Printf("Error unmarshalling assignment: %v", wrappedErr)
 		return
 	}
 
 	var a assignment.LocalAssignment
 	if err := tx.Model(&assignment.LocalAssignment{}).Where("notion_id = ?", ar.NotionID).First(&a).Error; err != nil {
 		tx.Rollback()
-		log.Printf("Error getting assignment: %v", err)
+		wrappedErr := errors.HandleDBReadError(err)
+		log.Printf("Error getting assignment: %v", wrappedErr)
 		return
 	}
 
 	if err := tx.Where("notion_id = ?", ar.NotionID).Delete(&assignment.LocalAssignment{}).Error; err != nil {
 		tx.Rollback()
-		log.Printf("Error deleting assignment: %v", err)
+		wrappedErr := errors.HandleDBWriteError(err)
+		log.Printf("Error deleting assignment: %v", wrappedErr)
 		return
 	}
 
@@ -162,13 +172,15 @@ func (h *Events) HandleFollow(data json.RawMessage, message string) {
 
 	var n notifications.LocalNotification
 	if err := json.Unmarshal(data, &n); err != nil {
-		log.Printf("Error unmarshalling notification: %v", err)
+		wrappedErr := errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal notification data")
+		log.Printf("Error unmarshalling notification: %v", wrappedErr)
 		return
 	}
 
 	if err := tx.Create(&n).Error; err != nil {
 		tx.Rollback()
-		log.Printf("Error creating notification: %v", err)
+		wrappedErr := errors.HandleDBCreateError(err)
+		log.Printf("Error creating notification: %v", wrappedErr)
 		return
 	}
 

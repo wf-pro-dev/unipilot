@@ -3,11 +3,11 @@ package notifications
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"sync"
 	"time"
 
+	"unipilot/internal/errors"
 	"unipilot/internal/models/notifications"
 	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
@@ -34,7 +34,7 @@ func NewEventHandler(userID uint) (*EventHandler, error) {
 	db, err := utils.GetUserDBWithID(userID)
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("failed to get database: %w", err)
+		return nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to get user database")
 	}
 	return &EventHandler{
 		userID:    userID,
@@ -66,7 +66,7 @@ func (eh *EventHandler) StartEventHandler(existingSSE *sse.SSE) error {
 	}
 
 	if existingSSE == nil {
-		return fmt.Errorf("existing SSE client is nil")
+		return errors.NewAppError(errors.ValidationInvalid, "Existing SSE client is nil", nil)
 	}
 
 	log.Printf("[EventHandler] Starting event handler for user %d using existing SSE connection", eh.userID)
@@ -125,7 +125,8 @@ func (eh *EventHandler) HandleFollowNotification(notification notifications.Loca
 	notification.ExpiresAt = &time.Time{}
 
 	if err := eh.db.Create(&notification).Error; err != nil {
-		log.Printf("[EventHandler] Error saving notification: %v", err)
+		wrappedErr := errors.HandleDBCreateError(err)
+		log.Printf("[EventHandler] Error saving notification: %v", wrappedErr)
 		return
 	}
 
@@ -252,7 +253,8 @@ func (eh *EventHandler) routeEvent(event sse.Event) {
 
 	var notification notifications.LocalNotification
 	if err := json.Unmarshal(event.Data, &notification); err != nil {
-		log.Printf("[EventHandler] Error parsing notification: %v", err)
+		wrappedErr := errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse notification event")
+		log.Printf("[EventHandler] Error parsing notification: %v", wrappedErr)
 		return
 	}
 

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"unipilot/internal/errors"
 	"unipilot/internal/services/notifications"
 	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
@@ -20,14 +21,16 @@ func main() {
 
 	user, err := utils.GetUserFromFile()
 	if err != nil {
-		log.Fatalf("Failed to get current user: %v", err)
+		wrappedErr := errors.Wrap(err, errors.FSFileNotFound, "Failed to get current user")
+		log.Fatalf("Failed to get current user: %v", wrappedErr)
 	}
 
 	// Setup logging if specified
 	if *logFile != "" {
 		file, err := os.OpenFile(*logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
-			log.Fatalf("Failed to open log file: %v", err)
+			wrappedErr := errors.Wrap(err, errors.FSOpenFailed, "Failed to open log file")
+			log.Fatalf("Failed to open log file: %v", wrappedErr)
 		}
 		defer file.Close()
 		log.SetOutput(file)

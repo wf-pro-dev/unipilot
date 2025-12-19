@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 	"unipilot/internal/client"
+	"unipilot/internal/errors"
 	"unipilot/internal/models/user"
 	"unipilot/internal/secrets"
 	"unipilot/internal/services/utils"
@@ -42,13 +43,13 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 	// Step 3: Send authentication request to API
 	resp, err := httpClient.Post(fmt.Sprintf("%s/auth/login", api_url), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, fmt.Errorf("http post failed: %w", err)
+		return nil, errors.Wrap(err, errors.NetworkConnectionFailed, "HTTP POST failed")
 	}
 	defer resp.Body.Close()
 
 	// Step 4: Validate response status code
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("login failed with status %d", resp.StatusCode)
+		return nil, errors.NewAppError(errors.AuthUnauthorized, "Login failed", nil).ToServerError(resp.StatusCode)
 	}
 
 	// Step 5: Parse API response to extract user data and tokens
@@ -58,7 +59,7 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 		RefreshToken string                 `json:"refresh_token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse login response")
 	}
 
 	// Step 6: Convert response map to User struct
@@ -82,28 +83,23 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 
 	// Step 7: Persist user credentials to local storage for future sessions
 	if err := utils.SetCredentials(&response_user); err != nil {
-		return nil, fmt.Errorf("failed to set credentials: %w", err)
+		return nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to set credentials")
 	}
-
-	/* DEPRECATED: Cookie-based authentication replaced with JWT tokens
-	if err := client.SaveCookies(&httpClient); err != nil {
-		return nil, fmt.Errorf("failed to save cookies: %w", err)
-	}*/
 
 	// Step 8: Save JWT access token for authenticated API requests
 	if err := client.SaveToken(response.Token); err != nil {
-		return nil, fmt.Errorf("failed to save token: %w", err)
+		return nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to save token")
 	}
 
 	// Step 9: Save refresh token for token renewal without re-authentication
 	if err := client.SaveRefreshToken(response.RefreshToken); err != nil {
-		return nil, fmt.Errorf("failed to save refresh token: %w", err)
+		return nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to save refresh token")
 	}
 
 	// Step 10: Create authenticated HTTP client with saved tokens
 	httpUserClient, err := client.NewAuthClient()
 	if err != nil {
-		return nil, fmt.Errorf("could not create authenticated http client: %w", err)
+		return nil, errors.Wrap(err, errors.ClientRequestFailed, "Could not create authenticated HTTP client")
 	}
 
 	a.Client = httpUserClient

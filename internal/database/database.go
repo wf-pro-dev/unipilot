@@ -29,3 +29,7 @@ func NewDatabase(user *user.User) (*Database, error) {
 
 	return database, nil
 }
+
+func (h *Database) SetDB(db *gorm.DB) {
+	h.db = db
+}
