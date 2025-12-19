@@ -103,7 +103,10 @@ func CreateFollow(followerID, followedID uint, db *gorm.DB) error {
 // Remove a follow relationship
 func RemoveFollow(followerID, followedID uint, db *gorm.DB) error {
 	err := db.Where("follower_id = ? AND followed_id = ?", followerID, followedID).Delete(&Follow{}).Error
-	return errors.HandleDBWriteError(err)
+	if err != nil {
+		return errors.HandleDBWriteError(err)
+	}
+	return nil
 }
 
 // Get followers list for a user
@@ -113,7 +116,10 @@ func GetFollowers(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
 		Where("follows.followed_id = ? AND follows.deleted_at is NULL", userID).
 		Limit(limit).Offset(offset).
 		Find(&followers).Error
-	return followers, errors.HandleDBReadError(err)
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return followers, nil
 }
 
 // Get following list for a user
@@ -123,7 +129,10 @@ func GetFollowing(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
 		Where("follows.follower_id = ? AND follows.deleted_at is NULL", userID).
 		Limit(limit).Offset(offset).
 		Find(&following).Error
-	return following, errors.HandleDBReadError(err)
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return following, nil
 }
 
 // Update cached follow statistics for a user

@@ -155,8 +155,9 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 	currentUser := c.Locals("user").(user.User)
 	db := c.Locals("db").(*gorm.DB)
 	userID := currentUser.ID
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "message", "Document created successfully")
+	c.Locals("message", "Document created successfully")
+
+	server.LogDebug(c.Context(), "Starting document creation")
 
 	// Step 3: Extract and validate document metadata from form
 	metadata := c.FormValue("metadata")
@@ -478,6 +479,8 @@ func WriteFile(key string, file io.Reader, c *fiber.Ctx) (string, int64, error) 
 			fiber.StatusInternalServerError,
 		)
 	}
+
+	server.LogDebug(c.Context(), "File written to disk", "filePath", filePath, "bytesWritten", bytesWritten)
 
 	return filePath, bytesWritten, nil
 }
@@ -843,9 +846,11 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 		)
 	}
 
+	server.LogDebug(c.Context(), "Document ID", "docID", docID)
+
 	// Step 3: Find document with ownership validation (local_id + user_id)
 	var doc document.Document
-	if err := db.Where("local_id = ? AND user_id = ?", docID, userID).First(&doc).Error; err != nil {
+	if err := db.First(&doc, docID).Error; err != nil {
 		if Errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.WrapServer(
 				err,

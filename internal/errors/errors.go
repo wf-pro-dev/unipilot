@@ -161,6 +161,10 @@ func GetRootAppError(err error) *AppError {
 	// Traverse to deepest AppError
 	for {
 		unwrapped := Errors.Unwrap(root)
+		// Check if unwrapped is nil before calling Errors.As
+		if unwrapped == nil {
+			break // End of error chain
+		}
 		var next *AppError
 		if !Errors.As(unwrapped, &next) {
 			break // End of AppError chain
@@ -201,6 +205,9 @@ func (e *AppError) GetAllCodes() []ErrorCode {
 }
 
 func (e *AppError) ToServerError(statusCode int) *ServerError {
+	if e == nil {
+		return nil
+	}
 	return NewServerError(e.Code, e.Message, e.Cause, statusCode)
 }
 
@@ -219,14 +226,23 @@ func (e *ServerError) Error() string {
 }
 
 func (e *ServerError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
 	return e.AppError.Unwrap()
 }
 
 func (e *ServerError) Is(target error) bool {
+	if e == nil {
+		return false
+	}
 	return e.AppError.Is(target)
 }
 
 func (e *ServerError) As(target interface{}) bool {
+	if e == nil {
+		return false
+	}
 	return e.AppError.As(target)
 }
 
