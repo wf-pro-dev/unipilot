@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
 	"unipilot/internal/secrets"
@@ -154,7 +155,7 @@ type AcceptLinkCourseResponse struct {
 	Assignments []assignment.Assignment `json:"assignments"`
 }
 
-func AcceptLinkCourse(c *course.Course) (*AcceptLinkCourseResponse, error) {
+func AcceptLinkCourse(c *course.Course) ([]assignment.Assignment, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Post(fmt.Sprintf("%s/courses/link-accept", api_url))
@@ -176,13 +177,12 @@ func AcceptLinkCourse(c *course.Course) (*AcceptLinkCourseResponse, error) {
 		return nil, serverError
 	}
 
-	var response AcceptLinkCourseResponse
+	var response []assignment.Assignment
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 	}
 
-	if response.Assignments == nil {
-		return &AcceptLinkCourseResponse{Assignments: []assignment.Assignment{}}, nil
-	}
-	return &response, nil
+	log.Printf("Assignments: %+v", len(response))
+
+	return response, nil
 }

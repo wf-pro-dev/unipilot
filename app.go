@@ -156,6 +156,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 		StatusName: assignmentData.StatusName,
 		Priority:   assignmentData.Priority,
 		Link:       assignmentData.Link,
+		ParentID:   assignmentData.ParentID,
 	}
 
 	// Create the assignment locally first
@@ -522,25 +523,18 @@ func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse) (*document.Lo
 	if a.Auth.IsAuthenticated() {
 
 		db := a.DB.GetDB()
-		tx := db.Begin()
-		defer func() {
-			if r := recover(); r != nil {
-				tx.Rollback()
-			}
-		}()
 
 		serverResponse, clientErr := client.SendDocument(uploadResp.LocalDocument)
 		if clientErr != nil {
 			return nil, Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
 		}
 
-		uploadResp.LocalDocument.StorageKey = serverResponse.Document.StorageKey
-		uploadResp.LocalDocument.RemoteID = serverResponse.Document.ID
-		if err := tx.Save(uploadResp.LocalDocument).Error; err != nil {
+		uploadResp.LocalDocument.StorageKey = serverResponse.StorageKey
+		uploadResp.LocalDocument.RemoteID = serverResponse.RemoteID
+		uploadResp.LocalDocument.RemoteAssignmentID = serverResponse.RemoteAssignmentID
+		if err := db.Save(uploadResp.LocalDocument).Error; err != nil {
 			return nil, Errors.HandleDBWriteError(err)
 		}
-
-		tx.Commit()
 
 	}
 
@@ -973,23 +967,25 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 
 	db := a.DB.GetDB()
 
-	//Get all documents related to the assignment
-	var documents []document.LocalDocument
 	documents, err := a.GetAssignmentDocuments(assignment.ID)
 	if err != nil {
 		return err
 	}
 
-	// Delete all documents related to the assignment
-	for _, document := range documents {
-		// Delete the document from the database
-		if err := db.Delete(document).Error; err != nil {
-			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to delete document record")
-		}
-	}
+	err = db.Transaction(func(tx *gorm.DB) error {
 
-	if err := a.DB.DeleteAssignment(assignment); err != nil {
-		return err
+		for _, doc := range documents {
+			if err := tx.Delete(&doc).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Delete(&assignment).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return Errors.Wrap(err, Errors.DBTransactionFailed, "Failed to delete assignment transaction")
 	}
 
 	remote_assignment_id_str := strconv.Itoa(int(assignment.RemoteID))
@@ -1043,16 +1039,44 @@ func (a *App) DeleteCourse(course *course.LocalCourse) error {
 		return err
 	}
 
-	// Delete all assignments related to the course
-	for _, assignment := range assignments {
-		if err := db.Delete(&assignment).Error; err != nil {
+	db.Transaction(func(tx *gorm.DB) error {
+
+		dbSave := a.DB.GetDB()
+
+		a.DB.SetDB(tx)
+
+		// Delete all assignments related to the course
+		for _, assignment := range assignments {
+			documents, err := a.GetAssignmentDocuments(assignment.ID)
+			if err != nil {
+				return err
+			}
+			for _, doc := range documents {
+				if err := tx.Delete(&doc).Error; err != nil {
+					return err
+				}
+			}
+			if err := tx.Delete(&assignment).Error; err != nil {
+				return err
+			}
+		}
+
+		notes, err := note.GetLocalCourseNotes(course.Code, tx)
+		if err != nil {
 			return err
 		}
-	}
+		for _, note := range notes {
+			if err := tx.Delete(&note).Error; err != nil {
+				return err
+			}
+		}
 
-	if err := a.DB.DeleteCourse(course); err != nil {
-		return err
-	}
+		if err := tx.Delete(&course).Error; err != nil {
+			return err
+		}
+		a.DB.SetDB(dbSave)
+		return nil
+	})
 
 	course_id_str := strconv.Itoa(int(course.RemoteID))
 
@@ -1737,14 +1761,13 @@ func (a *App) AcceptLink(courseData string) error {
 		return err
 	}
 
-	response, err := client.AcceptLinkCourse(&c)
-
+	assignments, err := client.AcceptLinkCourse(&c)
 	if err != nil {
 		return err
 	}
 
 	// Create the assignments
-	for _, remoteAssignment := range response.Assignments {
+	for _, remoteAssignment := range assignments {
 
 		localAssignment := assignment.LocalAssignment{
 			Title:      remoteAssignment.Title,
@@ -1755,6 +1778,7 @@ func (a *App) AcceptLink(courseData string) error {
 			StatusName: "Not started",
 			Priority:   remoteAssignment.Priority,
 			Link:       remoteAssignment.Link,
+			ParentID:   remoteAssignment.ID,
 		}
 
 		var newAssignment *assignment.LocalAssignment

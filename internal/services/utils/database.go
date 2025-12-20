@@ -15,13 +15,16 @@ func GetUserDB() (*gorm.DB, error) {
 	// Determine database path
 	dbPath, err := GetDBPath()
 	if err != nil {
-		return nil, errors.Wrap(err, errors.FSFileNotFound, "Failed to get database path")
+		if errors.HasCode(err, errors.FSFileNotFound) {
+			return nil, errors.Wrap(err, errors.FSFileNotFound, "Database file not found")
+		}
+		return nil, errors.Wrap(err, errors.FSFileFailed, "Failed to get database path")
 	}
 
 	// Open database connection
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
 		PrepareStmt: true, // Better performance
-		Logger:      logger.Default.LogMode(logger.Error),
+		Logger:      logger.Default.LogMode(logger.Warn),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to open SQLite database")
@@ -33,11 +36,6 @@ func GetUserDB() (*gorm.DB, error) {
 		return nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to set connection pool")
 	}
 	sqlDB.SetMaxOpenConns(1) // SQLite works best with single connection
-
-	// Initialize schema (including new document tables)
-	if err := storage.InitializeSchema(db); err != nil {
-		return nil, errors.Wrap(err, errors.DBQueryFailed, "Failed to initialize schema")
-	}
 
 	return db, nil
 }

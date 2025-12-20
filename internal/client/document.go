@@ -20,8 +20,9 @@ import (
 
 // UploadResponse represents the server response
 type UploadResponse struct {
-	Success  bool              `json:"success"`
-	Document document.Document `json:"document"`
+	RemoteID           uint   `json:"remote_id"`
+	RemoteAssignmentID uint   `json:"remote_assignment_id"`
+	StorageKey         string `json:"storage_key"`
 }
 
 // GetDocuments retrieves all documents
@@ -179,8 +180,6 @@ func SendDocument(localDocument *document.LocalDocument) (*UploadResponse, error
 	if err := json.Unmarshal(respBody, &uploadResp); err != nil {
 		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse success response")
 	}
-
-	log.Printf("uploadResp: %+v", resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
 		var serverError *errors.AppError

@@ -7,6 +7,7 @@ import { assignmentKeys } from './use-assignments'
 import { assignment } from '@/wailsjs/go/models'
 import { documentKeys } from './use-documents'
 
+
 // Query keys for consistent cache management
 export const courseKeys = {
   all: ['courses'] as const,
@@ -120,9 +121,6 @@ export function useDeleteCourse() {
     
     // Optimistically remove the course, assignments, and documents
     onMutate: async (course) => {
-      await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
-      await queryClient.cancelQueries({ queryKey: assignmentKeys.all })
-      await queryClient.cancelQueries({ queryKey: documentKeys.all })
       
       const previousCourses = queryClient.getQueryData<course.LocalCourse[]>(courseKeys.lists())
       const previousAssignments = queryClient.getQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists())
@@ -177,8 +175,8 @@ export function useDeleteCourse() {
 // Hook for requesting to link a course to a list of users
 export function useRequestLinkCourse() {
   return useMutation({
-    mutationFn: async ({ course, usersID }: { course: course.LocalCourse, usersID: number[] }) => {
-      return await window.go.main.App.RequestLinkCourse(course, usersID)
+    mutationFn: async ({ c, usersID }: { c: course.LocalCourse, usersID: number[] }) => {
+      return await window.go.main.App.RequestLinkCourse(c, usersID)
     }
   })
 }
@@ -194,15 +192,9 @@ export function useAcceptLink() {
     onMutate: async () => {
       // Force refetch for courses, assignments, and documents
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
-      await queryClient.cancelQueries({ queryKey: assignmentKeys.all })
-      await queryClient.cancelQueries({ queryKey: documentKeys.all })
-
-      // Wait for all refetches to complete
-      await queryClient.refetchQueries({ queryKey: courseKeys.lists() })
-      await queryClient.refetchQueries({ queryKey: assignmentKeys.all })
-      await queryClient.refetchQueries({ queryKey: documentKeys.all })
-      
-  
+      await queryClient.cancelQueries({ queryKey: assignmentKeys.lists() })
+      await queryClient.cancelQueries({ queryKey: documentKeys.lists() })
+        
     }
 
   })

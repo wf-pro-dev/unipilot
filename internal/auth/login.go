@@ -124,6 +124,7 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 // Returns:
 //   - error: Last error encountered (if any), but login succeeds regardless
 func PostLogin() error {
+
 	// Step 1: Get local database connection for data migration
 	// Gracefully handle missing database directory (first-time login scenario)
 	localDB, err := utils.GetUserDB()
@@ -132,30 +133,33 @@ func PostLogin() error {
 		// This might happen if the database directory doesn't exist yet
 		fmt.Printf("Warning: Could not get local database: %v\n", err)
 		fmt.Printf("Login successful, but database operations failed\n")
+		if errors.HasCode(err, errors.FSFileNotFound) {
+			// Step 2: Initialize database schema (create tables if they don't exist)
+			// Non-fatal operation - login succeeds even if schema initialization fails
+			if err := storage.InitializeSchema(localDB); err != nil {
+				fmt.Printf("Warning: Failed to initialize database schema: %v\n", err)
+				// Don't fail the login, just continue
+			}
+
+			// Step 3: Migrate courses from remote server to local database
+			// Non-fatal operation - allows offline access to courses
+			// Note: Sync functions are temporarily disabled
+			if err := sync.MigrateCourses(localDB); err != nil {
+				fmt.Printf("Warning: Failed to migrate courses: %v\n", err)
+				// Don't rollback, continue with the transaction
+			}
+
+			// Step 4: Migrate assignments from remote server to local database
+			// Non-fatal operation - allows offline access to assignments
+			// Note: Sync functions are temporarily disabled
+			if err := sync.MigrateAssignments(localDB); err != nil {
+				fmt.Printf("Warning: Failed to migrate assignments: %v\n", err)
+				// Don't rollback, continue with the transaction
+			}
+		}
 		// Don't fail the login, just return success
-		return nil
-	}
-	// Step 2: Initialize database schema (create tables if they don't exist)
-	// Non-fatal operation - login succeeds even if schema initialization fails
-	if err := storage.InitializeSchema(localDB); err != nil {
-		fmt.Printf("Warning: Failed to initialize database schema: %v\n", err)
-		// Don't fail the login, just continue
+		return err
 	}
 
-	// Step 3: Migrate courses from remote server to local database
-	// Non-fatal operation - allows offline access to courses
-	// Note: Sync functions are temporarily disabled
-	if err := sync.MigrateCourses(localDB); err != nil {
-		fmt.Printf("Warning: Failed to migrate courses: %v\n", err)
-		// Don't rollback, continue with the transaction
-	}
-
-	// Step 4: Migrate assignments from remote server to local database
-	// Non-fatal operation - allows offline access to assignments
-	// Note: Sync functions are temporarily disabled
-	if err := sync.MigrateAssignments(localDB); err != nil {
-		fmt.Printf("Warning: Failed to migrate assignments: %v\n", err)
-		// Don't rollback, continue with the transaction
-	}
-	return err
+	return nil
 }

@@ -55,3 +55,12 @@ func DeleteNote(id uint, db *gorm.DB) error {
 	}
 	return nil
 }
+
+func GetCourseNotes(courseCode string, userID uint, db *gorm.DB) ([]Note, error) {
+	var notes []Note
+	err := db.Where("course_code = ? AND user_id = ?", courseCode, userID).Find(&notes).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return notes, nil
+}

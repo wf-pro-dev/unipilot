@@ -33,7 +33,7 @@ export function LinkRequestModal({ isOpen, onClose, courseID }: LinkRequestModal
     const handleRequestLinkCourse = () => {
         LogInfo("Requesting to link course " + courseID + " to " + selectedFollowers.length + " followers")
         
-        requestLinkCourse({ course: courses?.find((c) => c.ID === courseID) as course.LocalCourse, usersID: selectedFollowers })
+        requestLinkCourse({ c: courses?.find((c) => c.ID === courseID) as course.LocalCourse, usersID: selectedFollowers })
     }
 
     return (
