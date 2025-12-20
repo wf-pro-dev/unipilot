@@ -582,7 +582,5 @@ func AcceptLinkCourseHandler(c *fiber.Ctx) error {
 
 	// Step 5: Return the enriched assignments to the client
 	// The client will use this data to sync the course and assignments locally
-	return c.JSON(fiber.Map{
-		"assignments": responseAssignments,
-	})
+	return c.JSON(responseAssignments)
 }

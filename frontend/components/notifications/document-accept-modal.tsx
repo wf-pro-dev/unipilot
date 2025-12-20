@@ -4,6 +4,7 @@ import { Card, CardHeader, CardContent, CardFooter } from "../ui/card";
 import { Dialog, DialogContent } from "../ui/dialog";
 import { document } from "@/wailsjs/go/models";
 import { useAuthContext } from "../provider/auth-provider";
+import { assignment as Assignment } from "@/wailsjs/go/models";
 
 
 interface DocumentAcceptModalProps {
@@ -28,7 +29,7 @@ export function DocumentAcceptModal({
 
     const fulldDocumentData = JSON.parse(documentData)
     const document = JSON.parse(documentData) as document.LocalDocument
-    const assignment = assignments?.find((assignment) => assignment.ParentID === fulldDocumentData.AssignmentID)
+    const assignment = assignments?.find((assign: Assignment.LocalAssignment) => assign.ParentID === fulldDocumentData.AssignmentID)
 
     const formatFileSize = (bytes: number): string => {
         if (bytes === 0) return "0 B"
@@ -90,6 +91,7 @@ export function DocumentAcceptModal({
                             <Check className="w-3 h-3 text-blue-400" />
                             It will be added to your documents. Make sure to check for similar assignments.
                         </p>
+                        
                     </CardContent>
                     <CardFooter className="flex space-x-3 p-6 pt-0">
                         <Button

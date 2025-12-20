@@ -217,6 +217,16 @@ func (a *Assignment) GetChildren(db *gorm.DB) ([]Assignment, error) {
 	return children, nil
 }
 
+func (a *Assignment) GetSiblings(db *gorm.DB) ([]Assignment, error) {
+	var siblings []Assignment
+	err := db.Where("parent_id = ? or ( ( parent_id = ? or id = ? ) and parent_id != 0 )", a.ID, a.ParentID, a.ParentID).
+		Find(&siblings).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return siblings, nil
+}
+
 func DeleteAssignment(id uint, tx *gorm.DB) error {
 
 	documents, err := GetDocuments(id, tx)

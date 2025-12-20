@@ -157,8 +157,6 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 	userID := currentUser.ID
 	c.Locals("message", "Document created successfully")
 
-	server.LogDebug(c.Context(), "Starting document creation")
-
 	// Step 3: Extract and validate document metadata from form
 	metadata := c.FormValue("metadata")
 	if metadata == "" {
@@ -287,9 +285,9 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	// Step 10: Get child assignments for notification distribution
+	// Step 10: Get siblings assignments for notification distribution
 	// Get linked assignments
-	linkedAssignments, err := a.GetChildren(db)
+	linkedAssignments, err := a.GetSiblings(db)
 	if err != nil {
 		return errors.WrapServer(
 			err,
@@ -316,6 +314,10 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 	if GrpcClient != nil && localDoc.HasLocalFile {
 		// Send notification to linked assignments
 		for _, linkedAssignment := range linkedAssignments {
+			if linkedAssignment.UserID == userID {
+				continue
+			}
+			server.LogDebug(context.Background(), "Sending notification to linked assignment", "assignment_id", linkedAssignment.ID, "user_id", linkedAssignment.UserID)
 			_, err := (*GrpcClient).SendNotification(context.Background(),
 				&notifications.Notification{
 					UserId:   uint32(linkedAssignment.UserID),
@@ -342,8 +344,9 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 
 	// Step 13: Send successful response with document metadata
 	return c.JSON(fiber.Map{
-		"success":  true,
-		"document": doc,
+		"remote_id":            doc.ID,
+		"remote_assignment_id": doc.AssignmentID,
+		"storage_key":          doc.StorageKey,
 	})
 }
 
@@ -599,8 +602,7 @@ func UploadFile(localDoc document.LocalDocument, key string, fileHeader *multipa
 //   - Logs download metrics for monitoring
 //   - No local file storage or cleanup required
 func DownloadDocumentHandler(c *fiber.Ctx) error {
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "message", "Document downloaded successfully")
+	c.Locals("message", "Document downloaded successfully")
 	// Step 1: Parse document download request from JSON body
 	var docData document.LocalDocument
 	if err := c.BodyParser(&docData); err != nil {
@@ -847,8 +849,6 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	server.LogDebug(c.Context(), "Document ID", "docID", docID)
-
 	// Step 3: Find document with ownership validation (local_id + user_id)
 	var doc document.Document
 	if err := db.First(&doc, docID).Error; err != nil {
@@ -868,16 +868,18 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 		)
 	}
 
+	if doc.IsOriginal {
+		if err := cloudstorage.DeleteFile(doc.StorageKey); err != nil {
+			return errors.WrapServer(
+				err,
+				errors.StorageDeleteFailed,
+				"Error deleting document from storage",
+				fiber.StatusInternalServerError,
+			)
+		}
+	}
 	// Step 4: Delete associated file from R2 cloud storage
 	// Delete the document on R2
-	if err := cloudstorage.DeleteFile(doc.FilePath); err != nil {
-		return errors.WrapServer(
-			err,
-			errors.StorageDeleteFailed,
-			"Error deleting document from storage",
-			fiber.StatusInternalServerError,
-		)
-	}
 
 	// Step 5: Remove document record from database
 	if err := db.Delete(&doc).Error; err != nil {

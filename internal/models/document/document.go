@@ -279,7 +279,7 @@ func UpdateStorageInfo(userID uint, db *gorm.DB) error {
 func DeleteDocument(doc Document, db *gorm.DB) error {
 
 	// Delete the document on S3
-	if err := cloudstorage.DeleteFile(doc.FilePath); err != nil {
+	if err := cloudstorage.DeleteFile(doc.StorageKey); err != nil {
 		if errors.HasCode(err, errors.StorageFileNotFound) || errors.HasCode(err, errors.AuthForbidden) {
 			return errors.Inherit(err, errors.StorageDeleteFailed)
 		}
