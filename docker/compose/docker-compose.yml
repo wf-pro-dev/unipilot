@@ -22,7 +22,7 @@ services:
       - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL}
       - AWS_REGION=${AWS_REGION}
       - GRPC_SSE_ADDR=${GRPC_SSE_ADDR}
-      - REDIS_ADDR=${REDIS_ADDR}
+      - REDIS_ADDR=${REDIS_ADDR:-unipilot_redis:6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - QDRANT_HOST=${QDRANT_HOST:-unipilot-qdrant}
       - LOG_LEVEL=${LOG_LEVEL}

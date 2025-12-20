@@ -177,14 +177,12 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 		if Errors.Is(result.Error, gorm.ErrDuplicatedKey) {
 			return errors.WrapServer(result.Error, errors.DBConstraintViolation, "Assignment already exists", fiber.StatusConflict)
 		}
-
 		return errors.WrapServer(result.Error, errors.DBQueryFailed, "Error creating assignment in database", fiber.StatusInternalServerError)
 	}
 
 	// Serialize assignment data for notification payload
 	aJson, err := json.Marshal(input)
 	if err != nil {
-
 		return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Error processing assignment data", fiber.StatusInternalServerError)
 	}
 
