@@ -1,8 +1,7 @@
 package sync
 
 import (
-	"strconv"
-	"time"
+	Errors "errors"
 	"unipilot/internal/client"
 	"unipilot/internal/errors"
 	"unipilot/internal/models/assignment"
@@ -58,46 +57,26 @@ func MigrateCourses(db *gorm.DB) error {
 	}
 
 	for _, rc := range remoteCourses {
-		remote_id, err := strconv.Atoi(rc["id"])
-		if err != nil {
-			return errors.Wrap(err, errors.SyncDataConversionError, "Failed to convert course remote ID to int")
-		}
-
-		start_date, err := time.Parse(time.DateOnly, rc["start_date"])
-		if err != nil {
-			return errors.Wrap(err, errors.SyncDataConversionError, "Failed to parse course start date")
-		}
-
-		end_date, err := time.Parse(time.DateOnly, rc["end_date"])
-		if err != nil {
-			return errors.Wrap(err, errors.SyncDataConversionError, "Failed to parse course end date")
-		}
-
-		credits, err := strconv.Atoi(rc["credits"])
-		if err != nil {
-			return errors.Wrap(err, errors.SyncDataConversionError, "Failed to convert course credits to int")
-		}
 
 		localCourse := course.LocalCourse{
-			RemoteID:        uint(remote_id),
-			Code:            rc["code"],
-			Name:            rc["name"],
-			Color:           rc["color"],
-			Location:        rc["location"],
-			StartDate:       start_date,
-			EndDate:         end_date,
-			Schedule:        rc["schedule"],
-			Credits:         credits,
-			Semester:        rc["semester"],
-			Instructor:      rc["instructor"],
-			InstructorEmail: rc["instructor_email"],
-		}
-
-		if err := db.First(&localCourse, "remote_id = ?", remote_id).Error; err == nil {
-			continue
+			RemoteID:        rc.ID,
+			Code:            rc.Code,
+			Name:            rc.Name,
+			Color:           rc.Color,
+			Location:        rc.Location,
+			StartDate:       rc.StartDate,
+			EndDate:         rc.EndDate,
+			Schedule:        rc.Schedule,
+			Credits:         rc.Credits,
+			Semester:        rc.Semester,
+			Instructor:      rc.Instructor,
+			InstructorEmail: rc.InstructorEmail,
 		}
 
 		if err := db.Create(&localCourse).Error; err != nil {
+			if Errors.Is(err, gorm.ErrDuplicatedKey) {
+				continue
+			}
 			count++
 			return errors.HandleDBCreateError(err)
 		}

@@ -31,6 +31,8 @@ func Sync(db *gorm.DB) error {
 		return wrappedErr
 	}
 
+	log.Printf("len of courses : %v", len(remoteCourses))
+
 	var syncLogs []models.LocalUpdate
 	if err := db.Find(&syncLogs).Error; err != nil {
 		wrappedErr := errors.HandleDBReadError(err)
@@ -102,18 +104,15 @@ func SyncAssignment(syncLog models.LocalUpdate, remoteAssignments []assignment.A
 			return errors.NewAppError(errors.SyncRemoteNotFound, "Remote assignment not found", nil)
 		}
 
-		log.Println("[Sync] Syncing assignment", remoteAssignment.UpdatedAt.Format(time.RFC3339), syncLog.UpdatedAt.Format(time.RFC3339))
-
 		// Check if the remote assignment has been updated
 		if remoteAssignment.UpdatedAt.Before(syncLog.UpdatedAt) {
 
+			if localAssignment.RemoteID == 0 {
+				return errors.NewAppError(errors.SyncInvalidRemoteID, "Remote assignment ID is 0", nil)
+			}
 			remote_id_int := int(localAssignment.RemoteID)
 
 			remote_id := strconv.Itoa(remote_id_int)
-
-			if remote_id == "0" {
-				return errors.NewAppError(errors.SyncInvalidRemoteID, "Remote assignment ID is 0", nil)
-			}
 
 			if err := client.UpdateAssignment(remote_id, syncLog.Column, syncLog.Value); err != nil {
 				return err
@@ -128,7 +127,7 @@ func SyncAssignment(syncLog models.LocalUpdate, remoteAssignments []assignment.A
 
 }
 
-func SyncCourse(syncLog models.LocalUpdate, remoteCourses []map[string]string, db *gorm.DB) error {
+func SyncCourse(syncLog models.LocalUpdate, remoteCourses []course.Course, db *gorm.DB) error {
 
 	switch syncLog.Action {
 	case "create":
@@ -151,22 +150,13 @@ func SyncCourse(syncLog models.LocalUpdate, remoteCourses []map[string]string, d
 			EndDate:         localCourse.EndDate,
 		}
 
-		responseCourse, err := client.CreateCourse(remoteCourse)
+		remoteID, err := client.CreateCourse(remoteCourse)
 		if err != nil {
 			return err
 		}
 
-		str_remote_id, ok := responseCourse["id"].(string)
-		if !ok {
-			return errors.NewAppError(errors.SyncInvalidRemoteID, "Invalid remote course ID format", nil)
-		}
+		localCourse.RemoteID = remoteID
 
-		remote_id, err := strconv.Atoi(str_remote_id)
-		if err != nil {
-			return errors.Wrap(err, errors.SyncDataConversionError, "Failed to convert remote course ID to int")
-		}
-
-		localCourse.RemoteID = uint(remote_id)
 		if err := db.Save(&localCourse).Error; err != nil {
 			return errors.HandleDBWriteError(err)
 		}
@@ -177,29 +167,26 @@ func SyncCourse(syncLog models.LocalUpdate, remoteCourses []map[string]string, d
 		if err := db.Unscoped().Where("id = ?", syncLog.EntityID).First(&localCourse).Error; err != nil {
 			return errors.HandleDBReadError(err)
 		}
-		remoteCourse := findRemoteEntityLegacy(remoteCourses, localCourse.RemoteID)
+		remoteCourse := findRemoteEntityCourse(remoteCourses, localCourse.RemoteID)
 
 		// If the remote course is not found, return an error
 		if remoteCourse == nil {
 			return errors.NewAppError(errors.SyncRemoteNotFound, "Remote course not found", nil)
 		}
-		log.Println("[Sync] Syncing course", remoteCourse["updated_at"], syncLog.UpdatedAt.Format(time.RFC3339))
 		// Check if the remote course has been updated
-		if remoteCourse["updated_at"] < syncLog.UpdatedAt.Format(time.RFC3339) {
+		if remoteCourse.UpdatedAt.Before(syncLog.UpdatedAt) {
 
-			remote_id_int := int(localCourse.RemoteID)
-			remote_id := strconv.Itoa(remote_id_int)
-
-			if remote_id == "0" {
+			if localCourse.RemoteID == 0 {
 				return errors.NewAppError(errors.SyncInvalidRemoteID, "Remote course ID is 0", nil)
 			}
+			remote_id_int := int(localCourse.RemoteID)
+
+			remote_id := strconv.Itoa(remote_id_int)
 
 			if err := client.UpdateCourse(remote_id, syncLog.Column, syncLog.Value); err != nil {
 				return err
 			}
 
-		} else {
-			log.Println("Remote course has been updated", remoteCourse["updated_at"], syncLog.UpdatedAt.Format(time.RFC3339))
 		}
 	}
 
@@ -244,10 +231,11 @@ func findRemoteEntity(remoteEntities []assignment.Assignment, localEntityID uint
 	return nil
 }
 
-func findRemoteEntityLegacy(remoteEntities []map[string]string, localEntityID uint) map[string]string {
+func findRemoteEntityCourse(remoteEntities []course.Course, localEntityID uint) *course.Course {
 	for _, remoteEntity := range remoteEntities {
-		if remoteEntity["id"] == strconv.Itoa(int(localEntityID)) {
-			return remoteEntity
+		log.Printf("remoteEntity.ID : %v, localEntityID : %v", remoteEntity.ID, localEntityID)
+		if remoteEntity.ID == localEntityID {
+			return &remoteEntity
 		}
 	}
 	return nil

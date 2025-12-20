@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"unipilot/internal/errors"
+	"unipilot/internal/models/course"
 	"unipilot/internal/models/notifications"
 	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
@@ -158,6 +159,36 @@ func (eh *EventHandler) HandleSyncNotification(notification notifications.LocalN
 	}
 }
 
+func (eh *EventHandler) HandleLinkNotification(notification notifications.LocalNotification) {
+	log.Printf("[EventHandler] Processing link notification: %s", notification.Message)
+	log.Printf("[EventHandler] Data: %s", string(notification.Data))
+
+	notification.Type = notifications.NotificationLink
+	notification.Read = false
+	notification.ExpiresAt = &time.Time{}
+
+	// Parse the data
+	var data struct {
+		CourseCode string `json:"course_code"`
+		LinkID     uint   `json:"link_id"`
+	}
+	if err := json.Unmarshal([]byte(notification.Data), &data); err != nil {
+		log.Printf("[EventHandler] Error parsing link data: %v", err)
+		return
+	}
+
+	// Update  the course by code
+	if err := eh.db.Model(&course.LocalCourse{Code: data.CourseCode}).Update("link_id", data.LinkID).Error; err != nil {
+		log.Printf("[EventHandler] Link data: %+v", data)
+	}
+
+	if err := beeep.Notify(notification.Title, notification.Message, ""); err != nil {
+		log.Printf("[EventHandler] Error sending system notification: %v", err)
+	} else {
+		log.Printf("[EventHandler] Sent assignment notification: %s", notification.Title)
+	}
+}
+
 // HandleAssignmentNotification processes real-time assignment events
 func (eh *EventHandler) HandleAssignmentNotification(notification notifications.LocalNotification) {
 	log.Printf("[EventHandler] Processing assignment notification: %s", notification.Message)
@@ -266,12 +297,15 @@ func (eh *EventHandler) routeEvent(event sse.Event) {
 		eh.HandleFollowNotification(notification)
 	case notifications.NotificationSync:
 		eh.HandleSyncNotification(notification)
+	case notifications.NotificationLink:
+		eh.HandleLinkNotification(notification)
 	case notifications.NotificationAssignmentUpdate:
 		eh.HandleAssignmentNotification(notification)
 	case notifications.NotificationDocumentUpdate:
 		eh.handleDocumentNotification(notification)
 	case notifications.NotificationNoteUpdate:
 		eh.handleNoteNotification(notification)
+
 	default:
 		log.Printf("[EventHandler] Unknown entity type: %s", notification.Entity)
 	}

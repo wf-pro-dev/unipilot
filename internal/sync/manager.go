@@ -7,6 +7,7 @@ import (
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/models/assignment"
+	"unipilot/internal/models/course"
 	"unipilot/internal/network"
 
 	"gorm.io/gorm"
@@ -158,7 +159,7 @@ func (sm *SyncManager) ProcessPendingSyncs() error {
 }
 
 // ProcessSync processes a single sync operation
-func (sm *SyncManager) ProcessSync(syncLog models.LocalUpdate, remoteAssignments []assignment.Assignment, remoteCourses []map[string]string) error {
+func (sm *SyncManager) ProcessSync(syncLog models.LocalUpdate, remoteAssignments []assignment.Assignment, remoteCourses []course.Course) error {
 
 	switch syncLog.Entity {
 	case models.EntityAssignment:

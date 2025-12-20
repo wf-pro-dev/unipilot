@@ -185,10 +185,6 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                 onEdit(course, key, value)
                 isChanged = true
             }
-            else {
-                const message = `No changes to ${column} value: ${value} course: ${course[column]}`
-                LogInfo(message)
-            }
         }
 
         const formattedStartDate = format(startDate, "yyyy-MM-dd HH:mm:ssxxx")
@@ -197,16 +193,10 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
         if (!isSameDay(startDate, new Date(course.StartDate))) {
             onEdit(course, "start_date", formattedStartDate)
             isChanged = true
-        } else {
-            const message = `No changes to start date value: ${formattedStartDate} course: ${course.StartDate}`
-            LogInfo(message)
         }
         if (!isSameDay(endDate, new Date(course.EndDate))) {
             onEdit(course, "end_date", formattedEndDate)
             isChanged = true
-        } else {
-            const message = `No changes to end date value: ${formattedEndDate} course: ${course.EndDate}`
-            LogInfo(message)
         }
 
         if (isChanged) {
@@ -255,7 +245,6 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   placeholder="Building 1, Room 101 / Online"
                   className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all h-10"
-                  required
                 />
               </div>
               <div className="space-y-2">

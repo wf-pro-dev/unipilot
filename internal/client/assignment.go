@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"unipilot/internal/models/assignment"
-	"unipilot/internal/network"
 	"unipilot/internal/secrets"
 
 	"unipilot/internal/errors"
@@ -14,33 +13,29 @@ import (
 
 func GetAssignments() ([]assignment.Assignment, error) {
 
-	isOnline := network.IsOnline()
+	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Get(fmt.Sprintf("%s/assignments", api_url))
 
-	if isOnline {
-		api_url := secrets.CONSTANTS["API_URL"]
-		agent := fiber.Get(fmt.Sprintf("%s/assignments", api_url))
-
-		if err := setAuthHeader(agent); err != nil {
-			return nil, err
-		}
-
-		statusCode, body, errs := agent.Bytes()
-		if len(errs) > 0 {
-			return nil, errs[0]
-		}
-
-		if statusCode != 200 {
-			serverError := errors.ParseServerError(body, statusCode)
-			return nil, serverError
-		}
-
-		var response []assignment.Assignment
-		if err := json.Unmarshal(body, &response); err != nil {
-			return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
-		}
-
-		return response, nil
+	if err := setAuthHeader(agent); err != nil {
+		return nil, err
 	}
+
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
+
+	if statusCode != 200 {
+		serverError := errors.ParseServerError(body, statusCode)
+		return nil, serverError
+	}
+
+	var response []assignment.Assignment
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
+	}
+
+	return response, nil
 
 	return nil, nil
 
@@ -73,7 +68,7 @@ func CreateAssignment(a *assignment.Assignment) (uint, error) {
 		RemoteID uint `json:"remote_id"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
-		return 0, fmt.Errorf("failed to decode response: %w", err)
+		return 0, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 	}
 
 	return response.RemoteID, nil

@@ -141,6 +141,12 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
+	if !a.Auth.IsAuthenticated() {
+		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
+	}
+
+	db := a.DB.GetDB()
+
 	localAssignment := &assignment.LocalAssignment{
 		Title:      assignmentData.Title,
 		Todo:       assignmentData.Todo,
@@ -152,20 +158,8 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 		Link:       assignmentData.Link,
 	}
 
-	if !a.Auth.IsAuthenticated() {
-		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
-	}
-
-	tx := a.DB.GetDB().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
 	// Create the assignment locally first
-	if err := tx.Create(localAssignment).Error; err != nil {
-		tx.Rollback()
+	if err := db.Create(localAssignment).Error; err != nil {
 		return nil, Errors.HandleDBWriteError(err)
 	}
 
@@ -196,7 +190,7 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 
 	if clientErr != nil {
 		// Server operation failed, create sync log
-		syncManager := sync.NewSyncManager(tx)
+		syncManager := sync.NewSyncManager(db)
 		if syncErr := syncManager.CreateSyncLog(
 			models.EntityAssignment,
 			localAssignment.ID,
@@ -205,12 +199,10 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 			"",
 			clientErr,
 		); syncErr != nil {
-			tx.Rollback()
 			return nil, Errors.Wrap(syncErr, Errors.ClientRequestFailed, "Failed to create sync log")
 		}
 
 		//Commit the transaction with the sync log
-		tx.Commit()
 
 		return nil, nil
 	}
@@ -218,13 +210,8 @@ func (a *App) CreateAssignment(assignmentData *assignment.LocalAssignment) (*ass
 	// Server operation succeeded
 	localAssignment.RemoteID = remoteID
 
-	if err := tx.Save(localAssignment).Error; err != nil {
-		tx.Rollback()
+	if err := db.Save(localAssignment).Error; err != nil {
 		return nil, Errors.HandleDBWriteError(err)
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return nil, Errors.Wrap(err, Errors.DBTransactionFailed, "Failed to commit transaction")
 	}
 
 	return localAssignment, nil
@@ -240,6 +227,8 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 
+	db := a.DB.GetDB()
+
 	localCourse := &course.LocalCourse{
 		Name:            courseData.Name,
 		Code:            courseData.Code,
@@ -254,26 +243,8 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 		EndDate:         courseData.EndDate,
 	}
 
-	tx := a.DB.GetDB().Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
-	// Check if a soft-deleted course with the same code exists
-	var existingCourse course.LocalCourse
-	if err := tx.Unscoped().Where("code = ? AND deleted_at IS NOT NULL", localCourse.Code).First(&existingCourse).Error; err == nil {
-		// A soft-deleted course with this code exists, permanently delete it first
-		if err := tx.Unscoped().Delete(&existingCourse).Error; err != nil {
-			tx.Rollback()
-			return Errors.HandleDBWriteError(err)
-		}
-	}
-
 	// Create the course within the transaction
-	if err := tx.Create(localCourse).Error; err != nil {
-		tx.Rollback()
+	if err := db.Create(localCourse).Error; err != nil {
 		return Errors.HandleDBWriteError(err)
 	}
 
@@ -293,16 +264,16 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 	}
 
 	isOnline := network.IsOnline()
-	var responseCourse map[string]interface{}
+	var remoteID uint
 	var clientErr error
 	if isOnline {
-		responseCourse, clientErr = client.CreateCourse(remoteCourse)
+		remoteID, clientErr = client.CreateCourse(remoteCourse)
 	} else {
 		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
 	}
 
 	if clientErr != nil {
-		syncManager := sync.NewSyncManager(tx)
+		syncManager := sync.NewSyncManager(db)
 		if syncErr := syncManager.CreateSyncLog(
 			models.EntityCourse,
 			localCourse.ID,
@@ -311,34 +282,15 @@ func (a *App) CreateCourse(courseData *course.LocalCourse) error {
 			"",
 			clientErr,
 		); syncErr != nil {
-			tx.Rollback()
 			return Errors.Wrap(syncErr, Errors.ClientRequestFailed, "Failed to create sync log")
 		}
-		tx.Commit()
 		return nil
 	}
 
-	str_remote_id, ok := responseCourse["id"].(string)
-	if !ok {
-		tx.Rollback()
-		return Errors.Wrap(fmt.Errorf("invalid remote course ID %v", responseCourse["id"]), Errors.ClientRequestFailed, "Invalid remote course ID")
-	}
+	localCourse.RemoteID = remoteID
 
-	remote_id, err := strconv.Atoi(str_remote_id)
-	if err != nil {
-		tx.Rollback()
-		return Errors.Wrap(err, Errors.ClientResponseInvalid, "Invalid remote course ID")
-	}
-
-	localCourse.RemoteID = uint(remote_id)
-
-	if err := tx.Save(localCourse).Error; err != nil {
-		tx.Rollback()
+	if err := db.Save(localCourse).Error; err != nil {
 		return Errors.HandleDBWriteError(err)
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return Errors.Wrap(err, Errors.DBTransactionFailed, "Failed to commit transaction")
 	}
 
 	return nil
@@ -1054,13 +1006,12 @@ func (a *App) DeleteAssignment(assignment *assignment.LocalAssignment) error {
 		sm := sync.NewSyncManager(db)
 		_, err := sm.GetSyncLog(models.EntityAssignment, assignment.ID, "create", "")
 		if err != nil {
-			deleted_at := time.Now().Format(time.RFC3339)
 			if syncErr := sm.CreateSyncLog(
 				models.EntityAssignment,
 				assignment.ID,
 				"delete",
 				"deleted_at",
-				deleted_at,
+				time.Now().Format(time.RFC3339),
 				clientErr,
 			); syncErr != nil {
 				return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
@@ -1103,9 +1054,7 @@ func (a *App) DeleteCourse(course *course.LocalCourse) error {
 		return err
 	}
 
-	course_id_str := strconv.Itoa(int(course.ID))
-
-	deleted_at := time.Now().Format(time.RFC3339)
+	course_id_str := strconv.Itoa(int(course.RemoteID))
 
 	isOnline := network.IsOnline()
 	var clientErr error
@@ -1125,7 +1074,7 @@ func (a *App) DeleteCourse(course *course.LocalCourse) error {
 				course.ID,
 				"delete",
 				"deleted_at",
-				deleted_at,
+				time.Now().Format(time.RFC3339),
 				clientErr,
 			); syncErr != nil {
 				return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
@@ -1788,7 +1737,6 @@ func (a *App) AcceptLink(courseData string) error {
 		return err
 	}
 
-	runtime.LogInfo(a.ctx, "send request to accept link course")
 	response, err := client.AcceptLinkCourse(&c)
 
 	if err != nil {
