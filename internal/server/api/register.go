@@ -57,6 +57,8 @@ func RegisterHandler(c *fiber.Ctx) error {
 		Password   string `json:"password"`
 		University string `json:"university"`
 		Language   string `json:"language"`
+		Semester   string `json:"semester"`
+		Year       string `json:"year"`
 	}
 
 	// Parse JSON request body into registration data structure
@@ -72,8 +74,8 @@ func RegisterHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 3: Validate all required fields are present (business rule enforcement)
-	if registrationData.Username == "" || registrationData.Email == "" || registrationData.Password == "" || registrationData.University == "" || registrationData.Language == "" {
-		return errors.WrapServer(fmt.Errorf("missing required fields"), errors.ReqParamMissing, "Username, email, password, university, and language are required", fiber.StatusBadRequest)
+	if registrationData.Username == "" || registrationData.Email == "" || registrationData.Password == "" || registrationData.University == "" || registrationData.Language == "" || registrationData.Semester == "" || registrationData.Year == "" {
+		return errors.WrapServer(fmt.Errorf("missing required fields"), errors.ReqParamMissing, "All fields are required", fiber.StatusBadRequest)
 	}
 
 	// Step 4: Check username uniqueness constraint (prevents duplicate accounts)
@@ -94,6 +96,8 @@ func RegisterHandler(c *fiber.Ctx) error {
 		PasswordHash: string(hashedPassword),
 		University:   registrationData.University,
 		Language:     registrationData.Language,
+		Semester:     registrationData.Semester,
+		Year:         registrationData.Year,
 	}
 
 	// Persist new user to database

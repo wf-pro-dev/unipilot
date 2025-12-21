@@ -1,12 +1,11 @@
 package auth
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"time"
+
+	"github.com/gofiber/fiber/v2"
+
 	"unipilot/internal/client"
 	"unipilot/internal/errors"
 	"unipilot/internal/models/user"
@@ -30,65 +29,37 @@ import (
 // Returns:
 //   - *user.User: Newly created user object with profile information
 //   - error: Error if registration fails, token saving fails, or database setup fails
-func (a *Auth) Register(username, email, password, university, language string) (*user.User, error) {
-	// Step 1: Create HTTP client (unauthenticated for registration)
-	// Registration endpoint doesn't require authentication
-	httpClient, err := client.NewAuthClient()
-	if err != nil {
-		return nil, errors.Wrap(err, errors.ClientRequestFailed, "Could not create HTTP client")
-	}
-
-	// Step 2: Prepare registration request payload
-	loginData := map[string]string{"username": username, "password": password, "email": email, "university": university, "language": language}
-	jsonData, _ := json.Marshal(loginData)
+func (a *Auth) Register(userData *user.User) (*user.User, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Post(fmt.Sprintf("%s/register", api_url))
+	agent.JSON(userData)
 
-	// Step 3: Send registration request to API
-	resp, err := httpClient.Post(fmt.Sprintf("%s/register", api_url), "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, errors.Wrap(err, errors.NetworkConnectionFailed, "HTTP POST failed")
-	}
-	defer resp.Body.Close()
-
-	fmt.Println("Register response status code: ", resp.StatusCode)
-
-	// Step 4: Validate response status (accept both 200 OK and 201 Created)
-	// 201 Created is standard for resource creation, but 200 OK is also acceptable
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		io.ReadAll(resp.Body) // Read body to clear it
-		return nil, errors.NewAppError(errors.ValidationInvalid, "Register failed", nil).ToServerError(resp.StatusCode)
+	if err := client.SetAuthHeader(agent); err != nil {
+		return nil, err
 	}
 
-	// Step 5: Parse API response to extract user data and token
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
+
+	if statusCode != 200 {
+		serverError := errors.ParseServerError(body, statusCode)
+		return nil, serverError
+	}
+
 	var response struct {
-		User  map[string]interface{} `json:"user"`
-		Token string                 `json:"token"`
+		User         user.User `json:"user"`
+		Token        string    `json:"token"`
+		RefreshToken string    `json:"refresh_token"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse registration response")
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 	}
-
-	// Step 6: Convert response map to User struct
-	response_user := user.User{
-		Username:   response.User["username"].(string),
-		Email:      response.User["email"].(string),
-		Avatar:     response.User["avatar"].(string),
-		University: response.User["university"].(string),
-		Semester:   response.User["semester"].(string),
-		Year:       response.User["year"].(string),
-		Language:   response.User["language"].(string),
-	}
-
-	// Parse timestamps from RFC3339 format
-	response_user.CreatedAt, _ = time.Parse(time.RFC3339, response.User["created_at"].(string))
-	response_user.UpdatedAt, _ = time.Parse(time.RFC3339, response.User["updated_at"].(string))
-
-	// Convert float64 ID to uint (JSON numbers are float64)
-	response_user.ID = uint(response.User["id"].(float64))
 
 	// Step 7: Persist user credentials to local storage
-	if err := utils.SetCredentials(&response_user); err != nil {
+	if err := utils.SetCredentials(&response.User); err != nil {
 		return nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to set credentials")
 	}
 
@@ -109,7 +80,7 @@ func (a *Auth) Register(username, email, password, university, language string) 
 		// This might happen if the database directory doesn't exist yet
 		fmt.Printf("Warning: Could not get local database: %v\n", err)
 		fmt.Printf("Login successful, but database operations failed\n")
-		return &response_user, nil // Don't fail the registration, just return success
+		return &response.User, nil // Don't fail the registration, just return success
 	}
 	// Initialize the database schema (create tables if they don't exist)
 	// Non-fatal operation - registration succeeds even if schema initialization fails
@@ -118,5 +89,5 @@ func (a *Auth) Register(username, email, password, university, language string) 
 		// Don't fail the registration, just continue
 	}
 
-	return &response_user, nil
+	return &response.User, nil
 }

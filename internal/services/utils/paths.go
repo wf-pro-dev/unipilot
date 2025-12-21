@@ -149,9 +149,8 @@ func GetProfilePicturePath() (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, errors.FSDirFailed, "Failed to get user directory")
 	}
+
 	profilePicturePath := filepath.Join(userDir, "profile_picture.png")
-	if _, err := os.Stat(profilePicturePath); os.IsNotExist(err) {
-		return "", errors.Wrap(err, errors.FSFileNotFound, "Profile picture file not found")
-	}
+
 	return profilePicturePath, nil
 }

@@ -18,7 +18,7 @@ func GetCourses() ([]course.Course, error) {
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/courses", api_url))
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return nil, err
 	}
 
@@ -47,7 +47,7 @@ func CreateCourse(c *course.Course) (uint, error) {
 	agent := fiber.Post(fmt.Sprintf("%s/courses", api_url))
 	agent.JSON(c)
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return 0, err
 	}
 
@@ -85,7 +85,7 @@ func UpdateCourse(id, column, value string) error {
 	agent := fiber.Put(fmt.Sprintf("%s/courses/%s", api_url, id))
 	agent.JSON(updateData)
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return err
 	}
 
@@ -107,7 +107,7 @@ func DeleteCourse(id string) error {
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Delete(fmt.Sprintf("%s/courses/%s", api_url, id))
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return err
 	}
 
@@ -134,7 +134,7 @@ func RequestLinkCourse(c *course.LocalCourse, usersID []uint) error {
 	agent := fiber.Post(fmt.Sprintf("%s/courses/%d/link-request", api_url, c.RemoteID))
 	agent.JSON(linkData)
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return err
 	}
 
@@ -161,7 +161,7 @@ func AcceptLinkCourse(c *course.Course) ([]assignment.Assignment, error) {
 	agent := fiber.Post(fmt.Sprintf("%s/courses/link-accept", api_url))
 	agent.JSON(c)
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return nil, err
 	}
 

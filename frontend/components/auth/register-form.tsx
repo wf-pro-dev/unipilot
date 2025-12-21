@@ -5,9 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Mail, User, Lock, GraduationCap, Globe } from "lucide-react"
+import { Loader2, Mail, User, Lock, GraduationCap, Globe, Calendar, BookOpen, UserPlus } from "lucide-react"
 import { useRegister } from "@/hooks/use-auth"
 import { motion } from "framer-motion"
 import { toast } from "sonner"
@@ -46,6 +45,15 @@ const languages = [
     { code: "ar", name: "Arabic" }
 ]
 
+const semesters = [
+    "Fall",
+    "Spring",
+    "Summer"
+]
+
+const currentYear = new Date().getFullYear()
+const years = Array.from({ length: 5 }, (_, i) => (currentYear + i).toString())
+
 export function RegisterForm({ onRegisterSuccess }: RegisterFormProps) {
     const [username, setUsername] = useState("")
     const [email, setEmail] = useState("")
@@ -53,6 +61,8 @@ export function RegisterForm({ onRegisterSuccess }: RegisterFormProps) {
     const [confirmPassword, setConfirmPassword] = useState("")
     const [university, setUniversity] = useState("")
     const [language, setLanguage] = useState("en")
+    const [semester, setSemester] = useState("")
+    const [year, setYear] = useState(currentYear.toString())
    
     const { mutate: register, isPending: isLoading } = useRegister()
 
@@ -75,7 +85,12 @@ export function RegisterForm({ onRegisterSuccess }: RegisterFormProps) {
             return
         }
 
-        register({ username, email, password, university, language }, {
+        if (!semester || !year) {
+            toast.error("Please select a semester and year")
+            return
+        }
+
+        register({ username, email, password, university, language, semester, year }, {
             onSuccess: () => {
                 onRegisterSuccess?.()
             },
@@ -88,104 +103,131 @@ export function RegisterForm({ onRegisterSuccess }: RegisterFormProps) {
 
     return (
         <motion.div
-            initial={{ opacity: 0, scale: 0.93  }}
+            initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, ease: "easeInOut" }}
-            className="w-full"
+            transition={{ duration: 0.5, ease: "easeOut" }}
+            className="w-full max-w-xl mx-auto"
         >
-            <Card className="glass w-full min-w-xl">
-                <CardHeader className="space-y-1">
-                    <CardTitle className="text-2xl font-bold text-center">Join Unipilot</CardTitle>
-                    <CardDescription className="text-center">
-                        Create your account to get started
+            <Card className="glass border-white/10 text-white overflow-hidden p-0 shadow-2xl">
+                <CardHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
+                    <div className="flex items-center gap-3 mb-1">
+                        <div className="p-2 bg-blue-500/10 rounded-lg">
+                            <UserPlus className="w-5 h-5 text-blue-400" />
+                        </div>
+                        <CardTitle className="text-xl font-semibold text-white">
+                            Create Account
+                        </CardTitle>
+                    </div>
+                    <CardDescription className="text-gray-400 text-sm">
+                        Join Unipilot to organize your academic life
                     </CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="username">Username</Label>
-                            <div className="relative">
-                                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    id="username"
-                                    type="text"
-                                    placeholder="Enter your username"
-                                    value={username}
-                                    onChange={(e) => setUsername(e.target.value)}
-                                    className="pl-10 glass"
-                                    required
-                                    disabled={isLoading}
-                                />
-                            </div>
-                        </div>
-
-
-                        <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
-                            <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    placeholder="Enter your email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="pl-10 glass"
-                                    required
-                                    disabled={isLoading}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label htmlFor="password">Password</Label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    placeholder="Enter your password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="pl-10 glass"
-                                    required
-                                    disabled={isLoading}
-                                />
-                            </div>
-                        </div>
-
-
-                        <div className="space-y-2">
-                            <Label htmlFor="confirmPassword">Confirm Password</Label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input
-                                    id="confirmPassword"
-                                    type="password"
-                                    placeholder="Confirm your password"
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    className="pl-10 glass"
-                                    required
-                                    disabled={isLoading}
+                <CardContent className="p-6 space-y-6">
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="username" className="text-gray-400 text-xs font-medium uppercase tracking-wider">Username</Label>
+                                <div className="relative group">
+                                    <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 transition-colors group-focus-within:text-blue-400" />
+                                    <Input
+                                        id="username"
+                                        type="text"
+                                        placeholder="jdoe"
+                                        value={username}
+                                        onChange={(e) => setUsername(e.target.value)}
+                                        className="pl-10 bg-white/5 border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all h-10 text-white placeholder:text-gray-500"
+                                        required
+                                        disabled={isLoading}
                                     />
+                                </div>
                             </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
 
                             <div className="space-y-2">
-                                <Label htmlFor="university">University</Label>
-                                <div className="relative">
-                                    <GraduationCap className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
-                                    <Select value={university} onValueChange={setUniversity} required disabled={isLoading}>
-                                        <SelectTrigger className="pl-10 glass">
-                                            <SelectValue placeholder="Select your university" />
+                                <Label htmlFor="email" className="text-gray-400 text-xs font-medium uppercase tracking-wider">Email</Label>
+                                <div className="relative group">
+                                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 transition-colors group-focus-within:text-blue-400" />
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        placeholder="john@example.com"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="pl-10 bg-white/5 border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all h-10 text-white placeholder:text-gray-500"
+                                        required
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="password" className="text-gray-400 text-xs font-medium uppercase tracking-wider">Password</Label>
+                                <div className="relative group">
+                                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 transition-colors group-focus-within:text-blue-400" />
+                                    <Input
+                                        id="password"
+                                        type="password"
+                                        placeholder="••••••••"
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="pl-10 bg-white/5 border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all h-10 text-white placeholder:text-gray-500"
+                                        required
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="confirmPassword" className="text-gray-400 text-xs font-medium uppercase tracking-wider">Confirm Password</Label>
+                                <div className="relative group">
+                                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 transition-colors group-focus-within:text-blue-400" />
+                                    <Input
+                                        id="confirmPassword"
+                                        type="password"
+                                        placeholder="••••••••"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        className="pl-10 bg-white/5 border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all h-10 text-white placeholder:text-gray-500"
+                                        required
+                                        disabled={isLoading}
+                                        />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="university" className="text-gray-400 text-xs font-medium uppercase tracking-wider">University</Label>
+                            <div className="relative group">
+                                <GraduationCap className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 z-10 transition-colors group-focus-within:text-blue-400" />
+                                <Select value={university} onValueChange={setUniversity} required disabled={isLoading}>
+                                    <SelectTrigger className="pl-10 bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10 text-white transition-all">
+                                        <SelectValue placeholder="Select your university" />
+                                    </SelectTrigger>
+                                    <SelectContent className="glass border-white/10 text-white max-h-[200px]">
+                                        {universities.map((uni) => (
+                                            <SelectItem key={uni} value={uni} className="focus:bg-white/10 focus:text-white cursor-pointer">
+                                                {uni}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            <div className="space-y-2">
+                                <Label htmlFor="semester" className="text-gray-400 text-xs font-medium uppercase tracking-wider">Semester</Label>
+                                <div className="relative group">
+                                    <BookOpen className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 z-10 transition-colors group-focus-within:text-blue-400" />
+                                    <Select value={semester} onValueChange={setSemester} required disabled={isLoading}>
+                                        <SelectTrigger className="pl-10 bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10 text-white transition-all">
+                                            <SelectValue placeholder="Sem" />
                                         </SelectTrigger>
-                                        <SelectContent className="glass">
-                                            {universities.map((uni) => (
-                                                <SelectItem key={uni} value={uni}>
-                                                    {uni}
+                                        <SelectContent className="glass border-white/10 text-white">
+                                            {semesters.map((sem) => (
+                                                <SelectItem key={sem} value={sem} className="focus:bg-white/10 focus:text-white cursor-pointer">
+                                                    {sem}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -194,16 +236,35 @@ export function RegisterForm({ onRegisterSuccess }: RegisterFormProps) {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="language">Preferred Language</Label>
-                                <div className="relative">
-                                    <Globe className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
-                                    <Select value={language} onValueChange={setLanguage} disabled={isLoading}>
-                                        <SelectTrigger className="pl-10 glass">
-                                            <SelectValue placeholder="Select your language" />
+                                <Label htmlFor="year" className="text-gray-400 text-xs font-medium uppercase tracking-wider">Year</Label>
+                                <div className="relative group">
+                                    <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 z-10 transition-colors group-focus-within:text-blue-400" />
+                                    <Select value={year} onValueChange={setYear} required disabled={isLoading}>
+                                        <SelectTrigger className="pl-10 bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10 text-white transition-all">
+                                            <SelectValue placeholder="Year" />
                                         </SelectTrigger>
-                                        <SelectContent className="glass">
+                                        <SelectContent className="glass border-white/10 text-white max-h-[200px]">
+                                            {years.map((y) => (
+                                                <SelectItem key={y} value={y} className="focus:bg-white/10 focus:text-white cursor-pointer">
+                                                    {y}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="language" className="text-gray-400 text-xs font-medium uppercase tracking-wider">Language</Label>
+                                <div className="relative group">
+                                    <Globe className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500 z-10 transition-colors group-focus-within:text-blue-400" />
+                                    <Select value={language} onValueChange={setLanguage} disabled={isLoading}>
+                                        <SelectTrigger className="pl-10 bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10 text-white transition-all">
+                                            <SelectValue placeholder="Lang" />
+                                        </SelectTrigger>
+                                        <SelectContent className="glass border-white/10 text-white max-h-[200px]">
                                             {languages.map((lang) => (
-                                                <SelectItem key={lang.code} value={lang.code}>
+                                                <SelectItem key={lang.code} value={lang.code} className="focus:bg-white/10 focus:text-white cursor-pointer">
                                                     {lang.name}
                                                 </SelectItem>
                                             ))}
@@ -213,10 +274,14 @@ export function RegisterForm({ onRegisterSuccess }: RegisterFormProps) {
                             </div>
                         </div>
 
-                        <Button type="submit" className="w-full" disabled={isLoading || !university}>
+                        <Button 
+                            type="submit" 
+                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-6 shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-all duration-300 transform hover:scale-[1.01]" 
+                            disabled={isLoading || !university || !semester || !year}
+                        >
                             {isLoading ? (
                                 <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                                     Creating Account...
                                 </>
                             ) : (
@@ -228,4 +293,4 @@ export function RegisterForm({ onRegisterSuccess }: RegisterFormProps) {
             </Card>
         </motion.div>
     )
-} 
+}

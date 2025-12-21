@@ -254,11 +254,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="page">
-      {/* Floating background elements */}
-      <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
-      <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float-delayed"></div>
-
+    <div className="">
       <div className="max-w-6xl mx-auto relative z-10">
         <div className="mb-8">
           <h1 className="text-h1 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">

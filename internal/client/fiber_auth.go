@@ -39,8 +39,8 @@ func getAuthToken() (string, error) {
 	return token, nil
 }
 
-// setAuthHeader sets the Authorization header on a fiber agent with automatic token refresh
-func setAuthHeader(agent *fiber.Agent) error {
+// SetAuthHeader sets the Authorization header on a fiber agent with automatic token refresh
+func SetAuthHeader(agent *fiber.Agent) error {
 	token, err := getAuthToken()
 	if err != nil {
 		return err
@@ -54,8 +54,8 @@ func setAuthHeader(agent *fiber.Agent) error {
 	return nil
 }
 
-// setAuthHeaderRequest sets the Authorization header on an http.Request with automatic token refresh
-func setAuthHeaderRequest(req *http.Request) error {
+// SetAuthHeaderRequest sets the Authorization header on an http.Request with automatic token refresh
+func SetAuthHeaderRequest(req *http.Request) error {
 	token, err := getAuthToken()
 	if err != nil {
 		return err

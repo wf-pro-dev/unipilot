@@ -227,7 +227,7 @@ export default function AssignmentsPage() {
   // Show loading state
   if (isLoading) {
     return (
-      <div className="page">
+      <div className="">
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin mr-2" />
           <span>Loading assignments...</span>
@@ -239,7 +239,7 @@ export default function AssignmentsPage() {
   // Show error state
   if (error) {
     return (
-      <div className="page">
+      <div className="">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-red-500">
             Error loading assignments: {error.message}
@@ -250,11 +250,7 @@ export default function AssignmentsPage() {
   }
 
   return (
-    <div className="page">
-      {/* Floating background elements */}
-      <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
-      <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float-delayed"></div>
-
+    <div className="">
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-8">
           <div>

@@ -106,6 +106,10 @@ export function GetCurrentUser() {
   return window['go']['main']['App']['GetCurrentUser']();
 }
 
+export function GetFileAsDataURL(arg1) {
+  return window['go']['main']['App']['GetFileAsDataURL'](arg1);
+}
+
 export function GetFollowers(arg1) {
   return window['go']['main']['App']['GetFollowers'](arg1);
 }
@@ -178,8 +182,8 @@ export function RebuildNotificationDaemon() {
   return window['go']['main']['App']['RebuildNotificationDaemon']();
 }
 
-export function Register(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['Register'](arg1, arg2, arg3, arg4, arg5);
+export function Register(arg1) {
+  return window['go']['main']['App']['Register'](arg1);
 }
 
 export function RequestLinkCourse(arg1, arg2) {

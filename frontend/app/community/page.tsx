@@ -32,10 +32,7 @@ export default function CommunityPage() {
   const { followers, following, users } = useAuthContext()
 
   return (
-    <div className="page">
-      {/* Decorative background elements for visual depth */}
-      <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
-      <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float-delayed"></div>
+    <div className="">
 
       {/* Main content container with max-width constraint and z-index above background */}
       <div className="max-w-7xl mx-auto relative z-10">

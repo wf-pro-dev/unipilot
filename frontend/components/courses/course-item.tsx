@@ -57,7 +57,7 @@ function CourseItem({ course,
             >
                 <CardContent className="p-5">
                     <div className="flex justify-between items-start mb-5">
-                        <div className="flex items-center space-x-4 w-full">
+                        <div className="flex items-center bg-white/10 border border-white/5 shadow-lg shadow-black/60 rounded-xl p-3  space-x-4 w-full">
 
                             <div className={`w-8 h-8 rounded-full flex-shrink-0 ${course.Color} shadow-lg shadow-black/20`} />
                            
@@ -112,7 +112,7 @@ function CourseItem({ course,
 
                     </div>
 
-                    <div className="bg-white/10 border border-white/5 shadow-lg shadow-black/60 rounded-xl p-3 mb-5 space-y-2">
+                    <div className="mb-5 space-y-2">
                         <div className="flex items-center space-x-3 text-xs">
                             <div className="p-1 bg-blue-500/10 rounded-md">
                                 <Users className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
@@ -135,7 +135,7 @@ function CourseItem({ course,
                                     {Math.round(completionPercentage)}%
                                 </span>
                             </div>
-                            <Progress value={completionPercentage} className="h-1.5 bg-white/10" indicatorClassName="bg-blue-500" />
+                            <Progress value={completionPercentage} className="h-1.5 bg-white/10" />
                         </div>
                         <Badge variant="secondary" className="text-[10px] border-white/10 bg-white/5 text-gray-400 flex-shrink-0 font-medium px-2">
                             {course.Semester}

@@ -5,6 +5,7 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { AssignmentItem } from "./assignment-item"
 import { CalendarDays, CheckCircle2, Loader2 } from "lucide-react"
 import { assignment } from "@/wailsjs/go/models"
+import { EmptyState } from "@/components/ui/empty-state"
 
 interface AssignmentViewProps {
   title: string
@@ -29,12 +30,12 @@ export function AssignmentView({
 
   if (assignments.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center">
-        <div className="my-32 p-10 glass rounded-lg text-center">
-          <CheckCircle2 className="h-12 w-12 text-white/20 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-white mb-2">No assignments found</h3>
-          <p className="text-gray-400">Create an assignment to get started</p>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <EmptyState
+          icon={CheckCircle2}
+          title="No assignments found"
+          description="You're all caught up! create a new assignment to get started tracking your work."
+        />
       </div>
     )
   }

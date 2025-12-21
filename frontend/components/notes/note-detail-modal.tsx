@@ -137,7 +137,7 @@ export function NoteDetailModal({
           
           {/* Animated Header */}
           <motion.div 
-            className="border-b border-white/5 z-30 flex-shrink-0 relative"
+            className="border-b border-white/5 z-30 flex-shrink-0 relative transition-all duration-300 ease-in-out"
             style={{ 
                 padding: headerPadding,
                 backgroundColor: headerBackground,
@@ -145,63 +145,59 @@ export function NoteDetailModal({
                 borderColor: `rgba(255,255,255,${headerBorderOpacity})`
             }}
           >
-            <div className="space-y-1">
-              <motion.div 
-                className="flex items-center gap-2 overflow-hidden"
-                style={{ 
+            <div className="space-y-4">
+               {/* Top Bar with Subject & Actions */}
+               <motion.div 
+                 className="flex items-start justify-between"
+                 style={{ 
                     opacity: metadataOpacity, 
                     height: useTransform(scrollY, [0, 20], ["auto", "0px"]) 
-                }}
-              >
-                <BookOpen className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">{note.subject}</span>
-              </motion.div>
+                 }}
+               >
+                 <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-white/5 border border-white/5 w-fit">
+                    {course && <div className={`w-1.5 h-1.5 rounded-full ${course?.Color} shadow-[0_0_8px] shadow-${course?.Color}/80 ml-0.5`} />}
+                    <span className="text-[10px] font-medium pr-1 opacity-80 uppercase tracking-wider text-gray-300">{note.subject || "General"}</span>
+                 </div>
+                 
+                 <div className="flex items-center space-x-2">
+                    <div className="text-xs text-gray-500 font-medium px-2">
+                      {new Date(note.CreatedAt).toLocaleDateString()}
+                    </div>
+                 </div>
+               </motion.div>
               
               <motion.h2 
-                className="font-bold text-white leading-tight"
+                className="font-bold text-white leading-tight tracking-tight"
                 style={{ fontSize: titleSize }}
               >
                 {note.title}
               </motion.h2>
-            </div>
 
-            {/* Collapsible Metadata */}
-            <motion.div 
-                style={{ 
-                    opacity: metadataOpacity,
-                    height: metadataHeight,
-                    marginTop: metadataMargin
-                }}
-                className="overflow-hidden"
-            >
-                 <div className="space-y-4 pb-1">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      {/* Course Info */}
-                      {course && (
-                        <div className="flex items-center space-x-2 bg-white/5 p-2 rounded-lg border border-white/5 w-fit">
-                          <div className={`h-2 w-2 rounded-full ${course?.Color}`} />
-                          <span className="text-gray-300 font-medium text-xs">{course?.Code}</span>
-                        </div>
-                      )}
-
-                      {/* Timestamps */}
-                      <div className="flex items-center space-x-4 text-xs text-gray-400">
-                        <div className="flex items-center space-x-1.5">
-                          <Calendar className="w-3.5 h-3.5" />
-                          <span>Created {new Date(note.CreatedAt).toLocaleDateString()}</span>
-                        </div>
-                        {note.UpdatedAt && note.UpdatedAt !== note.CreatedAt && (
-                          <div className="flex items-center space-x-1.5">
+              {/* Course & Date Info - Collapsible */}
+              <motion.div 
+                  style={{ 
+                      opacity: metadataOpacity,
+                      height: metadataHeight,
+                      marginTop: metadataMargin
+                  }}
+                  className="overflow-hidden"
+              >
+                  <div className="flex items-center gap-4 text-xs text-gray-400">
+                    {course && (
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-gray-300">{course.Code}</span>
                             <span className="w-1 h-1 rounded-full bg-gray-600" />
+                            <span>{course.Name}</span>
+                        </div>
+                    )}
+                    {note.UpdatedAt && note.UpdatedAt !== note.CreatedAt && (
+                        <div className="flex items-center gap-1.5 ml-auto">
                             <span>Updated {new Date(note.UpdatedAt).toLocaleDateString()}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    
-                 </div>
-            </motion.div>
+                        </div>
+                    )}
+                  </div>
+              </motion.div>
+            </div>
           </motion.div>
 
           <div 

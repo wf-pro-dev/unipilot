@@ -61,7 +61,7 @@ export default function AIChatPage() {
   }
 
   return (
-    <div className="page-chat" >
+    <div className="" >
       {/* SidebarProvider enables collapsible sidebar state management */}
       <SidebarProvider>
 

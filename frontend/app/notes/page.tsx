@@ -74,10 +74,7 @@ export default function NotesPage() {
   }
 
   return (
-    <div className="page">
-      {/* Floating background elements */}
-      <div className="absolute left-10 top-20 w-72 h-72 rounded-full blur-3xl bg-blue-500/10 animate-float"></div>
-      <div className="absolute right-10 bottom-20 w-96 h-96 rounded-full blur-3xl bg-purple-500/10 animate-float-delayed"></div>
+    <div className="">
 
       <div className="relative z-10">
         <div className="flex items-center justify-between mb-8">

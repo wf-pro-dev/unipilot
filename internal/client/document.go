@@ -36,7 +36,7 @@ func GetDocuments() ([]document.Document, error) {
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/documents", api_url))
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return nil, err
 	}
 
@@ -71,7 +71,7 @@ func GetAssignmentDocuments(assignmentID uint) ([]document.Document, error) {
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/documents/assignments/%d", api_url, assignmentID))
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return nil, err
 	}
 
@@ -158,7 +158,7 @@ func SendDocument(localDocument *document.LocalDocument) (*UploadResponse, error
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	// Set auth header with token refresh
-	if err := setAuthHeaderRequest(req); err != nil {
+	if err := SetAuthHeaderRequest(req); err != nil {
 		return nil, err
 	}
 
@@ -198,7 +198,7 @@ func DownloadDocument(document *document.LocalDocument) (io.Reader, error) {
 	agent := fiber.Post(fmt.Sprintf("%s/documents/%d/download", api_url, document.ID))
 	agent.JSON(document)
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return nil, err
 	}
 
@@ -223,7 +223,7 @@ func DeleteDocument(documentID uint) error {
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Delete(fmt.Sprintf("%s/documents/%d", api_url, documentID))
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return err
 	}
 
@@ -299,7 +299,7 @@ func UploadDocumentRAG(document *document.LocalDocument) error {
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	// Set auth header with token refresh
-	if err := setAuthHeaderRequest(req); err != nil {
+	if err := SetAuthHeaderRequest(req); err != nil {
 		return err
 	}
 
@@ -334,7 +334,7 @@ func DeleteDocumentRAG(assignmentID, documentID uint) error {
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Delete(fmt.Sprintf("%s/documents/%d/rag", api_url, documentID))
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return err
 	}
 
@@ -355,7 +355,7 @@ func GetAssignmentDocumentIDsRAG(assignmentID uint, documentIDs []uint) ([]uint,
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/documents/assignments/%d/rag", api_url, assignmentID))
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return nil, err
 	}
 

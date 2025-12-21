@@ -13,16 +13,18 @@ import { AiDocumentCard } from "./ai-chat-documents";
 import { GlassCard } from "../ui/glass-card";
 import { useNextAssignments } from "@/hooks/use-assignments";
 import { AiAssignmentCard } from "./ai-chat-assignments";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { document } from "@/wailsjs/go/models";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 interface AiChatSidebarProps {
   assignment: assignment.LocalAssignment;
 }
 
-
-
 export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
+  const router = useRouter();
   const { data: documentsData } = useAssignmentDocuments(assignment.ID)
   const { data: nextAssignments } =  useNextAssignments()
   const { data: documentRagIDs } = useAssignmentDocumentIDsRAG(assignment.RemoteID, documentsData?.map((document) => document.ID) || []);
@@ -44,31 +46,51 @@ export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
     slice(0, 3) || [];
   }, [nextAssignments, assignment.ID]);
 
+  const handleBack = () => {
+    router.back();
+  };
+
   return (
-    <Sidebar defaultChecked side="left" className="h-screen pt-16 shadow-2xl w-80" collapsible="icon">
-      <GlassCard
-        variant={"default"}
-        className={`flex flex-col flex-1 border-white/5 bg-white/5`}
-      >
+    <Sidebar collapsible="icon" className="h-screen shadow-2xl border-none bg-transparent" variant="sidebar">
+      <GlassCard variant="default" className="flex flex-col flex-1 border-white/5 bg-white/5 rounded-none h-full p-0 overflow-hidden">
         <SidebarHeader className="p-6 pb-4 border-b border-white/5 bg-white/5 backdrop-blur-3xl">
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 group-data-[collapsible=icon]:hidden">
             <div className="flex items-center justify-between">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-6 w-6 rounded-full hover:bg-white/10 -ml-2"
+                onClick={handleBack}
+              >
+                <ArrowLeft className="h-4 w-4 text-white/70" />
+              </Button>
               <div className="flex items-center gap-2 px-1 py-0.5 rounded-full bg-white/5 border border-white/5 w-fit">
                 <div className={`w-1.5 h-1.5 rounded-full ${assignment.Course.Color} shadow-[0_0_8px] shadow-${assignment.Course.Color}/80 ml-1.5`} />
                 <span className="text-[10px] font-medium pr-2 opacity-80 uppercase tracking-wider">{assignment.Course.Code}</span>
               </div>
             </div>
-            <h1 className="text-h4 font-semibold leading-tight text-white drop-shadow-sm">{assignment.Title}</h1>
+            <h1 className="text-h4 font-semibold leading-tight text-white drop-shadow-sm truncate">{assignment.Title}</h1>
+          </div>
+          <div className="hidden group-data-[collapsible=icon]:flex flex-col gap-4 items-center justify-center">
+             <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 rounded-full hover:bg-white/10"
+                onClick={handleBack}
+              >
+                <ArrowLeft className="h-4 w-4 text-white/70" />
+              </Button>
+             <div className={`w-4 h-4 rounded-full ${assignment.Course.Color} shadow-[0_0_12px] shadow-${assignment.Course.Color}`} />
           </div>
         </SidebarHeader>
 
-        <SidebarContent className="px-4 py-4 gap-6 flex justify-self-center">
-          <SidebarGroup className="p-0">
+        <SidebarContent className="px-4 py-4 gap-6 flex justify-self-center scrollbar-none">
+          <SidebarGroup className="p-0 group-data-[collapsible=icon]:hidden">
             <div className="flex items-center justify-between mb-3 px-1">
-              <SidebarGroupLabel className="text-h4 uppercase tracking-widest text-white/60 font-bold">
+              <SidebarGroupLabel className="text-xs uppercase tracking-widest text-white/40 font-bold">
                 Context Sources
               </SidebarGroupLabel>
-              <span className="text-caption font-semibold text-muted-foreground/40 bg-white/5 rounded">{documents?.length || 0}</span>
+              <span className="text-caption font-semibold text-muted-foreground/40 bg-white/5 rounded px-1.5">{documents?.length || 0}</span>
             </div>
             <div className="flex flex-col gap-2.5">
               {documents?.map((document) => {
@@ -79,33 +101,32 @@ export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
                 )
               })}
               {documents?.length === 0 && (
-                <div className="px-4 py-12 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
-                  <p className="text-caption text-muted-foreground/60">No documents linked</p>
+                <div className="px-4 py-8 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
+                  <p className="text-[10px] text-muted-foreground/60">No documents linked</p>
                 </div>
               )}
             </div>
           </SidebarGroup>
-          <SidebarGroup className="p-0">
+          <SidebarGroup className="p-0 group-data-[collapsible=icon]:hidden">
             <div className="flex items-center justify-between mb-3 px-1">
-              <SidebarGroupLabel className="text-h4 uppercase tracking-widest text-white/60 font-bold">
+              <SidebarGroupLabel className="text-xs uppercase tracking-widest text-white/40 font-bold">
                 Upcoming Assignments
               </SidebarGroupLabel>
-              <span className="text-[10px] text-muted-foreground/40 bg-white/5 px-1.5 rounded">{documents?.length || 0}</span>
             </div>
             <div className="flex flex-col gap-2.5">
               {getNextAssignments().map((assignment) => (
                 <AiAssignmentCard key={assignment.ID} assignment={assignment} />
               ))}
               {getNextAssignments().length === 0 && (
-                <div className="px-4 py-12 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
-                  <p className="text-caption text-muted-foreground/60">No upcoming assignments</p>
+                <div className="px-4 py-8 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
+                  <p className="text-[10px] text-muted-foreground/60">No upcoming assignments</p>
                 </div>
               )}
             </div>
           </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter className="p-0 border-t border-white/5 bg-gradient-to-t from-black/20 to-transparent">
+        <SidebarFooter className="p-0 border-t border-white/5 bg-gradient-to-t from-black/20 to-transparent group-data-[collapsible=icon]:hidden">
           <div className="p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <p className="text-[10px] text-muted-foreground/60 uppercase tracking-wider font-semibold">Due Date</p>

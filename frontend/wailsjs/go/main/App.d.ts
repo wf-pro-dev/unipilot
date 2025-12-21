@@ -61,6 +61,8 @@ export function GetCourses():Promise<Array<course.LocalCourse>>;
 
 export function GetCurrentUser():Promise<user.User>;
 
+export function GetFileAsDataURL(arg1:string):Promise<string>;
+
 export function GetFollowers(arg1:number):Promise<main.FollowResponse>;
 
 export function GetFollowing(arg1:number):Promise<main.FollowResponse>;
@@ -97,7 +99,7 @@ export function OpenDocument(arg1:number):Promise<void>;
 
 export function RebuildNotificationDaemon():Promise<void>;
 
-export function Register(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<user.User>;
+export function Register(arg1:user.User):Promise<user.User>;
 
 export function RequestLinkCourse(arg1:course.LocalCourse,arg2:Array<number>):Promise<void>;
 

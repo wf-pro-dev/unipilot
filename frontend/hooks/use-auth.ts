@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
+import { LogError } from "@/wailsjs/runtime/runtime"
 import { user } from "@/wailsjs/go/models"
 import { 
   GetCurrentUser, 
@@ -10,8 +10,8 @@ import {
   Register, 
   Logout, 
   UpdateUser, 
-  GetFileAsDataURL,
-  GetAuthToken
+  GetAuthToken,
+  GetFileAsDataURL
 } from "@/wailsjs/go/main/App"
 import { useAuthContext } from '@/components/provider/auth-provider'
 
@@ -79,15 +79,27 @@ export function useRegister() {
       email,
       password,
       university,
-      language
+      language,
+      semester,
+      year
     }: {
       username: string
       email: string
       password: string
       university: string
       language: string
+      semester: string
+      year: string
     }) => {
-      return await Register(username, email, password, university, language)
+      return await Register({ 
+        Username: username  , 
+        Email: email, 
+        PasswordHash: password, 
+        University: university, 
+        Language: language, 
+        Semester: semester, 
+        Year: year 
+      } as user.User)
     },
     onSuccess: (user) => {
       queryClient.setQueryData(authKeys.user, user)
@@ -185,6 +197,7 @@ export function useGetAvatarUrl() {
           return "/placeholder.svg?height=40&width=40"
         }
       }
+
 
       // Fallback: treat as relative path
       return currentUser.Avatar

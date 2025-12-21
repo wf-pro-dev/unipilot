@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { AddCourseDialog } from "@/components/courses/add-course-dialog"
 import { CourseDetailsModal } from "@/components/courses/course-details-modal"
 import { Loader2, Calendar, List } from "lucide-react"
@@ -14,6 +14,8 @@ import { format } from "date-fns"
 import { course } from "@/wailsjs/go/models"
 import { CourseDeleteDialog } from "./course-delete-dialog"
 import { LinkRequestModal } from "@/components/community/link-request-modal"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
+import { useAuthContext } from "@/components/provider/auth-provider"
 
 /**
  * Courses page component for course management and viewing.
@@ -41,10 +43,58 @@ import { LinkRequestModal } from "@/components/community/link-request-modal"
  */
 export default function CoursesPage() {
   // Fetch courses data with default empty array to prevent undefined errors
+  const { user } = useAuthContext()
   const { data: courses = [], isLoading, error } = useCourses()
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
   const [selectedDeleteCourseId, setSelectedDeleteCourseId] = useState<number | null>(null)
   const [isLinkRequestModalOpen, setIsLinkRequestModalOpen] = useState(false)
+  const [selectedSemester, setSelectedSemester] = useState<string>(user?.Semester || "")
+
+
+
+  // Get unique semesters
+  const semesters = useMemo(() => {
+    if (!courses) return []
+    const uniqueSemesters = [...new Set([...courses.map(course => course.Semester), user?.Semester || ""])]
+
+    // Custom sorting function for semester format: "<season> <year>"
+    const sortSemesters = (a: string, b: string) => {
+      const parseSemester = (semester: string) => {
+        const parts = semester.split(' ')
+        if (parts.length !== 2) return { season: '', year: 0, seasonPriority: 0 }
+
+        const season = parts[0].toUpperCase()
+        const year = parseInt(parts[1])
+
+        // Season priority: SPRING = 1, SUMMER = 2, FALL = 3
+        const seasonPriority: Record<string, number> = {
+          'FALL': 1,
+          'SUMMER': 2,
+          'SPRING': 3
+        }
+
+        return {
+          season,
+          year,
+          seasonPriority: seasonPriority[season] || 0
+        }
+      }
+
+      const semesterA = parseSemester(a)
+      const semesterB = parseSemester(b)
+
+      // First sort by year (descending)
+      if (semesterA.year !== semesterB.year) {
+        return semesterB.year - semesterA.year
+      }
+
+      // Then sort by season (SPRING -> SUMMER -> FALL)
+      return semesterA.seasonPriority - semesterB.seasonPriority
+    }
+
+    return uniqueSemesters.sort(sortSemesters)
+  }, [courses])
+
 
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -177,7 +227,7 @@ export default function CoursesPage() {
   // Show error state
   if (error) {
     return (
-      <div className="page">
+      <div className="">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-red-500">
             Error loading courses: {error.message}
@@ -188,10 +238,7 @@ export default function CoursesPage() {
   }
 
   return (
-    <div className="page">
-      {/* Decorative background elements for visual depth */}
-      <div className="absolute left-10 top-20 w-72 h-72 rounded-full blur-3xl bg-blue-500/10 animate-float"></div>
-      <div className="absolute right-10 bottom-20 w-96 h-96 rounded-full blur-3xl bg-purple-500/10 animate-float-delayed"></div>
+    <div className="">
 
       <div className="relative z-10">
         {/* Page header with course count and add course button */}
@@ -209,26 +256,47 @@ export default function CoursesPage() {
 
         {/* Tab navigation with URL synchronization */}
         <Tabs value={activeView} onValueChange={handleTabChange} className="w-full">
-          <TabsList className="h-full flex w-fit bg-white/5 p-1 rounded-xl mb-6 border border-white/5">
-            <TabsTrigger 
-              value="schedule" 
-              className="flex w-60 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
-            >
-              <Calendar className="w-4 h-4" />
-              <span className="hidden sm:inline text-sm font-medium">Schedule</span>
-            </TabsTrigger>
-            <TabsTrigger 
-              value="list" 
-              className="flex w-60 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
-            >
-              <List className="w-4 h-4" />
-              <span className="hidden sm:inline text-sm font-medium">All ({courses.length || 0})</span>
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex justify-between items-center mb-6">
+            <TabsList className="h-full flex w-fit bg-white/5 p-1 rounded-xl  border border-white/5">
+              <TabsTrigger
+                value="schedule"
+                className="flex w-60 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+              >
+                <Calendar className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm font-medium">Schedule</span>
+              </TabsTrigger>
+              <TabsTrigger
+                value="list"
+                className="flex w-60 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+              >
+                <List className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm font-medium">All ({courses.length || 0})</span>
+              </TabsTrigger>
+            </TabsList>
+            <div>
+              <Select value={selectedSemester} onValueChange={setSelectedSemester}>
+                <SelectTrigger className="bg-white/5 border-white/10 text-white hover:bg-white/10 transition-all duration-200 backdrop-blur-sm">
+                  <SelectValue placeholder="Filter by semester" />
+                </SelectTrigger>
+                <SelectContent className="glass border-white/10 bg-black/90 backdrop-blur-xl text-gray-200">
+                  {semesters.map(semester => (
+                    <SelectItem
+                      key={semester}
+                      value={semester}
+                      className="focus:bg-white/10 focus:text-white cursor-pointer"
+                    >
+                      {semester}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           {/* Schedule view: Calendar-based course display */}
           <TabsContent value="schedule">
             <CoursesSchedule
+              selectedSemester={selectedSemester}
               onEdit={handleEditCourse}
               onDelete={handleDeleteCourseClick}
               courses={courses || []}
@@ -272,7 +340,7 @@ export default function CoursesPage() {
           isOpen={isLinkRequestModalOpen}
           onClose={() => setIsLinkRequestModalOpen(false)}
         />
-        
+
       </div>
     </div>
   )

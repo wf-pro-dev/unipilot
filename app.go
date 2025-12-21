@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -477,6 +479,7 @@ func (a *App) UploadProfilePicture() (string, error) {
 	if err != nil {
 		return "", Errors.Wrap(err, Errors.FSFileNotFound, "Failed to get user directory")
 	}
+
 	if err := fileops.WriteFile(profilePicturePath, fileContent); err != nil {
 		return "", Errors.Wrap(err, Errors.FSWriteFailed, "Failed to move file to profile picture directory")
 	}
@@ -494,6 +497,47 @@ func (a *App) UploadProfilePicture() (string, error) {
 
 	return profilePicturePath, nil
 
+}
+
+// GetFileAsDataURL reads a local file and returns it as a data URL (base64 encoded)
+// This is needed because webviews block file:// URLs for security reasons
+func (a *App) GetFileAsDataURL(filePath string) (string, error) {
+	if filePath == "" {
+		return "", fmt.Errorf("file path is empty")
+	}
+
+	// Check if file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return "", fmt.Errorf("file not found: %s", filePath)
+	}
+
+	// Read file
+	fileData, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Detect MIME type based on file extension
+	mimeType := "image/png" // default
+	ext := strings.ToLower(filepath.Ext(filePath))
+	switch ext {
+	case ".jpg", ".jpeg":
+		mimeType = "image/jpeg"
+	case ".png":
+		mimeType = "image/png"
+	case ".gif":
+		mimeType = "image/gif"
+	case ".svg":
+		mimeType = "image/svg+xml"
+	case ".webp":
+		mimeType = "image/webp"
+	}
+
+	// Encode to base64
+	base64Data := base64.StdEncoding.EncodeToString(fileData)
+
+	// Return as data URL
+	return fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data), nil
 }
 
 func (a *App) CreateDocument(uploadReq fileops.FileUploadRequest, hasLocalFile bool) (*document.LocalDocument, error) {
@@ -1228,8 +1272,8 @@ func (a *App) DeleteNotification(notification *notifications.LocalNotification) 
 // ========================================
 
 // Register handles user registration
-func (a *App) Register(username, email, password, university, language string) (*user.User, error) {
-	user, err := a.Auth.Register(username, email, password, university, language)
+func (a *App) Register(userData *user.User) (*user.User, error) {
+	user, err := a.Auth.Register(userData)
 	if err != nil {
 		fmt.Println("Register error: ", err)
 		return nil, err

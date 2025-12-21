@@ -105,9 +105,7 @@ export default function NotificationsPage() {
   ]
 
   return (
-    <div className="page flex flex-col">
-      <div className="absolute left-10 top-20 w-72 h-72 rounded-full blur-3xl bg-blue-500/10 animate-float"></div>
-      <div className="absolute right-10 bottom-20 w-96 h-96 rounded-full blur-3xl bg-purple-500/10 animate-float-delayed"></div>
+    <div className=" flex flex-col">
 
       <div className="relative z-10 flex flex-col flex-1">
         <div className="flex justify-between items-center mb-8">

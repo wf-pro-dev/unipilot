@@ -21,7 +21,7 @@ func GetUser() (*user.User, error) {
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/users/me", api_url))
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return nil, err
 	}
 
@@ -57,7 +57,7 @@ func UpdateUser(column, value string) error {
 	agent := fiber.Post(fmt.Sprintf("%s/users/me", api_url))
 	agent.JSON(updateData)
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return err
 	}
 
@@ -120,7 +120,7 @@ func UpdateProfilePicture(path string) error {
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	// Set auth header with token refresh
-	if err := setAuthHeaderRequest(req); err != nil {
+	if err := SetAuthHeaderRequest(req); err != nil {
 		return err
 	}
 

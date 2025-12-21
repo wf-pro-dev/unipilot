@@ -15,6 +15,7 @@ interface CoursesScheduleProps {
     onCourseClick: (course: Course.LocalCourse) => void
     onEdit: (course: Course.LocalCourse, column: string, value: string) => void
     onDelete: (course: Course.LocalCourse) => void
+    selectedSemester: string
 }
 
 
@@ -36,54 +37,10 @@ function formatTime(hour: number): string {
     return `${hour - 12}:00 PM`
 }
 
-function CoursesSchedule({ courses, onCourseClick, onEdit, onDelete }: CoursesScheduleProps) {
+function CoursesSchedule({ courses, selectedSemester, onCourseClick, onEdit, onDelete }: CoursesScheduleProps) {
     const { user } = useAuthContext()
     if (!user) return null
-    const [selectedSemester, setSelectedSemester] = useState<string>(user.Semester)
-
-    // Get unique semesters
-    const semesters = useMemo(() => {
-        if (!courses) return []
-        const uniqueSemesters = [...new Set([...courses.map(course => course.Semester), user.Semester])]
-
-        // Custom sorting function for semester format: "<season> <year>"
-        const sortSemesters = (a: string, b: string) => {
-            const parseSemester = (semester: string) => {
-                const parts = semester.split(' ')
-                if (parts.length !== 2) return { season: '', year: 0, seasonPriority: 0 }
-
-                const season = parts[0].toUpperCase()
-                const year = parseInt(parts[1])
-
-                // Season priority: SPRING = 1, SUMMER = 2, FALL = 3
-                const seasonPriority: Record<string, number> = {
-                    'FALL': 1,
-                    'SUMMER': 2,
-                    'SPRING': 3
-                }
-
-                return {
-                    season,
-                    year,
-                    seasonPriority: seasonPriority[season] || 0
-                }
-            }
-
-            const semesterA = parseSemester(a)
-            const semesterB = parseSemester(b)
-
-            // First sort by year (descending)
-            if (semesterA.year !== semesterB.year) {
-                return semesterB.year - semesterA.year
-            }
-
-            // Then sort by season (SPRING -> SUMMER -> FALL)
-            return semesterA.seasonPriority - semesterB.seasonPriority
-        }
-
-        return uniqueSemesters.sort(sortSemesters)
-    }, [courses])
-
+    
     // Filter courses by semester and parse schedules
     const scheduledCourses = useMemo((): CourseWithSchedule[] => {
         if (!courses) return []
@@ -109,30 +66,14 @@ function CoursesSchedule({ courses, onCourseClick, onEdit, onDelete }: CoursesSc
     const currentMinute = now.getMinutes()
     const currentTop = (currentHour - 8) * 60 + currentMinute
 
+    const hasScheduledCourses = scheduledCourses.length > 0
+    const hasAsyncCourses = asyncCourses.length > 0
+    const isEmpty = !hasScheduledCourses && !hasAsyncCourses
+
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between px-1">
-                <h2 className="text-2xl font-bold text-white tracking-tight">Weekly Schedule</h2>
-                <div className="w-64">
-                    <Select value={selectedSemester} onValueChange={setSelectedSemester}>
-                        <SelectTrigger className="bg-white/5 border-white/10 text-white hover:bg-white/10 transition-all duration-200 backdrop-blur-sm">
-                            <SelectValue placeholder="Filter by semester" />
-                        </SelectTrigger>
-                        <SelectContent className="glass border-white/10 bg-black/90 backdrop-blur-xl text-gray-200">
-                            {semesters.map(semester => (
-                                <SelectItem 
-                                    key={semester} 
-                                    value={semester}
-                                    className="focus:bg-white/10 focus:text-white cursor-pointer"
-                                >
-                                    {semester}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-            </div>
-
+           
+            {hasScheduledCourses && (
             <GlassCard className="border-white/5 bg-white/5 overflow-hidden shadow-xl shadow-black/20">
                 <CardContent className="p-0">
                     <div className="overflow-auto custom-scrollbar">
@@ -247,21 +188,11 @@ function CoursesSchedule({ courses, onCourseClick, onEdit, onDelete }: CoursesSc
                             })}
                         </div>
                     </div>
-
-                    {scheduledCourses.length === 0 && (
-                        <div className="py-20 flex justify-center items-center">
-                             <EmptyState
-                                icon={BookOpen}
-                                title="No courses found"
-                                description={`No courses found for ${selectedSemester} semester`}
-                                className="bg-transparent border-0"
-                            />
-                        </div>
-                    )}
                 </CardContent>
             </GlassCard>
+            )}
 
-            {asyncCourses.length > 0 && (
+            {hasAsyncCourses && (
                  <div className="space-y-4">
                     <h3 className="text-lg font-semibold text-white px-1">Asynchronous Courses</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -270,6 +201,17 @@ function CoursesSchedule({ courses, onCourseClick, onEdit, onDelete }: CoursesSc
                         ))}
                     </div>
                  </div>
+            )}
+            
+            {isEmpty && (
+                <div className="py-20 flex justify-center items-center">
+                        <EmptyState
+                        icon={BookOpen}
+                        title="No courses found"
+                        description={`No courses found for ${selectedSemester} semester`}
+                        className="bg-transparent border-0"
+                    />
+                </div>
             )}
         </div>
     )

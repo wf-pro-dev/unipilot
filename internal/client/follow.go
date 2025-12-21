@@ -25,7 +25,7 @@ func Follow(followedID uint) (bool, error) {
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Post(fmt.Sprintf("%s/users/%d/follow", api_url, followedID))
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return false, err
 	}
 
@@ -64,7 +64,7 @@ func GetFollowers(userID uint) ([]user.User, int, error) {
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/users/%d/followers", api_url, userID))
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return nil, 0, err
 	}
 
@@ -90,7 +90,7 @@ func GetFollowing(userID uint) ([]user.User, int, error) {
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/users/%d/following", api_url, userID))
 
-	if err := setAuthHeader(agent); err != nil {
+	if err := SetAuthHeader(agent); err != nil {
 		return nil, 0, err
 	}
 
