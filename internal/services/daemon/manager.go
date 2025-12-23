@@ -2,48 +2,105 @@ package daemon
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
+	"strconv"
 
 	"unipilot/internal/errors"
+
+	"github.com/kardianos/service"
 )
 
 // Manager handles daemon installation and management
 type Manager struct {
-	userID     uint
-	daemonPath string
-	plistPath  string
-	projectDir string
-	ctx        context.Context
+	userID       uint
+	daemonPath   string
+	logPath      string
+	errorLogPath string
+	projectDir   string
+	ctx          context.Context
+	svc          service.Service
 }
+
+// dummyProgram is a placeholder that implements service.Interface
+// This is required by service.New() but will never actually be called
+// because we set Executable in the config, which causes the service
+// to run the daemon binary directly. The actual program implementation
+// is in internal/daemon/notifications-daemon.go
+type dummyProgram struct{}
+
+func (p *dummyProgram) Start(s service.Service) error { return nil }
+func (p *dummyProgram) Stop(s service.Service) error  { return nil }
 
 // NewManager creates a new daemon manager
 func NewManager(userID uint, ctx context.Context) (*Manager, error) {
-	// Get user's home directory
-	userHome, err := os.UserHomeDir()
-	if err != nil {
-		return nil, errors.Wrap(err, errors.FSDirFailed, "Failed to get user home directory")
-	}
-
 	// Get the project directory (where the main app is running from)
 	projectDir, err := getProjectDirectory()
 	if err != nil {
 		return nil, errors.Wrap(err, errors.DaemonProjectNotFound, "Failed to get project directory")
 	}
 
-	// Set the daemon path to professional standard location
-	daemonPath := "/usr/local/bin/unipilot-notification"
-	plistPath := filepath.Join(userHome, "Library", "LaunchAgents", "com.unipilot.notifications.plist")
+	// Get user home directory
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return nil, errors.Wrap(err, errors.FSDirFailed, "Failed to get user home directory")
+	}
+
+	// Set paths - use user-accessible locations (no sudo needed)
+	daemonPath := filepath.Join(userHome, "Library", "Application Support", "unipilot", "unipilot-notification")
+	logPath := filepath.Join(userHome, "Library", "Logs", "unipilot", "unipilot-notification.log")
+	errorLogPath := filepath.Join(userHome, "Library", "Logs", "unipilot", "unipilot-notification-error.log")
+
+	// Create a dummy program for service configuration
+	prg := &dummyProgram{}
+
+	// Configure service with logging
+	svcConfig := &service.Config{
+		Name:        "com.unipilot.notifications",
+		DisplayName: "UniPilot Notification Service",
+		Description: "Background notification service for UniPilot",
+		Arguments: []string{
+			"-user", strconv.FormatUint(uint64(userID), 10),
+			"-log", logPath,
+		},
+		Executable: daemonPath,
+	}
+
+	// For macOS, configure LaunchAgent options
+	// Set UserService to true to ensure it's user-specific
+	opts := make(service.KeyValue)
+	opts["UserService"] = true
+	opts["StandardOutPath"] = logPath
+	opts["StandardErrorPath"] = errorLogPath
+	opts["RunAtLoad"] = true
+	opts["KeepAlive"] = true
+	opts["ProcessType"] = "Background"
+	opts["WorkingDirectory"] = userHome
+
+	// Set environment variables
+	envVars := map[string]string{
+		"PATH":     "/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin",
+		"BASE_URL": "https://wwwill.xyz",
+	}
+	opts["EnvironmentVariables"] = envVars
+
+	svcConfig.Option = opts
+
+	// Create service instance
+	svc, err := service.New(prg, svcConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, errors.DaemonInstallFailed, "Failed to create service instance")
+	}
 
 	return &Manager{
-		userID:     userID,
-		daemonPath: daemonPath,
-		plistPath:  plistPath,
-		projectDir: projectDir,
-		ctx:        ctx,
+		userID:       userID,
+		daemonPath:   daemonPath,
+		logPath:      logPath,
+		errorLogPath: errorLogPath,
+		projectDir:   projectDir,
+		ctx:          ctx,
+		svc:          svc,
 	}, nil
 }
 
@@ -95,50 +152,31 @@ func (m *Manager) BuildDaemon() error {
 		return errors.NewAppError(errors.DaemonSourceNotFound, "Daemon source file not found", err)
 	}
 
-	// Build the daemon to a temporary location in /tmp
-	tempDaemonPath := filepath.Join(os.TempDir(), "unipilot-notification-temp")
+	// Ensure target directory exists
+	daemonDir := filepath.Dir(m.daemonPath)
+	if err := os.MkdirAll(daemonDir, 0755); err != nil {
+		return errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create daemon directory")
+	}
 
-	cmd := exec.Command("go", "build", "-o", tempDaemonPath, daemonSource)
+	// Build the daemon
+	cmd := exec.Command("go", "build", "-o", m.daemonPath, daemonSource)
 	cmd.Dir = m.projectDir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
 	if err := cmd.Run(); err != nil {
-		// Clean up temp file on error
-		os.Remove(tempDaemonPath)
 		return errors.Wrap(err, errors.DaemonBuildFailed, "Failed to build daemon")
 	}
 
-	// Move the binary to the professional location with authorization
-	if err := m.moveBinaryToSystemLocation(tempDaemonPath); err != nil {
-		// Clean up temp file
-		os.Remove(tempDaemonPath)
-		return errors.Wrap(err, errors.DaemonInstallFailed, "Failed to install daemon to system location")
+	// Make executable
+	if err := os.Chmod(m.daemonPath, 0755); err != nil {
+		return errors.Wrap(err, errors.DaemonBuildFailed, "Failed to set executable permissions")
 	}
 
 	return nil
 }
 
-// moveBinaryToSystemLocation moves the binary to /usr/local/bin/ with proper authorization
-func (m *Manager) moveBinaryToSystemLocation(tempPath string) error {
-	// Create authorization manager
-	authMgr := NewAuthorizationManager(m.ctx)
-
-	// Execute all commands in a single privileged session
-	commands := []string{
-		fmt.Sprintf("/bin/mv %s %s", tempPath, m.daemonPath),
-		fmt.Sprintf("/bin/chmod 755 %s", m.daemonPath),
-		fmt.Sprintf("/usr/sbin/chown root:wheel %s", m.daemonPath),
-	}
-
-	if err := authMgr.RequestPrivilegesAndExecute(commands); err != nil {
-		return errors.Wrap(err, errors.DaemonInstallFailed, "Failed to execute privileged commands")
-	}
-
-	return nil
-}
-
-// InstallDaemon installs the notification daemon
+// InstallDaemon installs the notification daemon using the service library
 func (m *Manager) InstallDaemon() error {
 	// Check if daemon binary exists, build if not
 	if _, err := os.Stat(m.daemonPath); os.IsNotExist(err) {
@@ -152,14 +190,10 @@ func (m *Manager) InstallDaemon() error {
 		return errors.Wrap(err, errors.DaemonInstallFailed, "Failed to create directories")
 	}
 
-	// Create the plist file
-	if err := m.createPlistFile(); err != nil {
-		return errors.Wrap(err, errors.DaemonInstallFailed, "Failed to create plist file")
-	}
-
-	// Load the launch agent
-	if err := m.loadLaunchAgent(); err != nil {
-		return errors.Wrap(err, errors.DaemonInstallFailed, "Failed to load launch agent")
+	// Use service library to install
+	// On macOS, this will create the LaunchAgent plist automatically
+	if err := m.svc.Install(); err != nil {
+		return errors.Wrap(err, errors.DaemonInstallFailed, "Failed to install service")
 	}
 
 	return nil
@@ -167,19 +201,15 @@ func (m *Manager) InstallDaemon() error {
 
 // UninstallDaemon removes the notification daemon
 func (m *Manager) UninstallDaemon() error {
-	// Unload the launch agent
-	if err := m.unloadLaunchAgent(); err != nil {
-		return errors.Wrap(err, errors.DaemonUninstallFailed, "Failed to unload launch agent")
+	// Stop the service first
+	if err := m.svc.Stop(); err != nil {
+		// Log but don't fail if service is not running
+		// This is expected if service was already stopped
 	}
 
-	// Remove the plist file
-	if err := m.removePlistFile(); err != nil {
-		return errors.Wrap(err, errors.DaemonUninstallFailed, "Failed to remove plist file")
-	}
-
-	// Remove the daemon binary from system location
-	if err := m.removeDaemonBinary(); err != nil {
-		return errors.Wrap(err, errors.DaemonUninstallFailed, "Failed to remove daemon binary")
+	// Uninstall using service library
+	if err := m.svc.Uninstall(); err != nil {
+		return errors.Wrap(err, errors.DaemonUninstallFailed, "Failed to uninstall service")
 	}
 
 	return nil
@@ -187,31 +217,28 @@ func (m *Manager) UninstallDaemon() error {
 
 // IsDaemonInstalled checks if the daemon is installed
 func (m *Manager) IsDaemonInstalled() bool {
-	// Check if plist file exists
-	if _, err := os.Stat(m.plistPath); os.IsNotExist(err) {
-		return false
-	}
-
-	// Check if daemon binary exists in system location
+	// Check if daemon binary exists
 	if _, err := os.Stat(m.daemonPath); os.IsNotExist(err) {
 		return false
 	}
 
-	// Check if launch agent is loaded
-	cmd := exec.Command("launchctl", "list")
-	output, err := cmd.Output()
+	// Check if service is installed using service library
+	status, err := m.svc.Status()
 	if err != nil {
 		return false
 	}
 
-	return strings.Contains(string(output), "com.unipilot.notifications")
+	// Service is installed if status is not "Unknown"
+	return status != service.StatusUnknown
 }
 
 // IsDaemonRunning checks if the daemon is currently running
 func (m *Manager) IsDaemonRunning() bool {
-	cmd := exec.Command("pgrep", "-f", "unipilot-notification")
-	err := cmd.Run()
-	return err == nil
+	status, err := m.svc.Status()
+	if err != nil {
+		return false
+	}
+	return status == service.StatusRunning
 }
 
 // StartDaemon starts the daemon if it's not running
@@ -220,7 +247,7 @@ func (m *Manager) StartDaemon() error {
 		return nil
 	}
 
-	return m.loadLaunchAgent()
+	return m.svc.Start()
 }
 
 // StopDaemon stops the daemon
@@ -229,14 +256,20 @@ func (m *Manager) StopDaemon() error {
 		return nil
 	}
 
-	return m.unloadLaunchAgent()
+	return m.svc.Stop()
 }
 
 // RebuildDaemon rebuilds the daemon binary
 func (m *Manager) RebuildDaemon() error {
+	// Stop the service first
+	if m.IsDaemonRunning() {
+		if err := m.svc.Stop(); err != nil {
+			// Log warning but continue
+		}
+	}
 
-	// Remove existing binary from system location
-	if err := m.removeDaemonBinary(); err != nil {
+	// Remove existing binary
+	if err := os.Remove(m.daemonPath); err != nil && !os.IsNotExist(err) {
 		return errors.Wrap(err, errors.DaemonBuildFailed, "Failed to remove existing binary")
 	}
 
@@ -252,9 +285,8 @@ func (m *Manager) createDirectories() error {
 	}
 
 	dirs := []string{
-		filepath.Join(userHome, "Library", "LaunchAgents"),
-		filepath.Join(userHome, "Library", "Logs", "unipilot"),
 		filepath.Join(userHome, "Library", "Application Support", "unipilot"),
+		filepath.Join(userHome, "Library", "Logs", "unipilot"),
 	}
 
 	for _, dir := range dirs {
@@ -264,83 +296,4 @@ func (m *Manager) createDirectories() error {
 	}
 
 	return nil
-}
-
-func (m *Manager) createPlistFile() error {
-	userHome, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-
-	plistContent := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.unipilot.notifications</string>
-    
-    <key>ProgramArguments</key>
-    <array>
-        <string>%s</string>
-        <string>-user</string>
-        <string>%d</string>
-        <string>-log</string>
-        <string>%s/Library/Logs/unipilot/unipilot-notification.log</string>
-    </array>
-    
-    <key>RunAtLoad</key>
-    <true/>
-    
-    <key>KeepAlive</key>
-    <true/>
-    
-    <key>StandardOutPath</key>
-    <string>%s/Library/Logs/unipilot/unipilot-notification.log</string>
-    
-    <key>StandardErrorPath</key>
-    <string>%s/Library/Logs/unipilot/unipilot-notification-error.log</string>
-    
-    <key>ProcessType</key>
-    <string>Background</string>
-    
-    <key>WorkingDirectory</key>
-    <string>%s</string>
-    
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>PATH</key>
-        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
-        <key>BASE_URL</key>
-        <string>https://wwwill.xyz</string>
-    </dict>
-</dict>
-</plist>`, m.daemonPath, m.userID, userHome, userHome, userHome, userHome)
-
-	return os.WriteFile(m.plistPath, []byte(plistContent), 0644)
-}
-
-func (m *Manager) loadLaunchAgent() error {
-	cmd := exec.Command("launchctl", "load", m.plistPath)
-	return cmd.Run()
-}
-
-func (m *Manager) unloadLaunchAgent() error {
-	cmd := exec.Command("launchctl", "unload", m.plistPath)
-	return cmd.Run()
-}
-
-func (m *Manager) removePlistFile() error {
-	return os.Remove(m.plistPath)
-}
-
-func (m *Manager) removeDaemonBinary() error {
-	// Create authorization manager
-	authMgr := NewAuthorizationManager(m.ctx)
-
-	// Remove the binary in a single privileged session
-	commands := []string{
-		fmt.Sprintf("/bin/rm -f %s", m.daemonPath),
-	}
-
-	return authMgr.RequestPrivilegesAndExecute(commands)
 }

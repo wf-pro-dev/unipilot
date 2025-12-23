@@ -83,34 +83,16 @@ func NewApp() *App {
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// Initialize daemon manager
-
+	// Initialize daemon manager only if user is authenticated
+	// Service will be installed on login, not on startup
 	if a.Auth.User != nil && a.Auth.User.ID > 0 {
 		daemon, err := daemon.NewManager(a.Auth.User.ID, a.ctx)
 		if err != nil {
 			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to initialize daemon manager").Error())
 		} else {
 			a.Daemon = daemon
-
-			// Auto-install daemon if not already installed
-			if !daemon.IsDaemonInstalled() {
-				if err := daemon.InstallDaemon(); err != nil {
-					log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to install notification daemon").Error())
-					runtime.MessageDialog(ctx, runtime.MessageDialogOptions{
-						Type:    runtime.ErrorDialog,
-						Title:   "Notification Setup",
-						Message: "Failed to set up background notifications. Notifications will only work when the app is running.",
-					})
-				}
-			}
-
-			// Start daemon if not running
-			if !daemon.IsDaemonRunning() {
-				if err := daemon.StartDaemon(); err != nil {
-					log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to start notification daemon").Error())
-
-				}
-			}
+			// Note: Service installation happens on Login(), not here
+			// This ensures the service is user-specific and installed only when logged in
 		}
 	}
 
@@ -1289,6 +1271,39 @@ func (a *App) Register(userData *user.User) (*user.User, error) {
 	a.DB = dbService
 	a.Events = events.NewEvents(a.DB.GetDB())
 
+	// Initialize daemon manager for the newly registered user
+	if user != nil && user.ID > 0 {
+		daemonMgr, err := daemon.NewManager(user.ID, a.ctx)
+		if err != nil {
+			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to initialize daemon manager").Error())
+		} else {
+			a.Daemon = daemonMgr
+
+			// Install daemon service for the new user
+			if !daemonMgr.IsDaemonInstalled() {
+				if err := daemonMgr.InstallDaemon(); err != nil {
+					log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to install notification daemon").Error())
+					runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+						Type:    runtime.WarningDialog,
+						Title:   "Notification Setup",
+						Message: "Failed to set up background notifications. Notifications will only work when the app is running.",
+					})
+				} else {
+					log.Println("Notification daemon installed successfully for new user", user.ID)
+				}
+			}
+
+			// Start daemon if not running
+			if !daemonMgr.IsDaemonRunning() {
+				if err := daemonMgr.StartDaemon(); err != nil {
+					log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to start notification daemon").Error())
+				} else {
+					log.Println("Notification daemon started successfully for new user", user.ID)
+				}
+			}
+		}
+	}
+
 	return user, nil
 }
 
@@ -1308,11 +1323,66 @@ func (a *App) Login(username, password string) (*user.User, error) {
 	a.DB = dbService
 	a.Events = events.NewEvents(a.DB.GetDB())
 
+	// Initialize daemon manager for the logged-in user
+	if user != nil && user.ID > 0 {
+		daemonMgr, err := daemon.NewManager(user.ID, a.ctx)
+		if err != nil {
+			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to initialize daemon manager").Error())
+		} else {
+			a.Daemon = daemonMgr
+
+			// Install daemon service only if not already installed
+			// This ensures each user gets their own service instance
+			if !daemonMgr.IsDaemonInstalled() {
+				if err := daemonMgr.InstallDaemon(); err != nil {
+					log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to install notification daemon").Error())
+					runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+						Type:    runtime.WarningDialog,
+						Title:   "Notification Setup",
+						Message: "Failed to set up background notifications. Notifications will only work when the app is running.",
+					})
+				} else {
+					log.Println("Notification daemon installed successfully for user", user.ID)
+				}
+			}
+
+			// Start daemon if not running
+			if !daemonMgr.IsDaemonRunning() {
+				if err := daemonMgr.StartDaemon(); err != nil {
+					log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to start notification daemon").Error())
+				} else {
+					log.Println("Notification daemon started successfully for user", user.ID)
+				}
+			}
+		}
+	}
+
 	return user, nil
 }
 
 // Logout handles user logout
 func (a *App) Logout() error {
+	// Stop and uninstall daemon service before logout
+	// This ensures the service is removed so another user can install their own
+	if a.Daemon != nil {
+		// Stop the daemon first
+		if err := a.Daemon.StopDaemon(); err != nil {
+			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to stop notification daemon").Error())
+		} else {
+			log.Println("Notification daemon stopped successfully")
+		}
+
+		// Uninstall the daemon service
+		if err := a.Daemon.UninstallDaemon(); err != nil {
+			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to uninstall notification daemon").Error())
+		} else {
+			log.Println("Notification daemon uninstalled successfully")
+		}
+
+		// Clear daemon manager reference
+		a.Daemon = nil
+	}
+
 	if err := a.Auth.Logout(); err != nil {
 		return err
 	}
