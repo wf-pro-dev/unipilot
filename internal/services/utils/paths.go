@@ -90,7 +90,10 @@ func GetDBPath() (string, error) {
 	dbPath := filepath.Join(userDir, "data.db")
 
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		return "", errors.NewAppError(errors.FSFileNotFound, "Database file not found", nil)
+		if _, err = os.Create(dbPath); err != nil {
+			return "", errors.Wrap(err, errors.FSCreateFailed, "Failed to create database file")
+		}
+		// File created successfully, return the path with no error
 	}
 
 	return dbPath, nil

@@ -14,6 +14,8 @@ import { format } from "date-fns"
 import { course } from "@/wailsjs/go/models"
 import { CourseDeleteDialog } from "./course-delete-dialog"
 import { LinkRequestModal } from "@/components/community/link-request-modal"
+import { LinkedResources } from "@/components/courses/linked-resources"
+import { Link as LinkIcon } from "lucide-react"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { useAuthContext } from "@/components/provider/auth-provider"
 
@@ -116,7 +118,7 @@ export default function CoursesPage() {
   }, [currentCourse, courses])
 
   // Valid view values for tab navigation
-  const validViews = ["schedule", "list"]
+  const validViews = ["schedule", "list", "linked"]
 
   // Validate and sanitize view parameter to prevent invalid states
   const activeView = validViews.includes(currentView) ? currentView : "schedule"
@@ -266,12 +268,20 @@ export default function CoursesPage() {
                 <span className="hidden sm:inline text-sm font-medium">Schedule</span>
               </TabsTrigger>
               <TabsTrigger
+                value="linked"
+                className="flex w-60 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+              >
+                <LinkIcon className="w-4 h-4" />
+                <span className="hidden sm:inline text-sm font-medium">Linked</span>
+              </TabsTrigger>
+              <TabsTrigger
                 value="list"
                 className="flex w-60 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
               >
                 <List className="w-4 h-4" />
                 <span className="hidden sm:inline text-sm font-medium">All ({courses.length || 0})</span>
               </TabsTrigger>
+             
             </TabsList>
             <div>
               <Select value={selectedSemester} onValueChange={setSelectedSemester}>
@@ -314,6 +324,11 @@ export default function CoursesPage() {
               onDelete={handleDeleteCourseClick}
             />
           </TabsContent>
+
+          {/* Linked Resources View */}
+          <TabsContent value="linked">
+            <LinkedResources />
+          </TabsContent>
         </Tabs>
 
 
@@ -325,6 +340,7 @@ export default function CoursesPage() {
           onEdit={handleEditCourse}
           onDelete={handleDeleteCourseClick}
           onLinkRequest={() => setIsLinkRequestModalOpen(true)}
+          onViewLinks={() => handleTabChange("linked")}
         />
 
         <CourseDeleteDialog

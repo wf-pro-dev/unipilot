@@ -12,18 +12,21 @@ import { useAuthContext } from "../provider/auth-provider"
 import { Skeleton } from "../ui/skeleton"
 import { toast } from "sonner"
 
+import { user as User } from "@/wailsjs/go/models"
+
 interface UserItemProps {
   userID: number
+  user?: User.User
 }
 
-export function UserItem({ userID }: UserItemProps) {
+export function UserItem({ userID, user: userProp }: UserItemProps) {
 
 
   const { data: followers, isLoading: followersLoading } = useFollowers(userID)
   const { data: following, isLoading: followingLoading } = useFollowing(userID)
 
   const { data: users, isLoading: userLoading } = useUsers()
-  const user = users?.find((user) => user.ID === userID)
+  const user = userProp || users?.find((user) => user.ID === userID)
   const { user: currentUser, followers: currentUserFollowers, following: currentUserFollowing } = useAuthContext()
 
 

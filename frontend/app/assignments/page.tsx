@@ -105,8 +105,6 @@ export default function AssignmentsPage() {
     setSelectedAssignmentID(assignment.ID)
   }
 
-  console.log("filter (page)", { courseFilter, statusFilter, priorityFilter })
-
   /**
    * Handles assignment field updates with optimistic UI updates.
    * 

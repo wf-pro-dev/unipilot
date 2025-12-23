@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   Search,
   Share,
+  Link as LinkIcon,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react"
@@ -54,9 +55,10 @@ interface CourseDetailsModalProps {
   onEdit: (course: Course.LocalCourse, column: string, value: string) => void
   onDelete: (course: Course.LocalCourse) => void
   onLinkRequest: () => void
+  onViewLinks: () => void
 }
 
-export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit, onDelete, onLinkRequest }: CourseDetailsModalProps) {
+export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit, onDelete, onLinkRequest, onViewLinks }: CourseDetailsModalProps) {
   const course = courses.find(c => c.ID === courseId) || null
   if (!course) return null
   const router = useRouter()
@@ -196,6 +198,15 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                   <h2 className="text-xl font-bold text-white tracking-tight">{courseData.Name}</h2>
                 </div>
               </div>
+              <Button
+                 variant="ghost"
+                 size="sm"
+                 className="text-gray-400 hover:text-white hover:bg-white/10"
+                 onClick={onViewLinks}
+                 title="View Linked Resources"
+              >
+                <LinkIcon className="w-4 h-4" />
+              </Button>
             </div>
           </div>
 

@@ -186,3 +186,29 @@ func AcceptLinkCourse(c *course.Course) ([]assignment.Assignment, error) {
 
 	return response, nil
 }
+
+func GetCoursesLinked() (map[string]interface{}, error) {
+
+	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Get(fmt.Sprintf("%s/courses/linked", api_url))
+
+	if err := SetAuthHeader(agent); err != nil {
+		return nil, err
+	}
+
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
+
+	if statusCode != 200 {
+		serverError := errors.ParseServerError(body, statusCode)
+		return nil, serverError
+	}
+	var response map[string]interface{}
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse response")
+	}
+
+	return response, nil
+}

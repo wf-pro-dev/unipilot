@@ -1,11 +1,11 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { course } from "@/wailsjs/go/models"
-import { LogError } from "@/wailsjs/runtime/runtime"
+import { course, user, note, assignment } from "@/wailsjs/go/models"
+import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { assignmentKeys } from './use-assignments'
-import { assignment } from '@/wailsjs/go/models'
 import { documentKeys } from './use-documents'
+import { GetCourses, CreateCourse, UpdateCourse, DeleteCourse, RequestLinkCourse, GetCoursesLinked } from '@/wailsjs/go/main/App'
 
 
 // Query keys for consistent cache management
@@ -15,6 +15,7 @@ export const courseKeys = {
   list: (filters: string) => [...courseKeys.lists(), { filters }] as const,
   details: () => [...courseKeys.all, 'detail'] as const,
   detail: (id: number) => [...courseKeys.details(), id] as const,
+  linked: () => [...courseKeys.all, 'linked'] as const,
 }
 
 // Main hook for fetching courses with caching
@@ -23,7 +24,7 @@ export function useCourses() {
     queryKey: courseKeys.lists(),
     queryFn: async (): Promise<course.LocalCourse[]> => {
       try {
-        return await window.go.main.App.GetCourses()
+        return await GetCourses()
       } catch (error) {
         LogError("Failed to fetch courses: " + error)
         throw new Error(error instanceof Error ? error.message : "Failed to fetch courses")
@@ -34,13 +35,38 @@ export function useCourses() {
   })
 }
 
+// Type matching the API response (lowercase keys)
+export type CoursesLinkedData = Record<string, { 
+  Users: user.User[], 
+  Assignments: assignment.LocalAssignment[], 
+  Notes: note.LocalNote[] 
+}>
+
+export function useCoursesLinked() {
+  return useQuery({
+    queryKey: courseKeys.linked(),
+    queryFn: async (): Promise<CoursesLinkedData> => { 
+      try {
+        const coursesLinked = await GetCoursesLinked()
+        return coursesLinked as CoursesLinkedData
+      } catch (error) {
+        LogError("Failed to fetch courses linked: " + error)
+        throw new Error(error instanceof Error ? error.message : "Failed to fetch courses linked")
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+  })
+}
+
+
 // Hook for creating new courses
 export function useCreateCourse() {
   const queryClient = useQueryClient()
   
   return useMutation({
     mutationFn: async (newCourse: course.LocalCourse) => {
-      return await window.go.main.App.CreateCourse(newCourse)
+      return await CreateCourse(newCourse)
     },
     
     // Optimistically add the new course
@@ -76,7 +102,7 @@ export function useUpdateCourse() {
   
   return useMutation({
     mutationFn: async ({ course, column, value }: { course: course.LocalCourse, column: string, value: string }) => {
-      return await window.go.main.App.UpdateCourse(course, column, value)
+      return await UpdateCourse(course, column, value)
     },
     
     // Optimistic update for instant UI feedback
@@ -116,7 +142,7 @@ export function useDeleteCourse() {
   
   return useMutation({
     mutationFn: async (course: course.LocalCourse) => {
-      return await window.go.main.App.DeleteCourse(course)
+      return await DeleteCourse(course)
     },
     
     // Optimistically remove the course, assignments, and documents
@@ -176,7 +202,7 @@ export function useDeleteCourse() {
 export function useRequestLinkCourse() {
   return useMutation({
     mutationFn: async ({ c, usersID }: { c: course.LocalCourse, usersID: number[] }) => {
-      return await window.go.main.App.RequestLinkCourse(c, usersID)
+      return await RequestLinkCourse(c, usersID)
     }
   })
 }

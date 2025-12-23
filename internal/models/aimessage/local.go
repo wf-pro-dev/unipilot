@@ -39,9 +39,7 @@ func (m *LocalAiMessage) ToUIMessage() (map[string]interface{}, error) {
 	if err := json.Unmarshal(m.Parts, &parts); err != nil {
 		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal message parts")
 	}
-	if err := json.Unmarshal(m.Metadata, &metadata); err != nil {
-		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal message metadata")
-	}
+	json.Unmarshal(m.Metadata, &metadata)
 
 	return map[string]interface{}{
 		"id":        m.ID,

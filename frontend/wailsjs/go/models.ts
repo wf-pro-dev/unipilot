@@ -1,3 +1,54 @@
+export namespace aimessage {
+	
+	export class LocalAiMessage {
+	    ID: string;
+	    AssignmentID: number;
+	    Role: string;
+	    Parts: number[];
+	    Metadata: number[];
+	    // Go type: time
+	    CreatedAt: any;
+	    // Go type: time
+	    UpdatedAt: any;
+	    DeletedAt: gorm.DeletedAt;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalAiMessage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ID = source["ID"];
+	        this.AssignmentID = source["AssignmentID"];
+	        this.Role = source["Role"];
+	        this.Parts = source["Parts"];
+	        this.Metadata = source["Metadata"];
+	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
+	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
+	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace assignment {
 	
 	export class LocalAssignment {
@@ -6,8 +57,7 @@ export namespace assignment {
 	    CreatedAt: any;
 	    // Go type: time
 	    UpdatedAt: any;
-	    // Go type: gorm
-	    DeletedAt: any;
+	    DeletedAt: gorm.DeletedAt;
 	    RemoteID: number;
 	    Title: string;
 	    Todo: string;
@@ -35,7 +85,7 @@ export namespace assignment {
 	        this.ID = source["ID"];
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
-	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
 	        this.RemoteID = source["RemoteID"];
 	        this.Title = source["Title"];
 	        this.Todo = source["Todo"];
@@ -75,6 +125,78 @@ export namespace assignment {
 
 }
 
+export namespace client {
+	
+	export class RemoteUser {
+	    ID: number;
+	    // Go type: time
+	    CreatedAt: any;
+	    // Go type: time
+	    UpdatedAt: any;
+	    DeletedAt: gorm.DeletedAt;
+	    Username: string;
+	    Email: string;
+	    PasswordHash: string;
+	    Avatar: string;
+	    University: string;
+	    Semester: string;
+	    Year: string;
+	    IsVerified: boolean;
+	    Language: string;
+	    CoursesCode: string[];
+	    // Go type: time
+	    LastSync?: any;
+	    Followers: user.User[];
+	    Following: user.User[];
+	    CoursesCode: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new RemoteUser(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ID = source["ID"];
+	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
+	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
+	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
+	        this.Username = source["Username"];
+	        this.Email = source["Email"];
+	        this.PasswordHash = source["PasswordHash"];
+	        this.Avatar = source["Avatar"];
+	        this.University = source["University"];
+	        this.Semester = source["Semester"];
+	        this.Year = source["Year"];
+	        this.IsVerified = source["IsVerified"];
+	        this.Language = source["Language"];
+	        this.CoursesCode = source["CoursesCode"];
+	        this.LastSync = this.convertValues(source["LastSync"], null);
+	        this.Followers = this.convertValues(source["Followers"], user.User);
+	        this.Following = this.convertValues(source["Following"], user.User);
+	        this.CoursesCode = source["CoursesCode"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace course {
 	
 	export class Course {
@@ -83,8 +205,7 @@ export namespace course {
 	    CreatedAt: any;
 	    // Go type: time
 	    UpdatedAt: any;
-	    // Go type: gorm
-	    DeletedAt: any;
+	    DeletedAt: gorm.DeletedAt;
 	    UserID: number;
 	    LocalID: number;
 	    User: user.User;
@@ -112,7 +233,7 @@ export namespace course {
 	        this.ID = source["ID"];
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
-	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
 	        this.UserID = source["UserID"];
 	        this.LocalID = source["LocalID"];
 	        this.User = this.convertValues(source["User"], user.User);
@@ -154,8 +275,7 @@ export namespace course {
 	    CreatedAt: any;
 	    // Go type: time
 	    UpdatedAt: any;
-	    // Go type: gorm
-	    DeletedAt: any;
+	    DeletedAt: gorm.DeletedAt;
 	    RemoteID: number;
 	    Code: string;
 	    Name: string;
@@ -181,7 +301,7 @@ export namespace course {
 	        this.ID = source["ID"];
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
-	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
 	        this.RemoteID = source["RemoteID"];
 	        this.Code = source["Code"];
 	        this.Name = source["Name"];
@@ -226,8 +346,7 @@ export namespace document {
 	    CreatedAt: any;
 	    // Go type: time
 	    UpdatedAt: any;
-	    // Go type: gorm
-	    DeletedAt: any;
+	    DeletedAt: gorm.DeletedAt;
 	    RemoteID: number;
 	    RemoteAssignmentID: number;
 	    AssignmentID: number;
@@ -254,7 +373,7 @@ export namespace document {
 	        this.ID = source["ID"];
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
-	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
 	        this.RemoteID = source["RemoteID"];
 	        this.RemoteAssignmentID = source["RemoteAssignmentID"];
 	        this.AssignmentID = source["AssignmentID"];
@@ -396,6 +515,44 @@ export namespace fileops {
 
 }
 
+export namespace gorm {
+	
+	export class DeletedAt {
+	    // Go type: time
+	    Time: any;
+	    Valid: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new DeletedAt(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.Time = this.convertValues(source["Time"], null);
+	        this.Valid = source["Valid"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace main {
 	
 	export class FollowResponse {
@@ -482,8 +639,7 @@ export namespace note {
 	    CreatedAt: any;
 	    // Go type: time
 	    UpdatedAt: any;
-	    // Go type: gorm
-	    DeletedAt: any;
+	    DeletedAt: gorm.DeletedAt;
 	    remote_id: number;
 	    course_code: string;
 	    title: string;
@@ -501,7 +657,7 @@ export namespace note {
 	        this.ID = source["ID"];
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
-	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
 	        this.remote_id = source["remote_id"];
 	        this.course_code = source["course_code"];
 	        this.title = source["title"];
@@ -540,8 +696,7 @@ export namespace notifications {
 	    CreatedAt: any;
 	    // Go type: time
 	    UpdatedAt: any;
-	    // Go type: gorm
-	    DeletedAt: any;
+	    DeletedAt: gorm.DeletedAt;
 	    sender_id: number;
 	    entity: string;
 	    entity_id: number;
@@ -564,7 +719,7 @@ export namespace notifications {
 	        this.ID = source["ID"];
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
-	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
 	        this.sender_id = source["sender_id"];
 	        this.entity = source["entity"];
 	        this.entity_id = source["entity_id"];
@@ -607,8 +762,7 @@ export namespace user {
 	    CreatedAt: any;
 	    // Go type: time
 	    UpdatedAt: any;
-	    // Go type: gorm
-	    DeletedAt: any;
+	    DeletedAt: gorm.DeletedAt;
 	    Username: string;
 	    Email: string;
 	    PasswordHash: string;
@@ -633,7 +787,7 @@ export namespace user {
 	        this.ID = source["ID"];
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
-	        this.DeletedAt = this.convertValues(source["DeletedAt"], null);
+	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
 	        this.Username = source["Username"];
 	        this.Email = source["Email"];
 	        this.PasswordHash = source["PasswordHash"];

@@ -102,6 +102,10 @@ export function GetCourses() {
   return window['go']['main']['App']['GetCourses']();
 }
 
+export function GetCoursesLinked() {
+  return window['go']['main']['App']['GetCoursesLinked']();
+}
+
 export function GetCurrentUser() {
   return window['go']['main']['App']['GetCurrentUser']();
 }

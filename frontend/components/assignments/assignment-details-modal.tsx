@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Calendar, Edit, Trash2, FileText, ExternalLink, Info, Bot, Clock, Link as LinkIcon } from "lucide-react"
+import { Calendar, Edit, Trash2, FileText, ExternalLink, Info, Bot, Clock, Link as LinkIcon, CopyPlus } from "lucide-react"
 import { format } from "date-fns"
 import { assignment } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
@@ -22,9 +22,11 @@ interface AssignmentDetailsModalProps {
   isOpen: boolean
   onClose: () => void
   assignment_id: number | undefined
-  onOpenEdit: (assignment: assignment.LocalAssignment) => void
-  onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
-  onDelete: (assignment: assignment.LocalAssignment) => void
+  assignmentProp?: assignment.LocalAssignment | null
+  onOpenEdit?: (assignment: assignment.LocalAssignment) => void
+  onEdit?: (assignment: assignment.LocalAssignment, column: string, value: string) => void
+  onDelete?: (assignment: assignment.LocalAssignment) => void
+  onCopy?: (assignment: assignment.LocalAssignment) => void
   isLoading?: boolean
 }
 
@@ -32,9 +34,11 @@ export function AssignmentDetailsModal({
   isOpen,
   onClose,
   assignment_id,
+  assignmentProp,
   onOpenEdit,
   onEdit,
   onDelete,
+  onCopy,
 }: AssignmentDetailsModalProps) {
 
   if (!assignment_id) return null
@@ -44,7 +48,7 @@ export function AssignmentDetailsModal({
   const [activeView, setActiveView] = useState("info")
 
   const { data: assignments } = useAssignments()
-  const assignment = assignments?.find((a) => a.ID === assignment_id)
+  const assignment = assignmentProp || assignments?.find((a) => a.ID === assignment_id)
   if (!assignment) return null
 
   // Parse deadline with timezone awareness
@@ -120,17 +124,17 @@ export function AssignmentDetailsModal({
               <div className="grid grid-cols-3 gap-3">
                 <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
                   <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Status</span>
-                  <StatusTag assignment={assignment} onEdit={onEdit} />
+                  <StatusTag assignment={assignment} onEdit={onEdit!} />
                 </div>
 
                 <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
                   <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Priority</span>
-                  <PriorityTag assignment={assignment} onEdit={onEdit} />
+                  <PriorityTag assignment={assignment} onEdit={onEdit!} />
                 </div>
 
                 <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
                   <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Type</span>
-                  <TypeTag assignment={assignment} onEdit={onEdit} />
+                  <TypeTag assignment={assignment} onEdit={onEdit!} />
                 </div>
               </div>
 
@@ -149,7 +153,7 @@ export function AssignmentDetailsModal({
             </TabsContent>
 
             <TabsContent value="documents" className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <AssignmentDocuments assignment={assignment} />
+              <AssignmentDocuments assignment={assignment} documents={assignment.Documents} viewMode={!!assignmentProp} />
             </TabsContent>
 
           </Tabs>
@@ -158,28 +162,35 @@ export function AssignmentDetailsModal({
 
           <div className="grid grid-cols-2 gap-4 mt-6">
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push(`/chat?assignment=${assignment.ID}`)}
-              className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white h-10"
-            >
-              <Bot className="h-4 w-4 mr-2" />
-              <span className="text-sm">AI Help</span>
-            </Button>
+            {!assignmentProp && (
 
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white h-10"
-              onClick={(e) => {
-                e.stopPropagation()
-                onOpenEdit(assignment)
-              }}
-            >
-              <Edit className="mr-2 w-4 h-4" />
-              Edit
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/chat?assignment=${assignment.ID}`)}
+                className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white h-10"
+              >
+                <Bot className="h-4 w-4 mr-2" />
+                <span className="text-sm">AI Help</span>
+              </Button>
+
+            )}
+
+
+            {onOpenEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white h-10"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onOpenEdit(assignment)
+                }}
+              >
+                <Edit className="mr-2 w-4 h-4" />
+                Edit
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -192,19 +203,35 @@ export function AssignmentDetailsModal({
               <ExternalLink className="mr-2 w-4 h-4" />
               Open Link
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-red-400 bg-red-500/5 border-red-500/20 hover:bg-red-500/10 hover:text-red-300 h-10"
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete(assignment)
-              }}
-            >
-              <Trash2 className="mr-2 w-4 h-4" />
-              Delete
-            </Button>
 
+            {onCopy && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-blue-400 bg-blue-500/5 border-blue-500/20 hover:bg-blue-500/10 hover:text-blue-300 h-10"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onCopy?.(assignment)
+                }}
+              >
+                <CopyPlus className="h-4 w-4 mr-2" />
+                <span className="text-sm">Copy</span>
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-red-400 bg-red-500/5 border-red-500/20 hover:bg-red-500/10 hover:text-red-300 h-10"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onDelete(assignment)
+                }}
+              >
+                <Trash2 className="mr-2 w-4 h-4" />
+                Delete
+              </Button>
+            )}
           </div>
         </div>
 

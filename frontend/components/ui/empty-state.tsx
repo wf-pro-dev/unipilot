@@ -37,7 +37,7 @@ export function HorizontalEmptyState({
 }: EmptyStateProps) {
   return (
     <div className={cn("flex items-center gap-4 justify-center p-8 text-center animate-in fade-in zoom-in duration-500", className)}>
-      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-4 ring-1 ring-white/10">
+      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center ring-1 ring-white/10">
         <Icon className="h-8 w-8 text-white/50" strokeWidth={1.5} />
       </div>
       <div className="flex flex-col items-start gap-1">

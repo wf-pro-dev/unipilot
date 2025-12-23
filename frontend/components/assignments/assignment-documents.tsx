@@ -17,17 +17,18 @@ import { assignment, document } from "@/wailsjs/go/models"
 import { useAssignmentDocumentData } from "@/hooks/use-documents"
 import useEmblaCarousel from 'embla-carousel-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { GlassCard } from "../ui/glass-card"
 
 
 interface AssignmentDocumentsProps {
   assignment: assignment.LocalAssignment
+  documents?: document.LocalDocument[]
+  viewMode?: boolean
 }
 
-type DocumentFilter = "all" | "support" | "submission"
+type DocumentFilter = "All" | "support" | "submission"
 
-export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
-  const [filter, setFilter] = useState<DocumentFilter>("all")
+export function AssignmentDocuments({ assignment, documents, viewMode = false }: AssignmentDocumentsProps) {
+  const [filter, setFilter] = useState<DocumentFilter>("All")
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [uploadType, setUploadType] = useState<"support" | "submission">("support")
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -35,7 +36,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
 
 
   const documentFilters: DocumentFilter[] = [
-    "all",
+    "All",
     "support",
     "submission"
   ]
@@ -71,7 +72,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
     }
   }, [filter, emblaApi])
 
-  // Use the utility hook to get all document data
+  // Use the utility hook to get All document data
   const {
     allDocuments,
     supportDocuments,
@@ -92,7 +93,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
     }
   }
 
-  const filteredDocs = getFilteredDocuments()
+  const filteredDocs = documents || getFilteredDocuments()
 
   // Group documents into pages of 4 (2x2 grid)
   const documentsPerPage = 4
@@ -159,54 +160,58 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
         className="
           bg-white/5 
           border border-white/5 
-          p-4
+          p-6
           rounded-xl
-          space-y-4"
+          space-y-6"
       >
-        <div className="flex items-center space-x-6">
-          {/* Filter Tabs */}
-          <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+        {!viewMode && (
+          <div className="flex items-center space-x-6">
+            {/* Filter Tabs */}
 
-            <Select open={isSelectOpen} onOpenChange={setIsSelectOpen} value={filter} onValueChange={(value) => setFilter(value as DocumentFilter)}>
+            <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
 
-              <SelectTrigger onClick={() => setIsSelectOpen(!isSelectOpen)} className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 text-white flex space-x-2 h-10 transition-all focus:outline-none" >
-                <div className="h-10 w-full flex items-center  transition-all">
- 
-                  <span className="text-sm">{filter}</span>
-                </div>
-              </SelectTrigger>
+              <Select open={isSelectOpen} onOpenChange={setIsSelectOpen} value={filter} onValueChange={(value) => setFilter(value as DocumentFilter)}>
 
-              <SelectContent className="glass border-white/10 bg-black/90 backdrop-blur-xl">
-                {documentFilters.map((filter: DocumentFilter) => (
-                  <SelectItem key={filter} value={filter} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
-                    {filter}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                <SelectTrigger onClick={() => setIsSelectOpen(!isSelectOpen)} className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 text-white flex space-x-2 h-10 transition-All focus:outline-none" >
+                  <div className="h-10 w-full flex items-center  transition-All">
 
-            <Button variant="outline"
-              size="sm"
-              className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 text-white flex items-center justify-between h-10 transition-all"
-              onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}>
+                    <span className="text-sm">{filter}</span>
+                  </div>
+                </SelectTrigger>
 
-              
-              <span className="text-sm">Upload</span>
-              <Upload className="w-1 h-1 text-slate-500" />
-            </Button>
+                <SelectContent className="glass border-white/10 bg-black/90 backdrop-blur-xl">
+                  {documentFilters.map((filter: DocumentFilter) => (
+                    <SelectItem key={filter} value={filter} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
+                      {filter}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            <DocumentStorageInfo />
+              <Button variant="outline"
+                size="sm"
+                className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 text-white flex items-center justify-between h-10 transition-All"
+                onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}>
 
+
+                <span className="text-sm">Upload</span>
+                <Upload className="w-1 h-1 text-slate-500" />
+              </Button>
+
+              <DocumentStorageInfo />
+
+            </div>
+
+
+            {/* Page indicators */}
+
+            {documentPages.length > 1 && (
+              <Badge variant="outline" className="flex items-center p-0 h-8 px-3 bg-white/5 border-white/10 rounded-lg">
+                <p className="text-xs text-gray-400 font-medium">{selectedIndex + 1} / <span className="text-white">{documentPages.length}</span></p>
+              </Badge>
+            )}
           </div>
-
-          {/* Page indicators */}
-
-          {documentPages.length > 1 && (
-            <Badge variant="outline" className="flex items-center p-0 h-8 px-3 bg-white/5 border-white/10 rounded-lg">
-              <p className="text-xs text-gray-400 font-medium">{selectedIndex + 1} / <span className="text-white">{documentPages.length}</span></p>
-            </Badge>
-          )}
-        </div>
+        )}
 
 
         {/* Documents List */}
@@ -222,7 +227,7 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
                       key={pageIndex}
                       className="flex-none w-full min-w-0 px-1"
                     >
-                      <div className="grid grid-cols-2 gap-3 min-h-[224px]">
+                      <div className="grid grid-cols-1 gap-3 min-h-[224px]">
                         {page.map((document) => (
                           <div key={document.ID}>
                             <DocumentItem
@@ -268,22 +273,24 @@ export function AssignmentDocuments({ assignment }: AssignmentDocumentsProps) {
                 <FileText className="w-8 h-8 text-gray-500" strokeWidth={1.5} />
               </div>
               <p className="text-sm text-gray-400 mb-4">
-                {filter === "all"
+                {filter === "All"
                   ? "No documents uploaded yet"
                   : filter === "support"
                     ? "No support documents"
                     : "No submissions yet"
                 }
               </p>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}
-                className="py-2 px-4 gap-2 text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 hover:text-blue-300 h-9"
-              >
-                <Upload className="w-3.5 h-3.5" />
-                Upload Document
-              </Button>
+              {!viewMode && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleUpload(filter === "submission" ? "submission" : "support")}
+                  className="py-2 px-4 gap-2 text-blue-400 bg-blue-500/10 border-blue-500/20 hover:bg-blue-500/20 hover:text-blue-300 h-9"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Upload Document
+                </Button>
+              )}
             </div>
           )}
         </div>

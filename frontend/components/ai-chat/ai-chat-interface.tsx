@@ -13,7 +13,8 @@ import { UIMessage } from '@ai-sdk/react';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { StyledMarkdownRenderer } from '../notes/markdown-renderer';
 import { GlassCard } from '../ui/glass-card';
-
+import { format } from 'date-fns';
+import { parseDeadline } from '@/lib/date-utils';
 interface AIChatInterfaceProps {
   assignment: assignment.LocalAssignment;
 }
@@ -45,10 +46,10 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
     if (!conversationHistory) return [];
 
     return conversationHistory.map(message => ({
-      id: message.id, // Ensure ID is string
-      role: message.role,
-      parts: message.parts,
-      createdAt: message.created_at ? new Date(message.created_at) : new Date(),
+      id: message.ID, // Ensure ID is string
+      role: message.Role,
+      parts: message.Parts as any,
+      createdAt: message.CreatedAt ? new Date(message.CreatedAt) : new Date(),
     } as UIMessage));
   }, [conversationHistory]);
 
@@ -124,9 +125,20 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
   }, [input]);
 
 
+  
+
 
   if (historyLoading) {
-    return <div>Loading conversation history...</div>;
+    return (
+      <div className="flex w-full h-full justify-center items-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center animate-pulse">
+            <Bot className="w-6 h-6 text-white/50" />
+          </div>
+          <div className="text-muted-foreground text-sm">Loading chat history...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -134,7 +146,7 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
       {messages.length > 0 && (
         <div className="flex flex-col max-w-3xl pt-32 pb-60 gap-8 w-full">
           <div ref={messagesStartRef} />
-          {messages.map(message => (
+          {messages.map((message) => (
             <div key={message.id} className="w-full group animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className={`flex w-full gap-4 ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                 <div className="mt-1 flex-shrink-0">
@@ -153,7 +165,7 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
                 <div className={`flex flex-col gap-2 min-w-0 w-full ${message.role === 'user' ? 'items-end' : 'items-start'}`}>
                   <div className={`flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                     <span className="text-caption font-medium text-foreground">{message.role === 'user' ? 'You' : 'Unipilot AI'}</span>
-                    <span className="text-caption text-muted-foreground">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="text-caption text-muted-foreground">{format(parseDeadline(message.createdAt as any), "EEEE H:mm") || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
 
                   {message.parts.map((part, i) => {
@@ -194,7 +206,7 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
       )}
 
       {messages.length === 0 && !historyLoading && (
-        <div className="flex flex-col justify-self-center space-y-8 items-center min-h-[200px] justify-center animate-fade max-w-2xl px-4">
+        <div className="flex flex-col justify-self-center space-y-8 items-center min-h-[200px] justify-center max-w-2xl px-4">
           <div className="text-center space-y-4">
             <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-2xl items-center justify-center flex shadow-2xl shadow-indigo-500/30 mx-auto mb-6">
               <Bot className="w-8 h-8 text-white" />

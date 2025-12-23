@@ -7,5 +7,7 @@
     "build": "echo Build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "dependencies": {}
+  "dependencies": {
+    "react-plock": "^3.6.1"
+  }
 }

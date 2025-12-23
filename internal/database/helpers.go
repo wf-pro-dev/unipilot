@@ -279,7 +279,7 @@ func (h *Database) SaveUIMessage(assignmentID uint, vercelMessage map[string]int
 }
 
 // Retrieving conversation history
-func (h *Database) GetConversationHistory(assignmentID uint) ([]map[string]interface{}, error) {
+func (h *Database) GetConversationHistory(assignmentID uint) ([]aimessage.LocalAiMessage, error) {
 	var dbMessages []aimessage.LocalAiMessage
 	err := h.db.Where("assignment_id = ?", assignmentID).
 		Order("created_at ASC").
@@ -296,5 +296,5 @@ func (h *Database) GetConversationHistory(assignmentID uint) ([]map[string]inter
 		}
 	}
 
-	return uiMessages, nil
+	return dbMessages, nil
 }

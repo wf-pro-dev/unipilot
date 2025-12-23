@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"log"
 	"unipilot/internal/storage"
 
 	"unipilot/internal/errors"
@@ -16,10 +17,13 @@ func GetUserDB() (*gorm.DB, error) {
 	dbPath, err := GetDBPath()
 	if err != nil {
 		if errors.HasCode(err, errors.FSFileNotFound) {
+			log.Println("Database file not found")
 			return nil, errors.Wrap(err, errors.FSFileNotFound, "Database file not found")
 		}
 		return nil, errors.Wrap(err, errors.FSFileFailed, "Failed to get database path")
 	}
+
+	log.Println("Database path: ", dbPath)
 
 	// Open database connection
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{

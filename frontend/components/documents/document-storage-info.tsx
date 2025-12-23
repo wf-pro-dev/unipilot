@@ -52,7 +52,7 @@ export function DocumentStorageInfo() {
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
               <HardDrive className="w-4 h-4 text-gray-400" />
-              <h4 className="font-semibold text-white text-sm">Storage Usage</h4>
+              <h4 className="font-semibold text-white text-sm">Usage</h4>
             </div>
             <Button
               variant="ghost"

@@ -144,7 +144,7 @@ export function Dashboard() {
                     <div className="shrink-0">
                         <GlassCard
                             variant="interactive"
-                            onClick={() => course && router.push(`/courses?view=schedule`)}
+                            onClick={() => course && router.push(`/courses?view=schedule?course=${course.Code}`)}
                             className={`${getCourseGradientClasses(course?.Color, course && isOn).bg} ${getCourseGradientClasses(course?.Color, course && isOn).hover} border border-white/5 transition-all duration-300 group overflow-hidden relative`}
                         >
 

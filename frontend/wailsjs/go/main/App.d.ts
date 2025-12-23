@@ -6,8 +6,10 @@ import {fileops} from '../models';
 import {document} from '../models';
 import {note} from '../models';
 import {notifications} from '../models';
+import {aimessage} from '../models';
 import {user} from '../models';
 import {main} from '../models';
+import {client} from '../models';
 
 export function AcceptAssignment(arg1:string):Promise<void>;
 
@@ -51,13 +53,15 @@ export function GetAssignments():Promise<Array<assignment.LocalAssignment>>;
 
 export function GetAuthToken():Promise<string>;
 
-export function GetConversationHistory(arg1:number):Promise<Array<Record<string, any>>>;
+export function GetConversationHistory(arg1:number):Promise<Array<aimessage.LocalAiMessage>>;
 
 export function GetCourse(arg1:number):Promise<course.Course>;
 
 export function GetCourseAssignments(arg1:course.LocalCourse):Promise<Array<assignment.LocalAssignment>>;
 
 export function GetCourses():Promise<Array<course.LocalCourse>>;
+
+export function GetCoursesLinked():Promise<Record<string, any>>;
 
 export function GetCurrentUser():Promise<user.User>;
 
@@ -75,7 +79,7 @@ export function GetNotificationDaemonStatus():Promise<Record<string, any>>;
 
 export function GetNotifications():Promise<Array<notifications.LocalNotification>>;
 
-export function GetRemoteUsers():Promise<Array<user.User>>;
+export function GetRemoteUsers():Promise<Array<client.RemoteUser>>;
 
 export function GetSubmissionDocuments(arg1:number):Promise<Array<document.LocalDocument>>;
 

@@ -3,6 +3,8 @@
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query"
 import { SaveUIMessage, GetConversationHistory } from "@/wailsjs/go/main/App"
 import { UIMessage } from "@ai-sdk/react"
+import { LogError } from "@/wailsjs/runtime/runtime"
+import { aimessage } from "@/wailsjs/go/models"
 
 
 export const aimessageKeys = {
@@ -51,9 +53,16 @@ export function useSaveUIMessage() {
 export const useConversationHistory = (assignmentID: number) => {
     return useQuery({
         queryKey: ['conversation', assignmentID],
-        queryFn: () => GetConversationHistory(assignmentID),
-        enabled: !!assignmentID, // Only run if assignmentID is provided
-        staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
-        gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+        queryFn: async (): Promise<aimessage.LocalAiMessage[]> => {
+            try {
+                return await GetConversationHistory(assignmentID)
+            } catch (error) {
+                LogError("Failed to fetch conversation history: " + error)
+                throw new Error(error instanceof Error ? error.message : "Failed to fetch conversation history")
+            }
+        },
+        staleTime: 1000 * 60 * 30, // 30 minutes
+        gcTime: 1000 * 60 * 60, // 1 hour
+        refetchOnWindowFocus: false,
     });
 };

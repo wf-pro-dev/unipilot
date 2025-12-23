@@ -45,12 +45,12 @@ qdrant_storage/
 # .vscode/
 
 # Wails (frontend) /
-node_module
+node_modules
 build
 
 # frontend/
  
-frontend/node_module
+frontend/node_modules
 frontend/dist
 
 build

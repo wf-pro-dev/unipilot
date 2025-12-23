@@ -219,9 +219,10 @@ export function getNextCourse(courses: course.LocalCourse[]): { course: course.L
 
       const schedule = parseSchedule(course.Schedule)
 
-      if (schedule) {
+      if (schedule && isAfter(parseDeadline(course.EndDate), now) ) {
         return differenceInMinutes(schedule.nextClassEnd, now) > 0
       }
+
       return false
     })
     // Sort by the next class end date

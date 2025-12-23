@@ -14,6 +14,7 @@ import {
   GetFileAsDataURL
 } from "@/wailsjs/go/main/App"
 import { useAuthContext } from '@/components/provider/auth-provider'
+import { courseKeys } from './use-courses'
 
 // Query keys for auth
 export const authKeys = {
@@ -149,6 +150,9 @@ export function useUpdateUser() {
         queryClient.setQueryData(authKeys.user, context.previousUser)
       }
       LogError("Failed to update user: " + error)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: courseKeys.linked() })
     },
   })
 }

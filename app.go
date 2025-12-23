@@ -24,6 +24,7 @@ import (
 	Errors "unipilot/internal/errors"
 	"unipilot/internal/events"
 	"unipilot/internal/models"
+	"unipilot/internal/models/aimessage"
 	"unipilot/internal/models/assignment"
 	"unipilot/internal/models/course"
 	"unipilot/internal/models/document"
@@ -1423,6 +1424,14 @@ func (a *App) GetCourses() ([]course.LocalCourse, error) {
 	return a.DB.GetCourses()
 }
 
+// GetCoursesLinked returns all courses linked for the current user
+func (a *App) GetCoursesLinked() (map[string]interface{}, error) {
+	if a.DB == nil {
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
+	}
+	return client.GetCoursesLinked()
+}
+
 // GetNotes returns all notes for the current user
 func (a *App) GetNotes() ([]note.LocalNote, error) {
 	if a.DB == nil {
@@ -1505,7 +1514,7 @@ func (a *App) SaveUIMessage(assignmentID uint, vercelMessage map[string]interfac
 	return a.DB.SaveUIMessage(assignmentID, vercelMessage)
 }
 
-func (a *App) GetConversationHistory(assignmentID uint) ([]map[string]interface{}, error) {
+func (a *App) GetConversationHistory(assignmentID uint) ([]aimessage.LocalAiMessage, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1644,13 +1653,13 @@ func (a *App) GetCourseAssignments(course *course.LocalCourse) ([]assignment.Loc
 }
 
 // GetRemoteUsers returns all users from the remote server
-func (a *App) GetRemoteUsers() ([]user.User, error) {
+func (a *App) GetRemoteUsers() ([]client.RemoteUser, error) {
 	if !a.Auth.IsAuthenticated() {
-		return []user.User{}, nil
+		return []client.RemoteUser{}, nil
 	}
 	users, err := client.GetRemoteUsers()
 	if err != nil {
-		return []user.User{}, err
+		return []client.RemoteUser{}, err
 	}
 	return users, nil
 }
