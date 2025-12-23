@@ -16,9 +16,8 @@ import (
 	notif "unipilot/internal/models/notifications"
 	"unipilot/internal/server/sse/grpc/notifications"
 
-	//"unipilot/internal/models/document"
-
 	"unipilot/internal/errors"
+	"unipilot/internal/models/note"
 	"unipilot/internal/models/user"
 	"unipilot/internal/server"
 
@@ -583,4 +582,81 @@ func AcceptLinkCourseHandler(c *fiber.Ctx) error {
 	// Step 5: Return the enriched assignments to the client
 	// The client will use this data to sync the course and assignments locally
 	return c.JSON(responseAssignments)
+}
+
+func GetCoursesLinkedHandler(c *fiber.Ctx) error {
+	c.Locals("message", "Courses linked retrieved successfully")
+
+	currentUser, ok := c.Locals("user").(user.User)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
+	}
+	db, ok := c.Locals("db").(*gorm.DB)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	}
+
+	var result = make(map[string]map[string]interface{})
+
+	coursesLinked, err := course.GetLinkedCourses(currentUser.ID, db)
+	if err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting linked courses from database", fiber.StatusInternalServerError)
+	}
+
+	for _, courseLinked := range coursesLinked {
+		// Get All courses linked to the courseLinked
+		linkCourses, err := course.GetLinkToCourse(courseLinked.LinkID, currentUser.ID, db)
+		if err != nil {
+			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting link to course from database", fiber.StatusInternalServerError)
+		}
+
+		var users []user.User
+		var assignments []assignment.Assignment
+		var notes []note.Note
+
+		for _, linkCourse := range linkCourses {
+			// Get the users of the linkCourse
+			user, err := user.GetUserById(linkCourse.UserID, db)
+			if err != nil {
+				return errors.WrapServer(err, errors.DBQueryFailed, "Error getting user from database", fiber.StatusInternalServerError)
+			}
+			users = append(users, *user)
+			// Get All assignments for the linkCourse
+			linkAssignments, err := assignment.GetAssignmentsbyCourse(linkCourse.Code, user.ID, db)
+			if err != nil {
+				return errors.WrapServer(err, errors.DBQueryFailed, "Error getting assignments from database", fiber.StatusInternalServerError)
+			}
+
+			for _, assign := range linkAssignments {
+				documents, err := assignment.GetDocuments(assign.ID, db)
+				if err != nil {
+					return errors.WrapServer(err, errors.DBQueryFailed, "Error getting documents from database", fiber.StatusInternalServerError)
+				}
+
+				assign.Documents = documents
+				assign.User = *user
+				assignments = append(assignments, assign)
+			}
+
+			// Get All notes for the linkCourse
+			linkNotes, err := note.GetCourseNotes(linkCourse.Code, user.ID, db)
+			if err != nil {
+				return errors.WrapServer(err, errors.DBQueryFailed, "Error getting notes from database", fiber.StatusInternalServerError)
+			}
+
+			for _, note := range linkNotes {
+				note.User = *user
+				notes = append(notes, note)
+			}
+
+		}
+
+		result[courseLinked.Code] = map[string]interface{}{
+			"Users":       users,
+			"Assignments": assignments,
+			"Notes":       notes,
+		}
+	}
+
+	return c.JSON(result)
 }

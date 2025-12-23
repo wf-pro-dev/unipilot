@@ -115,7 +115,9 @@ func GetFollowers(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
 	err := db.Joins("JOIN follows ON users.id = follows.follower_id").
 		Where("follows.followed_id = ? AND follows.deleted_at is NULL", userID).
 		Limit(limit).Offset(offset).
-		Find(&followers).Error
+		Find(&followers).
+		Order("users.name ASC").
+		Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
@@ -128,7 +130,9 @@ func GetFollowing(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
 	err := db.Joins("JOIN follows ON users.id = follows.followed_id").
 		Where("follows.follower_id = ? AND follows.deleted_at is NULL", userID).
 		Limit(limit).Offset(offset).
-		Find(&following).Error
+		Find(&following).
+		Order("users.name ASC").
+		Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}

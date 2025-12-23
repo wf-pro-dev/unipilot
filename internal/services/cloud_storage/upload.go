@@ -122,7 +122,7 @@ func UploadProfilePicture(filePath, fileName, key string) (string, error) {
 	}
 
 	// Construct and return the public URL
-	publicURL := fmt.Sprintf("https://s3.%s.amazonaws.com/%s/%s", Region, Bucket, key)
+	publicURL := fmt.Sprintf("https://assets.wwwill.xyz/%s", key)
 
 	return publicURL, nil
 }

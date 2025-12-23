@@ -68,30 +68,27 @@ func GetUsersHandler(c *fiber.Ctx) error {
 	}
 	if len(usersHash) > 0 {
 		// Step 3: Cache hit - Convert Redis hash to user array and exclude current user
-		var cachedUsers []map[string]interface{}
+		var cachedUsers []user.User
 		for _, userJSON := range usersHash {
-			var userMap map[string]interface{}
-			if err := json.Unmarshal([]byte(userJSON), &userMap); err == nil {
-				if userMap["id"] == currentUser.ID {
+			var user user.User
+			if err := json.Unmarshal([]byte(userJSON), &user); err == nil {
+				if user.ID == currentUser.ID {
 					continue
 				}
-				cachedUsers = append(cachedUsers, userMap)
+				cachedUsers = append(cachedUsers, user)
 			}
 		}
-		return c.JSON(fiber.Map{
-			"message": "Users retrieved successfully",
-			"users":   cachedUsers,
-		})
+		return c.JSON(cachedUsers)
 	}
 
 	// Step 4: Cache miss - Query users from database and enrich with course data
 	var users []user.User
-	if err := db.Find(&users).Error; err != nil {
+	if err := db.Find(&users).Order("name ASC").Error; err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users from database", fiber.StatusInternalServerError)
 	}
 
 	// Step 5: Process each user and enrich with course codes for comprehensive profiles
-	var usersMap []map[string]interface{}
+	var usersWithCourses []user.User
 	for _, u := range users {
 		// Query course codes associated with this user
 		var courses_code []string
@@ -100,11 +97,11 @@ func GetUsersHandler(c *fiber.Ctx) error {
 		}
 		// Attach course codes to user object and convert to safe map format
 		u.CoursesCode = courses_code
-		userMap := u.ToMap()
-		usersMap = append(usersMap, userMap)
+		u.PasswordHash = ""
+		usersWithCourses = append(usersWithCourses, u)
 
 		// Step 6: Cache individual user in Redis for future requests (non-blocking)
-		userJSON, err := json.Marshal(userMap)
+		userJSON, err := json.Marshal(u)
 		if err != nil {
 			return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Error marshalling user to json", fiber.StatusInternalServerError)
 		}
@@ -123,8 +120,5 @@ func GetUsersHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 8: Send successful response with enriched user data
-	return c.JSON(fiber.Map{
-		"message": "Users retrieved successfully",
-		"users":   usersMap,
-	})
+	return c.JSON(users)
 }

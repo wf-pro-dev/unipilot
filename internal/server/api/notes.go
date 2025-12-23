@@ -135,6 +135,7 @@ func GetNotesHandler(c *fiber.Ctx) error {
 //   - Logs note creation with performance metrics
 //   - Prepares notification data for future SSE implementation
 func CreateNoteHandler(c *fiber.Ctx) error {
+	c.Locals("message", "Note created successfully")
 	// Step 1: Extract context values from middleware (user and database connection)
 	currentUser, ok := c.Locals("user").(user.User)
 	if !ok {
@@ -243,10 +244,10 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 }
 
 func CreateNoteStreamHandler(c *fiber.Ctx) error {
+	c.Locals("message", "Note streaming created successfully")
 
 	// Step 3: Define and parse note creation request structure
 	var input note.LocalNote
-
 	if err := c.BodyParser(&input); err != nil {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
@@ -352,6 +353,7 @@ func CreateNoteStreamHandler(c *fiber.Ctx) error {
 //   - Logs successful updates with change details for audit trail
 //   - No notification system integration (updates are silent)
 func UpdateNoteHandler(c *fiber.Ctx) error {
+	c.Locals("message", "Note updated successfully")
 	// Step 1: Extract context values from middleware (user and database connection)
 	currentUser, ok := c.Locals("user").(user.User)
 	if !ok {
@@ -404,6 +406,7 @@ func UpdateNoteHandler(c *fiber.Ctx) error {
 }
 
 func DeleteNoteHandler(c *fiber.Ctx) error {
+	c.Locals("message", "Note deleted successfully")
 	// Step 1: Extract context values from middleware (user and database connection)
 	db, ok := c.Locals("db").(*gorm.DB)
 	if !ok {

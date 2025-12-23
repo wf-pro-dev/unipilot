@@ -115,7 +115,7 @@ func (a *Assignment) GetCourseAssignment(db *gorm.DB) (*course.Course, error) {
 
 func GetAssignmentsbyCourse(courseCode string, userID uint, db *gorm.DB) ([]Assignment, error) {
 	var assignments []Assignment
-	err := db.Where("course_code = ? AND user_id = ?", courseCode, userID).Find(&assignments).Error
+	err := db.Where("course_code = ? AND user_id = ?", courseCode, userID).Order("created_at DESC").Find(&assignments).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}

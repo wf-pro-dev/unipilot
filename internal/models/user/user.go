@@ -53,6 +53,15 @@ func (u *User) ToMap() map[string]interface{} {
 	}
 }
 
+func GetUserById(id uint, db *gorm.DB) (*User, error) {
+	u := &User{}
+	err := db.Where("id = ?", id).First(u).Omit("password_hash").Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return u, nil
+}
+
 func Get_User_by_NotionID(notion_id string, db *gorm.DB) (*User, error) {
 	u := &User{}
 	err := db.Where("notion_id = ?", notion_id).First(u).Error

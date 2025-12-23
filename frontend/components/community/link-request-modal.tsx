@@ -39,6 +39,7 @@ export function LinkRequestModal({ isOpen, onClose, courseID }: LinkRequestModal
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="glass border-white/10 text-white max-w-xl max-h-[90vh] overflow-y-auto p-0 overflow-hidden gap-0">
+               
                 <div className="p-6 pb-4 border-b border-white/5 bg-white/5">
                     <div className="flex flex-col items-center space-y-1 text-center">
                         <p className="text-xl font-semibold text-white">Share your course</p>

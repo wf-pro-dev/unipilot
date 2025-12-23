@@ -110,6 +110,24 @@ func Get_Course_byCode(code string, user_id uint, db *gorm.DB) (*Course, error) 
 	return course, nil
 }
 
+func GetLinkToCourse(link_id uuid.UUID, user_id uint, db *gorm.DB) ([]Course, error) {
+	var courses []Course
+	err := db.Where("link_id = ? AND user_id != ?", link_id.String(), user_id).Find(&courses).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return courses, nil
+}
+
+func GetLinkedCourses(user_id uint, db *gorm.DB) ([]Course, error) {
+	var courses []Course
+	err := db.Where("user_id = ? AND link_id != ?", user_id, uuid.Nil.String()).Find(&courses).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return courses, nil
+}
+
 func (c *Course) GetLinkUsers(db *gorm.DB) ([]uint, error) {
 	var link_users []uint
 	err := db.Model(&Course{}).Where("link_id = ?", c.LinkID.String()).Pluck("user_id", &link_users).Error
