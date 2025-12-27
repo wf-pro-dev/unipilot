@@ -46,6 +46,50 @@ function CourseItem({ course,
         setOpen(true)
     }
 
+    // Helper function to get gradient classes for course colors
+    // This ensures Tailwind can detect all possible class combinations
+    const getCourseGradientClasses = (color: string | undefined, isOn: boolean | null) => {
+        if (!color || !isOn) {
+            return {
+                bg: "bg-white/5",
+                hover: "hover:bg-white/10 hover:border-white/10"
+            }
+        }
+
+        // Map color values to gradient classes that Tailwind can detect
+        const colorMap: Record<string, { bg: string; hover: string }> = {
+            "bg-blue-500": {
+                bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-blue-500/20 before:via-blue-500/5 before:to-transparent before:transition-opacity before:duration-500",
+                hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-blue-500/40 after:via-blue-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+            },
+            "bg-green-500": {
+                bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-green-500/20 before:via-green-500/5 before:to-transparent before:transition-opacity before:duration-500",
+                hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-green-500/40 after:via-green-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+            },
+            "bg-purple-500": {
+                bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-purple-500/20 before:via-purple-500/5 before:to-transparent before:transition-opacity before:duration-500",
+                hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-purple-500/40 after:via-purple-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+            },
+            "bg-red-500": {
+                bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-red-500/20 before:via-red-500/5 before:to-transparent before:transition-opacity before:duration-500",
+                hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-red-500/40 after:via-red-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+            },
+            "bg-orange-500": {
+                bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-orange-500/20 before:via-orange-500/5 before:to-transparent before:transition-opacity before:duration-500",
+                hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-orange-500/40 after:via-orange-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+            },
+            "bg-pink-500": {
+                bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-pink-500/20 before:via-pink-500/5 before:to-transparent before:transition-opacity before:duration-500",
+                hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-pink-500/40 after:via-pink-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+            }
+        }
+
+        return colorMap[color] || {
+            bg: "bg-white/5",
+            hover: "hover:bg-white/10 hover:border-white/10"
+        }
+    }
+
     return (
         <div>
 
@@ -56,11 +100,11 @@ function CourseItem({ course,
                 key={course.ID}
             >
                 <CardContent className="p-5">
-                    <div className="flex justify-between items-start mb-5">
-                        <div className="flex items-center bg-white/10 border border-white/5 shadow-lg shadow-black/60 rounded-xl p-3  space-x-4 w-full">
+                    <div className="flex justify-between items-start mb-5 ">
+                        <div className={`flex items-center border border-white/5  shadow-lg shadow-black/60 rounded-xl p-3 overflow-hidden  space-x-4 w-full  relative `}>
 
-                            <div className={`w-8 h-8 rounded-full flex-shrink-0 ${course.Color} shadow-lg shadow-black/20`} />
-                           
+                            <div className={`absolute inset-0 z-0 ${getCourseGradientClasses(course.Color, true).bg} ${getCourseGradientClasses(course.Color, true).hover} transition-colors duration-300`} />
+                            
                             <div className="flex flex-col w-full min-w-0">
                                 <div className="flex items-center justify-between gap-2">
                                     <h3 className="text-base font-bold text-white line-clamp-1 tracking-tight">{course.Code}</h3>

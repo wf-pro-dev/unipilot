@@ -8,7 +8,7 @@ import { AuthProvider } from "@/components/provider/auth-provider"
 import { QueryProvider } from "@/components/provider/query-provider"
 import { NetworkProvider } from "@/components/provider/network-provider"
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { Toaster } from "sonner"
+import { Toaster } from "@/components/ui/sonner"
 import { MainSidebar } from "@/components/sidebar/sidebar";
 import { usePathname } from 'next/navigation';
 
@@ -55,7 +55,7 @@ export default function RootLayout({
               <AuthProvider>
                 <AppContent>{children}</AppContent>
               </AuthProvider>
-              <Toaster position="top-center" />
+              <Toaster />
             </NetworkProvider>
           </ThemeProvider>
         </QueryProvider>

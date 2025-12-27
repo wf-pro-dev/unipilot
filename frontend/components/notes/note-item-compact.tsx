@@ -32,7 +32,7 @@ export function NoteItemCompact({
     if (onCopy) {
       onCopy(note)
     } else {
-        toast.success("Note copied to your notebook")
+      toast.success("Note copied to your notebook")
     }
   }
 
@@ -64,7 +64,9 @@ export function NoteItemCompact({
               </div>
             </div>
 
-            <div className="flex items-center justify-between py-4 border-t border-white/20">
+            <div className="h-px w-full bg-white/20" />
+
+            <div className="flex items-center justify-between ">
               {/* User Info */}
               <div className="flex items-center gap-2">
                 <Avatar className="h-5 w-5 border border-white/10">

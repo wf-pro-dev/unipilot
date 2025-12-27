@@ -42,7 +42,7 @@ export function HorizontalEmptyState({
       </div>
       <div className="flex flex-col items-start gap-1">
         <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
-        <p className="pl-2 text-muted-foreground max-w-sm mb-6 text-sm leading-relaxed">{description}</p>
+        <p className="pl-2 text-muted-foreground max-w-sm text-sm leading-relaxed">{description}</p>
       </div>
       {action}
     </div>

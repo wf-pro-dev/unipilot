@@ -200,7 +200,7 @@ export function Dashboard() {
                                         )}
                                     </div>
                                 ) : (
-                                    <EmptyState
+                                    <HorizontalEmptyState
                                         icon={BookOpen}
                                         title="No upcoming classes"
                                         description="Enjoy your free time!"
@@ -276,7 +276,7 @@ export function Dashboard() {
                             <div className="flex gap-4">
                                 {notes && notes.length > 0 ? (
                                     notes.slice(0, 5).map((note) => (
-                                        <div key={note.ID} className="flex-[0_0_100%] min-w-0">
+                                        <div key={note.ID} className="flex-[0_0_100%] min-w-0 px-1">
                                             <GlassCard
                                                 variant="interactive"
                                                 onClick={() => router.push('/notes')}

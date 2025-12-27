@@ -167,7 +167,7 @@ export function MainSidebar() {
 
 
                         <CollapsibleContent>
-                          <SidebarMenuSub>
+                          <SidebarMenuSub className="border-white/20">
                             {item.items.map((subItem) => (
                               <SidebarMenuSubItem key={subItem.href}>
                                 <SidebarMenuSubButton
