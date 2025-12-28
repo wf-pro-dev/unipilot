@@ -96,7 +96,7 @@ export function AssignmentDocuments({ assignment, documents, viewMode = false }:
   const filteredDocs = documents || getFilteredDocuments()
 
   // Group documents into pages of 4 (2x2 grid)
-  const documentsPerPage = 4
+  const documentsPerPage = 3
   const documentPages = []
   for (let i = 0; i < filteredDocs.length; i += documentsPerPage) {
     documentPages.push(filteredDocs.slice(i, i + documentsPerPage))
@@ -221,13 +221,13 @@ export function AssignmentDocuments({ assignment, documents, viewMode = false }:
 
               {/* Carousel container */}
               <div className="overflow-hidden" ref={emblaRef}>
-                <div className="flex">
+                <div className="flex gap-4">
                   {documentPages.map((page, pageIndex) => (
                     <div
                       key={pageIndex}
                       className="flex-none w-full min-w-0 px-1"
                     >
-                      <div className="grid grid-cols-1 gap-3 min-h-[224px]">
+                      <div className="grid grid-cols-1 gap-3">
                         {page.map((document) => (
                           <div key={document.ID}>
                             <DocumentItem
@@ -235,7 +235,6 @@ export function AssignmentDocuments({ assignment, documents, viewMode = false }:
                             />
                           </div>
                         ))}
-
 
                       </div>
                     </div>

@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { useUploadDocument } from "@/hooks/use-documents"
 import { toast } from 'sonner'
+import { document } from "@/wailsjs/go/models"
 
 interface DocumentUploadDialogProps {
   isOpen: boolean
@@ -24,6 +25,7 @@ interface DocumentUploadDialogProps {
   assignmentId: number
   remoteAssignmentId: number
   documentType: "support" | "submission" | "all"
+  onSuccess?: (doc: document.LocalDocument) => void
 }
 
 export function DocumentUploadDialog({
@@ -32,49 +34,42 @@ export function DocumentUploadDialog({
   onUploadComplete,
   assignmentId,
   remoteAssignmentId,
-  documentType
+  documentType,
+  onSuccess
 }: DocumentUploadDialogProps) {
   const [selectedType, setSelectedType] = useState<"support" | "submission" | "all">(documentType)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
 
   const uploadDocument = useUploadDocument()
 
   const handleUpload = async () => {
-    setError(null)
-    setSuccess(null)
 
-    try {
-      const result = await uploadDocument.mutateAsync({
-        assignmentId,
-        remoteAssignmentId,
-        documentType: selectedType
-      }, {
-        onSuccess: () => {
-          toast.success("Document uploaded successfully")
-        },
-        onError: () => {
-          toast.error("Failed to upload document")
+
+    const result = await uploadDocument.mutateAsync({
+      assignmentId,
+      remoteAssignmentId,
+      documentType: selectedType
+    }, {
+      onSuccess: (doc) => {
+        toast.success("Document uploaded successfully")
+        if (doc) {
+          console.log("doc uploaded successfully", doc)
+          onSuccess?.(doc)
+          setTimeout(() => {
+            onUploadComplete()
+            handleClose()
+          }, 1500)
         }
-      })
-
-      if (result) {
-        setSuccess(`Successfully uploaded "${result.FileName}"`)
-        setTimeout(() => {
-          onUploadComplete()
-          handleClose()
-        }, 1500)
+      },
+      onError: () => {
+        toast.error("Failed to upload document")
       }
-    } catch (error) {
-      console.error("Upload failed:", error)
-      setError(error instanceof Error ? error.message : "Upload failed")
-    }
+    })
+
+
   }
 
   const handleClose = () => {
     if (!uploadDocument.isPending) {
-      setError(null)
-      setSuccess(null)
       onClose()
     }
   }
@@ -166,20 +161,6 @@ export function DocumentUploadDialog({
             </div>
           </div>
 
-          {/* Status Messages */}
-          {error && (
-            <div className="flex items-center gap-2 p-3 rounded-lg border border-red-500/20 bg-red-500/10 text-red-200">
-              <AlertCircle className="h-4 w-4 text-red-400" />
-              <p className="text-sm">{error}</p>
-            </div>
-          )}
-
-          {success && (
-            <div className="flex items-center gap-2 p-3 rounded-lg border border-green-500/20 bg-green-500/10 text-green-200">
-              <CheckCircle2 className="h-4 w-4 text-green-400" />
-              <p className="text-sm">{success}</p>
-            </div>
-          )}
 
           {/* Upload Progress */}
           {uploadDocument.isPending && (
@@ -188,7 +169,7 @@ export function DocumentUploadDialog({
                 <span>Uploading...</span>
                 <span>Please wait</span>
               </div>
-              <Progress value={undefined} className="h-1.5 bg-white/10" indicatorClassName="bg-blue-500" />
+              <Progress value={undefined} className="h-1.5 bg-white/10" />
             </div>
           )}
         </div>

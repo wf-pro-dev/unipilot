@@ -42,7 +42,7 @@ export function DocumentStorageInfo() {
         variant="outline" 
         size="sm" 
         className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 text-white flex justify-center h-10 transition-all" >
-          <span className="text-sm text-white transition-colors">Storage Usage</span>
+          <span className="text-sm text-white transition-colors">Storage</span>
           <HardDrive className="w-1 h-1 text-slate-500" />
         </Button>
       </PopoverTrigger>

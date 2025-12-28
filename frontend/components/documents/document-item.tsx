@@ -150,7 +150,7 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
 
             <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{formatFileSize(doc.FileSize)}</span>
             
-            <span className="text-[10px] text-gray-600 flex items-center gap-1 ml-auto sm:ml-0">
+            <span className="text-[10px] text-gray-500 flex items-center gap-1 ml-auto sm:ml-0">
               <Clock className="h-3 w-3" />
               {format(new Date(doc.UpdatedAt), "MMM d")}
             </span>

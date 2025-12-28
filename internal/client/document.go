@@ -332,7 +332,7 @@ func UploadDocumentRAG(document *document.LocalDocument) error {
 func DeleteDocumentRAG(assignmentID, documentID uint) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Delete(fmt.Sprintf("%s/documents/%d/rag", api_url, documentID))
+	agent := fiber.Delete(fmt.Sprintf("%s/documents/%d/%d/rag", api_url, documentID, assignmentID))
 
 	if err := SetAuthHeader(agent); err != nil {
 		return err
