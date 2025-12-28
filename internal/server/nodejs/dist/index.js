@@ -1,50 +1,49 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
 // ai-service/server.js
-import express, { Request, Response } from 'express';
-import { createGoogleGenerativeAI } from '@ai-sdk/google';
-import { streamText, convertToModelMessages, tool, stepCountIs } from 'ai';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import { findRelevantContent } from './lib/qdrant';
-import { z } from 'zod';
-import { Assignment, ChatRequest } from './types';
-
-dotenv.config();
-
-const google = createGoogleGenerativeAI({
+const express_1 = __importDefault(require("express"));
+const google_1 = require("@ai-sdk/google");
+const ai_1 = require("ai");
+const cors_1 = __importDefault(require("cors"));
+const dotenv_1 = __importDefault(require("dotenv"));
+const qdrant_1 = require("./lib/qdrant");
+const zod_1 = require("zod");
+dotenv_1.default.config();
+const google = (0, google_1.createGoogleGenerativeAI)({
     apiKey: process.env.GEMINI_API_KEY || '',
 });
-
-const app = express();
+const app = (0, express_1.default)();
 // Middleware
-app.use(cors({
+app.use((0, cors_1.default)({
     origin: '*', // or '*' for testing
     methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization','User-Agent','x-session-id'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'User-Agent', 'x-session-id'],
     credentials: true
 }));
-
-app.use(express.json({ limit: '10mb' }));
-
+app.use(express_1.default.json({ limit: '10mb' }));
 /**
  * Health check endpoint for service monitoring and load balancer health checks.
  * Returns service status and identification for operational monitoring.
- * 
+ *
  * @route GET /health
  * @returns {Object} JSON response with service status and identification
  */
-app.get('/health', (req: Request, res: Response) => {
-  res.json({ status: 'healthy', service: 'ai-chat' });
+app.get('/health', (req, res) => {
+    res.json({ status: 'healthy', service: 'ai-chat' });
 });
 /**
  * Main AI chat endpoint providing streaming conversational AI with RAG capabilities.
  * Integrates Google Gemini AI with Qdrant vector database for context-aware responses.
- * 
+ *
  * Features:
  * - Streaming text generation for real-time responses
  * - RAG integration for assignment-specific knowledge retrieval
  * - Tool-based information access from vector database
  * - Assignment context injection for personalized assistance
- * 
+ *
  * @route POST /unipilot/ai/v1
  * @param {Object} req.body - Request payload
  * @param {Array} req.body.messages - Conversation history in AI SDK format
@@ -56,38 +55,32 @@ app.get('/health', (req: Request, res: Response) => {
  * @returns {Stream} Streaming AI response with tool integration
  * @throws {500} When AI service is unavailable or processing fails
  */
-app.post('/unipilot/ai/v1', async (req: Request, res: Response) => {
-    
+app.post('/unipilot/ai/v1', async (req, res) => {
     try {
-      // Step 1: Extract and validate request payload
-      const { messages, assignment }: ChatRequest = req.body;
-      
-      // Step 2: Set streaming headers BEFORE any response is sent
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no'); // Critical for nginx streaming
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      
-      // Step 3: Convert messages to AI SDK format for processing
-      let allMessages = convertToModelMessages(messages);
-
-      // Step 4: Build assignment-specific system prompt for context
-      const systemPrompt = buildSystemPrompt(assignment);
-     
-  
-      // Step 5: Configure streaming AI generation with RAG tool integration
-      const result = streamText({
-        model: google('gemini-2.0-flash-lite'),
-        messages: allMessages,
-        maxOutputTokens: 4000,
-        temperature: 0.7, // Balanced creativity vs accuracy
-        system: systemPrompt,
-        stopWhen: stepCountIs(5),
-        tools: {
-          // RAG tool for knowledge base access
-          getInformation: tool({
-            description: `<tool_purpose>
+        // Step 1: Extract and validate request payload
+        const { messages, assignment } = req.body;
+        // Step 2: Set streaming headers BEFORE any response is sent
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no'); // Critical for nginx streaming
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        // Step 3: Convert messages to AI SDK format for processing
+        let allMessages = (0, ai_1.convertToModelMessages)(messages);
+        // Step 4: Build assignment-specific system prompt for context
+        const systemPrompt = buildSystemPrompt(assignment);
+        // Step 5: Configure streaming AI generation with RAG tool integration
+        const result = (0, ai_1.streamText)({
+            model: google('gemini-2.0-flash-lite'),
+            messages: allMessages,
+            maxOutputTokens: 4000,
+            temperature: 0.7, // Balanced creativity vs accuracy
+            system: systemPrompt,
+            stopWhen: (0, ai_1.stepCountIs)(5),
+            tools: {
+                // RAG tool for knowledge base access
+                getInformation: (0, ai_1.tool)({
+                    description: `<tool_purpose>
 This tool retrieves information from SOURCE 2: DOCUMENT RETRIEVAL (RAG).
 It searches assignment documents, materials, and notes uploaded by the instructor.
 The tool returns raw document chunks as DATA - you MUST synthesize your own answer from this data.
@@ -134,61 +127,57 @@ After receiving chunks:
 The tool output is NOT your final answer. You MUST continue generating text after receiving chunks.
 If chunks don't help, use your model knowledge (SOURCE 3) to provide an answer.
 </critical_note>`,
-            inputSchema: z.object({
-              question: z.string().describe('The user\'s question as-is, or a refined version if the original question needs clarification for better search results'),
-            }),
-            // Execute RAG search against assignment-specific collection
-            execute: async ({ question }) => {
-              try {
-                const result = await findRelevantContent(question, assignment.RemoteID);
-                
-                // If no chunks retrieved, return a message indicating no results
-                // The model will use this to inform the user
-                if (!result.retrieved || result.chunks.length === 0) {
-                  return result.error 
-                    ? "Error: Unable to retrieve information from the knowledge base."
-                    : "No relevant information found in the knowledge base for this question.";
-                }
-                
-                // Format chunks for the main model to reason over
-                const formattedChunks = result.chunks
-                  .map(chunk => chunk.text)
-                  .join('\n\n---\n\n');
-                
-                return formattedChunks;
-              } catch (error) {
-                return `Error retrieving information: ${error instanceof Error ? error.message : 'Unknown error'}`;
-              }
+                    inputSchema: zod_1.z.object({
+                        question: zod_1.z.string().describe('The user\'s question as-is, or a refined version if the original question needs clarification for better search results'),
+                    }),
+                    // Execute RAG search against assignment-specific collection
+                    execute: async ({ question }) => {
+                        try {
+                            const result = await (0, qdrant_1.findRelevantContent)(question, assignment.RemoteID);
+                            // If no chunks retrieved, return a message indicating no results
+                            // The model will use this to inform the user
+                            if (!result.retrieved || result.chunks.length === 0) {
+                                return result.error
+                                    ? "Error: Unable to retrieve information from the knowledge base."
+                                    : "No relevant information found in the knowledge base for this question.";
+                            }
+                            // Format chunks for the main model to reason over
+                            const formattedChunks = result.chunks
+                                .map(chunk => chunk.text)
+                                .join('\n\n---\n\n');
+                            return formattedChunks;
+                        }
+                        catch (error) {
+                            return `Error retrieving information: ${error instanceof Error ? error.message : 'Unknown error'}`;
+                        }
+                    },
+                }),
             },
-          }),
-        },
-      });
-
-      // Step 6: Stream AI response directly to client
-      result.pipeUIMessageStreamToResponse(res);
-      
-    } catch (error ) {
-      // Step 7: Handle errors with proper HTTP status and logging
-      console.error('AI chat error:', error);
-      if (!res.headersSent) {
-        res.status(500).json({ 
-          error: 'AI service unavailable',
-          details: error instanceof Error ? error.message : 'Unknown error'
         });
-      }
+        // Step 6: Stream AI response directly to client
+        result.pipeUIMessageStreamToResponse(res);
+    }
+    catch (error) {
+        // Step 7: Handle errors with proper HTTP status and logging
+        console.error('AI chat error:', error);
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: 'AI service unavailable',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            });
+        }
     }
 });
-
 /**
  * Builds a contextual system prompt for AI assistant based on assignment details.
  * Creates personalized academic assistance context using assignment metadata.
- * 
+ *
  * The system prompt provides the AI with:
  * - Assignment-specific context for relevant responses
  * - Course information for subject-appropriate guidance
  * - Assignment status and priority for urgency awareness
  * - Clear instruction for actionable academic advice
- * 
+ *
  * @param {Object} assignment - Assignment object containing context information
  * @param {string} assignment.Title - Assignment title
  * @param {Object} assignment.Course - Course information object
@@ -202,8 +191,8 @@ If chunks don't help, use your model knowledge (SOURCE 3) to provide an answer.
  * @param {string} assignment.StatusName - Current assignment status
  * @returns {string} Formatted system prompt for AI context injection
  */
-function buildSystemPrompt(assignment: Assignment) {
-  return `<role>
+function buildSystemPrompt(assignment) {
+    return `<role>
 You are a helpful academic assistant. Help students with their assignments by answering questions, explaining concepts, and providing guidance.
 </role>
 
@@ -407,8 +396,8 @@ If a knowledge source doesn't provide sufficient information:
 </fallback_strategy>
 </response_guidance>`;
 }
-
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`🚀 AI Service running on port ${PORT}`);
+    console.log(`🚀 AI Service running on port ${PORT}`);
 });
+//# sourceMappingURL=index.js.map
