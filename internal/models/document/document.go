@@ -54,6 +54,13 @@ type DocumentStorageInfo struct {
 	User user.User `gorm:"foreignKey:UserID;references:ID"`
 }
 
+type TempFileRag struct {
+	FilePath     string    `json:"file_path"`
+	FileName     string    `json:"file_name"`
+	AssignmentID uint      `json:"assignment_id"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
 // Storage limits (in bytes)
 const (
 	MaxFileSize       = 50 * 1024 * 1024       // 50MB per file

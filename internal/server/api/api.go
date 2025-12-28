@@ -105,7 +105,7 @@ func StartServer() error {
 	app.Post("/documents/:id/download", server.AuthMiddleware, DownloadDocumentHandler)
 	app.Delete("/documents/:id", server.AuthMiddleware, DeleteDocumentHandler)
 	app.Post("/documents/:id/rag", server.AuthMiddleware, UploadDocumentForRAGHandler)
-	app.Delete("/documents/:id/rag", server.AuthMiddleware, DeleteDocumentRAG)
+	app.Delete("/documents/:id/:assignment_id/rag", server.AuthMiddleware, DeleteDocumentRAG)
 
 	app.Get("/notes", server.AuthMiddleware, GetNotesHandler)
 	app.Post("/notes", server.AuthMiddleware, CreateNoteHandler)

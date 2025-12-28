@@ -7,9 +7,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 	"unipilot/internal/secrets"
 
 	"github.com/google/uuid"
+	"github.com/tmc/langchaingo/textsplitter"
 
 	"unipilot/internal/errors"
 
@@ -62,28 +64,62 @@ func GetFileText(filename, ext string) (string, error) {
 }
 
 func GetFileChunks(text string) []string {
-
-	// Remove space and new lines from the text
-	text = strings.ReplaceAll(text, "\n", "")
-
-	var chunks []string
-	runes := []rune(text)
 	chunkSize := 1024                             // 1024 characters per chunk
-	overlapSize := int(float64(chunkSize) * 0.15) // 15% overlap
+	overlapSize := int(float64(chunkSize) * 0.15) // 15% overlap (approximately 2-3 sentences)
 
-	for i := 0; i < len(runes); i += chunkSize - overlapSize {
-		end := i + chunkSize
-		if end > len(runes) {
-			end = len(runes)
-		}
-		chunks = append(chunks, string(runes[i:end]))
-
-		if end == len(runes) {
-			break
-		}
-
+	// Normalize whitespace: collapse multiple spaces/newlines but preserve paragraph breaks
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return []string{}
 	}
-	return chunks
+
+	// Normalize multiple newlines to double newlines (paragraph breaks)
+	// This helps preserve semantic structure from PDFs
+	text = strings.ReplaceAll(text, "\r\n", "\n")
+	text = strings.ReplaceAll(text, "\r", "\n")
+	// Collapse multiple newlines to double newlines
+	for strings.Contains(text, "\n\n\n") {
+		text = strings.ReplaceAll(text, "\n\n\n", "\n\n")
+	}
+
+	// Create a RecursiveCharacter splitter with sentence-aware separators
+	// Separators are tried in order: paragraph breaks, sentence endings, newlines, spaces, characters
+	// Use NewRecursiveCharacter with options to ensure all fields (including LenFunc) are properly initialized
+	splitter := textsplitter.NewRecursiveCharacter(
+		textsplitter.WithChunkSize(chunkSize),
+		textsplitter.WithChunkOverlap(overlapSize),
+		textsplitter.WithSeparators([]string{
+			"\n\n", // Paragraph breaks (highest priority)
+			". ",   // Period followed by space
+			"! ",   // Exclamation followed by space
+			"? ",   // Question mark followed by space
+			".\n",  // Period followed by newline
+			"!\n",  // Exclamation followed by newline
+			"?\n",  // Question mark followed by newline
+			"\n",   // Single newlines
+			" ",    // Spaces
+			"",     // Character-by-character fallback
+		}),
+		textsplitter.WithLenFunc(utf8.RuneCountInString),
+	)
+
+	// Split the text into chunks
+	chunks, err := splitter.SplitText(text)
+	if err != nil {
+		// Fallback to simple splitting if there's an error
+		return []string{text}
+	}
+
+	// Filter out empty chunks and trim whitespace
+	var filteredChunks []string
+	for _, chunk := range chunks {
+		chunk = strings.TrimSpace(chunk)
+		if chunk != "" {
+			filteredChunks = append(filteredChunks, chunk)
+		}
+	}
+
+	return filteredChunks
 }
 
 func GetQdrantVectors(document *LocalDocument) ([]*qdrant.PointStruct, error) {

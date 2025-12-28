@@ -1118,28 +1118,44 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 func DeleteDocumentRAG(c *fiber.Ctx) error {
 
 	c.Locals("message", "Document deleted from RAG successfully")
-	// Step 1: Extract and validate document IDs from query parameters
-	var input struct {
-		AssignmentID uint `json:"assignment_id"`
-		DocumentID   uint `json:"document_id"`
+
+	strDocID := c.Params("id")
+	if strDocID == "" {
+		return errors.WrapServer(
+			fmt.Errorf("document ID required"),
+			errors.ReqParamMissing,
+			"Document ID required",
+			fiber.StatusBadRequest,
+		)
 	}
 
-	if err := c.BodyParser(&input); err != nil {
+	docID, err := strconv.Atoi(strDocID)
+	if err != nil {
 		return errors.WrapServer(
 			err,
-			errors.ReqBodyInvalid,
-			"Invalid request body",
+			errors.ReqParamInvalid,
+			"Error converting document ID to int",
+			fiber.StatusBadRequest,
+		)
+	}
+
+	assignmentID := c.Params("assignment_id")
+	if assignmentID == "" {
+		return errors.WrapServer(
+			fmt.Errorf("assignment ID required"),
+			errors.ReqParamMissing,
+			"Assignment ID required",
 			fiber.StatusBadRequest,
 		)
 	}
 
 	// Step 2: Delete the document from the Qdrant
 	if _, err := QdrantClient.Delete(context.Background(), &qdrant.DeletePoints{
-		CollectionName: fmt.Sprintf("unipilot-qdrant-db-%d", input.AssignmentID),
+		CollectionName: fmt.Sprintf("unipilot-qdrant-db-%s", assignmentID),
 		Points: qdrant.NewPointsSelectorFilter(
 			&qdrant.Filter{
 				Must: []*qdrant.Condition{
-					qdrant.NewMatchInt("document_id", int64(input.DocumentID)),
+					qdrant.NewMatchInt("document_id", int64(docID)),
 				},
 			},
 		),
