@@ -2,9 +2,10 @@
 
 PROJECT_DIR="$HOME/unipilot"
 DOCKER_DIR="$PROJECT_DIR/docker"
-SERVICE=$1
+SERVICE=${1:-api}
+TAG=${3:-latest}
 IMAGE="unipilot-$SERVICE:latest"
-TAG_IMAGE="192.168.86.22:5000/unipilot/$SERVICE:latest "
+TAG_IMAGE="wwwill-1.lab:5000/unipilot/$SERVICE:$TAG"
 BUILD="Dockerfile.$SERVICE"
 COMPRESS="$IMAGE.tar.gz"
 REPLICAS=${2:-1}

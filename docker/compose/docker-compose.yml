@@ -1,7 +1,8 @@
 services:
   api:
-    image:  192.168.86.22:5000/unipilot/api:${IMAGE_TAG:-latest}
+    image:  wwwill-1.lab:5000/unipilot/api:${IMAGE_TAG:-latest}
     dns:
+      - 192.168.86.20
       - 1.1.1.1
       - 8.8.8.8 
     dns_search: []
@@ -38,8 +39,9 @@ services:
       retries: 3
 
   sse:
-    image: 192.168.86.22:5000/unipilot/sse:${IMAGE_TAG:-latest}
+    image: wwwill-1.lab:5000/unipilot/sse:${IMAGE_TAG:-latest}
     dns:
+      - 192.168.86.20
       - 8.8.8.8
       - 1.1.1.1
     networks:
@@ -70,8 +72,9 @@ services:
       retries: 3
 
   nodejs:
-    image: 192.168.86.22:5000/unipilot/nodejs:${IMAGE_TAG:-latest}
+    image: wwwill-1.lab:5000/unipilot/nodejs:${IMAGE_TAG:-latest}
     dns:
+      - 192.168.86.20
       - 8.8.8.8
       - 1.1.1.1
     networks:

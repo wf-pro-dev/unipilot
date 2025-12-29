@@ -198,7 +198,7 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 14: Send SSE notifications to linked users via gRPC (if available)
-	if GrpcClient != nil {
+	if GrpcClient != nil && input.ParentID == 0 {
 		for _, sendeeID := range link_users {
 			if sendeeID != userID {
 				_, err := (*GrpcClient).SendNotification(context.Background(),

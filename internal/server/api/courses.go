@@ -628,6 +628,10 @@ func GetCoursesLinkedHandler(c *fiber.Ctx) error {
 			}
 
 			for _, assign := range linkAssignments {
+				// Only keeo non-child assignments (prevent duplicates)
+				if assign.ParentID != 0 {
+					continue
+				}
 				documents, err := assignment.GetDocuments(assign.ID, db)
 				if err != nil {
 					return errors.WrapServer(err, errors.DBQueryFailed, "Error getting documents from database", fiber.StatusInternalServerError)
