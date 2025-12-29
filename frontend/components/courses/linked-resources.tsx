@@ -6,13 +6,16 @@ import { AssignmentItemCompact } from "@/components/assignments/assignment-item-
 import { NoteItemCompact } from "@/components/notes/note-item-compact"
 import { Users, FileText, BookOpen, GraduationCap, Search } from "lucide-react"
 import { assignment, note, user } from "@/wailsjs/go/models"
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { Masonry } from "react-plock"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { useCoursesLinked } from "@/hooks/use-courses"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { AssignmentDetailsModal } from "../assignments/assignment-details-modal"
+import { toast } from "sonner"
+import { useAssignments, useCreateAssignment } from "@/hooks/use-assignments"
+import { format } from "date-fns"
 
 // Mock Data
 const MOCK_USERS: user.User[] = [
@@ -125,8 +128,10 @@ export function LinkedResources() {
   const [activeTab, setActiveTab] = useState("users")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedAssignment, setSelectedAssignment] = useState<assignment.LocalAssignment | null>(null)
-  const [selectedNote, setSelectedNote] = useState<note.LocalNote | null>(null)
 
+  const createMutation = useCreateAssignment()
+
+  const { data: userAssignments } = useAssignments()
 
   /**
    * Handles assignment card click to open details modal.
@@ -135,6 +140,33 @@ export function LinkedResources() {
    */
   const handleAssignmentClick = (assignment: assignment.LocalAssignment) => {
     setSelectedAssignment(assignment)
+  }
+
+  /**
+  * Handles assignment creation with optimistic UI updates.
+  * 
+  * Creates a new assignment and provides immediate UI feedback. Logs the creation
+  * and shows success/error toast notifications.
+  * 
+  * @param {assignment.LocalAssignment} assignment - The assignment to create
+  * @returns {Promise<void>}
+  */
+  const handleCopyAssignment = async (assignment: assignment.LocalAssignment) => {
+    const message = "[Frontend] assignment " + assignment.Title + " added"
+    LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
+    createMutation.mutate({
+      ...assignment,
+      StatusName: "Not started",
+      ParentID: assignment.ID
+    } as assignment.LocalAssignment, {
+      onSuccess: () => {
+        toast.success("Assignment added successfully")
+        setSelectedAssignment(null)
+      },
+      onError: () => {
+        toast.error("Failed to add assignment")
+      }
+    })
   }
 
   const filteredUsers = useMemo(() => {
@@ -148,14 +180,15 @@ export function LinkedResources() {
     )
   }, [searchQuery])
 
-  const filteredAssignments = useMemo(() => {
-    if (!searchQuery) return MOCK_ASSIGNMENTS
-    const query = searchQuery.toLowerCase()
-    return MOCK_ASSIGNMENTS.filter(assignment =>
-      assignment.CourseCode?.toLowerCase().includes(query) ||
-      assignment.Course?.Name?.toLowerCase().includes(query)
+  const filteredAssignments = useCallback((code: string) => {
+    return (coursesLinked?.[code]?.Assignments || []).filter(assignment =>
+      !userAssignments?.some(a => a.ParentID === assignment.ID) && ( // If the assignment is already in the user's assignments, don't show it
+        assignment.CourseCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        assignment.Course?.Name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        assignment.Title.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     )
-  }, [searchQuery])
+  }, [coursesLinked, searchQuery, userAssignments])
 
   const filteredNotes = useMemo(() => {
     if (!searchQuery) return MOCK_NOTES
@@ -166,48 +199,7 @@ export function LinkedResources() {
     )
   }, [searchQuery])
 
-  // Group items by course code
-  const groupedUsers = useMemo(() => {
-    const groups: Record<string, user.User[]> = {}
-    filteredUsers.forEach(user => {
-      user.CoursesCode?.forEach(code => {
-        // Filter groups by search query if it matches course code
-        if (searchQuery && !code.toLowerCase().includes(searchQuery.toLowerCase())) return
 
-        if (!groups[code]) groups[code] = []
-        if (!groups[code].find(u => u.ID === user.ID)) {
-          groups[code].push(user)
-        }
-      })
-    })
-    return groups
-  }, [filteredUsers, searchQuery])
-
-  const groupedAssignments = useMemo(() => {
-    const groups: Record<string, assignment.LocalAssignment[]> = {}
-    filteredAssignments.forEach(assignment => {
-      const code = assignment.CourseCode
-      // Filter groups by search query if it matches course code
-      if (searchQuery && !code?.toLowerCase().includes(searchQuery.toLowerCase())) return
-
-      if (!groups[code]) groups[code] = []
-      groups[code].push(assignment)
-    })
-    return groups
-  }, [filteredAssignments, searchQuery])
-
-  const groupedNotes = useMemo(() => {
-    const groups: Record<string, note.LocalNote[]> = {}
-    filteredNotes.forEach(note => {
-      const code = note.course_code
-      // Filter groups by search query if it matches course code
-      if (searchQuery && !code?.toLowerCase().includes(searchQuery.toLowerCase())) return
-
-      if (!groups[code]) groups[code] = []
-      groups[code].push(note)
-    })
-    return groups
-  }, [filteredNotes, searchQuery])
 
   const courseCodes = useMemo(() => {
     const codes = Object.keys(coursesLinked || {})
@@ -282,19 +274,18 @@ export function LinkedResources() {
 
         <TabsContent value="assignments" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
           {courseCodes.map(code => {
-            const courseData = coursesLinked?.[code]
-            const assignments = courseData?.Assignments  // lowercase 'assignments' from API
-            if (!assignments?.length) return null
+            const courseData = coursesLinked?.[code]  // lowercase 'assignments' from API
+            if (!filteredAssignments(code)?.length) return null
             return (
               <div key={code} className="space-y-4">
                 <div className="flex items-center gap-2 pb-2 border-b border-white/10">
                   <h3 className="text-lg font-bold text-white">{code}</h3>
                   <Badge variant="outline" className="text-xs border-white/10 text-gray-400">
-                    {assignments.length} Assignments
+                    {filteredAssignments(code).length} Assignments
                   </Badge>
                 </div>
                 <Masonry
-                  items={assignments}
+                  items={filteredAssignments(code)}
                   config={{
                     columns: [1, 2, 3],
                     gap: [16, 16, 16],
@@ -306,7 +297,7 @@ export function LinkedResources() {
                         assignment={a}
                         onClick={handleAssignmentClick}
                         disabled={false}
-                        onCopy={(copied) => console.log("Copy assignment", copied)}
+                        onCopy={handleCopyAssignment}
                       />
                     </div>
                   )}
@@ -344,7 +335,7 @@ export function LinkedResources() {
                       <NoteItemCompact
                         note={n}
                         disabled={false}
-                        onCopy={(copied) => console.log("Copy note", copied)}
+                        onCopy={() => { }}
                       />
                     </div>
                   )}
@@ -361,7 +352,7 @@ export function LinkedResources() {
         assignment_id={selectedAssignment?.ID}
         isOpen={!!selectedAssignment}
         onClose={() => setSelectedAssignment(null)}
-        onCopy={(copied) => console.log("Copy assignment", copied)}
+        onCopy={handleCopyAssignment}
         assignmentProp={selectedAssignment}
       />
     </div>

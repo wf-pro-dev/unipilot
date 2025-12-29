@@ -33,7 +33,6 @@ export function AssignmentItemCompact({
 }: AssignmentItemCompactProps) {
   // Parse deadline
   const deadline = parseDeadline(assignment.Deadline)
-  const isOverdueStatus = isOverdue(deadline, assignment.StatusName)
 
   // Mock user data since assignment model doesn't have it directly yet
   // In a real app, this would come from assignment.User or similar
@@ -42,15 +41,7 @@ export function AssignmentItemCompact({
     avatar: "/placeholder-user.jpg"
   }
 
-  const handleCopy = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (onCopy) {
-      onCopy(assignment)
-    } else {
-        // Fallback or mock action
-        toast.success("Assignment copied to your list")
-    }
-  }
+ 
 
   const priorityColor = priorityColors[assignment.Priority as keyof typeof priorityColors] || "bg-gray-500"
 
@@ -103,7 +94,10 @@ export function AssignmentItemCompact({
             size="icon"
             variant="ghost"
             className="h-8 w-8 -mt-1 -mr-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg shrink-0"
-            onClick={handleCopy}
+            onClick={(e) => {
+              e.stopPropagation()
+              onCopy?.(assignment)
+            }}
             disabled={disabled}
             title="Create personal copy"
           >

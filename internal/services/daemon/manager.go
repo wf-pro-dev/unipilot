@@ -2,12 +2,14 @@ package daemon
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 
 	"unipilot/internal/errors"
+	"unipilot/internal/services/utils"
 
 	"github.com/kardianos/service"
 )
@@ -48,18 +50,27 @@ func NewManager(userID uint, ctx context.Context) (*Manager, error) {
 	}
 
 	// Set paths - use user-accessible locations (no sudo needed)
-	daemonPath := filepath.Join(userHome, "Library", "Application Support", "unipilot", "unipilot-notification")
-	logPath := filepath.Join(userHome, "Library", "Logs", "unipilot", "unipilot-notification.log")
-	errorLogPath := filepath.Join(userHome, "Library", "Logs", "unipilot", "unipilot-notification-error.log")
+	userDir, err := utils.GetUserDir()
+	if err != nil {
+		return nil, errors.Wrap(err, errors.FSDirFailed, "Failed to get user directory")
+	}
+
+	logsDir, err := utils.GetLogsDir()
+	if err != nil {
+		return nil, errors.Wrap(err, errors.FSDirFailed, "Failed to get logs directory")
+	}
+	daemonPath := filepath.Join(userDir, fmt.Sprintf("unipilot-notification_%d", userID))
+	logPath := filepath.Join(logsDir, fmt.Sprintf("unipilot-notification_%d.log", userID))
+	errorLogPath := filepath.Join(logsDir, fmt.Sprintf("unipilot-notification_%d-error.log", userID))
 
 	// Create a dummy program for service configuration
 	prg := &dummyProgram{}
 
 	// Configure service with logging
 	svcConfig := &service.Config{
-		Name:        "com.unipilot.notifications",
-		DisplayName: "UniPilot Notification Service",
-		Description: "Background notification service for UniPilot",
+		Name:        fmt.Sprintf("com.unipilot.notifications.%d", userID),
+		DisplayName: fmt.Sprintf("UniPilot Notification Service for User %d", userID),
+		Description: fmt.Sprintf("Background notification service for UniPilot for user %d", userID),
 		Arguments: []string{
 			"-user", strconv.FormatUint(uint64(userID), 10),
 			"-log", logPath,

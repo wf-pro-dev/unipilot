@@ -63,7 +63,7 @@ export function AssignmentDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="glass border-white/10 text-white max-w-xl max-h-[85vh] overflow-y-auto p-0 overflow-hidden gap-0">
+      <DialogContent className="glass border-white/10 text-white max-w-xl max-h-[95vh] overflow-y-auto p-0 overflow-hidden gap-0">
         <div className="p-6 pb-4 border-b border-white/5 bg-white/5">
           <div className="flex justify-between items-start">
             <div className="space-y-1">
@@ -145,7 +145,7 @@ export function AssignmentDetailsModal({
                     <FileText className="w-3.5 h-3.5" />
                     <span>Description & Notes</span>
                   </div>
-                  <div className="bg-white/5 border border-white/5 p-4 rounded-xl max-h-[100px] overflow-y-auto custom-scrollbar">
+                  <div className="bg-white/5 border border-white/5 p-4 rounded-xl  overflow-y-auto custom-scrollbar max-h-[100px] hover:max-h-[200px] transition-all duration-300 ease-in-out">
                     <p className="whitespace-pre-wrap leading-relaxed text-sm text-gray-200">{assignment.Todo}</p>
                   </div>
                 </div>

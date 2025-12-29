@@ -157,3 +157,14 @@ func GetProfilePicturePath() (string, error) {
 
 	return profilePicturePath, nil
 }
+
+func GetLogsDir() (string, error) {
+
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return "", errors.Wrap(err, errors.FSDirFailed, "Failed to get user home directory")
+	}
+
+	logsDir := filepath.Join(userHome, "Library", "Logs", "unipilot")
+	return logsDir, nil
+}
