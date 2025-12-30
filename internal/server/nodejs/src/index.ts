@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import { findRelevantContent } from './lib/qdrant';
 import { z } from 'zod';
 import { Assignment, ChatRequest } from './types';
+import authMiddleware from './lib/middlewares/auth';
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use(cors({
 
 app.use(express.json({ limit: '10mb' }));
 
+app.use('/unipilot/ai/v1', authMiddleware);
 /**
  * Health check endpoint for service monitoring and load balancer health checks.
  * Returns service status and identification for operational monitoring.
