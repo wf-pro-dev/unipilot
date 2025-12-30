@@ -3,7 +3,7 @@
 import { useChat } from '@ai-sdk/react';
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/button';
-import { ArrowUp, Bot, FileText, Send, Sparkles, MessageCircle, Paperclip, ListTree, Scale, CalendarClock } from 'lucide-react';
+import { ArrowUp, FileText, Sparkles, Paperclip, ListTree, Scale, CalendarClock } from 'lucide-react';
 import { assignment } from '@/wailsjs/go/models';
 import { formatDeadline } from '@/lib/date-utils';
 import TextareaAutosize from 'react-textarea-autosize';
@@ -20,6 +20,8 @@ import { DocumentUploadDialog } from '../documents/document-upload-dialog';
 import { useUploadDocumentRAG } from '@/hooks/use-documents';
 import { toast } from 'sonner';
 import { document } from '@/wailsjs/go/models';
+import { useGetAuthToken } from '@/hooks/use-auth';
+import { useAuthContext } from '../provider/auth-provider';
 
 interface AIChatInterfaceProps {
   assignment: assignment.LocalAssignment;
@@ -36,6 +38,10 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
   const { mutate: documentRAGMutation } = useUploadDocumentRAG()
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [uploadType, setUploadType] = useState<"support" | "submission">("support")
+
+  
+ const { token } = useAuthContext()
+
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
@@ -90,9 +96,11 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
     transport: new DefaultChatTransport({
       api: 'https://wwwill.xyz/unipilot/ai/v1',
       prepareSendMessagesRequest: ({ id, messages, trigger, messageId }) => {
+        console.log("prepareSendMessagesRequest", token)
         return {
           headers: {
             'X-Session-ID': id,
+            'Authorization': `Bearer ${token}`
           },
           body: {
             messages: messages.slice(-10), // Only send last 10 messages
@@ -180,8 +188,6 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
       handleFormSubmit(e);
     }
   };
-
-
 
 
   if (historyLoading) {

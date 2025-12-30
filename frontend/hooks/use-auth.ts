@@ -21,6 +21,7 @@ export const authKeys = {
   user: ['auth', 'user'] as const,
   followers: ['auth', 'followers'] as const,
   following: ['auth', 'following'] as const,
+  token: ['auth', 'token'] as const,
 }
 
 // Main hook for fetching current user
@@ -41,9 +42,16 @@ export function useCurrentUser() {
 
 export function useGetAuthToken() {
   return useQuery({
-    queryKey: ['auth_token'],
-    queryFn: async () => {
-      return await GetAuthToken()
+    queryKey: authKeys.token,
+    queryFn: async () : Promise<string> => {
+      try {
+        var token = await GetAuthToken()
+        console.log("useGetAuthToken", token)
+        return token
+      } catch (error) {
+        LogError("Failed to get auth token: " + error)
+        throw error
+      }
     },
   })
 }

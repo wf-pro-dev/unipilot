@@ -53,7 +53,6 @@ export function useStreamNote() {
         const abortController = new AbortController()
         abortControllerRef.current = abortController
 
-        console.log("use-stream-notes", noteData)
 
         try {
             // Get auth token from Wails backend
