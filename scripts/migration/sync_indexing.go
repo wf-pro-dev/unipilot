@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"unipilot/internal/client"
-	"unipilot/internal/models/assignment"
-	"unipilot/internal/models/course"
+	"unipilot/internal/models"
 	"unipilot/internal/services/utils"
 )
 
@@ -19,7 +18,7 @@ func sync_indexing_assignments() {
 	}
 
 	// Get all local assignment from local database
-	assignments := []assignment.LocalAssignment{}
+	assignments := []models.LocalAssignment{}
 	err = db.Find(&assignments).Error
 	if err != nil {
 		fmt.Printf("ERROR : %s", err)
@@ -50,7 +49,7 @@ func sync_indexing_courses() {
 	}
 
 	// Get all local assignment from local database
-	courses := []course.LocalCourse{}
+	courses := []models.LocalCourse{}
 	err = db.Find(&courses).Error
 	if err != nil {
 		fmt.Printf("ERROR : %s", err)
@@ -72,7 +71,7 @@ func sync_indexing_courses() {
 
 }
 
-func main() {
-	sync_indexing_assignments()
-	sync_indexing_courses()
-}
+// func main() {
+// 	sync_indexing_assignments()
+// 	sync_indexing_courses()
+// }

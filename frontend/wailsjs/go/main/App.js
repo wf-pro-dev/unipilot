@@ -66,8 +66,8 @@ export function Follow(arg1) {
   return window['go']['main']['App']['Follow'](arg1);
 }
 
-export function GetAssignment(arg1) {
-  return window['go']['main']['App']['GetAssignment'](arg1);
+export function GetLAssignment(arg1) {
+  return window['go']['main']['App']['GetLAssignment'](arg1);
 }
 
 export function GetAssignmentDocumentIDsRAG(arg1, arg2) {

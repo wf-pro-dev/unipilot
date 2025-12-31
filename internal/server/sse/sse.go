@@ -1,4 +1,4 @@
-// Package sse provides Server-Sent Events functionality for real-time notifications.
+// Package sse provides Server-Sent Events functionality for real-time models.
 // instant updates to connected clients when course-related activities occur.
 package sse
 
@@ -15,7 +15,6 @@ import (
 
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
-	"unipilot/internal/models/notifications"
 	"unipilot/internal/server"
 )
 
@@ -44,7 +43,7 @@ type SSEServer struct {
 }
 
 // NewSSEServer creates and initializes a new SSE server instance.
-// Returns a server ready to accept client connections and manage notifications.
+// Returns a server ready to accept client connections and manage models.
 func NewSSEServer() *SSEServer {
 	return &SSEServer{
 		clients: make(map[uint]*SSEClient),
@@ -136,7 +135,7 @@ func StartSSEServer() *SSEServer {
 	return sseServer
 }
 
-// AddClient registers a new SSE client connection for the specified user.
+// AddClient registers a new SSE client connection for the specified models.
 // Creates a buffered message channel (100 messages) and adds the client to the server's
 // connection pool. If a client already exists for this user, it will be replaced.
 // Returns the newly created client instance.
@@ -231,7 +230,7 @@ func (s *SSEServer) RemoveClient(userID uint) {
 	}
 }
 
-// SendToUser attempts to send a message to a specific connected user.
+// SendToUser attempts to send a message to a specific connected models.
 // Uses non-blocking channel send to avoid hanging if the client's message buffer
 // is full. Logs active client count for monitoring purposes.
 // Returns true if message was successfully queued, false if user not connected
@@ -284,7 +283,7 @@ func (s *SSEServer) SendToUser(userID uint, message []byte) bool {
 // Broadcast sends a message to all currently connected clients.
 // Uses non-blocking sends to prevent slow clients from affecting others.
 // Messages are silently dropped for clients with full message buffers.
-// Useful for system-wide announcements or maintenance notifications.
+// Useful for system-wide announcements or maintenance models.
 //
 // Parameters:
 //   - message: JSON-encoded message to broadcast ([]byte, required)
@@ -468,7 +467,7 @@ func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
 	return nil
 }
 
-// SendNotification creates and sends a structured notification to a specific user.
+// SendNotification creates and sends a structured notification to a specific models.
 // Constructs a LocalNotification with all provided metadata, serializes it to JSON,
 // and delivers it through the user's SSE connection if they are connected.
 //
@@ -477,7 +476,7 @@ func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
 //   - senderID: User who triggered the notification (uint, required)
 //   - entity: Type of entity - assignment, document, course, etc. (models.Entity, required)
 //   - entityID: Unique identifier for the entity (uint, required)
-//   - nType: Notification type - create, update, delete, etc. (notifications.NotificationType, required)
+//   - nType: Notification type - create, update, delete, etc. (models.NotificationType, required)
 //   - title: Human-readable notification title (string, required)
 //   - message: Detailed notification message (string, required)
 //   - action: Action type for client-side handling (string, required)
@@ -509,9 +508,9 @@ func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
 // Side Effects:
 //   - Logs marshalling errors for debugging
 //   - Attempts message delivery via SendToUser
-func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity, entityID uint, nType notifications.NotificationType, title, message, action, data string) error {
+func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity, entityID uint, nType models.NotificationType, title, message, action, data string) error {
 	// Step 1: Construct structured notification with all provided metadata
-	notification := notifications.LocalNotification{
+	notification := models.LocalNotification{
 		SenderID: senderID, // User who triggered the notification
 		Entity:   entity,   // Entity type (assignment, document, etc.)
 		EntityID: entityID, // Specific entity identifier

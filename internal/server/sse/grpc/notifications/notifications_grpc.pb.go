@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v3.12.4
-// source: internal/server/sse/grpc/notifications/notifications.proto
+// source: internal/server/sse/grpc/notifications/models.proto
 
 package notifications
 
@@ -19,8 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	NotificationsService_SendNotification_FullMethodName = "/notifications.NotificationsService/SendNotification"
-	NotificationsService_Heartbeat_FullMethodName        = "/notifications.NotificationsService/Heartbeat"
+	NotificationsService_SendNotification_FullMethodName = "/models.NotificationsService/SendNotification"
+	NotificationsService_Heartbeat_FullMethodName        = "/models.NotificationsService/Heartbeat"
 )
 
 // NotificationsServiceClient is the client API for NotificationsService service.
@@ -142,7 +142,7 @@ func _NotificationsService_Heartbeat_Handler(srv interface{}, ctx context.Contex
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var NotificationsService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "notifications.NotificationsService",
+	ServiceName: "models.NotificationsService",
 	HandlerType: (*NotificationsServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -155,5 +155,5 @@ var NotificationsService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "internal/server/sse/grpc/notifications/notifications.proto",
+	Metadata: "internal/server/sse/grpc/notifications/models.proto",
 }

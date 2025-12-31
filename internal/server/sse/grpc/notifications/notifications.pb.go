@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.10
 // 	protoc        v3.12.4
-// source: internal/server/sse/grpc/notifications/notifications.proto
+// source: internal/server/sse/grpc/notifications/models.proto
 
 package notifications
 
@@ -221,7 +221,7 @@ var File_internal_server_sse_grpc_notifications_notifications_proto protoreflect
 
 const file_internal_server_sse_grpc_notifications_notifications_proto_rawDesc = "" +
 	"\n" +
-	":internal/server/sse/grpc/notifications/notifications.proto\x12\rnotifications\"\xe9\x01\n" +
+	":internal/server/sse/grpc/notifications/models.proto\x12\rnotifications\"\xe9\x01\n" +
 	"\fNotification\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\rR\x06userId\x12\x1b\n" +
 	"\tsender_id\x18\x02 \x01(\rR\bsenderId\x12\x16\n" +
@@ -237,8 +237,8 @@ const file_internal_server_sse_grpc_notifications_notifications_proto_rawDesc = 
 	"\aMessage\x12\x12\n" +
 	"\x04body\x18\x01 \x01(\tR\x04body2\xad\x01\n" +
 	"\x14NotificationsService\x12V\n" +
-	"\x10SendNotification\x12\x1b.notifications.Notification\x1a#.notifications.NotificationResponse\"\x00\x12=\n" +
-	"\tHeartbeat\x12\x16.notifications.Message\x1a\x16.notifications.Message\"\x00B,Z*unipilot/internal/server/sse/notificationsb\x06proto3"
+	"\x10SendNotification\x12\x1b.models.Notification\x1a#.models.NotificationResponse\"\x00\x12=\n" +
+	"\tHeartbeat\x12\x16.models.Message\x1a\x16.models.Message\"\x00B,Z*unipilot/internal/server/sse/notificationsb\x06proto3"
 
 var (
 	file_internal_server_sse_grpc_notifications_notifications_proto_rawDescOnce sync.Once
@@ -254,15 +254,15 @@ func file_internal_server_sse_grpc_notifications_notifications_proto_rawDescGZIP
 
 var file_internal_server_sse_grpc_notifications_notifications_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_internal_server_sse_grpc_notifications_notifications_proto_goTypes = []any{
-	(*Notification)(nil),         // 0: notifications.Notification
-	(*NotificationResponse)(nil), // 1: notifications.NotificationResponse
-	(*Message)(nil),              // 2: notifications.Message
+	(*Notification)(nil),         // 0: models.Notification
+	(*NotificationResponse)(nil), // 1: models.NotificationResponse
+	(*Message)(nil),              // 2: models.Message
 }
 var file_internal_server_sse_grpc_notifications_notifications_proto_depIdxs = []int32{
-	0, // 0: notifications.NotificationsService.SendNotification:input_type -> notifications.Notification
-	2, // 1: notifications.NotificationsService.Heartbeat:input_type -> notifications.Message
-	1, // 2: notifications.NotificationsService.SendNotification:output_type -> notifications.NotificationResponse
-	2, // 3: notifications.NotificationsService.Heartbeat:output_type -> notifications.Message
+	0, // 0: models.NotificationsService.SendNotification:input_type -> models.Notification
+	2, // 1: models.NotificationsService.Heartbeat:input_type -> models.Message
+	1, // 2: models.NotificationsService.SendNotification:output_type -> models.NotificationResponse
+	2, // 3: models.NotificationsService.Heartbeat:output_type -> models.Message
 	2, // [2:4] is the sub-list for method output_type
 	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name

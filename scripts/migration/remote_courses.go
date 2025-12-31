@@ -274,4 +274,3 @@ func checkDependentObjects(tx *gorm.DB, constraintName string) {
 		fmt.Println("📋 No dependent indexes found")
 	}
 }
-

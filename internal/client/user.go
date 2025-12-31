@@ -8,7 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 
 	"unipilot/internal/errors"
@@ -16,7 +16,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func GetUser() (*user.User, error) {
+func GetUser() (*models.User, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/users/me", api_url))
@@ -36,7 +36,7 @@ func GetUser() (*user.User, error) {
 
 	var response struct {
 		Message string    `json:"message"`
-		User    user.User `json:"user"`
+		User    models.User `json:"user"`
 	}
 
 	if err := json.Unmarshal(body, &response); err != nil {

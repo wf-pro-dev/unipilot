@@ -31,7 +31,7 @@ func (am *AuthorizationManager) RequestPrivilegesAndExecute(commands []string) e
 	runtime.MessageDialog(am.ctx, runtime.MessageDialogOptions{
 		Type:    runtime.InfoDialog,
 		Title:   "System Integration Required",
-		Message: "UniPilot needs to install a background service for notifications. This will show a system dialog asking for your password.",
+		Message: "UniPilot needs to install a background service for models. This will show a system dialog asking for your password.",
 	})
 
 	// Build a single script with all commands

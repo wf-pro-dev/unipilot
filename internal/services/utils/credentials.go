@@ -5,10 +5,10 @@ import (
 	"log"
 	"os"
 	"unipilot/internal/errors"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 )
 
-func GetUserFromFile() (*user.User, error) {
+func GetUserFromFile() (*models.User, error) {
 
 	credentialsFile, err := GetCredentialFile()
 	if err != nil {
@@ -22,7 +22,7 @@ func GetUserFromFile() (*user.User, error) {
 		return nil, errors.Wrap(err, errors.FSOpenFailed, "Failed to read credential file")
 	}
 
-	var user user.User
+	var user models.User
 	err = json.Unmarshal(credentials, &user)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal credential file")
@@ -31,7 +31,7 @@ func GetUserFromFile() (*user.User, error) {
 	return &user, nil
 }
 
-func SetCredentials(user *user.User) error {
+func SetCredentials(user *models.User) error {
 
 	credentialsFile, err := GetCredentialFile()
 	if err != nil {

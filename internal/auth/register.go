@@ -8,14 +8,14 @@ import (
 
 	"unipilot/internal/client"
 	"unipilot/internal/errors"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
 	"unipilot/internal/storage"
 )
 
-// Register creates a new user account and automatically authenticates the user.
+// Register creates a new user account and automatically authenticates the models.
 // Performs user registration, saves tokens, initializes SSE connection, and sets up local database.
 // Similar to Login but creates a new account instead of authenticating an existing one.
 //
@@ -27,9 +27,9 @@ import (
 //   - language: User's preferred language
 //
 // Returns:
-//   - *user.User: Newly created user object with profile information
+//   - *models.User: Newly created user object with profile information
 //   - error: Error if registration fails, token saving fails, or database setup fails
-func (a *Auth) Register(userData *user.User) (*user.User, error) {
+func (a *Auth) Register(userData *models.User) (*models.User, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Post(fmt.Sprintf("%s/register", api_url))
@@ -50,7 +50,7 @@ func (a *Auth) Register(userData *user.User) (*user.User, error) {
 	}
 
 	var response struct {
-		User         user.User `json:"user"`
+		User         models.User `json:"user"`
 		Token        string    `json:"token"`
 		RefreshToken string    `json:"refresh_token"`
 	}

@@ -25,7 +25,7 @@ import (
 // Server Configuration:
 //   - Port: 9000 (dedicated gRPC service port)
 //   - Protocol: gRPC over TCP
-//   - Service: notifications.NotificationsService
+//   - Service: models.NotificationsService
 //   - Methods: SendNotification, Heartbeat
 //
 // Architecture:

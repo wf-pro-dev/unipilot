@@ -8,7 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"unipilot/internal/models/document"
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 
 	"unipilot/internal/errors"
@@ -18,19 +18,19 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// UploadResponse represents the server response
-type UploadResponse struct {
+// DocCreateResp represents the server response
+type DocCreateResp struct {
 	RemoteID           uint   `json:"remote_id"`
 	RemoteAssignmentID uint   `json:"remote_assignment_id"`
 	StorageKey         string `json:"storage_key"`
 }
 
 // GetDocuments retrieves all documents
-func GetDocuments() ([]document.Document, error) {
+func GetDocuments() ([]models.Document, error) {
 	var response struct {
-		Message   string              `json:"message"`
-		Documents []document.Document `json:"documents"`
-		Error     string              `json:"error,omitempty"`
+		Message   string            `json:"message"`
+		Documents []models.Document `json:"documents"`
+		Error     string            `json:"error,omitempty"`
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
@@ -61,11 +61,11 @@ func GetDocuments() ([]document.Document, error) {
 }
 
 // GetAssignmentDocuments retrieves documents for a specific assignment
-func GetAssignmentDocuments(assignmentID uint) ([]document.Document, error) {
+func GetAssignmentDocuments(assignmentID uint) ([]models.Document, error) {
 	var response struct {
-		Message   string              `json:"message"`
-		Documents []document.Document `json:"documents"`
-		Error     string              `json:"error,omitempty"`
+		Message   string            `json:"message"`
+		Documents []models.Document `json:"documents"`
+		Error     string            `json:"error,omitempty"`
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
@@ -96,7 +96,7 @@ func GetAssignmentDocuments(assignmentID uint) ([]document.Document, error) {
 }
 
 // sendMultipartFile sends file using multipart/form-data with your authenticated client
-func SendDocument(localDocument *document.LocalDocument) (*UploadResponse, error) {
+func SendDocument(localDocument *models.LocalDocument) (*DocCreateResp, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	var url string = fmt.Sprintf("%s/documents", api_url)
@@ -176,7 +176,7 @@ func SendDocument(localDocument *document.LocalDocument) (*UploadResponse, error
 	}
 
 	// Success - parse response
-	var uploadResp UploadResponse
+	var uploadResp DocCreateResp
 	if err := json.Unmarshal(respBody, &uploadResp); err != nil {
 		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse success response")
 	}
@@ -192,7 +192,7 @@ func SendDocument(localDocument *document.LocalDocument) (*UploadResponse, error
 	return &uploadResp, nil
 
 }
-func DownloadDocument(document *document.LocalDocument) (io.Reader, error) {
+func DownloadDocument(document *models.LocalDocument) (io.Reader, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Post(fmt.Sprintf("%s/documents/%d/download", api_url, document.ID))
@@ -239,7 +239,7 @@ func DeleteDocument(documentID uint) error {
 	return nil
 }
 
-func UploadDocumentRAG(document *document.LocalDocument) error {
+func UploadDocumentRAG(document *models.LocalDocument) error {
 
 	// Create a buffer to store the multipart data
 	var buf bytes.Buffer
@@ -350,7 +350,7 @@ func DeleteDocumentRAG(assignmentID, documentID uint) error {
 	return nil
 }
 
-func GetAssignmentDocumentIDsRAG(assignmentID uint, documentIDs []uint) ([]uint, error) {
+func GetAssignmentDocumentIDsRAG(assignmentID uint) ([]uint, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/documents/assignments/%d/rag", api_url, assignmentID))

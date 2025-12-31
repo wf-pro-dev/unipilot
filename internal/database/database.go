@@ -2,7 +2,7 @@ package database
 
 import (
 	"unipilot/internal/errors"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/services/utils"
 
 	"gorm.io/gorm"
@@ -11,11 +11,11 @@ import (
 // Database provides database operations for the exposed structs
 type Database struct {
 	db   *gorm.DB
-	user *user.User
+	user *models.User
 }
 
 // NewDatabase creates a new database helper
-func NewDatabase(user *user.User) (*Database, error) {
+func NewDatabase(user *models.User) (*Database, error) {
 	database := &Database{
 		user: user,
 	}

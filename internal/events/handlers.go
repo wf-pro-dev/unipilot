@@ -5,15 +5,14 @@ import (
 	"log"
 
 	"unipilot/internal/errors"
-	"unipilot/internal/models/assignment"
-	"unipilot/internal/models/notifications"
+	"unipilot/internal/models"
 )
 
 func (h *Events) HandleAssignmentCreate(data json.RawMessage, message string) {
 
 	db := h.DB
 
-	var assign assignment.LocalAssignment
+	var assign models.LocalAssignment
 	if err := json.Unmarshal(data, &assign); err != nil {
 		wrappedErr := errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal assignment data")
 		log.Printf("Error unmarshalling assignment: %v", wrappedErr)
@@ -45,14 +44,14 @@ func (h *Events) HandleAssignmentUpdate(data json.RawMessage, message string) {
 		return
 	}
 
-	if err := db.Model(&assignment.LocalAssignment{}).Where("remote_id = ?", update.ID).Update(update.Column, update.Value).Error; err != nil {
+	if err := db.Model(&models.LocalAssignment{}).Where("remote_id = ?", update.ID).Update(update.Column, update.Value).Error; err != nil {
 		wrappedErr := errors.HandleDBWriteError(err)
 		log.Printf("Error updating assignment %s with %s = %s: %v", update.ID, update.Column, update.Value, wrappedErr)
 		return
 	}
 
-	var a assignment.LocalAssignment
-	err := db.Model(&assignment.LocalAssignment{}).Where("remote_id = ?", update.ID).First(&a).Error
+	var a models.LocalAssignment
+	err := db.Model(&models.LocalAssignment{}).Where("remote_id = ?", update.ID).First(&a).Error
 	if err != nil {
 		wrappedErr := errors.HandleDBReadError(err)
 		log.Printf("Error getting assignment: %v", wrappedErr)
@@ -66,7 +65,7 @@ func (h *Events) HandleAssignmentDelete(data json.RawMessage, message string) {
 
 	db := h.DB
 
-	var assign assignment.LocalAssignment
+	var assign models.LocalAssignment
 	if err := json.Unmarshal(data, &assign); err != nil {
 		wrappedErr := errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal assignment data")
 		log.Printf("Error unmarshalling assignment: %v", wrappedErr)
@@ -85,7 +84,7 @@ func (h *Events) HandleFollow(data json.RawMessage, message string) {
 
 	db := h.DB
 
-	var n notifications.LocalNotification
+	var n models.LocalNotification
 	if err := json.Unmarshal(data, &n); err != nil {
 		wrappedErr := errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal notification data")
 		log.Printf("Error unmarshalling notification: %v", wrappedErr)

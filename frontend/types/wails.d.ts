@@ -14,7 +14,7 @@ declare global {
           GetCurrentUser: () => Promise<user.User>
           GetNetworkStatus: () => Promise<{ online: boolean; timestamp: number }>
           Sync: () => Promise<void>
-          GetAssignment: (id: number) => Promise<assignment.LocalAssignment>
+          GetLAssignment: (id: number) => Promise<assignment.LocalAssignment>
           GetCourse: (id: number) => Promise<course.LocalCourse>
           GetUser: (id: number) => Promise<User>
           GetAssignments: () => Promise<assignment.LocalAssignment[]>

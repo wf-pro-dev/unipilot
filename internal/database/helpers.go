@@ -8,13 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
-	"unipilot/internal/models/aimessage"
-	"unipilot/internal/models/assignment"
-	"unipilot/internal/models/course"
-	"unipilot/internal/models/document"
-	"unipilot/internal/models/note"
-	"unipilot/internal/models/notifications"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/services/fileops"
 	"unipilot/internal/services/utils"
 )
@@ -25,15 +19,15 @@ func (h *Database) GetDB() *gorm.DB {
 }
 
 // GetUser retrieves a user by ID
-func (h *Database) GetUser(id uint) (*user.User, error) {
-	var u user.User
+func (h *Database) GetUser(id uint) (*models.User, error) {
+	var u models.User
 	err := h.db.First(&u, id).Error
 	return &u, err
 }
 
-// GetAssignment retrieves an assignment by ID
-func (h *Database) GetAssignment(id uint) (*assignment.LocalAssignment, error) {
-	assignment, err := assignment.Get_Local_Assignment_byId(id, h.db)
+// GetLAssignment retrieves an assignment by ID
+func (h *Database) GetLAssignment(id uint) (*models.LocalAssignment, error) {
+	assignment, err := models.GetLAssignment(id, h.db)
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
@@ -41,8 +35,8 @@ func (h *Database) GetAssignment(id uint) (*assignment.LocalAssignment, error) {
 }
 
 // GetAssignments retrieves all assignments for a user
-func (h *Database) GetAssignments() ([]assignment.LocalAssignment, error) {
-	var LocalAssignment []assignment.LocalAssignment
+func (h *Database) GetAssignments() ([]models.LocalAssignment, error) {
+	var LocalAssignment []models.LocalAssignment
 	err := h.db.Preload("Course").Preload("Type").Preload("Status").Order("deadline DESC").Order("created_at DESC").Find(&LocalAssignment).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
@@ -50,27 +44,8 @@ func (h *Database) GetAssignments() ([]assignment.LocalAssignment, error) {
 	return LocalAssignment, nil
 }
 
-// CreateAssignment creates a new assignment
-func (h *Database) CreateAssignment(assignment *assignment.LocalAssignment) error {
-	err := h.db.Create(assignment).Error
-	if err != nil {
-		return errors.HandleDBCreateError(err)
-	}
-	return nil
-}
-
-// UpdateAssignment updates an existing assignment
-func (h *Database) UpdateAssignment(LocalAssignment *assignment.LocalAssignment, column, value string) error {
-	// Only update the assignment fields, not the related course data
-	err := h.db.Exec(fmt.Sprintf("UPDATE local_assignments SET %s = '%s', updated_at = CURRENT_TIMESTAMP WHERE id = '%d'", column, value, LocalAssignment.ID)).Error
-	if err != nil {
-		return errors.HandleDBWriteError(err)
-	}
-	return nil
-}
-
 // DeleteAssignment deletes an assignment
-func (h *Database) DeleteAssignment(assignment *assignment.LocalAssignment) error {
+func (h *Database) DeleteAssignment(assignment *models.LocalAssignment) error {
 	err := h.db.Delete(assignment).Error
 	if err != nil {
 		return errors.HandleDBWriteError(err)
@@ -78,21 +53,9 @@ func (h *Database) DeleteAssignment(assignment *assignment.LocalAssignment) erro
 	return nil
 }
 
-// GetCourse retrieves a course by ID
-func (h *Database) GetCourse(id uint) (*course.Course, error) {
-	if h == nil || h.db == nil {
-		return nil, errors.NewAppError(errors.DBConnectionFailed, "Database connection failed", nil)
-	}
-	course, err := course.Get_Course_byId(id, h.db)
-	if err != nil {
-		return nil, errors.HandleDBReadError(err)
-	}
-	return course, nil
-}
-
 // GetCourses retrieves all courses for a user
-func (h *Database) GetCourses() ([]course.LocalCourse, error) {
-	var LocalCourse []course.LocalCourse
+func (h *Database) GetCourses() ([]models.LocalCourse, error) {
+	var LocalCourse []models.LocalCourse
 	err := h.db.Order("start_date DESC").Find(&LocalCourse).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
@@ -101,7 +64,7 @@ func (h *Database) GetCourses() ([]course.LocalCourse, error) {
 }
 
 // CreateCourse creates a new course
-func (h *Database) CreateCourse(course *course.Course) error {
+func (h *Database) CreateCourse(course *models.Course) error {
 
 	err := h.db.Create(course).Error
 	if err != nil {
@@ -111,7 +74,7 @@ func (h *Database) CreateCourse(course *course.Course) error {
 }
 
 // UpdateCourse updates an existing course
-func (h *Database) UpdateCourse(LocalCourse *course.LocalCourse, column, value string) error {
+func (h *Database) UpdateCourse(LocalCourse *models.LocalCourse, column, value string) error {
 	// Only update the assignment fields, not the related course data
 	err := h.db.Exec(fmt.Sprintf("UPDATE local_courses SET %s = '%s', updated_at = CURRENT_TIMESTAMP WHERE id = '%d'", column, value, LocalCourse.ID)).Error
 	if err != nil {
@@ -121,7 +84,7 @@ func (h *Database) UpdateCourse(LocalCourse *course.LocalCourse, column, value s
 }
 
 // DeleteCourse deletes a course
-func (h *Database) DeleteCourse(course *course.LocalCourse) error {
+func (h *Database) DeleteCourse(course *models.LocalCourse) error {
 	err := h.db.Delete(course).Error
 	if err != nil {
 		return errors.HandleDBWriteError(err)
@@ -130,8 +93,8 @@ func (h *Database) DeleteCourse(course *course.LocalCourse) error {
 }
 
 // GetNotes returns all notes for the current user
-func (h *Database) GetNotes() ([]note.LocalNote, error) {
-	var LocalNote []note.LocalNote
+func (h *Database) GetNotes() ([]models.LocalNote, error) {
+	var LocalNote []models.LocalNote
 	err := h.db.Preload("Course").Find(&LocalNote).Order("created_at DESC").Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
@@ -140,7 +103,7 @@ func (h *Database) GetNotes() ([]note.LocalNote, error) {
 }
 
 // CreateNote creates a new note
-func (h *Database) CreateNote(note *note.LocalNote) error {
+func (h *Database) CreateNote(note *models.LocalNote) error {
 	err := h.db.Create(note).Error
 	if err != nil {
 		return errors.HandleDBCreateError(err)
@@ -149,7 +112,7 @@ func (h *Database) CreateNote(note *note.LocalNote) error {
 }
 
 // UpdateNote updates an existing note
-func (h *Database) UpdateNote(LocalNote *note.LocalNote, column, value string) error {
+func (h *Database) UpdateNote(LocalNote *models.LocalNote, column, value string) error {
 	err := h.db.Exec(fmt.Sprintf("UPDATE local_notes SET %s = '%s', updated_at = CURRENT_TIMESTAMP WHERE id = '%d'", column, value, LocalNote.ID)).Error
 	if err != nil {
 		return errors.HandleDBWriteError(err)
@@ -158,7 +121,7 @@ func (h *Database) UpdateNote(LocalNote *note.LocalNote, column, value string) e
 }
 
 // DeleteNote deletes a note
-func (h *Database) DeleteNote(note *note.LocalNote) error {
+func (h *Database) DeleteNote(note *models.LocalNote) error {
 	err := h.db.Delete(note).Error
 	if err != nil {
 		return errors.HandleDBWriteError(err)
@@ -167,11 +130,11 @@ func (h *Database) DeleteNote(note *note.LocalNote) error {
 }
 
 // GetNotifications returns all notifications for the current user
-func (h *Database) GetNotifications() ([]notifications.LocalNotification, error) {
-	var LocalNotification []notifications.LocalNotification
+func (h *Database) GetNotifications() ([]models.LocalNotification, error) {
+	var LocalNotification []models.LocalNotification
 	err := h.db.
-		Where("type != ?", notifications.NotificationAssignment).
-		Where("type != ?", notifications.NotificationCourse).
+		Where("type != ?", models.NotificationAssignment).
+		Where("type != ?", models.NotificationCourse).
 		Find(&LocalNotification).
 		Order("created_at DESC").Error
 	if err != nil {
@@ -180,7 +143,7 @@ func (h *Database) GetNotifications() ([]notifications.LocalNotification, error)
 	return LocalNotification, nil
 }
 
-func (h *Database) DeleteNotification(notification *notifications.LocalNotification) error {
+func (h *Database) DeleteNotification(notification *models.LocalNotification) error {
 	err := h.db.Delete(notification).Error
 	if err != nil {
 		return errors.HandleDBWriteError(err)
@@ -196,23 +159,24 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 	}
 
 	// Validate file size
-	if uploadReq.FileSize > document.MaxFileSize {
+	if uploadReq.FileSize > models.MaxFileSize {
 
-		return nil, errors.NewAppError(errors.ValidationInvalid, "File size exceeds limit", fmt.Errorf("file size exceeds limit of %d MB", document.MaxFileSize/(1024*1024)))
+		return nil, errors.NewAppError(errors.ValidationInvalid, "File size exceeds limit", fmt.Errorf("file size exceeds limit of %d MB", models.MaxFileSize/(1024*1024)))
 	}
 
 	// Create LocalDocument record
-	localDoc := document.LocalDocument{
-		AssignmentID:       uploadReq.AssignmentID,
+	localDoc := models.LocalDocument{
+		Document: models.Document{
+			AssignmentID: uploadReq.AssignmentID,
+			Type:         uploadReq.Type,
+			FileName:     uploadReq.FileName,
+			FileType:     fileops.GetMimeType(uploadReq.FileName),
+			FileSize:     uploadReq.FileSize,
+			StorageKey:   uploadReq.StorageKey,
+			Version:      1,
+			HasLocalFile: hasLocalFile, // Will be set to true after successful file write
+		},
 		RemoteAssignmentID: uploadReq.RemoteAssignmentID,
-		UserID:             uploadReq.UserID,
-		Type:               uploadReq.Type,
-		FileName:           uploadReq.FileName,
-		FileType:           fileops.GetMimeType(uploadReq.FileName),
-		FileSize:           uploadReq.FileSize,
-		StorageKey:         uploadReq.StorageKey,
-		Version:            1,
-		HasLocalFile:       hasLocalFile, // Will be set to true after successful file write
 	}
 
 	// Generate file path
@@ -228,14 +192,14 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 
 	//Check storage quota
 	var totalSize int64
-	h.db.Model(&document.LocalDocument{}).
+	h.db.Model(&models.LocalDocument{}).
 		Where("user_id = ? AND has_local_file = ?", uploadReq.UserID, true).
 		Select("COALESCE(SUM(file_size), 0)").
 		Scan(&totalSize)
 
-	if totalSize+uploadReq.FileSize > document.MaxUserQuota {
+	if totalSize+uploadReq.FileSize > models.MaxUserQuota {
 		return nil, errors.NewAppError(errors.ValidationInvalid, "Storage quota exceeded", fmt.Errorf("storage quota exceeded. Current: %d MB, Limit: %d MB",
-			totalSize/(1024*1024), document.MaxUserQuota/(1024*1024)))
+			totalSize/(1024*1024), models.MaxUserQuota/(1024*1024)))
 	}
 
 	var response *fileops.FileUploadResponse
@@ -267,7 +231,7 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 
 // Saving a message from AI SDK
 func (h *Database) SaveUIMessage(assignmentID uint, vercelMessage map[string]interface{}) error {
-	message, err := aimessage.FromUIMessage(assignmentID, vercelMessage)
+	message, err := models.FromUIMessage(assignmentID, vercelMessage)
 	if err != nil {
 		return errors.Wrap(err, errors.ValidationInvalid, "Failed to create message from UI message")
 	}
@@ -279,8 +243,8 @@ func (h *Database) SaveUIMessage(assignmentID uint, vercelMessage map[string]int
 }
 
 // Retrieving conversation history
-func (h *Database) GetConversationHistory(assignmentID uint) ([]aimessage.LocalAiMessage, error) {
-	var dbMessages []aimessage.LocalAiMessage
+func (h *Database) GetConversationHistory(assignmentID uint) ([]models.LocalAiMessage, error) {
+	var dbMessages []models.LocalAiMessage
 	err := h.db.Where("assignment_id = ?", assignmentID).
 		Order("created_at ASC").
 		Find(&dbMessages).Error

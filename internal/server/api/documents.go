@@ -19,46 +19,23 @@ import (
 	"gorm.io/gorm"
 
 	"unipilot/internal/models"
-	"unipilot/internal/models/assignment"
-	"unipilot/internal/models/document"
-	notif "unipilot/internal/models/notifications"
-	"unipilot/internal/models/user"
 	"unipilot/internal/server"
 	"unipilot/internal/server/sse/grpc/notifications"
 	cloudstorage "unipilot/internal/services/cloud_storage"
+	"unipilot/internal/services/fileops"
 
 	"unipilot/internal/errors"
 )
 
-// DocumentMetadata represents document metadata for API responses.
-// Provides a safe, serializable structure for document information that excludes
-// sensitive internal fields and includes client-specific flags like HasLocalFile.
-// Used primarily for GET endpoints to provide comprehensive document listings.
-type DocumentMetadata struct {
-	ID                uint   `json:"id"`
-	LocalID           uint   `json:"local_id"`
-	AssignmentID      uint   `json:"assignment_id"`
-	LocalAssignmentID uint   `json:"local_assignment_id"`
-	UserID            uint   `json:"user_id"`
-	Type              string `json:"type"`
-	FileName          string `json:"file_name"`
-	FileType          string `json:"file_type"`
-	FileSize          int64  `json:"file_size"`
-	Version           int    `json:"version"`
-	IsOriginal        bool   `json:"is_original"`
-	HasLocalFile      bool   `json:"has_local_file"`
-	CreatedAt         string `json:"created_at"`
-}
-
 func GetDocumentsHandler(c *fiber.Ctx) error {
-	currentUser := c.Locals("user").(user.User)
+	currentUser := c.Locals("user").(models.User)
 	db := c.Locals("db").(*gorm.DB)
 	currentUserID := currentUser.ID
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "message", "Documents retrieved successfully")
 
 	// Get all documents for the current user
-	var documents []document.Document
+	var documents []models.Document
 	if err := db.Where("user_id = ?", currentUserID).Find(&documents).Error; err != nil {
 		if Errors.Is(err, gorm.ErrRecordNotFound) {
 			return server.LogError(
@@ -87,7 +64,7 @@ func GetDocumentsHandler(c *fiber.Ctx) error {
 
 // CreateDocumentHandler creates a new document record with file upload to cloud storage.
 // Handles multipart form uploads, processes document metadata, stores files in AWS S3,
-// and sends real-time notifications to users linked to the associated assignment.
+// and sends real-time notifications to users linked to the associated models.
 // Supports both new file uploads and copying existing files within the storage system.
 //
 // HTTP Method: POST
@@ -152,7 +129,7 @@ func GetDocumentsHandler(c *fiber.Ctx) error {
 //   - Logs document creation with performance metrics
 func CreateDocumentHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser := c.Locals("user").(user.User)
+	currentUser := c.Locals("user").(models.User)
 	db := c.Locals("db").(*gorm.DB)
 	userID := currentUser.ID
 	c.Locals("message", "Document created successfully")
@@ -170,7 +147,7 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 
 	// Step 4: Parse JSON metadata into LocalDocument structure
 	// Parse metadata directly into LocalDocument
-	var localDoc document.LocalDocument
+	var localDoc models.LocalDocument
 	if err := json.Unmarshal([]byte(metadata), &localDoc); err != nil {
 		return errors.WrapServer(
 			err,
@@ -222,22 +199,20 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 
 	// Step 7: Create document metadata record in database
 	// Create document metadata record
-	doc := &document.Document{
-		AssignmentID:      localDoc.RemoteAssignmentID,
-		LocalAssignmentID: localDoc.AssignmentID,
-		LocalID:           localDoc.ID,
-		UserID:            userID,
-		Type:              localDoc.Type,
-		FileName:          localDoc.FileName,
-		FileType:          localDoc.FileType,
-		FileSize:          localDoc.FileSize,
-		Version:           localDoc.Version,
-		IsOriginal:        localDoc.IsOriginal,
-		FilePath:          localDoc.FilePath,
-		StorageKey:        newKey,
+	doc := &models.Document{
+		AssignmentID: localDoc.RemoteAssignmentID,
+		UserID:       userID,
+		Type:         localDoc.Type,
+		FileName:     localDoc.FileName,
+		FileType:     localDoc.FileType,
+		FileSize:     localDoc.FileSize,
+		Version:      localDoc.Version,
+		IsOriginal:   localDoc.IsOriginal,
+		FilePath:     localDoc.FilePath,
+		StorageKey:   newKey,
 	}
 
-	if err := db.Create(doc).Error; err != nil {
+	if err := db.Preload("Assignment.Course").Create(doc).First(doc).Error; err != nil {
 		if Errors.Is(err, gorm.ErrDuplicatedKey) {
 			return errors.WrapServer(
 				err,
@@ -256,7 +231,7 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 
 	// Step 8: Update user storage quota information for tracking
 	// Update remote storage info for the user
-	if err := document.UpdateStorageInfo(userID, db); err != nil {
+	if err := models.UpdateStorageInfo(userID, db); err != nil {
 		return errors.WrapServer(
 			err,
 			errors.DBQueryFailed,
@@ -265,34 +240,12 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	// Step 9: Retrieve assignment data for notification distribution
-	// Get document assignment
-	var a assignment.Assignment
-	if err := db.Where("id = ?", doc.AssignmentID).First(&a).Error; err != nil {
-		if Errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.WrapServer(
-				err,
-				errors.DBRecordNotFound,
-				"Assignment not found",
-				fiber.StatusNotFound,
-			)
-		}
-		return errors.WrapServer(
-			err,
-			errors.DBQueryFailed,
-			"Error getting assignment",
-			fiber.StatusInternalServerError,
-		)
-	}
-
-	// Step 10: Get siblings assignments for notification distribution
-	// Get linked assignments
-	linkedAssignments, err := a.GetSiblings(db)
+	link_users, err := models.GetUserIdsByLinkID(doc.Assignment.Course.LinkID, userID, db)
 	if err != nil {
 		return errors.WrapServer(
 			err,
 			errors.DBQueryFailed,
-			"Error getting linked assignments",
+			"Error getting linked users",
 			fiber.StatusInternalServerError,
 		)
 	}
@@ -311,21 +264,21 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 12: Send real-time notifications to linked assignment users (only for new uploads)
-	if GrpcClient != nil && localDoc.HasLocalFile {
+	if GrpcClient != nil && doc.IsRoot() {
 		// Send notification to linked assignments
-		for _, linkedAssignment := range linkedAssignments {
-			if linkedAssignment.UserID == userID {
+		for _, link_user := range link_users {
+			if link_user == userID {
 				continue
 			}
-			server.LogDebug(context.Background(), "Sending notification to linked assignment", "assignment_id", linkedAssignment.ID, "user_id", linkedAssignment.UserID)
+			server.LogDebug(context.Background(), "Sending notification to linked assignment", "assignment_id", doc.AssignmentID, "user_id", link_user)
 			_, err := (*GrpcClient).SendNotification(context.Background(),
 				&notifications.Notification{
-					UserId:   uint32(linkedAssignment.UserID),
+					UserId:   uint32(link_user),
 					SenderId: uint32(userID),
 					Entity:   string(models.EntityDocument),
-					EntityId: uint32(linkedAssignment.ID),
-					Type:     string(notif.NotificationDocumentUpdate),
-					Title:    linkedAssignment.Title,
+					EntityId: uint32(doc.AssignmentID),
+					Type:     string(models.NotificationDocumentUpdate),
+					Title:    doc.Assignment.Title,
 					Message:  fmt.Sprintf("%s shared a new document on %s", currentUser.Username, doc.FileName),
 					Action:   "document",
 					Data:     string(dJson),
@@ -516,7 +469,7 @@ func WriteFile(key string, file io.Reader, c *fiber.Ctx) (string, int64, error) 
 //   - Creates temporary file on local disk (cleaned up after upload)
 //   - Uploads file to AWS S3 cloud storage
 //   - Logs upload metrics for monitoring and debugging
-func UploadFileLegacy(localDoc document.LocalDocument, key string, w http.ResponseWriter, r *http.Request) error {
+func UploadFileLegacy(localDoc models.LocalDocument, key string, w http.ResponseWriter, r *http.Request) error {
 
 	filePath, _, err := WriteFileToDisk(key, w, r)
 	if err != nil {
@@ -539,7 +492,7 @@ func UploadFileLegacy(localDoc document.LocalDocument, key string, w http.Respon
 }
 
 // UploadFileToS3Fiber handles the complete file upload pipeline from Fiber multipart form to AWS S3.
-func UploadFile(localDoc document.LocalDocument, key string, fileHeader *multipart.FileHeader, c *fiber.Ctx) error {
+func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart.FileHeader, c *fiber.Ctx) error {
 	filePath, _, err := WriteMultipartFile(key, fileHeader, c)
 	if err != nil {
 		return errors.Wrap(
@@ -604,7 +557,7 @@ func UploadFile(localDoc document.LocalDocument, key string, fileHeader *multipa
 func DownloadDocumentHandler(c *fiber.Ctx) error {
 	c.Locals("message", "Document downloaded successfully")
 	// Step 1: Parse document download request from JSON body
-	var docData document.LocalDocument
+	var docData models.LocalDocument
 	if err := c.BodyParser(&docData); err != nil {
 		return errors.WrapServer(
 			err,
@@ -646,7 +599,7 @@ func DownloadDocumentHandler(c *fiber.Ctx) error {
 	return nil
 }
 
-// GetAssignmentDocumentsHandler retrieves all document metadata for a specific assignment.
+// GetAssignmentDocumentsHandler retrieves all document metadata for a specific models.
 // Returns comprehensive document information with user-specific flags for local file availability.
 // Provides document listings for assignment management interfaces with proper access control.
 //
@@ -688,16 +641,9 @@ func DownloadDocumentHandler(c *fiber.Ctx) error {
 //   - Logs document retrieval with count for monitoring
 //   - No database modifications (read-only operation)
 func GetAssignmentDocumentsHandler(c *fiber.Ctx) error {
+	c.Locals("message", "Assignment documents retrieved successfully")
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser, ok := c.Locals("user").(user.User)
-	if !ok {
-		return errors.WrapServer(
-			fmt.Errorf("user not found"),
-			errors.ValidationInvalid,
-			"User not found",
-			fiber.StatusInternalServerError,
-		)
-	}
+
 	db, ok := c.Locals("db").(*gorm.DB)
 	if !ok {
 		return errors.WrapServer(
@@ -708,9 +654,6 @@ func GetAssignmentDocumentsHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	currentUserID := currentUser.ID
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "message", "Assignment documents retrieved successfully")
 	// Step 2: Extract and validate assignment ID from query parameters
 	assignmentIDStr := c.Query("assignment_id")
 	if assignmentIDStr == "" {
@@ -734,9 +677,9 @@ func GetAssignmentDocumentsHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 4: Query documents for the specified assignment with user information
-	var documents []document.Document
+	var documents []models.Document
 
-	if documents, err = document.GetDocumentsByAssignment(uint(assignmentID), db); err != nil {
+	if documents, err = models.GetDocumentsByAssignment(uint(assignmentID), db); err != nil {
 		return errors.WrapServer(
 			err,
 			errors.DBQueryFailed,
@@ -745,32 +688,8 @@ func GetAssignmentDocumentsHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	// Step 5: Convert documents to safe metadata format with user-specific flags
-	var docResponses []DocumentMetadata
-	for _, doc := range documents {
-		// Determine if current user owns this document (affects local file availability)
-		hasLocalFile := doc.UserID == currentUserID
-
-		docResponses = append(docResponses, DocumentMetadata{
-			ID:           doc.ID,
-			AssignmentID: doc.AssignmentID,
-			UserID:       doc.UserID,
-			Type:         string(doc.Type),
-			FileName:     doc.FileName,
-			FileType:     doc.FileType,
-			FileSize:     doc.FileSize,
-			Version:      doc.Version,
-			IsOriginal:   doc.IsOriginal,
-			HasLocalFile: hasLocalFile,
-			CreatedAt:    doc.CreatedAt.Format("2006-01-02 15:04:05"),
-		})
-	}
-
 	// Step 6: Send successful response with document metadata array
-	return c.JSON(fiber.Map{
-		"success":   true,
-		"documents": docResponses,
-	})
+	return c.JSON(documents)
 }
 
 // DeleteDocumentHandler removes document record and associated file from cloud storage.
@@ -817,15 +736,6 @@ func GetAssignmentDocumentsHandler(c *fiber.Ctx) error {
 func DeleteDocumentHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
 	c.Locals("message", "Document deleted successfully")
-	currentUser, ok := c.Locals("user").(user.User)
-	if !ok {
-		return errors.WrapServer(
-			fmt.Errorf("user not found"),
-			errors.ValidationInvalid,
-			"User not found",
-			fiber.StatusInternalServerError,
-		)
-	}
 	db, ok := c.Locals("db").(*gorm.DB)
 	if !ok {
 		return errors.WrapServer(
@@ -835,7 +745,6 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 			fiber.StatusInternalServerError,
 		)
 	}
-	userID := currentUser.ID
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "message", "Document deleted successfully")
 	// Step 2: Extract document ID from path parameter
@@ -849,40 +758,8 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	// Step 3: Find document with ownership validation (local_id + user_id)
-	var doc document.Document
-	if err := db.First(&doc, docID).Error; err != nil {
-		if Errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.WrapServer(
-				err,
-				errors.DBRecordNotFound,
-				"Document not found",
-				fiber.StatusNotFound,
-			)
-		}
-		return errors.WrapServer(
-			err,
-			errors.DBRecordNotFound,
-			"Document not found",
-			fiber.StatusNotFound,
-		)
-	}
-
-	if doc.IsOriginal {
-		if err := cloudstorage.DeleteFile(doc.StorageKey); err != nil {
-			return errors.WrapServer(
-				err,
-				errors.StorageDeleteFailed,
-				"Error deleting document from storage",
-				fiber.StatusInternalServerError,
-			)
-		}
-	}
-	// Step 4: Delete associated file from R2 cloud storage
-	// Delete the document on R2
-
-	// Step 5: Remove document record from database
-	if err := db.Delete(&doc).Error; err != nil {
+	// Step 4: Remove document record from database
+	if err := db.Delete(&models.Document{}, "id = ?", docID).Error; err != nil {
 		if Errors.Is(err, gorm.ErrRecordNotFound) {
 			return server.LogError(
 				ctx,
@@ -909,23 +786,8 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	// Step 6: Update user storage quota information after deletion
-	// Update remote storage info for the user
-	if err := document.UpdateStorageInfo(userID, db); err != nil {
-		return errors.WrapServer(
-			err,
-			errors.DBQueryFailed,
-			"Error updating user storage quota information",
-			fiber.StatusInternalServerError,
-		)
-
-	}
-
 	// Step 7: Send successful deletion confirmation
-	return c.JSON(fiber.Map{
-		"success": true,
-		"message": "Document metadata deleted",
-	})
+	return nil
 }
 
 // UploadDocumentForRAGHandler processes documents for Retrieval-Augmented Generation (RAG).
@@ -995,7 +857,7 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	var localDoc document.LocalDocument
+	var localDoc models.LocalDocument
 	if err := json.Unmarshal([]byte(metadata), &localDoc); err != nil {
 		return errors.WrapServer(
 			err,
@@ -1048,7 +910,7 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 
 	}
 
-	vectors, err := document.GetQdrantVectors(&localDoc)
+	vectors, err := fileops.GetQdrantVectors(&localDoc)
 	if err != nil {
 		if errors.HasCode(err, errors.FSFileTypeNotSupported) {
 			return errors.WrapServer(
@@ -1139,8 +1001,8 @@ func DeleteDocumentRAG(c *fiber.Ctx) error {
 		)
 	}
 
-	assignmentID := c.Params("assignment_id")
-	if assignmentID == "" {
+	assignmentIDStr := c.Params("assignment_id")
+	if assignmentIDStr == "" {
 		return errors.WrapServer(
 			fmt.Errorf("assignment ID required"),
 			errors.ReqParamMissing,
@@ -1148,22 +1010,28 @@ func DeleteDocumentRAG(c *fiber.Ctx) error {
 			fiber.StatusBadRequest,
 		)
 	}
+	assignmentID, err := strconv.Atoi(assignmentIDStr)
+	if err != nil {
+		return errors.WrapServer(
+			err,
+			errors.ReqParamInvalid,
+			"Error converting assignment ID to int",
+			fiber.StatusBadRequest,
+		)
+	}
 
-	// Step 2: Delete the document from the Qdrant
-	if _, err := QdrantClient.Delete(context.Background(), &qdrant.DeletePoints{
-		CollectionName: fmt.Sprintf("unipilot-qdrant-db-%s", assignmentID),
-		Points: qdrant.NewPointsSelectorFilter(
-			&qdrant.Filter{
-				Must: []*qdrant.Condition{
-					qdrant.NewMatchInt("document_id", int64(docID)),
-				},
-			},
-		),
-	}); err != nil {
+	var doc = models.Document{
+		Model: gorm.Model{
+			ID: uint(docID),
+		},
+		AssignmentID: uint(assignmentID),
+	}
+
+	if err := models.DeleteDocumentVectors(&doc, QdrantClient); err != nil {
 		return errors.WrapServer(
 			err,
 			errors.QdrantDeletePointsError,
-			"Error deleting document from Qdrant",
+			"Error deleting document vectors from Qdrant",
 			fiber.StatusInternalServerError,
 		)
 	}
@@ -1199,56 +1067,16 @@ func GetAssignmentDocumentIDsRAG(c *fiber.Ctx) error {
 	}
 	assignmentID := uint(int_assignmentID)
 
-	var collectionName = fmt.Sprintf("unipilot-qdrant-db-%d", assignmentID)
-
-	exists, err := QdrantClient.CollectionExists(context.Background(), collectionName)
-	if err != nil {
-		return errors.WrapServer(
-			err,
-			errors.QdrantCollectionNotFound,
-			"Assignment collection could not be found",
-			fiber.StatusNotFound,
-		)
-	}
-
-	if !exists {
-		// Step 5: Return the list of uploaded document IDs
-		return c.JSON(fiber.Map{
-			"success":      true,
-			"document_ids": []uint{},
-		})
-	}
-
-	// Retrive All Qdrant Points for that assignment
-	points, err := QdrantClient.Scroll(context.Background(), &qdrant.ScrollPoints{
-		CollectionName: fmt.Sprintf("unipilot-qdrant-db-%d", assignmentID),
-		WithPayload:    qdrant.NewWithPayload(true),
-	})
+	documentIDs, err := models.GetAssignmentDocumentIDsRAG(assignmentID, QdrantClient)
 	if err != nil {
 		return errors.WrapServer(
 			err,
 			errors.QdrantFailed,
-			"Error listing Qdrant points",
+			"Error getting assignment document IDs from Qdrant",
 			fiber.StatusInternalServerError,
 		)
 	}
 
-	// Step 3: Make a set of document IDs that are in the Qdrant
-	type Set[E comparable] map[E]struct{} // Generic set type
-	uploadedDocumentIDs := Set[uint]{}
-	for _, point := range points {
-		uploadedDocumentIDs[uint(point.Payload["document_id"].GetIntegerValue())] = struct{}{} // Add document ID to set
-	}
-
-	// Step 4: Flatten the set of uploaded document IDs
-	uploadedDocumentIDsList := make([]uint, 0, len(uploadedDocumentIDs))
-	for id := range uploadedDocumentIDs {
-		uploadedDocumentIDsList = append(uploadedDocumentIDsList, id)
-	}
-
 	// Step 5: Return the list of uploaded document IDs
-	return c.JSON(fiber.Map{
-		"success":      true,
-		"document_ids": uploadedDocumentIDsList,
-	})
+	return c.JSON(documentIDs)
 }

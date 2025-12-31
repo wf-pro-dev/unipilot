@@ -3,7 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 
 	"github.com/gofiber/fiber/v2"
@@ -49,17 +49,17 @@ func Follow(followedID uint) (bool, error) {
 
 // FollowersResponse represents a followers list response
 type FollowersResponse struct {
-	Followers []user.User `json:"followers"`
+	Followers []models.User `json:"followers"`
 	Total     int         `json:"total"`
 }
 
 // FollowingResponse represents a following list response
 type FollowingResponse struct {
-	Following []user.User `json:"following"`
+	Following []models.User `json:"following"`
 	Total     int         `json:"total"`
 }
 
-func GetFollowers(userID uint) ([]user.User, int, error) {
+func GetFollowers(userID uint) ([]models.User, int, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/users/%d/followers", api_url, userID))
@@ -85,7 +85,7 @@ func GetFollowers(userID uint) ([]user.User, int, error) {
 	return response.Followers, response.Total, nil
 }
 
-func GetFollowing(userID uint) ([]user.User, int, error) {
+func GetFollowing(userID uint) ([]models.User, int, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/users/%d/following", api_url, userID))

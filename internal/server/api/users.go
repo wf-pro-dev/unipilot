@@ -10,11 +10,10 @@ import (
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
-	"unipilot/internal/models/course"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 )
 
-// GetUsersHandler retrieves all users in the system except the current authenticated user.
+// GetUsersHandler retrieves all users in the system except the current authenticated models.
 // Implements a two-tier caching strategy with Redis cache and database fallback for optimal
 // performance. Enriches user data with associated course codes for comprehensive user profiles.
 //
@@ -57,7 +56,7 @@ import (
 //   - No database modifications (read-only operation)
 func GetUsersHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser := c.Locals("user").(user.User)
+	currentUser := c.Locals("user").(models.User)
 	db := c.Locals("db").(*gorm.DB)
 	c.Locals("message", "Users retrieved successfully")
 
@@ -68,9 +67,9 @@ func GetUsersHandler(c *fiber.Ctx) error {
 	}
 	if len(usersHash) > 0 {
 		// Step 3: Cache hit - Convert Redis hash to user array and exclude current user
-		var cachedUsers []user.User
+		var cachedUsers []models.User
 		for _, userJSON := range usersHash {
-			var user user.User
+			var user models.User
 			if err := json.Unmarshal([]byte(userJSON), &user); err == nil {
 				if user.ID == currentUser.ID {
 					continue
@@ -82,17 +81,17 @@ func GetUsersHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 4: Cache miss - Query users from database and enrich with course data
-	var users []user.User
+	var users []models.User
 	if err := db.Find(&users).Order("name ASC").Error; err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users from database", fiber.StatusInternalServerError)
 	}
 
 	// Step 5: Process each user and enrich with course codes for comprehensive profiles
-	var usersWithCourses []user.User
+	var usersWithCourses []models.User
 	for _, u := range users {
 		// Query course codes associated with this user
 		var courses_code []string
-		if err := db.Model(&course.Course{}).Select("code").Where("user_id = ? ", u.ID).Find(&courses_code).Error; err != nil {
+		if err := db.Model(&models.Course{}).Select("code").Where("user_id = ? ", u.ID).Find(&courses_code).Error; err != nil {
 			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting user courses", fiber.StatusInternalServerError)
 		}
 		// Attach course codes to user object and convert to safe map format

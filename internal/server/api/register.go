@@ -13,7 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 	"unipilot/internal/server"
 )
@@ -79,7 +79,7 @@ func RegisterHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 4: Check username uniqueness constraint (prevents duplicate accounts)
-	if err := db.Where("username = ?", registrationData.Username).First(&user.User{}).Error; err == nil {
+	if err := db.Where("username = ?", registrationData.Username).First(&models.User{}).Error; err == nil {
 		return errors.WrapServer(fmt.Errorf("username already taken"), errors.DBConstraintViolation, "Username already taken", fiber.StatusConflict)
 	}
 
@@ -90,7 +90,7 @@ func RegisterHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 6: Construct user object with validated data and hashed password
-	userObj := user.User{
+	userObj := models.User{
 		Username:     registrationData.Username,
 		Email:        registrationData.Email,
 		PasswordHash: string(hashedPassword),

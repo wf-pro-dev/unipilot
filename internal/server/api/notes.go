@@ -2,22 +2,23 @@ package server
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	Errors "errors"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
-	"unipilot/internal/models/note"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
+	"unipilot/internal/server"
+	"unipilot/internal/server/sse/grpc/notifications"
 	"unipilot/internal/services/gemini"
 )
 
-// GetNoteHandler retrieves all notes belonging to the authenticated user.
+// GetNoteHandler retrieves all notes belonging to the authenticated models.
 // Returns a list of notes converted to map format for consistent JSON serialization.
 // Provides comprehensive note data for user's note management interface.
 //
@@ -51,7 +52,7 @@ import (
 func GetNotesHandler(c *fiber.Ctx) error {
 	c.Locals("message", "User's notes retrieved successfully")
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser, ok := c.Locals("user").(user.User)
+	currentUser, ok := c.Locals("user").(models.User)
 	if !ok {
 		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
 	}
@@ -62,22 +63,13 @@ func GetNotesHandler(c *fiber.Ctx) error {
 	userID := currentUser.ID
 
 	// Step 2: Query user's notes from database
-	var notes []note.Note
-	if err := db.Where("user_id = ?", userID).Find(&notes).Error; err != nil {
+	notes, err := models.GetNotes(userID, db)
+	if err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting notes from database", fiber.StatusInternalServerError)
 	}
 
-	// Step 3: Convert notes to safe map format for JSON response
-	var notesMap []map[string]string
-	for _, n := range notes {
-		notesMap = append(notesMap, n.ToMap())
-	}
-
 	// Step 4: Send successful response with note data
-	return c.JSON(fiber.Map{
-		"message": "User's notes retrieved successfully",
-		"notes":   notesMap,
-	})
+	return c.JSON(notes)
 }
 
 // CreateNoteHandler creates a new note for the authenticated user with AI-powered content generation.
@@ -137,7 +129,7 @@ func GetNotesHandler(c *fiber.Ctx) error {
 func CreateNoteHandler(c *fiber.Ctx) error {
 	c.Locals("message", "Note created successfully")
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser, ok := c.Locals("user").(user.User)
+	currentUser, ok := c.Locals("user").(models.User)
 	if !ok {
 		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
 	}
@@ -148,7 +140,7 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 	userID := currentUser.ID
 
 	// Step 3: Define and parse note creation request structure
-	var input note.LocalNote
+	var input models.LocalNote
 	if err := c.BodyParser(&input); err != nil {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
@@ -164,7 +156,7 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 	content := input.Content
 
 	// Step 7: Construct note object with validated data and AI-generated content
-	nVal := note.Note{
+	nVal := models.Note{
 		UserID:     userID,
 		CourseCode: input.CourseCode,
 		Title:      input.Title,
@@ -174,40 +166,20 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 8: Create note record in database within transaction
-	result := db.Create(&nVal)
-	if result.Error != nil {
-		return errors.WrapServer(result.Error, errors.DBQueryFailed, "Error creating note in database", fiber.StatusConflict)
-	}
-
-	// Step 9: Convert note to safe map format for JSON response
-	// Convert to map safely
-	noteMap := nVal.ToMap()
-	if noteMap == nil {
-		return errors.WrapServer(fmt.Errorf("failed to process note data"), errors.ProcJSONMarshalFailed, "Error processing note data", fiber.StatusInternalServerError)
-	}
-
-	// Step 11: Prepare notification data for future SSE implementation
-	// gRPC -> c : TO BE MOVE IN DOCKER
-	// Send a notification to all the users linked
-
-	newN, err := note.Get_Note_byID(nVal.ID, userID, db)
-	if err != nil {
-		if Errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.WrapServer(err, errors.DBRecordNotFound, "Note not found", fiber.StatusNotFound)
-		}
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting note from database", fiber.StatusInternalServerError)
+	var newN models.Note
+	if err := db.Preload("Course").Create(&nVal).First(&newN).Error; err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error creating note in database", fiber.StatusConflict)
 	}
 
 	// Serialize note data for future notification payload
 	// nJson, err := json.Marshal(newN)
-	_, err = json.Marshal(newN)
+	nJson, err := json.Marshal(newN)
 	if err != nil {
 		return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Failed to marshal notification", fiber.StatusInternalServerError)
 	}
 
 	// Get linked users for future notification distribution
-	// link_users, err := newN.Course.GetLinkUsers(db)
-	_, err = newN.Course.GetLinkUsers(db)
+	link_users, err := models.GetUserIdsByLinkID(newN.Course.LinkID, currentUser.ID, db)
 	if err != nil {
 		if Errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.WrapServer(err, errors.DBRecordNotFound, "Users linked to course not found", fiber.StatusNotFound)
@@ -215,39 +187,38 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError)
 	}
 
-	/*if sseServer != nil {
-		// 2. Send link info to users via SSE (field data)
-		for _,sendeeID := range link_users {
-			if sendeeID != userID {
-				PrintLog(fmt.Sprintf("sending to : %d ",sendeeID))
-				sseServer.SendNotification(
-					uint(sendeeID),
-					userID,
-					models.EntityNote,
-					newN.Course.ID,
-					notifications.NotificationNoteUpdate,
-					newN.Title,
-					fmt.Sprintf("%s shared a new note on %s", newN.User.Username, newN.CourseCode),
-					"note",
-					string(nJson),
+	if GrpcClient != nil {
+		for _, sendeeID := range link_users {
 
-				)
+			_, err := (*GrpcClient).SendNotification(context.Background(),
+				&notifications.Notification{
+					UserId:   uint32(sendeeID),
+					SenderId: uint32(currentUser.ID),
+					Entity:   string(models.EntityNote),
+					EntityId: uint32(newN.ID),
+					Type:     string(models.NotificationNoteUpdate),
+					Title:    newN.Title,
+					Message:  fmt.Sprintf("%s shared a new note on %s", currentUser.Username, newN.CourseCode),
+					Action:   "note",
+					Data:     string(nJson),
+				},
+			)
+			if err != nil {
+				server.LogWarn(context.Background(), errors.WrapServer(err, errors.GRPCFailed, "Failed to send notification", fiber.StatusInternalServerError))
 			}
+
 		}
-	}*/
+	}
 
 	// Step 12: Send successful response with created note data
-	return c.JSON(fiber.Map{
-		"message": "Note created successfully",
-		"note":    noteMap,
-	})
+	return c.JSON(newN)
 }
 
 func CreateNoteStreamHandler(c *fiber.Ctx) error {
 	c.Locals("message", "Note streaming created successfully")
 
 	// Step 3: Define and parse note creation request structure
-	var input note.LocalNote
+	var input models.LocalNote
 	if err := c.BodyParser(&input); err != nil {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
@@ -355,15 +326,11 @@ func CreateNoteStreamHandler(c *fiber.Ctx) error {
 func UpdateNoteHandler(c *fiber.Ctx) error {
 	c.Locals("message", "Note updated successfully")
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser, ok := c.Locals("user").(user.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
-	}
+
 	db, ok := c.Locals("db").(*gorm.DB)
 	if !ok {
 		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
 	}
-	userID := currentUser.ID
 
 	var int_id int
 	var err error
@@ -386,23 +353,21 @@ func UpdateNoteHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
-	// Step 5: Validate note exists and user has ownership permissions
-	n, err := note.Get_Note_byID(noteID, userID, db)
-	if err != nil {
-		if Errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.WrapServer(err, errors.DBRecordNotFound, "Note not found", fiber.StatusNotFound)
-		}
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting note from database", fiber.StatusInternalServerError)
+	if updateData.Column == "" || updateData.Value == "" {
+		return errors.WrapServer(fmt.Errorf("column and value are required"), errors.ReqParamMissing, "Column and value are required", fiber.StatusBadRequest)
 	}
 
-	// Step 6: Execute raw SQL update with automatic timestamp tracking
-	if err := db.Exec(fmt.Sprintf("UPDATE notes SET %s = ?, updated_at = ? WHERE id = ?", updateData.Column),
-		updateData.Value, time.Now().Format(time.RFC3339), n.ID).Error; err != nil {
+	if err := db.Model(&models.Note{}).Where("id = ?", noteID).Update(updateData.Column, updateData.Value).Error; err != nil {
+
+		if Errors.Is(err, gorm.ErrDuplicatedKey) {
+			return errors.WrapServer(err, errors.DBConstraintViolation, "Note already exists", fiber.StatusConflict)
+		}
+
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error updating note in database", fiber.StatusInternalServerError)
 	}
 
 	// Step 8: Note update completed (logged by middleware)
-	return c.JSON(fiber.Map{"message": "Note updated successfully"})
+	return nil
 }
 
 func DeleteNoteHandler(c *fiber.Ctx) error {
@@ -422,10 +387,10 @@ func DeleteNoteHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting note ID to int", fiber.StatusBadRequest)
 	}
 
-	// Step 2: Begin database transaction for atomic note deletion
-	if err := note.DeleteNote(uint(noteID), db); err != nil {
+	// Step 2: Delete note from database
+	if err := models.DeleteNote(uint(noteID), db); err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error deleting note from database", fiber.StatusInternalServerError)
 	}
 
-	return c.JSON(fiber.Map{"message": "Note deleted successfully"})
+	return nil
 }

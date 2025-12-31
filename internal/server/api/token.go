@@ -8,7 +8,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"unipilot/internal/errors"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 	"unipilot/internal/server"
 )
@@ -47,7 +47,7 @@ import (
 func RefreshTokenHandler(c *fiber.Ctx) error {
 	c.Locals("message", "Token refreshed")
 	// Step 2: Extract user context from request context (validated by AuthMiddleware)
-	userObj, ok := c.Locals("user").(user.User)
+	userObj, ok := c.Locals("user").(models.User)
 	if !ok {
 		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
 	}

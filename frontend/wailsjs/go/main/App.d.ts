@@ -43,7 +43,7 @@ export function DownloadDocument(arg1:document.LocalDocument):Promise<void>;
 
 export function Follow(arg1:number):Promise<boolean>;
 
-export function GetAssignment(arg1:number):Promise<assignment.LocalAssignment>;
+export function GetLAssignment(arg1:number):Promise<assignment.LocalAssignment>;
 
 export function GetAssignmentDocumentIDsRAG(arg1:number,arg2:Array<number>):Promise<Array<number>>;
 

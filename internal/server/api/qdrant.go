@@ -3,6 +3,7 @@
 package server
 
 import (
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 
 	"unipilot/internal/errors"
@@ -65,4 +66,31 @@ func CloseQdrant() error {
 	}
 
 	return nil
+}
+
+// GetQdrantVectors extracts text from a document and generates Qdrant vector points
+// This function processes the document, extracts text content, generates embeddings,
+// and converts them to Qdrant PointStruct format for storage in the vector database.
+//
+// Parameters:
+//   - doc: Pointer to LocalDocument containing document metadata and file information
+//
+// Returns:
+//   - []*qdrant.PointStruct: Array of Qdrant point structures ready for upsertion
+//   - error: Error if document processing, text extraction, or embedding generation fails
+//
+// Note: This is a placeholder implementation. The actual implementation should:
+//  1. Extract text from the document file (based on FileType)
+//  2. Chunk the text into manageable segments
+//  3. Generate 768-dimensional embeddings for each chunk (via embedding service)
+//  4. Convert embeddings to Qdrant PointStruct format with proper IDs and payloads
+func GetQdrantVectors(doc *models.LocalDocument) ([]*qdrant.PointStruct, error) {
+	// TODO: Implement document text extraction, chunking, and embedding generation
+	// This requires integration with the embedding service (Node.js or Go implementation)
+	// For now, return an error indicating the function needs implementation
+	return nil, errors.NewAppError(
+		errors.QdrantVectorsError,
+		"GetQdrantVectors not yet implemented - requires embedding service integration",
+		nil,
+	)
 }

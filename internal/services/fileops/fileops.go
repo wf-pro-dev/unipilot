@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
-	"unipilot/internal/models/document"
+	"unipilot/internal/models"
 	"unipilot/internal/services/utils"
 )
 
@@ -20,7 +20,7 @@ type FileUploadRequest struct {
 	AssignmentID       uint
 	RemoteAssignmentID uint
 	UserID             uint
-	Type               document.DocumentType
+	Type               models.DocumentType
 	FileName           string
 	FilePath           string
 	FileSize           int64
@@ -30,7 +30,7 @@ type FileUploadRequest struct {
 
 // FileUploadResponse represents the result of a file upload
 type FileUploadResponse struct {
-	LocalDocument *document.LocalDocument
+	LocalDocument *models.LocalDocument
 	Success       bool
 	Message       string
 }
@@ -74,7 +74,7 @@ func GetMimeType(fileName string) string {
 }
 
 // WriteDocument writes a document to the local file system
-func WriteDocument(document *document.LocalDocument, fileContent io.Reader, db *gorm.DB) (*FileUploadResponse, error) {
+func WriteDocument(document *models.LocalDocument, fileContent io.Reader, db *gorm.DB) (*FileUploadResponse, error) {
 
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(filepath.Dir(document.FilePath), 0755); err != nil {
@@ -116,7 +116,7 @@ func WriteDocument(document *document.LocalDocument, fileContent io.Reader, db *
 // UploadNewVersion creates a new version of an existing document
 func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.DB) (*FileUploadResponse, error) {
 	// Get existing document
-	var existingDoc document.LocalDocument
+	var existingDoc models.LocalDocument
 	if err := db.First(&existingDoc, existingDocumentID).Error; err != nil {
 		return &FileUploadResponse{
 			Success: false,
@@ -133,18 +133,20 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 	}
 
 	// Create new version
-	newVersion := document.LocalDocument{
-		AssignmentID:       existingDoc.AssignmentID,
+	newVersion := models.LocalDocument{
+		Document: models.Document{
+			AssignmentID: existingDoc.AssignmentID,
+			UserID:       existingDoc.UserID,
+			Type:         existingDoc.Type,
+			FileName:     req.FileName,
+			FileType:     GetMimeType(req.FileName),
+			FileSize:     req.FileSize,
+			Version:      existingDoc.Version + 1,
+			ParentDocID:  &existingDoc.ID,
+			IsOriginal:   false,
+			HasLocalFile: false,
+		},
 		RemoteAssignmentID: existingDoc.RemoteAssignmentID,
-		UserID:             existingDoc.UserID,
-		Type:               existingDoc.Type,
-		FileName:           req.FileName,
-		FileType:           GetMimeType(req.FileName),
-		FileSize:           req.FileSize,
-		Version:            existingDoc.Version + 1,
-		ParentDocID:        &existingDoc.ID,
-		IsOriginal:         false,
-		HasLocalFile:       false,
 	}
 
 	// Generate file path
@@ -215,7 +217,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 // DeleteDocument removes a document and its file
 func DeleteDocument(docID uint, userID uint, db *gorm.DB) error {
 	// Get document record
-	var doc document.Document
+	var doc models.Document
 	if err := db.Where("id = ? AND user_id = ?", docID, userID).First(&doc).Error; err != nil {
 		return errors.Wrap(err, errors.DBRecordNotFound, "Document not found or access denied")
 	}
@@ -235,7 +237,7 @@ func DeleteDocument(docID uint, userID uint, db *gorm.DB) error {
 
 	// Delete all versions if this is the parent document
 	if doc.ParentDocID == nil {
-		if err := db.Where("parent_doc_id = ?", doc.ID).Delete(&document.Document{}).Error; err != nil {
+		if err := db.Where("parent_doc_id = ?", doc.ID).Delete(&models.Document{}).Error; err != nil {
 			return errors.Wrap(err, errors.DBRecordNotFound, "Failed to delete document versions")
 		}
 	}
@@ -246,7 +248,7 @@ func DeleteDocument(docID uint, userID uint, db *gorm.DB) error {
 	}
 
 	// Update user storage info
-	if err := document.UpdateStorageInfo(userID, db); err != nil {
+	if err := models.UpdateStorageInfo(userID, db); err != nil {
 		return errors.Wrap(err, errors.DBQueryFailed, "Failed to update storage info")
 	}
 
@@ -269,25 +271,4 @@ func WriteFile(filePath string, content io.Reader) error {
 	}
 
 	return nil
-}
-
-// GetUserStorageInfo returns storage statistics for a user
-func GetUserStorageInfo(userID uint, db *gorm.DB) (*document.DocumentStorageInfo, error) {
-	var storageInfo document.DocumentStorageInfo
-	err := db.Where("user_id = ?", userID).First(&storageInfo).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// Create new storage info if it doesn't exist
-			if err := document.UpdateStorageInfo(userID, db); err != nil {
-				return nil, errors.Wrap(err, errors.DBRecordNotFound, "Document storage info not found")
-			}
-			// Try again
-			err = db.Where("user_id = ?", userID).First(&storageInfo).Error
-		}
-		if err != nil {
-			return nil, errors.Wrap(err, errors.DBQueryFailed, "Failed to get storage info")
-		}
-	}
-
-	return &storageInfo, nil
 }

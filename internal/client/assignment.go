@@ -3,7 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"unipilot/internal/models/assignment"
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 
 	"unipilot/internal/errors"
@@ -11,7 +11,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func GetAssignments() ([]assignment.Assignment, error) {
+func GetAssignments() ([]models.Assignment, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/assignments", api_url))
@@ -30,7 +30,7 @@ func GetAssignments() ([]assignment.Assignment, error) {
 		return nil, serverError
 	}
 
-	var response []assignment.Assignment
+	var response []models.Assignment
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 	}
@@ -39,7 +39,7 @@ func GetAssignments() ([]assignment.Assignment, error) {
 
 }
 
-func CreateAssignment(a *assignment.Assignment) (uint, error) {
+func CreateAssignment(a *models.Assignment) (uint, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Post(fmt.Sprintf("%s/assignments", api_url))

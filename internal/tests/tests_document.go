@@ -2,19 +2,23 @@ package main
 
 import (
 	"log"
-	"unipilot/internal/models/document"
+	"unipilot/internal/models"
+	server "unipilot/internal/server/api"
 )
 
 func main() {
 
-	doc := document.Document{
-		AssignmentID: uint(10),
-		FileName:     "test.docx",
-		FileType:     "docx",
+	localDoc := models.LocalDocument{
+		Document: models.Document{
+			AssignmentID: uint(10),
+			FileName:     "test.docx",
+			FileType:     "docx",
+		},
+		RemoteAssignmentID: uint(10),
 	}
-	doc.ID = uint(1)
+	localDoc.ID = uint(1)
 
-	_, err := document.GetQdrantVectors(&doc)
+	_, err := server.GetQdrantVectors(&localDoc)
 	if err != nil {
 		log.Printf("err: %s", err.Error())
 	}

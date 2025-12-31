@@ -2,20 +2,14 @@ package client
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"unipilot/internal/models/note"
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-func GetNotes() ([]map[string]string, error) {
-	var response struct {
-		Message string              `json:"message"`
-		Notes   []map[string]string `json:"notes"`
-		Error   string              `json:"error,omitempty"`
-	}
+func GetNotes() ([]models.Note, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/notes", api_url))
@@ -33,59 +27,41 @@ func GetNotes() ([]map[string]string, error) {
 		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
 	}
 
-	if err := json.Unmarshal(body, &response); err != nil {
+	var notes []models.Note
+	if err := json.Unmarshal(body, &notes); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
-
-	if response.Error != "" {
-		return nil, errors.New(response.Error)
-	}
-
-	if response.Notes == nil {
-		return make([]map[string]string, 0), nil
-	}
-
-	return response.Notes, nil
+	return notes, nil
 }
 
-func CreateNote(n *note.LocalNote) (map[string]string, error) {
+func CreateNote(n *models.Note) (uint, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Post(fmt.Sprintf("%s/notes", api_url))
 	agent.JSON(n)
 
 	if err := SetAuthHeader(agent); err != nil {
-		return nil, err
+		return 0, err
 	}
 
 	statusCode, body, errs := agent.Bytes()
 	if len(errs) > 0 {
-		return nil, errs[0]
+		return 0, errs[0]
 	}
 
 	if statusCode != 200 {
-		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
+		return 0, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
 	}
 
 	var response struct {
-		Message string            `json:"message"`
-		Note    map[string]string `json:"note"`
-		Error   string            `json:"error,omitempty"`
+		RemoteID uint `json:"remote_id"`
 	}
 
 	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+		return 0, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	if response.Error != "" {
-		return nil, errors.New(response.Error)
-	}
-
-	if response.Note == nil || response.Note["content"] == "" {
-		return nil, fmt.Errorf("Invalid note data in response")
-	}
-
-	return response.Note, nil
+	return response.RemoteID, nil
 }
 
 func UpdateNote(id, column, value string) error {

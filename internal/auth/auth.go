@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 	"unipilot/internal/client"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
 )
@@ -14,7 +14,7 @@ import (
 type Auth struct {
 	Client *http.Client // Authenticated HTTP client for API requests
 	SSE    *sse.SSE     // Server-Sent Events connection for real-time updates
-	User   *user.User   // Current authenticated user
+	User   *models.User   // Current authenticated user
 }
 
 // NewAuth creates and initializes a new Auth instance.
@@ -49,7 +49,7 @@ func NewAuth() *Auth {
 	return newAuth
 }
 
-// IsAuthenticated checks if the Auth instance has an authenticated user.
+// IsAuthenticated checks if the Auth instance has an authenticated models.
 //
 // Returns:
 //   - bool: true if user is authenticated, false otherwise

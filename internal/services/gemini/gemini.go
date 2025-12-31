@@ -181,7 +181,7 @@ func GetPrompt(request *GeminiRequest) (string, error) {
 		"}\n"+
 		"```\n\n"+
 		"Blockquotes:\n"+
-		"> This is an important quote or note.\n"+
+		"> This is an important quote or models.\n"+
 		"> It can span multiple lines.\n\n"+
 		"Links:\n"+
 		"[Link text](https://example.com)\n\n"+

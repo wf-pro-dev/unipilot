@@ -8,8 +8,7 @@ import (
 	"time"
 
 	"unipilot/internal/errors"
-	"unipilot/internal/models/course"
-	"unipilot/internal/models/notifications"
+	"unipilot/internal/models"
 	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
 
@@ -116,12 +115,12 @@ func (eh *EventHandler) IsEventHandlerRunning() bool {
 }
 
 // HandleFollowNotification processes follow events from SSE
-func (eh *EventHandler) HandleFollowNotification(notification notifications.LocalNotification) {
+func (eh *EventHandler) HandleFollowNotification(notification models.LocalNotification) {
 	log.Printf("[EventHandler] Processing follow notification: %s", notification.Message)
 	log.Printf("[EventHandler] Data: %s", string(notification.Data))
 
 	// Set the notification type and ensure it's marked as unread
-	notification.Type = notifications.NotificationFollow
+	notification.Type = models.NotificationFollow
 	notification.Read = false
 	notification.ExpiresAt = &time.Time{}
 
@@ -139,11 +138,11 @@ func (eh *EventHandler) HandleFollowNotification(notification notifications.Loca
 }
 
 // HandleSyncNotification processes sync events for notes/assignments
-func (eh *EventHandler) HandleSyncNotification(notification notifications.LocalNotification) {
+func (eh *EventHandler) HandleSyncNotification(notification models.LocalNotification) {
 	log.Printf("[EventHandler] Processing sync notification: %s", notification.Message)
 	log.Printf("[EventHandler] Data: %s", string(notification.Data))
 
-	notification.Type = notifications.NotificationSync
+	notification.Type = models.NotificationSync
 	notification.Read = false
 	notification.ExpiresAt = &time.Time{}
 
@@ -159,11 +158,11 @@ func (eh *EventHandler) HandleSyncNotification(notification notifications.LocalN
 	}
 }
 
-func (eh *EventHandler) HandleLinkNotification(notification notifications.LocalNotification) {
+func (eh *EventHandler) HandleLinkNotification(notification models.LocalNotification) {
 	log.Printf("[EventHandler] Processing link notification: %s", notification.Message)
 	log.Printf("[EventHandler] Data: %s", string(notification.Data))
 
-	notification.Type = notifications.NotificationLink
+	notification.Type = models.NotificationLink
 	notification.Read = false
 	notification.ExpiresAt = &time.Time{}
 
@@ -178,7 +177,7 @@ func (eh *EventHandler) HandleLinkNotification(notification notifications.LocalN
 	}
 
 	// Update  the course by code
-	if err := eh.db.Model(&course.LocalCourse{Code: data.CourseCode}).Update("link_id", data.LinkID).Error; err != nil {
+	if err := eh.db.Model(&models.LocalCourse{}).Where("code = ?", data.CourseCode).Update("link_id", data.LinkID).Error; err != nil {
 		log.Printf("[EventHandler] Link data: %+v", data)
 	}
 
@@ -190,11 +189,11 @@ func (eh *EventHandler) HandleLinkNotification(notification notifications.LocalN
 }
 
 // HandleAssignmentNotification processes real-time assignment events
-func (eh *EventHandler) HandleAssignmentNotification(notification notifications.LocalNotification) {
+func (eh *EventHandler) HandleAssignmentNotification(notification models.LocalNotification) {
 	log.Printf("[EventHandler] Processing assignment notification: %s", notification.Message)
 	log.Printf("[EventHandler] Data: %s", string(notification.Data))
 
-	notification.Type = notifications.NotificationAssignmentUpdate
+	notification.Type = models.NotificationAssignmentUpdate
 	notification.Read = false
 	notification.ExpiresAt = &time.Time{}
 
@@ -211,11 +210,11 @@ func (eh *EventHandler) HandleAssignmentNotification(notification notifications.
 }
 
 // handleDocumentNotification processes real-time document events
-func (eh *EventHandler) handleDocumentNotification(notification notifications.LocalNotification) {
+func (eh *EventHandler) handleDocumentNotification(notification models.LocalNotification) {
 	log.Printf("[EventHandler] Processing document notification: %s", notification.Message)
 	log.Printf("[EventHandler] Data: %s", string(notification.Data))
 
-	notification.Type = notifications.NotificationDocumentUpdate
+	notification.Type = models.NotificationDocumentUpdate
 	notification.Read = false
 	notification.ExpiresAt = &time.Time{}
 
@@ -232,11 +231,11 @@ func (eh *EventHandler) handleDocumentNotification(notification notifications.Lo
 }
 
 // handleNoteNotification processes real-time note events
-func (eh *EventHandler) handleNoteNotification(notification notifications.LocalNotification) {
+func (eh *EventHandler) handleNoteNotification(notification models.LocalNotification) {
 	log.Printf("[EventHandler] Processing document notification: %s", notification.Message)
 	log.Printf("[EventHandler] Data: %s", string(notification.Data))
 
-	notification.Type = notifications.NotificationNoteUpdate
+	notification.Type = models.NotificationNoteUpdate
 	notification.Read = false
 	notification.ExpiresAt = &time.Time{}
 
@@ -282,7 +281,7 @@ func (eh *EventHandler) processEvents() {
 // routeEvent routes SSE events to appropriate handlers
 func (eh *EventHandler) routeEvent(event sse.Event) {
 
-	var notification notifications.LocalNotification
+	var notification models.LocalNotification
 	if err := json.Unmarshal(event.Data, &notification); err != nil {
 		wrappedErr := errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse notification event")
 		log.Printf("[EventHandler] Error parsing notification: %v", wrappedErr)
@@ -293,17 +292,17 @@ func (eh *EventHandler) routeEvent(event sse.Event) {
 
 	// Route based on entity type
 	switch notification.Type {
-	case notifications.NotificationFollow:
+	case models.NotificationFollow:
 		eh.HandleFollowNotification(notification)
-	case notifications.NotificationSync:
+	case models.NotificationSync:
 		eh.HandleSyncNotification(notification)
-	case notifications.NotificationLink:
+	case models.NotificationLink:
 		eh.HandleLinkNotification(notification)
-	case notifications.NotificationAssignmentUpdate:
+	case models.NotificationAssignmentUpdate:
 		eh.HandleAssignmentNotification(notification)
-	case notifications.NotificationDocumentUpdate:
+	case models.NotificationDocumentUpdate:
 		eh.handleDocumentNotification(notification)
-	case notifications.NotificationNoteUpdate:
+	case models.NotificationNoteUpdate:
 		eh.handleNoteNotification(notification)
 
 	default:

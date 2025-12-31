@@ -9,12 +9,12 @@ import (
 	"time"
 	"unipilot/internal/client"
 	"unipilot/internal/errors"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
+	syncservice "unipilot/internal/services/sync"
 	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
 	"unipilot/internal/storage"
-	"unipilot/internal/sync"
 )
 
 // Login authenticates a user with the provided credentials and initializes the session.
@@ -26,9 +26,9 @@ import (
 //   - password: User's password in plain text
 //
 // Returns:
-//   - *user.User: Authenticated user object with profile information
+//   - *models.User: Authenticated user object with profile information
 //   - error: Error if authentication fails, token saving fails, or post-login operations fail
-func (a *Auth) Login(username, password string) (*user.User, error) {
+func (a *Auth) Login(username, password string) (*models.User, error) {
 	// Step 1: Create HTTP client with cookie jar for session management
 	// Cookie jar stores authentication cookies automatically
 	httpClient := http.Client{
@@ -65,7 +65,7 @@ func (a *Auth) Login(username, password string) (*user.User, error) {
 
 	// Step 6: Convert response map to User struct
 	// Type assertions extract string values from interface{} map
-	response_user := user.User{
+	response_user := models.User{
 		Username:   response.User["username"].(string),
 		Email:      response.User["email"].(string),
 		Avatar:     response.User["avatar"].(string),
@@ -147,14 +147,15 @@ func PostLogin() error {
 
 	// Step 3: Migrate courses from remote server to local database
 	// Non-fatal operation - allows offline access to courses
-	if err := sync.MigrateCourses(localDB); err != nil {
+	migrator := syncservice.NewMigrator(localDB)
+	if err := migrator.MigrateCourses(); err != nil {
 		log.Println("Failed to migrate courses", err)
 		// Don't rollback, continue with the transaction
 	}
 
 	// Step 4: Migrate assignments from remote server to local database
 	// Non-fatal operation - allows offline access to assignments
-	if err := sync.MigrateAssignments(localDB); err != nil {
+	if err := migrator.MigrateAssignments(); err != nil {
 		log.Println("Failed to migrate assignments", err)
 		// Don't rollback, continue with the transaction
 	}

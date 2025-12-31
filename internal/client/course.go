@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"unipilot/internal/models/assignment"
-	"unipilot/internal/models/course"
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 
 	"unipilot/internal/errors"
@@ -13,7 +12,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func GetCourses() ([]course.Course, error) {
+func GetCourses() ([]models.Course, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/courses", api_url))
@@ -32,7 +31,7 @@ func GetCourses() ([]course.Course, error) {
 		return nil, serverError
 	}
 
-	var response []course.Course
+	var response []models.Course
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 	}
@@ -41,7 +40,7 @@ func GetCourses() ([]course.Course, error) {
 
 }
 
-func CreateCourse(c *course.Course) (uint, error) {
+func CreateCourse(c *models.Course) (uint, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Post(fmt.Sprintf("%s/courses", api_url))
@@ -124,7 +123,7 @@ func DeleteCourse(id string) error {
 	return nil
 }
 
-func RequestLinkCourse(c *course.LocalCourse, usersID []uint) error {
+func RequestLinkCourse(c *models.LocalCourse, usersID []uint) error {
 
 	linkData := map[string]interface{}{
 		"users_id": usersID,
@@ -152,10 +151,10 @@ func RequestLinkCourse(c *course.LocalCourse, usersID []uint) error {
 }
 
 type AcceptLinkCourseResponse struct {
-	Assignments []assignment.Assignment `json:"assignments"`
+	Assignments []models.Assignment `json:"assignments"`
 }
 
-func AcceptLinkCourse(c *course.Course) ([]assignment.Assignment, error) {
+func AcceptLinkCourse(c *models.Course) ([]models.Assignment, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Post(fmt.Sprintf("%s/courses/link-accept", api_url))
@@ -177,7 +176,7 @@ func AcceptLinkCourse(c *course.Course) ([]assignment.Assignment, error) {
 		return nil, serverError
 	}
 
-	var response []assignment.Assignment
+	var response []models.Assignment
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 	}

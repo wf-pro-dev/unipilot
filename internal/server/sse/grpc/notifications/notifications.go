@@ -9,7 +9,6 @@ import (
 	"log"
 
 	"unipilot/internal/models"
-	"unipilot/internal/models/notifications"
 	"unipilot/internal/server"
 	sse "unipilot/internal/server/sse"
 )
@@ -39,7 +38,7 @@ type Server struct {
 // to the target user via their SSE connection if they are connected.
 //
 // gRPC Method: SendNotification
-// Service: notifications.NotificationsService
+// Service: models.NotificationsService
 //
 // Parameters:
 //   - ctx: Request context for cancellation and tracing (context.Context, required)
@@ -82,15 +81,15 @@ func (s *Server) SendNotification(ctx context.Context, notification *Notificatio
 
 	// Step 2: Convert gRPC types to internal types and forward to SSE server
 	err := s.SSE.SendNotification(
-		uint(notification.UserId),                         // Convert uint32 to uint
-		uint(notification.SenderId),                       // Convert uint32 to uint
-		models.Entity(notification.Entity),                // Convert string to Entity enum
-		uint(notification.EntityId),                       // Convert uint32 to uint
-		notifications.NotificationType(notification.Type), // Convert string to NotificationType enum
-		notification.Title,                                // Pass string directly
-		notification.Message,                              // Pass string directly
-		notification.Action,                               // Pass string directly
-		notification.Data,                                 // Pass JSON string directly
+		uint(notification.UserId),                  // Convert uint32 to uint
+		uint(notification.SenderId),                // Convert uint32 to uint
+		models.Entity(notification.Entity),         // Convert string to Entity enum
+		uint(notification.EntityId),                // Convert uint32 to uint
+		models.NotificationType(notification.Type), // Convert string to NotificationType enum
+		notification.Title,                         // Pass string directly
+		notification.Message,                       // Pass string directly
+		notification.Action,                        // Pass string directly
+		notification.Data,                          // Pass JSON string directly
 	)
 
 	// Step 3: Log notification delivery attempt with structured data for monitoring
@@ -108,7 +107,7 @@ func (s *Server) SendNotification(ctx context.Context, notification *Notificatio
 // Used for service discovery, load balancing, and monitoring system health.
 //
 // gRPC Method: Heartbeat
-// Service: notifications.NotificationsService
+// Service: models.NotificationsService
 //
 // Parameters:
 //   - ctx: Request context for cancellation and tracing (context.Context, required)

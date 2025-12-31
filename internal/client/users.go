@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"unipilot/internal/errors"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type RemoteUser struct {
-	user.User
+	models.User
 	CoursesCode []string
 }
 

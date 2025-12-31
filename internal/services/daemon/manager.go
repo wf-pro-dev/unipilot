@@ -68,7 +68,7 @@ func NewManager(userID uint, ctx context.Context) (*Manager, error) {
 
 	// Configure service with logging
 	svcConfig := &service.Config{
-		Name:        fmt.Sprintf("com.unipilot.notifications.%d", userID),
+		Name:        fmt.Sprintf("com.unipilot.models.%d", userID),
 		DisplayName: fmt.Sprintf("UniPilot Notification Service for User %d", userID),
 		Description: fmt.Sprintf("Background notification service for UniPilot for user %d", userID),
 		Arguments: []string{

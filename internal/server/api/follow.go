@@ -11,8 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
-	"unipilot/internal/models/course"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/server"
 )
 
@@ -35,16 +34,16 @@ type FollowResponse struct {
 // Contains paginated list of users who follow the specified user with total count.
 // Supports pagination through limit/offset parameters for large follower lists.
 type FollowersResponse struct {
-	Followers []user.User `json:"followers"` // Array of users who follow the target user
-	Total     int         `json:"total"`     // Total number of followers (for pagination)
+	Followers []models.User `json:"followers"` // Array of users who follow the target user
+	Total     int           `json:"total"`     // Total number of followers (for pagination)
 }
 
 // FollowingResponse represents the response for retrieving a user's following list.
 // Contains paginated list of users that the specified user follows with total count.
 // Supports pagination through limit/offset parameters for large following lists.
 type FollowingResponse struct {
-	Following []user.User `json:"following"` // Array of users that the target user follows
-	Total     int         `json:"total"`     // Total number of users being followed (for pagination)
+	Following []models.User `json:"following"` // Array of users that the target user follows
+	Total     int           `json:"total"`     // Total number of users being followed (for pagination)
 }
 
 // FollowStatusResponse represents the follow relationship status between two users.
@@ -109,7 +108,7 @@ type FollowStatusResponse struct {
 //   - Logs follow actions for social analytics
 func HandleFollow(c *fiber.Ctx) error {
 	// Step 2: Extract context values from middleware (user and database connection)
-	currentUser, ok := c.Locals("user").(user.User)
+	currentUser, ok := c.Locals("user").(models.User)
 	if !ok {
 		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
 	}
@@ -167,7 +166,7 @@ func HandleFollow(c *fiber.Ctx) error {
 
 	// Step 6: Check existing follow relationship status
 	// Check if already following
-	isFollowing, err := user.IsFollowing(userID, followedID, db)
+	isFollowing, err := models.IsFollowing(userID, followedID, db)
 	if err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error checking follow status", fiber.StatusInternalServerError)
 	}
@@ -177,16 +176,8 @@ func HandleFollow(c *fiber.Ctx) error {
 	if isFollowing {
 		c.Locals("message", "Follow removed")
 		// Step 7a: Unfollow operation - remove existing relationship
-		if err := user.RemoveFollow(userID, followedID, db); err != nil {
+		if err := models.RemoveFollow(userID, followedID, db); err != nil {
 			return errors.WrapServer(err, errors.DBQueryFailed, "Error removing follow", fiber.StatusInternalServerError)
-		}
-
-		// Update follow statistics for both users after unfollow
-		if err := user.UpdateFollowStats(userID, db); err != nil {
-			return errors.WrapServer(err, errors.DBQueryFailed, "Error updating follow stats", fiber.StatusInternalServerError)
-		}
-		if err := user.UpdateFollowStats(followedID, db); err != nil {
-			return errors.WrapServer(err, errors.DBQueryFailed, "Error updating follow stats", fiber.StatusInternalServerError)
 		}
 
 		// Update Redis caches: remove user from followers and following lists (non-blocking)
@@ -209,23 +200,15 @@ func HandleFollow(c *fiber.Ctx) error {
 	} else {
 		c.Locals("message", "New follower added")
 		// Step 7b: Follow operation - create new relationship
-		if err := user.CreateFollow(userID, followedID, db); err != nil {
+		if err := models.CreateFollow(userID, followedID, db); err != nil {
 			if errors.HasCode(err, errors.DBConstraintViolation) {
 				return errors.WrapServer(err, errors.DBConstraintViolation, "Already following", fiber.StatusConflict)
 			}
 			return errors.WrapServer(err, errors.DBQueryFailed, "Error creating follow", fiber.StatusInternalServerError)
 		}
 
-		// Update follow statistics for both users after follow
-		if err := user.UpdateFollowStats(userID, db); err != nil {
-			return errors.WrapServer(err, errors.DBQueryFailed, "Error updating follow stats", fiber.StatusInternalServerError)
-		}
-		if err := user.UpdateFollowStats(followedID, db); err != nil {
-			return errors.WrapServer(err, errors.DBQueryFailed, "Error updating follow stats", fiber.StatusInternalServerError)
-		}
-
 		// Step 8: Prepare notification data with social context and get followed user for cache update
-		var followedUser user.User
+		var followedUser models.User
 		if err := db.First(&followedUser, followedID).Error; err != nil {
 			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting followed user", fiber.StatusInternalServerError)
 		}
@@ -257,7 +240,7 @@ func HandleFollow(c *fiber.Ctx) error {
 
 		// Calculate shared courses for enhanced social context in notifications
 		var sharedCoursesCount int64
-		if err := db.Model(&course.Course{}).
+		if err := db.Model(&models.Course{}).
 			Where("user_id = ? AND code IN (SELECT code FROM courses WHERE user_id = ?)", userID, followedID).
 			Count(&sharedCoursesCount).Error; err != nil {
 			return errors.WrapServer(err, errors.DBQueryFailed, "Error counting shared courses", fiber.StatusInternalServerError)
@@ -269,7 +252,7 @@ func HandleFollow(c *fiber.Ctx) error {
 				userID,
 				models.EntityFollow,
 				followedID,
-				notifications.NotificationFollow,
+				models.NotificationFollow,
 				currentUser.Username,
 				fmt.Sprintf("%s followed you. You share %d courses with this user", currentUser.Username ,sharedCoursesCount),
 				"create",
@@ -282,7 +265,7 @@ func HandleFollow(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
-// HandleGetFollowers retrieves a paginated list of users who follow the specified user.
+// HandleGetFollowers retrieves a paginated list of users who follow the specified models.
 // Implements Redis caching with database fallback for optimal performance on social feeds.
 // Supports pagination through limit/offset parameters for handling large follower lists.
 //
@@ -332,7 +315,7 @@ func HandleFollow(c *fiber.Ctx) error {
 //   - No database modifications (read-only operation)
 func HandleGetFollowers(c *fiber.Ctx) error {
 	// Step 2: Extract context values from middleware (user and database connection)
-	currentUser := c.Locals("user").(user.User)
+	currentUser := c.Locals("user").(models.User)
 	db := c.Locals("db").(*gorm.DB)
 	_ = currentUser.ID // Available but not used for this endpoint
 	c.Locals("message", "Followers list retrieved")
@@ -378,9 +361,9 @@ func HandleGetFollowers(c *fiber.Ctx) error {
 
 	// Step 7: Cache hit - Convert Redis hash to user array and return cached followers
 	if len(followersHash) > 0 {
-		var cachedFollowers []user.User
+		var cachedFollowers []models.User
 		for _, followerJSON := range followersHash {
-			var follower user.User
+			var follower models.User
 			if err := json.Unmarshal([]byte(followerJSON), &follower); err == nil {
 				cachedFollowers = append(cachedFollowers, follower)
 			}
@@ -393,7 +376,7 @@ func HandleGetFollowers(c *fiber.Ctx) error {
 	}
 
 	// Step 8: Cache miss - Query followers from database and populate cache
-	followers, err := user.GetFollowers(uint(userID), limit, offset, db)
+	followers, err := models.GetFollowers(uint(userID), limit, offset, db)
 	if err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting followers from database", fiber.StatusInternalServerError)
 	}
@@ -465,7 +448,7 @@ func HandleGetFollowers(c *fiber.Ctx) error {
 //   - No database modifications (read-only operation)
 func HandleGetFollowing(c *fiber.Ctx) error {
 	// Step 2: Extract context values from middleware (user and database connection)
-	currentUser := c.Locals("user").(user.User)
+	currentUser := c.Locals("user").(models.User)
 	db := c.Locals("db").(*gorm.DB)
 	_ = currentUser.ID // Available but not used for this endpoint
 	c.Locals("message", "Following list retrieved")
@@ -511,9 +494,9 @@ func HandleGetFollowing(c *fiber.Ctx) error {
 
 	// Step 7: Cache hit - Convert Redis hash to user array and return cached following list
 	if len(followingHash) > 0 {
-		var cachedFollowing []user.User
+		var cachedFollowing []models.User
 		for _, followingJSON := range followingHash {
-			var following user.User
+			var following models.User
 			if err := json.Unmarshal([]byte(followingJSON), &following); err == nil {
 				cachedFollowing = append(cachedFollowing, following)
 			}
@@ -526,7 +509,7 @@ func HandleGetFollowing(c *fiber.Ctx) error {
 	}
 
 	// Step 8: Cache miss - Query following list from database and populate cache
-	following, err := user.GetFollowing(uint(userID), limit, offset, db)
+	following, err := models.GetFollowing(uint(userID), limit, offset, db)
 	if err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting following from database", fiber.StatusInternalServerError)
 	}

@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/server"
 	cloudstorage "unipilot/internal/services/cloud_storage"
 )
@@ -46,7 +46,7 @@ import (
 //   - No database or cache modifications
 func GetUserHandler(c *fiber.Ctx) error {
 	// Step 1: Extract user context from JWT token (validated by AuthMiddleware)
-	currentUser := c.Locals("user").(user.User)
+	currentUser := c.Locals("user").(models.User)
 
 	// Step 3: Send successful response with sanitized user data
 	return c.JSON(fiber.Map{
@@ -96,7 +96,7 @@ func GetUserHandler(c *fiber.Ctx) error {
 func UpdateUserHandler(c *fiber.Ctx) error {
 	c.Locals("message", "User updated successfully")
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser, ok := c.Locals("user").(user.User)
+	currentUser, ok := c.Locals("user").(models.User)
 	if !ok {
 		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
 	}
@@ -124,7 +124,7 @@ func UpdateUserHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 4: Retrieve updated user record to ensure consistency and get fresh data
-	var userObj user.User
+	var userObj models.User
 	if err := db.First(&userObj, userID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return errors.WrapServer(err, errors.DBRecordNotFound, "User not found", fiber.StatusNotFound)
@@ -159,7 +159,7 @@ func UpdateUserHandler(c *fiber.Ctx) error {
 func UpdateProfilePictureHandler(c *fiber.Ctx) error {
 	c.Locals("message", "Profile picture updated successfully")
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser, ok := c.Locals("user").(user.User)
+	currentUser, ok := c.Locals("user").(models.User)
 	if !ok {
 		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
 	}

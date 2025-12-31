@@ -9,10 +9,7 @@ import (
 	"time"
 
 	"unipilot/internal/errors"
-	"unipilot/internal/models/assignment"
-	"unipilot/internal/models/course"
-	"unipilot/internal/models/notifications"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/services/utils"
 
 	"github.com/gen2brain/beeep"
@@ -28,10 +25,10 @@ type Scheduler struct {
 	cancel    context.CancelFunc
 	isRunning bool
 	mu        sync.RWMutex
-	user      user.User
+	user      models.User
 
 	// Performance optimizations
-	courseCache       []course.LocalCourse
+	courseCache       []models.LocalCourse
 	cacheLastUpdate   time.Time
 	cacheMutex        sync.RWMutex
 	notificationCache map[string]time.Time // Track sent notifications to avoid duplicates
@@ -61,12 +58,12 @@ func NewScheduler() (*Scheduler, error) {
 }
 
 // InitializeForDaemon sets up the scheduler to run as a daemon
-func (s *Scheduler) InitializeForDaemon(user *user.User) error {
+func (s *Scheduler) InitializeForDaemon(user *models.User) error {
 	// Set the user ID for this daemon instance
 	s.user = *user
 
 	// Initialize any daemon-specific configurations
-	log.Printf("[Scheduler] Initialized daemon for user %d", user.ID)
+	log.Printf("[Scheduler] Initialized daemon for user %d", s.user.ID)
 	return nil
 }
 
@@ -134,8 +131,8 @@ func (s *Scheduler) refreshCourseCache() {
 	s.cacheMutex.Lock()
 	defer s.cacheMutex.Unlock()
 
-	var courses []course.LocalCourse
-	if err := s.db.Where("semester = ?", s.user.Semester).Find(&courses).Error; err != nil {
+	var courses []models.LocalCourse
+	if err := s.db.Where("user_id = ?", s.user.ID).Find(&courses).Error; err != nil {
 		log.Printf("[Scheduler] Error refreshing course cache: %v", err)
 		return
 	}
@@ -146,7 +143,7 @@ func (s *Scheduler) refreshCourseCache() {
 }
 
 // getCachedCourses returns courses from cache, refreshing if needed
-func (s *Scheduler) getCachedCourses() ([]course.LocalCourse, error) {
+func (s *Scheduler) getCachedCourses() ([]models.LocalCourse, error) {
 	s.cacheMutex.RLock()
 
 	// If cache is empty or older than 1 hour, refresh it
@@ -156,7 +153,7 @@ func (s *Scheduler) getCachedCourses() ([]course.LocalCourse, error) {
 		s.cacheMutex.RLock()
 	}
 
-	courses := make([]course.LocalCourse, len(s.courseCache))
+	courses := make([]models.LocalCourse, len(s.courseCache))
 	copy(courses, s.courseCache)
 	s.cacheMutex.RUnlock()
 
@@ -216,7 +213,7 @@ func (s *Scheduler) SendDailyNotifications(session string) {
 }
 
 // getWeeklyAssignments queries database for assignments due in the next 7 days
-func (s *Scheduler) getWeeklyAssignments() ([]assignment.LocalAssignment, error) {
+func (s *Scheduler) getWeeklyAssignments() ([]models.LocalAssignment, error) {
 	now := time.Now()
 	startDate := now.AddDate(0, 0, -1)
 	endDate := now.AddDate(0, 0, 7)
@@ -228,8 +225,8 @@ func (s *Scheduler) getWeeklyAssignments() ([]assignment.LocalAssignment, error)
 		endDate.Format(time.RFC3339),
 	)
 
-	var assignments []assignment.LocalAssignment
-	err := s.db.Model(&assignment.LocalAssignment{}).Where(query).Order("deadline ASC").Find(&assignments).Error
+	var assignments []models.LocalAssignment
+	err := s.db.Model(&models.LocalAssignment{}).Where(query).Order("deadline ASC").Find(&assignments).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
@@ -239,8 +236,8 @@ func (s *Scheduler) getWeeklyAssignments() ([]assignment.LocalAssignment, error)
 }
 
 // groupAssignmentsByCourse organizes assignments by course
-func (s *Scheduler) groupAssignmentsByCourse(assignments []assignment.LocalAssignment) map[string][]assignment.LocalAssignment {
-	grouped := make(map[string][]assignment.LocalAssignment)
+func (s *Scheduler) groupAssignmentsByCourse(assignments []models.LocalAssignment) map[string][]models.LocalAssignment {
+	grouped := make(map[string][]models.LocalAssignment)
 
 	for _, assignment := range assignments {
 		grouped[assignment.CourseCode] = append(grouped[assignment.CourseCode], assignment)
@@ -251,7 +248,7 @@ func (s *Scheduler) groupAssignmentsByCourse(assignments []assignment.LocalAssig
 }
 
 // sendCourseBasedNotifications sends course-based notifications
-func (s *Scheduler) sendCourseBasedNotifications(grouped map[string][]assignment.LocalAssignment) {
+func (s *Scheduler) sendCourseBasedNotifications(grouped map[string][]models.LocalAssignment) {
 	log.Printf("[Scheduler] Sending notifications for %d courses", len(grouped))
 
 	for courseCode, assignments := range grouped {
@@ -261,13 +258,13 @@ func (s *Scheduler) sendCourseBasedNotifications(grouped map[string][]assignment
 }
 
 // createAssignmentNotification creates a notification for a course with multiple assignments
-func (s *Scheduler) createAssignmentNotification(courseCode string, assignments []assignment.LocalAssignment) {
+func (s *Scheduler) createAssignmentNotification(courseCode string, assignments []models.LocalAssignment) {
 	title := s.formatTitle(courseCode)
 	message := s.formatMessage(len(assignments))
 
 	// Create notification in database
-	notification := notifications.LocalNotification{
-		Type:      notifications.NotificationAssignment,
+	notification := models.LocalNotification{
+		Type:      models.NotificationAssignment,
 		Title:     title,
 		Message:   message,
 		SenderID:  s.user.ID,
@@ -327,11 +324,11 @@ func (s *Scheduler) SendCourseEntryNotifications() {
 }
 
 // filterCoursesForToday returns only courses that have classes on the given day
-func (s *Scheduler) filterCoursesForToday(courses []course.LocalCourse, day time.Weekday) []course.LocalCourse {
-	var relevant []course.LocalCourse
+func (s *Scheduler) filterCoursesForToday(courses []models.LocalCourse, day time.Weekday) []models.LocalCourse {
+	var relevant []models.LocalCourse
 
 	for _, course := range courses {
-		schedule, err := course.ParseSchedule(course.Schedule)
+		schedule, err := models.ParseSchedule(course.Schedule)
 		if err != nil {
 			continue // Skip courses with invalid schedules
 		}
@@ -345,11 +342,11 @@ func (s *Scheduler) filterCoursesForToday(courses []course.LocalCourse, day time
 }
 
 // processCourseForNotification checks if a course needs a notification and sends it
-func (s *Scheduler) processCourseForNotification(course course.LocalCourse) {
+func (s *Scheduler) processCourseForNotification(course models.LocalCourse) {
 	now := time.Now()
 	in30Minutes := now.Add(30 * time.Minute)
 
-	schedule, err := course.ParseSchedule(course.Schedule)
+	schedule, err := models.ParseSchedule(course.Schedule)
 	if err != nil {
 		log.Printf("[Scheduler] Error parsing schedule for course %s: %v", course.Code, err)
 		return
@@ -385,8 +382,8 @@ func (s *Scheduler) processCourseForNotification(course course.LocalCourse) {
 }
 
 type CourseEntry struct {
-	course    course.LocalCourse
-	schedule  *course.ParsedSchedule
+	course    models.LocalCourse
+	schedule  *models.ParsedSchedule
 	startTime time.Time
 	endTime   time.Time
 }
@@ -400,8 +397,8 @@ func (s *Scheduler) createCourseNotification(courseEntry CourseEntry) {
 	message := fmt.Sprintf("You have a class at %v in 30 minutes", courseEntry.startTime.Format("15:04"))
 
 	// Create notification in database
-	notification := notifications.LocalNotification{
-		Type:      notifications.NotificationCourse,
+	notification := models.LocalNotification{
+		Type:      models.NotificationCourse,
 		Title:     title,
 		Message:   message,
 		SenderID:  s.user.ID,

@@ -12,7 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 	"unipilot/internal/server"
 
@@ -66,7 +66,7 @@ func LoginHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
 	}
 
-	var userObj user.User
+	var userObj models.User
 	if err := db.Where("username = ?", credentials.Username).First(&userObj).Error; err != nil {
 		if Errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.WrapServer(err, errors.DBRecordNotFound, "No user found", fiber.StatusUnauthorized)

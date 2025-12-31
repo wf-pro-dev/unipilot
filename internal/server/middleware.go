@@ -15,7 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
-	"unipilot/internal/models/user"
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 )
 
@@ -305,8 +305,8 @@ func LoggerMiddleware(c *fiber.Ctx) error {
 //   - Access tokens: 15 minutes (short-lived for security)
 //   - Refresh tokens: 30 days (long-lived for user convenience)
 type Claims struct {
-	User                 user.User `json:"user"` // Complete user object for context
-	jwt.RegisteredClaims           // Standard JWT claims (exp, iat, etc.)
+	User                 models.User `json:"user"` // Complete user object for context
+	jwt.RegisteredClaims             // Standard JWT claims (exp, iat, etc.)
 }
 
 // AuthMiddleware provides JWT-based authentication for protected API endpoints.
@@ -327,7 +327,7 @@ type Claims struct {
 //   5. Injects user context into request for downstream handlers
 //
 // Context Values Added:
-//   - "user": Complete user.User object from JWT claims
+//   - "user": Complete models.User object from JWT claims
 //   - "user_id": User ID (uint) for convenient access
 //
 // Security Features:
@@ -344,7 +344,7 @@ type Claims struct {
 //
 // Usage:
 //   - Applied to all protected API routes
-//   - Handlers access user via: r.Context().Value("user").(user.User)
+//   - Handlers access user via: r.Context().Value("user").(models.User)
 //   - User ID available via: r.Context().Value("user_id").(uint)
 
 func AuthMiddleware(c *fiber.Ctx) error {
@@ -432,7 +432,7 @@ func AuthMiddleware(c *fiber.Ctx) error {
 //  4. Injects user context for downstream handlers
 //
 // Context Values Added:
-//   - "user": user.User object from session (if available)
+//   - "user": models.User object from session (if available)
 //
 // Deprecation Notice:
 //   - This middleware is deprecated in favor of JWT-based AuthMiddleware
@@ -468,7 +468,7 @@ func AuthMiddlewareV1(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		// Step 5: Extract user object from session if available
-		userID, ok := session.Values["user"].(user.User)
+		userID, ok := session.Values["user"].(models.User)
 		if ok {
 			ctx := context.WithValue(r.Context(), "user", userID)
 			r = r.WithContext(ctx)
