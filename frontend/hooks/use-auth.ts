@@ -53,6 +53,7 @@ export function useGetAuthToken() {
         throw error
       }
     },
+    retry: false, // Don't retry if authentication fails ! IMPORTANT
   })
 }
 

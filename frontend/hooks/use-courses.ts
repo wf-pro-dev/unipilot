@@ -1,7 +1,7 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { course, user, note, assignment } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { assignmentKeys } from './use-assignments'
 import { documentKeys } from './use-documents'
@@ -22,7 +22,7 @@ export const courseKeys = {
 export function useCourses() {
   return useQuery({
     queryKey: courseKeys.lists(),
-    queryFn: async (): Promise<course.LocalCourse[]> => {
+    queryFn: async (): Promise<models.LocalCourse[]> => {
       try {
         return await GetCourses()
       } catch (error) {
@@ -35,20 +35,13 @@ export function useCourses() {
   })
 }
 
-// Type matching the API response (lowercase keys)
-export type CoursesLinkedData = Record<string, { 
-  Users: user.User[], 
-  Assignments: assignment.LocalAssignment[], 
-  Notes: note.LocalNote[] 
-}>
-
 export function useCoursesLinked() {
   return useQuery({
     queryKey: courseKeys.linked(),
-    queryFn: async (): Promise<CoursesLinkedData> => { 
+    queryFn: async (): Promise<models.Course[]> => { 
       try {
         const coursesLinked = await GetCoursesLinked()
-        return coursesLinked as CoursesLinkedData
+        return coursesLinked as models.Course[]
       } catch (error) {
         LogError("Failed to fetch courses linked: " + error)
         throw new Error(error instanceof Error ? error.message : "Failed to fetch courses linked")
@@ -65,7 +58,7 @@ export function useCreateCourse() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (newCourse: course.LocalCourse) => {
+    mutationFn: async (newCourse: models.LocalCourse) => {
       return await CreateCourse(newCourse)
     },
     
@@ -73,9 +66,9 @@ export function useCreateCourse() {
     onMutate: async (newCourse) => {
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
       
-      const previousCourses = queryClient.getQueryData<course.LocalCourse[]>(courseKeys.lists())
+      const previousCourses = queryClient.getQueryData<models.LocalCourse[]>(courseKeys.lists())
       
-      queryClient.setQueryData<course.LocalCourse[]>(courseKeys.lists(), (old) => {
+      queryClient.setQueryData<models.LocalCourse[]>(courseKeys.lists(), (old) => {
         if (!old) return [newCourse]
         return [newCourse, ...old]
       })
@@ -101,7 +94,7 @@ export function useUpdateCourse() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async ({ course, column, value }: { course: course.LocalCourse, column: string, value: string }) => {
+    mutationFn: async ({ course, column, value }: { course: models.LocalCourse, column: string, value: string }) => {
       return await UpdateCourse(course, column, value)
     },
     
@@ -109,13 +102,13 @@ export function useUpdateCourse() {
     onMutate: async ({ course, column, value }) => {
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
       
-      const previousCourses = queryClient.getQueryData<course.LocalCourse[]>(courseKeys.lists())
+      const previousCourses = queryClient.getQueryData<models.LocalCourse[]>(courseKeys.lists())
       
-      queryClient.setQueryData<course.LocalCourse[]>(courseKeys.lists(), (old) => {
+      queryClient.setQueryData<models.LocalCourse[]>(courseKeys.lists(), (old) => {
         if (!old) return []
         return old.map(c => 
           c.ID === course.ID 
-            ? { ...course, [column]: value, UpdatedAt: new Date() } as course.LocalCourse
+            ? { ...course, [column]: value, UpdatedAt: new Date() } as models.LocalCourse
             : c
         )
       })
@@ -141,24 +134,24 @@ export function useDeleteCourse() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (course: course.LocalCourse) => {
+    mutationFn: async (course: models.LocalCourse) => {
       return await DeleteCourse(course)
     },
     
     // Optimistically remove the course, assignments, and documents
     onMutate: async (course) => {
       
-      const previousCourses = queryClient.getQueryData<course.LocalCourse[]>(courseKeys.lists())
-      const previousAssignments = queryClient.getQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists())
+      const previousCourses = queryClient.getQueryData<models.LocalCourse[]>(courseKeys.lists())
+      const previousAssignments = queryClient.getQueryData<models.LocalAssignment[]>(assignmentKeys.lists())
       
       // Remove course from cache
-      queryClient.setQueryData<course.LocalCourse[]>(courseKeys.lists(), (old) => {
+      queryClient.setQueryData<models.LocalCourse[]>(courseKeys.lists(), (old) => {
         if (!old) return []
         return old.filter(c => c.ID !== course.ID)
       })
       
       // Remove assignments that belong to this course from cache
-      queryClient.setQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
+      queryClient.setQueryData<models.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
         if (!old) return []
         return old.filter(a => a.Course?.ID !== course.ID)
       })
@@ -201,7 +194,7 @@ export function useDeleteCourse() {
 // Hook for requesting to link a course to a list of users
 export function useRequestLinkCourse() {
   return useMutation({
-    mutationFn: async ({ c, usersID }: { c: course.LocalCourse, usersID: number[] }) => {
+    mutationFn: async ({ c, usersID }: { c: models.LocalCourse, usersID: number[] }) => {
       return await RequestLinkCourse(c, usersID)
     }
   })

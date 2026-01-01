@@ -1182,6 +1182,7 @@ func (a *App) DeleteNotification(notification *models.LocalNotification) error {
 
 // Register handles user registration
 func (a *App) Register(userData *models.User) (*models.User, error) {
+
 	user, err := a.Auth.Register(userData)
 	if err != nil {
 		fmt.Println("Register error: ", err)
@@ -1414,7 +1415,7 @@ func (a *App) GetAssignments() ([]models.LocalAssignment, error) {
 	if a.DB == nil {
 		return []models.LocalAssignment{}, nil
 	}
-	assignments, err := a.DB.GetAssignments()
+	assignments, err := models.GetLAssignments(a.DB.GetDB().Preload("Course").Preload("Documents"))
 	if err != nil {
 		return nil, Errors.HandleDBReadError(err)
 	}
@@ -1430,11 +1431,15 @@ func (a *App) GetCourses() ([]models.LocalCourse, error) {
 }
 
 // GetCoursesLinked returns all courses linked for the current user
-func (a *App) GetCoursesLinked() (map[string]interface{}, error) {
+func (a *App) GetCoursesLinked() ([]models.Course, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
-	return client.GetCoursesLinked()
+	courses, err := client.GetCoursesLinked()
+	if err != nil {
+		return nil, err
+	}
+	return courses, nil
 }
 
 // GetNotes returns all notes for the current user
@@ -1794,7 +1799,7 @@ func (a *App) AcceptLink(courseData string) error {
 		return err
 	}
 	// Update the course with the new link ID
-	a.UpdateCourse(&existingCourse, "link_id", localC.LinkID.String())
+	a.UpdateCourse(&existingCourse, "link_id", c.LinkID.String())
 
 	assignments, err := client.AcceptLinkCourse(&c)
 	if err != nil {

@@ -1,10 +1,10 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { document } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { LogError } from "@/wailsjs/runtime/runtime"
 import { 
-  GetAssignmentDocuments,
+
   GetSupportDocuments,
   GetSubmissionDocuments,
   GetUserStorageInfo,
@@ -31,30 +31,12 @@ export const documentKeys = {
   storage: () => [...documentKeys.all, 'storage'] as const,
 }
 
-// Hook for fetching all documents for an assignment
-export function useAssignmentDocuments(assignmentId: number) {
-  return useQuery({
-    queryKey: documentKeys.list(assignmentId),
-    queryFn: async (): Promise<document.LocalDocument[]> => {
-      try {
-        const docs = await GetAssignmentDocuments(assignmentId)
-        return docs || []
-      } catch (error) {
-        LogError("Failed to fetch assignment documents: " + error)
-        throw new Error(error instanceof Error ? error.message : "Failed to fetch documents")
-      }
-    },
-    enabled: !!assignmentId,
-    staleTime: 1 * 60 * 1000, // Consider fresh for 1 minute
-    gcTime: 5 * 60 * 1000,    // Keep in cache for 5 minutes
-  })
-}
 
 // Hook for fetching support documents
 export function useSupportDocuments(assignmentId: number) {
   return useQuery({
     queryKey: documentKeys.support(assignmentId),
-    queryFn: async (): Promise<document.LocalDocument[]> => {
+    queryFn: async (): Promise<models.LocalDocument[]> => {
       try {
         const docs = await GetSupportDocuments(assignmentId)
         return docs || []
@@ -73,7 +55,7 @@ export function useSupportDocuments(assignmentId: number) {
 export function useSubmissionDocuments(assignmentId: number) {
   return useQuery({
     queryKey: documentKeys.submissions(assignmentId),
-    queryFn: async (): Promise<document.LocalDocument[]> => {
+    queryFn: async (): Promise<models.LocalDocument[]> => {
       try {
         const docs = await GetSubmissionDocuments(assignmentId)
         return docs || []
@@ -92,7 +74,7 @@ export function useSubmissionDocuments(assignmentId: number) {
 export function useUserStorageInfo() {
   return useQuery({
     queryKey: documentKeys.storage(),
-    queryFn: async (): Promise<document.StorageInfo> => {
+    queryFn: async (): Promise<models.DocumentStorage> => {
       try {
         return await GetUserStorageInfo()
       } catch (error) {
@@ -136,7 +118,7 @@ export function useUploadDocument() {
       // Add the new document to the appropriate caches
       if (newDocument) {
         // Update all documents list
-        queryClient.setQueryData<document.LocalDocument[]>(
+        queryClient.setQueryData<models.LocalDocument[]>(
           documentKeys.list(assignmentId), 
           (old) => old ? [newDocument, ...old] : [newDocument]
         )
@@ -146,7 +128,7 @@ export function useUploadDocument() {
           ? documentKeys.support(assignmentId)
           : documentKeys.submissions(assignmentId)
           
-        queryClient.setQueryData<document.LocalDocument[]>(
+        queryClient.setQueryData<models.LocalDocument[]>(
           typeKey, 
           (old) => old ? [newDocument, ...old] : [newDocument]
         )
@@ -181,7 +163,7 @@ export function useUploadDocumentVersion() {
     onSuccess: (newVersion, documentId) => {
       if (newVersion) {
         // Find the assignment ID from existing cache to update the right lists
-        const allQueries = queryClient.getQueriesData<document.LocalDocument[]>({ 
+        const allQueries = queryClient.getQueriesData<models.LocalDocument[]>({ 
           queryKey: documentKeys.lists() 
         })
         
@@ -190,7 +172,7 @@ export function useUploadDocumentVersion() {
           if (data && Array.isArray(data)) {
             const hasDocument = data.some(doc => doc.ID === documentId)
             if (hasDocument) {
-              queryClient.setQueryData<document.LocalDocument[]>(queryKey, (old) => {
+              queryClient.setQueryData<models.LocalDocument[]>(queryKey, (old) => {
                 if (!old) return []
                 return old.map(doc => 
                   doc.ID === documentId 
@@ -218,7 +200,7 @@ export function useDownloadDocument() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (document: document.LocalDocument) => {
+    mutationFn: async (document: models.LocalDocument) => {
       return await DownloadDocument(document)
     },
     onMutate: async (document) => { 
@@ -226,14 +208,14 @@ export function useDownloadDocument() {
       await queryClient.cancelQueries({ queryKey: documentKeys.list(document.AssignmentID) })
      
       // Change HasLocalFile to true
-    const previousDocuments = queryClient.getQueryData<document.LocalDocument[]>(documentKeys.list(document.AssignmentID))
+    const previousDocuments = queryClient.getQueryData<models.LocalDocument[]>(documentKeys.list(document.AssignmentID))
     
-    queryClient.setQueryData<document.LocalDocument[]>(documentKeys.list(document.AssignmentID), (old) => {
+    queryClient.setQueryData<models.LocalDocument[]>(documentKeys.list(document.AssignmentID), (old) => {
       if (!old) return []
       return old.map(d => d.ID === document.ID ?  {
         ...d,
         HasLocalFile: true
-      } : d) as document.LocalDocument[]
+        } : d) as models.LocalDocument[]
      })
      
      return { previousDocuments }
@@ -264,18 +246,18 @@ export function  useDeleteDocument() {
     // Optimistically remove the document
     onMutate: async (documentId) => {
       // Find and update all relevant caches
-      const allQueries = queryClient.getQueriesData<document.LocalDocument[]>({ 
+      const allQueries = queryClient.getQueriesData<models.LocalDocument[]>({ 
         queryKey: documentKeys.lists() 
       })
       
-      const previousData: Array<[unknown, document.LocalDocument[] | undefined]> = []
+      const previousData: Array<[unknown, models.LocalDocument[] | undefined]> = []
       
       allQueries.forEach(([queryKey, data]) => {
         if (data && Array.isArray(data)) {
           const hasDocument = data.some(doc => doc.ID === documentId)
           if (hasDocument) {
             previousData.push([queryKey, data])
-            queryClient.setQueryData<document.LocalDocument[]>(queryKey, (old) => {
+            queryClient.setQueryData<models.LocalDocument[]>(queryKey, (old) => {
               if (!old) return []
               return old.filter(doc => doc.ID !== documentId)
             })
@@ -347,9 +329,9 @@ export function useAcceptDocument() {
     onSuccess: async (newDocument) => {
       await queryClient.cancelQueries({ queryKey: documentKeys.lists() })
 
-      const previousAssignments = queryClient.getQueryData<document.LocalDocument[]>(documentKeys.lists())
+      const previousAssignments = queryClient.getQueryData<models.LocalDocument[]>(documentKeys.lists())
 
-      queryClient.setQueryData<document.LocalDocument[]>(documentKeys.lists(), (old) => {
+      queryClient.setQueryData<models.LocalDocument[]>(documentKeys.lists(), (old) => {
         if (!old) return [newDocument]
         return [newDocument, ...old]
       })
@@ -370,18 +352,16 @@ export function useAcceptDocument() {
 
 // Utility hook to get all document-related data for an assignment
 export function useAssignmentDocumentData(assignmentId: number) {
-  const allDocuments = useAssignmentDocuments(assignmentId)
   const supportDocuments = useSupportDocuments(assignmentId)
   const submissionDocuments = useSubmissionDocuments(assignmentId)
   const storageInfo = useUserStorageInfo()
   
   return {
-    allDocuments,
     supportDocuments, 
     submissionDocuments,
     storageInfo,
-    isLoading: allDocuments.isLoading || supportDocuments.isLoading || submissionDocuments.isLoading,
-    error: allDocuments.error || supportDocuments.error || submissionDocuments.error,
+    isLoading: supportDocuments.isLoading || submissionDocuments.isLoading,
+    error: supportDocuments.error || submissionDocuments.error,
   }
 } 
 
@@ -399,7 +379,7 @@ export function useUploadDocumentRAG() {
         return old.includes(document.RemoteID) ? old : [...old, document.RemoteID]
       })
     },
-    mutationFn: async (document: document.LocalDocument) => {
+    mutationFn: async (document: models.LocalDocument) => {
       return await UploadDocumentRAG(document)
     },
     onError: (err, variables, context) => {
@@ -428,7 +408,7 @@ export function useDeleteDocumentRAG() {
         return old.filter(id => id !== document.RemoteID)
       })
     },
-    mutationFn: async (document: document.LocalDocument) => {
+    mutationFn: async (document: models.LocalDocument) => {
       return await DeleteDocumentRAG(document.RemoteAssignmentID, document.RemoteID)
     },
     onError: (err, variables, context) => {
@@ -444,20 +424,20 @@ export function useDeleteDocumentRAG() {
 }
 
 // Hook for fetching all documents for an assignment
-export function useAssignmentDocumentIDsRAG(assignmentId: number, documentIDs: number[]) {
+export function useAssignmentDocumentIDsRAG(assignmentId: number) {
   const queryClient = useQueryClient()
   return useQuery({
-    queryKey: [...documentKeys.rag(assignmentId), { documentIDs }],
+    queryKey: [...documentKeys.rag(assignmentId)],
     queryFn: async (): Promise<number[]> => {
       try {
-        const docIds = await GetAssignmentDocumentIDsRAG(assignmentId, documentIDs)
+        const docIds = await GetAssignmentDocumentIDsRAG(assignmentId)
         return docIds
       } catch (error) {
         LogError("Failed to fetch assignment document IDs: " + error)
         throw new Error(error instanceof Error ? error.message : "Failed to fetch document IDs")
       }
     },
-    enabled: !!assignmentId && documentIDs.length > 0,
+    enabled: !!assignmentId,
     staleTime: 60 * 60 * 1000, // Consider fresh for 1 hour
     gcTime: 120 * 60 * 1000,    // Keep in cache for 2 hours
     refetchOnMount: true, // ✅ Added: Always refetch when component mounts

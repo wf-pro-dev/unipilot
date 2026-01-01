@@ -7,36 +7,28 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
 } from "@/components/ui/sidebar"
-import { useAssignmentDocumentIDsRAG, useAssignmentDocuments } from "@/hooks/use-documents";
-import { assignment } from "@/wailsjs/go/models";
+import { useAssignmentDocumentIDsRAG } from "@/hooks/use-documents";
+import { models } from "@/wailsjs/go/models";
 import { AiDocumentCard } from "./ai-chat-documents";
 import { GlassCard } from "../ui/glass-card";
 import { useNextAssignments } from "@/hooks/use-assignments";
 import { AiAssignmentCard } from "./ai-chat-assignments";
 import { useCallback, useEffect, useState } from "react";
-import { document } from "@/wailsjs/go/models";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface AiChatSidebarProps {
-  assignment: assignment.LocalAssignment;
+  assignment: models.LocalAssignment;
 }
 
 export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
   const router = useRouter();
-  const { data: documentsData } = useAssignmentDocuments(assignment.ID)
+
   const { data: nextAssignments } =  useNextAssignments()
-  const { data: documentRagIDs } = useAssignmentDocumentIDsRAG(assignment.RemoteID, documentsData?.map((document) => document.ID) || []);
+  const { data: documentRagIDs } = useAssignmentDocumentIDsRAG(assignment.RemoteID)
 
-  const [documents, setDocuments] = useState<document.LocalDocument[]>([]);
-  
-  useEffect(() => {
-      setDocuments(documentsData || []);
-  }, [documentsData]);
-
-
-  const getDocumentAdded = useCallback(( document: document.LocalDocument) => {
+  const getDocumentAdded = useCallback(( document: models.LocalDocument) => {
     return documentRagIDs?.includes(document.RemoteID) || false;
   }, [documentRagIDs]);
 
@@ -93,14 +85,14 @@ export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
               <span className="text-caption font-semibold text-muted-foreground/40 bg-white/5 rounded px-1.5">{documents?.length || 0}</span>
             </div>
             <div className="flex flex-col gap-2.5">
-              {documents?.map((document) => {
+              {assignment.Documents?.map((document) => {
                 const added = getDocumentAdded(document)
                 console.log(added,document.RemoteID)
                 return (
                   <AiDocumentCard key={document.ID} document={document} added={added} />
                 )
               })}
-              {documents?.length === 0 && (
+              {assignment.Documents?.length === 0 && (
                 <div className="px-4 py-8 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
                   <p className="text-[10px] text-muted-foreground/60">No documents linked</p>
                 </div>

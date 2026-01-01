@@ -26,6 +26,10 @@ func (m *Migrator) MigrateCourses() error {
 		return errors.Wrap(err, errors.SyncFailed, "Failed to get remote courses for migration")
 	}
 
+	if len(remoteCourses) == 0 {
+		return nil
+	}
+
 	var localCourses []models.LocalCourse
 	for _, rc := range remoteCourses {
 		localCourse := rc.ToLocal()
@@ -47,6 +51,9 @@ func (m *Migrator) MigrateAssignments() error {
 	remoteAssignments, err := client.GetAssignments()
 	if err != nil {
 		return errors.Wrap(err, errors.SyncFailed, "Failed to get remote assignments for migration")
+	}
+	if len(remoteAssignments) == 0 {
+		return nil
 	}
 
 	var localAssignments []models.LocalAssignment
@@ -72,6 +79,10 @@ func (m *Migrator) MigrateDocuments() error {
 		return errors.Wrap(err, errors.SyncFailed, "Failed to get remote documents for migration")
 	}
 
+	if len(remoteDocuments) == 0 {
+		return nil
+	}
+
 	var localDocuments []models.LocalDocument
 	for _, rd := range remoteDocuments {
 		localDocument := rd.ToLocal()
@@ -93,6 +104,10 @@ func (m *Migrator) MigrateNotes() error {
 	remoteNotes, err := client.GetNotes()
 	if err != nil {
 		return errors.Wrap(err, errors.SyncFailed, "Failed to get remote notes for migration")
+	}
+
+	if len(remoteNotes) == 0 {
+		return nil
 	}
 
 	var localNotes []models.LocalNote

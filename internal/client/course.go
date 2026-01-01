@@ -186,7 +186,7 @@ func AcceptLinkCourse(c *models.Course) ([]models.Assignment, error) {
 	return response, nil
 }
 
-func GetCoursesLinked() (map[string]interface{}, error) {
+func GetCoursesLinked() ([]models.Course, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/courses/linked", api_url))
@@ -204,10 +204,10 @@ func GetCoursesLinked() (map[string]interface{}, error) {
 		serverError := errors.ParseServerError(body, statusCode)
 		return nil, serverError
 	}
-	var response map[string]interface{}
-	if err := json.Unmarshal(body, &response); err != nil {
+	var courses []models.Course
+	if err := json.Unmarshal(body, &courses); err != nil {
 		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse response")
 	}
 
-	return response, nil
+	return courses, nil
 }

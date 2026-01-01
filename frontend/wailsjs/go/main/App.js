@@ -66,16 +66,8 @@ export function Follow(arg1) {
   return window['go']['main']['App']['Follow'](arg1);
 }
 
-export function GetLAssignment(arg1) {
-  return window['go']['main']['App']['GetLAssignment'](arg1);
-}
-
-export function GetAssignmentDocumentIDsRAG(arg1, arg2) {
-  return window['go']['main']['App']['GetAssignmentDocumentIDsRAG'](arg1, arg2);
-}
-
-export function GetAssignmentDocuments(arg1) {
-  return window['go']['main']['App']['GetAssignmentDocuments'](arg1);
+export function GetAssignmentDocumentIDsRAG(arg1) {
+  return window['go']['main']['App']['GetAssignmentDocumentIDsRAG'](arg1);
 }
 
 export function GetAssignments() {
@@ -120,6 +112,10 @@ export function GetFollowers(arg1) {
 
 export function GetFollowing(arg1) {
   return window['go']['main']['App']['GetFollowing'](arg1);
+}
+
+export function GetLAssignment(arg1) {
+  return window['go']['main']['App']['GetLAssignment'](arg1);
 }
 
 export function GetNetworkStatus() {

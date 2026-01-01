@@ -32,12 +32,8 @@ import (
 func (a *Auth) Register(userData *models.User) (*models.User, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Post(fmt.Sprintf("%s/register", api_url))
+	agent := fiber.Post(fmt.Sprintf("%s/auth/register", api_url))
 	agent.JSON(userData)
-
-	if err := client.SetAuthHeader(agent); err != nil {
-		return nil, err
-	}
 
 	statusCode, body, errs := agent.Bytes()
 	if len(errs) > 0 {
@@ -51,8 +47,8 @@ func (a *Auth) Register(userData *models.User) (*models.User, error) {
 
 	var response struct {
 		User         models.User `json:"user"`
-		Token        string    `json:"token"`
-		RefreshToken string    `json:"refresh_token"`
+		Token        string      `json:"token"`
+		RefreshToken string      `json:"refresh_token"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")

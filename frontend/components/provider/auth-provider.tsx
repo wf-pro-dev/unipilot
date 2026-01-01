@@ -67,7 +67,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   if (!user) {
-    return <AuthPage />
+    return <AuthPage onLoginSuccess={() => {}} />
   }
 
   return (

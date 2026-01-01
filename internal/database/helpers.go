@@ -37,7 +37,7 @@ func (h *Database) GetLAssignment(id uint) (*models.LocalAssignment, error) {
 // GetAssignments retrieves all assignments for a user
 func (h *Database) GetAssignments() ([]models.LocalAssignment, error) {
 	var LocalAssignment []models.LocalAssignment
-	err := h.db.Preload("Course").Preload("Type").Preload("Status").Order("deadline DESC").Order("created_at DESC").Find(&LocalAssignment).Error
+	err := h.db.Preload("Course").Order("deadline DESC").Order("created_at DESC").Find(&LocalAssignment).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}

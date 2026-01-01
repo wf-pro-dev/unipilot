@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Calendar, Edit, Trash2, FileText, ExternalLink, Info, Bot, Clock, Link as LinkIcon, CopyPlus } from "lucide-react"
 import { format } from "date-fns"
-import { assignment } from "@/wailsjs/go/models"
+import { models as goModels } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
 import { BrowserOpenURL } from "@/wailsjs/runtime/runtime"
 import { StatusTag } from "@/components/assignments/tags/status-tag"
@@ -22,11 +22,11 @@ interface AssignmentDetailsModalProps {
   isOpen: boolean
   onClose: () => void
   assignment_id: number | undefined
-  assignmentProp?: assignment.LocalAssignment | null
-  onOpenEdit?: (assignment: assignment.LocalAssignment) => void
-  onEdit?: (assignment: assignment.LocalAssignment, column: string, value: string) => void
-  onDelete?: (assignment: assignment.LocalAssignment) => void
-  onCopy?: (assignment: assignment.LocalAssignment) => void
+  assignmentProp?: goModels.LocalAssignment | null
+  onOpenEdit?: (assignment: goModels.LocalAssignment) => void
+  onEdit?: (assignment: goModels.LocalAssignment, column: string, value: string) => void
+  onDelete?: (assignment: goModels.LocalAssignment) => void
+  onCopy?: (assignment: goModels.LocalAssignment) => void
   isLoading?: boolean
 }
 

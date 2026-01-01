@@ -1,6 +1,6 @@
 "use client"
 
-import { LoginForm } from "@/components/auth/login-form"
+import AuthPage from "@/components/auth/page"
 import { useRouter } from "next/navigation"
 
 /**
@@ -32,14 +32,6 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="">
-      {/* Floating background elements */}
-      <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl animate-float"></div>
-      <div className="absolute bottom-20 right-10 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl animate-float-delayed"></div>
-      
-      <div className="relative z-10">
-        <LoginForm onLoginSuccess={handleLoginSuccess} />
-      </div>
-    </div>
+    <AuthPage onLoginSuccess={handleLoginSuccess} />
   )
 } 

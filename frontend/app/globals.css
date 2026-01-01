@@ -29,6 +29,82 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+
+    /* ============================================
+       ACADEMIC HORIZON COLOR PALETTE (Light Mode)
+       Modern, Futuristic, Educational Theme
+       ============================================ */
+
+    /* Primary Colors - Trust & Knowledge (Blue) */
+    --primary-blue-50: 214 100% 97%;
+    --primary-blue-100: 214 95% 93%;
+    --primary-blue-200: 213 97% 87%;
+    --primary-blue-300: 212 96% 78%;
+    --primary-blue-400: 213 94% 68%;  /* Primary Light - #60A5FA */
+    --primary-blue-500: 217 91% 60%;  /* Primary - #3B82F6 */
+    --primary-blue-600: 217 91% 53%;  /* Primary Dark - #2563EB */
+    --primary-blue-700: 215 91% 47%;
+    --primary-blue-800: 217 92% 40%;
+    --primary-blue-900: 222 84% 35%;
+
+    /* Secondary Colors - Innovation & Creativity (Purple/Violet) */
+    --secondary-purple-50: 250 100% 98%;
+    --secondary-purple-100: 251 95% 95%;
+    --secondary-purple-200: 252 95% 91%;
+    --secondary-purple-300: 255 93% 84%;
+    --secondary-purple-400: 258 90% 75%;  /* Secondary Light - #A78BFA */
+    --secondary-purple-500: 258 90% 66%;  /* Secondary - #8B5CF6 */
+    --secondary-purple-600: 258 90% 61%;  /* Secondary Dark - #7C3AED */
+    --secondary-purple-700: 262 83% 58%;
+    --secondary-purple-800: 263 70% 50%;
+    --secondary-purple-900: 263 70% 40%;
+
+    /* Accent Colors - Energy & Achievement */
+    --accent-cyan: 188 94% 43%;        /* Accent Cyan - #06B6D4 */
+    --accent-teal: 173 80% 40%;       /* Accent Teal - #14B8A6 */
+    --accent-amber: 38 92% 50%;       /* Accent Amber - #F59E0B */
+    --accent-cyan-light: 188 94% 55%;
+    --accent-cyan-dark: 188 94% 35%;
+    --accent-teal-light: 173 80% 50%;
+    --accent-teal-dark: 173 80% 30%;
+    --accent-amber-light: 38 92% 60%;
+    --accent-amber-dark: 38 92% 40%;
+
+    /* Background Colors - Deep & Elevated */
+    --bg-base: 230 60% 10%;           /* Background Base - #0A0E27 */
+    --bg-elevation: 222 47% 11%;      /* Background Elevation - #111827 */
+    --bg-glass: 0 0% 0%;              /* Glass Background Base (light mode, use with opacity) */
+    --bg-glass-hover: 0 0% 0%;        /* Glass Hover Base (light mode, use with opacity) */
+    --bg-glass-elevated: 0 0% 0%;     /* Glass Elevated Base (light mode, use with opacity) */
+
+    /* Glassmorphism Colors */
+    --glass-bg: 0 0% 0%;              /* Glass Background Base (light mode, use with opacity) */
+    --glass-border: 0 0% 0%;          /* Glass Border Base (light mode, use with opacity) */
+    --glass-highlight: 0 0% 0%;       /* Glass Highlight Base (light mode, use with opacity) */
+    --glass-shadow: 0 0% 0%;         /* Glass Shadow Base (light mode, use with opacity) */
+
+    /* Text Colors - Hierarchy & Readability */
+    --text-title: 222 47% 11%;        /* Title/Heading (light mode) */
+    --text-subtitle: 215 16% 46%;     /* Subtitle (light mode) */
+    --text-body: 215 20% 25%;         /* Body Text (light mode) */
+    --text-muted: 215 16% 46%;        /* Muted Text (light mode) */
+    --text-disabled: 215 16% 65%;    /* Disabled Text (light mode) */
+
+    /* Status Colors */
+    --status-success: 160 84% 39%;    /* Success - #10B981 */
+    --status-error: 0 84% 60%;        /* Error - #EF4444 */
+    --status-warning: 38 92% 50%;     /* Warning - #F59E0B */
+    --status-info: 217 91% 60%;      /* Info - #3B82F6 (Primary Blue) */
+
+    /* Border & Divider Colors */
+    --border-glass: 0 0% 0%;          /* Glass Border Base (light mode, use with opacity) */
+    --border-divider: 0 0% 0%;        /* Divider Base (light mode, use with opacity) */
+    --border-focus: 217 91% 60%;      /* Focus Ring - Primary Blue */
+
+    /* Link Colors */
+    --link-default: 217 91% 60%;      /* Link - Primary Blue */
+    --link-hover: 217 91% 53%;        /* Link Hover - Primary Blue Dark */
+    --link-active: 215 91% 47%;       /* Link Active - Primary Blue Darker */
   }
 
   .dark {
@@ -56,6 +132,82 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+
+    /* ============================================
+       ACADEMIC HORIZON COLOR PALETTE
+       Modern, Futuristic, Educational Theme
+       ============================================ */
+
+    /* Primary Colors - Trust & Knowledge (Blue) */
+    --primary-blue-50: 214 100% 97%;
+    --primary-blue-100: 214 95% 93%;
+    --primary-blue-200: 213 97% 87%;
+    --primary-blue-300: 212 96% 78%;
+    --primary-blue-400: 213 94% 68%;  /* Primary Light - #60A5FA */
+    --primary-blue-500: 217 91% 60%;  /* Primary - #3B82F6 */
+    --primary-blue-600: 217 91% 53%;  /* Primary Dark - #2563EB */
+    --primary-blue-700: 215 91% 47%;
+    --primary-blue-800: 217 92% 40%;
+    --primary-blue-900: 222 84% 35%;
+
+    /* Secondary Colors - Innovation & Creativity (Purple/Violet) */
+    --secondary-purple-50: 250 100% 98%;
+    --secondary-purple-100: 251 95% 95%;
+    --secondary-purple-200: 252 95% 91%;
+    --secondary-purple-300: 255 93% 84%;
+    --secondary-purple-400: 258 90% 75%;  /* Secondary Light - #A78BFA */
+    --secondary-purple-500: 258 90% 66%;  /* Secondary - #8B5CF6 */
+    --secondary-purple-600: 258 90% 61%;  /* Secondary Dark - #7C3AED */
+    --secondary-purple-700: 262 83% 58%;
+    --secondary-purple-800: 263 70% 50%;
+    --secondary-purple-900: 263 70% 40%;
+
+    /* Accent Colors - Energy & Achievement */
+    --accent-cyan: 188 94% 43%;        /* Accent Cyan - #06B6D4 */
+    --accent-teal: 173 80% 40%;       /* Accent Teal - #14B8A6 */
+    --accent-amber: 38 92% 50%;       /* Accent Amber - #F59E0B */
+    --accent-cyan-light: 188 94% 55%;
+    --accent-cyan-dark: 188 94% 35%;
+    --accent-teal-light: 173 80% 50%;
+    --accent-teal-dark: 173 80% 30%;
+    --accent-amber-light: 38 92% 60%;
+    --accent-amber-dark: 38 92% 40%;
+
+    /* Background Colors - Deep & Elevated */
+    --bg-base: 230 60% 10%;           /* Background Base - #0A0E27 */
+    --bg-elevation: 222 47% 11%;      /* Background Elevation - #111827 */
+    --bg-glass: 0 0% 100%;            /* Glass Background Base (use with opacity) */
+    --bg-glass-hover: 0 0% 100%;      /* Glass Hover Base (use with opacity) */
+    --bg-glass-elevated: 0 0% 100%;   /* Glass Elevated Base (use with opacity) */
+
+    /* Glassmorphism Colors */
+    --glass-bg: 0 0% 100%;            /* Glass Background Base (use with opacity) */
+    --glass-border: 0 0% 100%;        /* Glass Border Base (use with opacity) */
+    --glass-highlight: 0 0% 100%;     /* Glass Highlight Base (use with opacity) */
+    --glass-shadow: 0 0% 0%;          /* Glass Shadow Base (use with opacity) */
+
+    /* Text Colors - Hierarchy & Readability */
+    --text-title: 0 0% 100%;          /* Title/Heading - #FFFFFF */
+    --text-subtitle: 210 20% 90%;     /* Subtitle - #E5E7EB */
+    --text-body: 210 16% 82%;         /* Body Text - #D1D5DB */
+    --text-muted: 216 12% 66%;        /* Muted Text - #9CA3AF */
+    --text-disabled: 215 16% 47%;     /* Disabled Text - #6B7280 */
+
+    /* Status Colors */
+    --status-success: 160 84% 39%;    /* Success - #10B981 */
+    --status-error: 0 84% 60%;        /* Error - #EF4444 */
+    --status-warning: 38 92% 50%;     /* Warning - #F59E0B */
+    --status-info: 217 91% 60%;      /* Info - #3B82F6 (Primary Blue) */
+
+    /* Border & Divider Colors */
+    --border-glass: 0 0% 100%;        /* Glass Border Base (use with opacity) */
+    --border-divider: 0 0% 100%;      /* Divider Base (use with opacity) */
+    --border-focus: 217 91% 60%;      /* Focus Ring - Primary Blue */
+
+    /* Link Colors */
+    --link-default: 213 94% 68%;      /* Link - Primary Blue Light */
+    --link-hover: 217 91% 60%;        /* Link Hover - Primary Blue */
+    --link-active: 217 91% 53%;       /* Link Active - Primary Blue Dark */
   }
 }
 
@@ -74,6 +226,43 @@
 
 /* ============================================
    DESIGN SYSTEM FOUNDATION
+   ============================================ */
+
+/* ============================================
+   ACADEMIC HORIZON COLOR PALETTE USAGE GUIDE
+   ============================================
+   
+   Glassmorphism Usage Examples:
+   - Glass background: bg-glass-bg/5 (5% opacity)
+   - Glass border: border-glass-border/10 (10% opacity)
+   - Glass hover: bg-glass-bg/10 (10% opacity)
+   
+   Primary Colors:
+   - Primary button: bg-primary-blue-500
+   - Primary hover: bg-primary-blue-600
+   - Primary light: bg-primary-blue-400
+   
+   Secondary Colors:
+   - Secondary button: bg-secondary-purple-500
+   - Secondary hover: bg-secondary-purple-600
+   
+   Accent Colors:
+   - Accent cyan: bg-accent-cyan or text-accent-cyan
+   - Accent teal: bg-accent-teal or text-accent-teal
+   - Accent amber: bg-accent-amber or text-accent-amber
+   
+   Text Colors:
+   - Title: text-text-title
+   - Subtitle: text-text-subtitle
+   - Body: text-text-body
+   - Muted: text-text-muted
+   
+   Status Colors:
+   - Success: bg-status-success or text-status-success
+   - Error: bg-status-error or text-status-error
+   - Warning: bg-status-warning or text-status-warning
+   - Info: bg-status-info or text-status-info
+   
    ============================================ */
 
 /* Spacing System (8pt Grid) */
@@ -166,57 +355,11 @@
   @apply mb-16;
 }
 
-.bg-animated {
-  background: linear-gradient(-45deg, #0f0f23, #1a1a2e, #16213e, #0f3460);
-  background-size: 400% 400%;
-  animation: gradient 15s ease infinite;
-}
-
 .page {
-  @apply min-h-screen bg-animated relative overflow-hidden;
+  @apply min-h-screen relative overflow-hidden;
 }
 .page-chat {
-  @apply min-h-screen bg-animated p-0 relative overflow-hidden;
-}
-
-@keyframes gradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-20px);
-  }
-}
-
-@keyframes float-delayed {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-15px);
-  }
-}
-
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-.animate-float-delayed {
-  animation: float-delayed 8s ease-in-out infinite;
+  @apply min-h-screen p-0 relative overflow-hidden;
 }
 
 @keyframes fade {
@@ -452,3 +595,229 @@
 .note-markdown-inline .note-markdown-content pre {
   @apply text-xs p-2;
 }
+
+
+/* ============================================
+   ACADEMIC HORIZON MESH BACKGROUND SYSTEM
+   Uses the existing color palette from design system
+   ============================================ */
+
+/* Mesh Gradient Background - Using your color variables */
+.mesh-background {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background-color: hsl(var(--bg-base)); /* Primary base color from your palette */
+}
+
+/* Base gradient layer */
+.mesh-background::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    linear-gradient(
+      135deg,
+      hsl(var(--bg-base)) 0%,
+      hsl(var(--bg-elevation)) 50%,
+      hsl(var(--bg-base)) 100%
+    );
+  z-index: 1;
+}
+
+/* Animated mesh dot pattern */
+.mesh-background::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  
+  /* Mesh pattern using your primary and secondary colors */
+  background-image: 
+    /* Primary blue dots */
+    radial-gradient(
+      circle at 25% 25%,
+      hsl(var(--primary-blue-500) / 0.15) 1px,
+      transparent 2px
+    ),
+    radial-gradient(
+      circle at 75% 25%,
+      hsl(var(--primary-blue-400) / 0.12) 1px,
+      transparent 2px
+    ),
+    
+    /* Secondary purple dots */
+    radial-gradient(
+      circle at 25% 75%,
+      hsl(var(--secondary-purple-500) / 0.12) 1px,
+      transparent 2px
+    ),
+    radial-gradient(
+      circle at 75% 75%,
+      hsl(var(--secondary-purple-400) / 0.1) 1px,
+      transparent 2px
+    ),
+    
+    /* Accent cyan dots */
+    radial-gradient(
+      circle at 50% 50%,
+      hsl(var(--accent-cyan) / 0.08) 1px,
+      transparent 2px
+    );
+  
+  background-size: 80px 80px;
+  opacity: 0.7;
+  animation: meshMove 20s linear infinite;
+}
+
+/* Animated orbs using your accent colors */
+.mesh-background .mesh-orb-1,
+.mesh-background .mesh-orb-2,
+.mesh-background .mesh-orb-3 {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+  z-index: 1;
+}
+
+.mesh-background .mesh-orb-1 {
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(
+    circle,
+    hsl(var(--primary-blue-500) / 0.2) 0%,
+    transparent 70%
+  );
+  top: -200px;
+  right: -200px;
+  animation: orbFloat-1 20s ease-in-out infinite;
+}
+
+.mesh-background .mesh-orb-2 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(
+    circle,
+    hsl(var(--secondary-purple-500) / 0.15) 0%,
+    transparent 70%
+  );
+  bottom: -150px;
+  left: -150px;
+  animation: orbFloat-2 25s ease-in-out infinite reverse;
+}
+
+.mesh-background .mesh-orb-3 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(
+    circle,
+    hsl(var(--accent-cyan) / 0.1) 0%,
+    transparent 70%
+  );
+  top: 50%;
+  left: 10%;
+  animation: orbFloat-3 30s ease-in-out infinite;
+}
+
+/* Grid lines using your border colors */
+.mesh-background .mesh-grid {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  background-image: 
+    linear-gradient(
+      to right,
+      hsl(var(--border-glass) / 0.03) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      hsl(var(--border-glass) / 0.03) 1px,
+      transparent 1px
+    );
+  background-size: 50px 50px;
+  mask-image: radial-gradient(
+    circle at center,
+    black 30%,
+    transparent 70%
+  );
+}
+
+/* Content wrapper */
+.mesh-background .mesh-content {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+}
+
+/* Animations */
+@keyframes meshMove {
+  0% {
+    background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
+  }
+  100% {
+    background-position: 80px 80px, 80px 80px, 80px 80px, 80px 80px, 80px 80px;
+  }
+}
+
+@keyframes orbFloat-1 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(-30px, 40px) scale(1.1);
+  }
+  66% {
+    transform: translate(40px, -20px) scale(0.9);
+  }
+}
+
+@keyframes orbFloat-2 {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(50px, -30px) scale(1.2);
+  }
+  75% {
+    transform: translate(-40px, 50px) scale(0.8);
+  }
+}
+
+@keyframes orbFloat-3 {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate(60px, 40px) rotate(180deg);
+  }
+}
+
+/* Interactive mouse highlight */
+.mesh-background.interactive {
+  cursor: none;
+}
+
+.mesh-background.interactive .mouse-highlight {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    hsl(var(--glass-highlight) / 0.15) 0%,
+    transparent 70%
+  );
+  filter: blur(40px);
+  z-index: 4;
+  pointer-events: none;
+  transition: transform 0.1s ease-out;
+}
+
+/* ============================================
+   REACT COMPONENT - MESH BACKGROUND
+   ============================================ */
+
+/* Add this TypeScript/React component */
