@@ -1,15 +1,11 @@
 package models
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
 
 	"unipilot/internal/errors"
 
@@ -33,13 +29,12 @@ type Course struct {
 	Semester        string
 	Instructor      string
 	InstructorEmail string
-	LinkID          uuid.UUID
 
 	// Relationships
-	User          User         `gorm:"foreignKey:UserID;references:ID"`
-	Assignments   []Assignment `gorm:"foreignKey:CourseID;references:ID"`
-	Notes         []Note       `gorm:"foreignKey:CourseID;references:ID"`
-	CoursesLinked []Course     `gorm:"foreignKey:LinkID"`
+	User        User         `gorm:"foreignKey:UserID;references:ID"`
+	Assignments []Assignment `gorm:"foreignKey:CourseID;references:ID"`
+	Notes       []Note       `gorm:"foreignKey:CourseID;references:ID"`
+	Links       []Course     `gorm:"many2many:courses_links"`
 }
 
 // LocalCourse represents a course in the local database
@@ -68,7 +63,6 @@ func (c *Course) ToMap() map[string]string {
 		"semester":         c.Semester,
 		"instructor":       c.Instructor,
 		"instructor_email": c.InstructorEmail,
-		"link_id":          c.LinkID.String(),
 		"credits":          strconv.Itoa(int(c.Credits)),
 		"created_at":       c.CreatedAt.Format(time.DateOnly),
 		"updated_at":       c.UpdatedAt.Format(time.DateOnly),
@@ -94,7 +88,6 @@ func (c *Course) ToLocal() *LocalCourse {
 		Semester:        c.Semester,
 		Instructor:      c.Instructor,
 		InstructorEmail: c.InstructorEmail,
-		LinkID:          c.LinkID,
 	}
 	localCourse := &LocalCourse{
 		Course:   *innerC,
@@ -116,7 +109,6 @@ func (lc *LocalCourse) ToRemote() *Course {
 		Semester:        lc.Semester,
 		Instructor:      lc.Instructor,
 		InstructorEmail: lc.InstructorEmail,
-		LinkID:          lc.LinkID,
 	}
 
 	return c
@@ -195,33 +187,6 @@ func (lc *LocalCourse) BeforeDelete(tx *gorm.DB) error {
 	return nil
 }
 
-func NewCourse() *Course {
-	fmt.Println("===== Creating new Course =====")
-
-	course := &Course{}
-	scanner := bufio.NewScanner(os.Stdin)
-
-	fmt.Printf("The Name: ")
-	scanner.Scan()
-	course.Name = scanner.Text()
-
-	fmt.Printf("The Code: ")
-	scanner.Scan()
-	course.Code = scanner.Text()
-
-	fmt.Printf("The Room Number: ")
-	scanner.Scan()
-	course.Location = scanner.Text()
-
-	fmt.Printf("The Duration: ")
-	scanner.Scan()
-	course.Schedule = scanner.Text()
-
-	return course
-}
-
-// Hooks
-
 // GET Operations
 
 func GetCourse(id uint, db *gorm.DB) (*Course, error) {
@@ -254,24 +219,6 @@ func GetCourses(userID uint, db *gorm.DB) ([]Course, error) {
 func GetLCourses(db *gorm.DB) ([]LocalCourse, error) {
 	var courses []LocalCourse
 	err := db.Find(&courses).Error
-	if err != nil {
-		return nil, errors.HandleDBReadError(err)
-	}
-	return courses, nil
-}
-
-func GetLinkedCourses(user_id uint, db *gorm.DB) ([]Course, error) {
-	var courses []Course
-	err := db.Where("user_id = ? AND link_id != ?", user_id, uuid.Nil.String()).Find(&courses).Error
-	if err != nil {
-		return nil, errors.HandleDBReadError(err)
-	}
-	return courses, nil
-}
-
-func GetCoursesLinkedTo(linkID uuid.UUID, db *gorm.DB) ([]Course, error) {
-	var courses []Course
-	err := db.Where("link_id = ?", linkID).Find(&courses).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}

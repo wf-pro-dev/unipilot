@@ -1,14 +1,9 @@
 package models
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"log"
-	"os"
-	"os/exec"
 	"strconv"
-	"strings"
 	"time"
 
 	"unipilot/internal/errors"
@@ -49,10 +44,8 @@ type LocalAssignment struct {
 
 	UserID uint `gorm:"-"`
 
-	Course    LocalCourse       `gorm:"foreignKey:CourseID;references:ID"`
-	Documents []LocalDocument   `gorm:"foreignKey:AssignmentID;references:ID"`
-	Parent    *LocalAssignment  `gorm:"foreignKey:ParentID;references:ID"`
-	Children  []LocalAssignment `gorm:"foreignKey:ParentID"`
+	Course    LocalCourse     `gorm:"foreignKey:CourseID;references:ID"`
+	Documents []LocalDocument `gorm:"foreignKey:AssignmentID;references:ID"`
 }
 
 // ToMap converts the Assignment struct to a map[string]string
@@ -116,46 +109,6 @@ func (la *LocalAssignment) ToMap() map[string]string {
 	laMap := la.Assignment.ToMap()
 	laMap["remote_id"] = strconv.Itoa(int(la.RemoteID))
 	return laMap
-}
-
-// NewAssignment creates a new Assignment by prompting user for input
-// This is equivalent to the createAssign function but returns a struct
-func NewAssignment() *Assignment {
-
-	fmt.Println("===== Creating new Assignement =====")
-
-	assignment := &Assignment{}
-	scanner := bufio.NewScanner(os.Stdin)
-
-	fmt.Printf("The type (HW or Exam): ")
-	scanner.Scan()
-	assignment.Type = scanner.Text()
-
-	fmt.Printf("The deadline (yyyy-mm-dd): ")
-	scanner.Scan()
-	deadline, err := time.Parse(time.DateOnly, scanner.Text())
-	if err != nil {
-		log.Fatal("Error parsing deadline: ", err)
-	}
-	assignment.Deadline = deadline
-
-	fmt.Printf("The title: ")
-	scanner.Scan()
-	assignment.Title = scanner.Text()
-
-	fmt.Printf("The todo: ")
-	scanner.Scan()
-	assignment.Todo = scanner.Text()
-
-	// Get course code from current directory name
-	pwd := os.Getenv("PWD")
-	cmd := exec.Command("basename", pwd)
-	output, _ := cmd.CombinedOutput()
-	assignment.CourseCode = strings.TrimSpace(string(output))
-
-	assignment.Link = "https://acconline.austincc.edu/ultra/stream"
-
-	return assignment
 }
 
 func (a *Assignment) BeforeDelete(tx *gorm.DB) error {

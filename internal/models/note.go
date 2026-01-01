@@ -18,9 +18,12 @@ type Note struct {
 	Subject    string `gorm:"not null"`
 	Content    string
 	Videos     string
+	ParentID   uint `gorm:"default:0"`
 
-	User   User   `gorm:"foreignKey:UserID;references:ID"`
-	Course Course `gorm:"foreignKey:CourseID;references:ID"`
+	User     User   `gorm:"foreignKey:UserID;references:ID"`
+	Course   Course `gorm:"foreignKey:CourseID;references:ID"`
+	Parent   *Note  `gorm:"foreignKey:ParentID;references:ID"`
+	Children []Note `gorm:"foreignKey:ParentID"`
 }
 
 // LocalNote represents a note in the local database
@@ -79,8 +82,8 @@ func (n *LocalNote) ToRemote() *Note {
 		Videos:     n.Videos,
 	}
 }
-func GetNote(id uint, db *gorm.DB) (*LocalNote, error) {
-	var note LocalNote
+func GetNote(id uint, db *gorm.DB) (*Note, error) {
+	var note Note
 	err := db.First(&note, id).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
@@ -96,7 +99,16 @@ func GetLNote(id uint, db *gorm.DB) (*LocalNote, error) {
 	return &note, nil
 }
 
-func GetNotes(userID uint, db *gorm.DB) ([]LocalNote, error) {
+func GetNotes(userID uint, db *gorm.DB) ([]Note, error) {
+	var notes []Note
+	err := db.Where("user_id = ?", userID).Find(&notes).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return notes, nil
+}
+
+func GetLNotes(userID uint, db *gorm.DB) ([]LocalNote, error) {
 	var notes []LocalNote
 	err := db.Where("user_id = ?", userID).Find(&notes).Error
 	if err != nil {

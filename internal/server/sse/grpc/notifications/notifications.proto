@@ -1,7 +1,7 @@
 syntax = "proto3";
 package notifications;
 
-option go_package = "unipilot/internal/server/sse/notifications";
+option go_package = "internal/server/sse/grpc/notifications";
 
 message Notification {
     uint32 user_id = 1;

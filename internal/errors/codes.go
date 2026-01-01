@@ -61,6 +61,7 @@ const (
 	// ============================================
 	CacheConnectionFailed ErrorCode = "cache-0001" // cache connection failed
 	CacheOperationFailed  ErrorCode = "cache-0002" // cache operation failed (general - covers GET/SET/DELETE/key not found)
+	CacheMiss             ErrorCode = "cache-0003" // cache miss
 
 	// ============================================
 	// STORAGE ERRORS (storage-xxxx)

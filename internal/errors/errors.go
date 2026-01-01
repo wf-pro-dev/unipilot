@@ -128,6 +128,7 @@ func (e *AppError) Unwrap() error {
 	return e.Cause
 }
 
+// inherits the error and returns a new AppError with the same cause and message
 func Inherit(err error, code ErrorCode) *AppError {
 	if err == nil {
 		return nil

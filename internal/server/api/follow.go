@@ -2,10 +2,8 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -181,15 +179,14 @@ func HandleFollow(c *fiber.Ctx) error {
 		}
 
 		// Update Redis caches: remove user from followers and following lists (non-blocking)
-		followersCacheKey := fmt.Sprintf("followers:%d", followedID)
-		followingCacheKey := fmt.Sprintf("following:%d", userID)
+		ctx := context.Background()
 		// Remove current user from followed user's followers list
-		if err := RedisClient.HDel(context.Background(), followersCacheKey, strconv.Itoa(int(userID))).Err(); err != nil {
-			server.LogWarn(context.Background(), errors.WrapServer(err, errors.CacheOperationFailed, "Failed to remove user from followers cache", fiber.StatusInternalServerError))
+		if err := CacheService.DeleteUserFollowers(ctx, followedID, userID); err != nil {
+			server.LogWarn(ctx, errors.WrapServer(err, errors.CacheOperationFailed, "Failed to remove user from followers cache", fiber.StatusInternalServerError))
 		}
 		// Remove followed user from current user's following list
-		if err := RedisClient.HDel(context.Background(), followingCacheKey, strconv.Itoa(int(followedID))).Err(); err != nil {
-			server.LogWarn(context.Background(), errors.WrapServer(err, errors.CacheOperationFailed, "Failed to remove user from following cache", fiber.StatusInternalServerError))
+		if err := CacheService.DeleteUserFollowing(ctx, userID, followedID); err != nil {
+			server.LogWarn(ctx, errors.WrapServer(err, errors.CacheOperationFailed, "Failed to remove user from following cache", fiber.StatusInternalServerError))
 		}
 
 		response = FollowResponse{
@@ -214,23 +211,16 @@ func HandleFollow(c *fiber.Ctx) error {
 		}
 
 		// Update Redis caches: add user to followers and following lists (non-blocking)
-		followersCacheKey := fmt.Sprintf("followers:%d", followedID)
-		followingCacheKey := fmt.Sprintf("following:%d", userID)
+		ctx := context.Background()
 
 		// Add current user to followed user's followers list
-		currentUserJSON, err := json.Marshal(currentUser)
-		if err == nil {
-			if err := RedisClient.HSet(context.Background(), followersCacheKey, strconv.Itoa(int(userID)), currentUserJSON).Err(); err != nil {
-				server.LogWarn(context.Background(), errors.WrapServer(err, errors.CacheOperationFailed, "Failed to add user to followers cache", fiber.StatusInternalServerError))
-			}
+		if err := CacheService.SetUserFollowers(ctx, followedID, userID, &currentUser); err != nil {
+			server.LogWarn(ctx, errors.WrapServer(err, errors.CacheOperationFailed, "Failed to add user to followers cache", fiber.StatusInternalServerError))
 		}
 
 		// Add followed user to current user's following list
-		followedUserJSON, err := json.Marshal(followedUser)
-		if err == nil {
-			if err := RedisClient.HSet(context.Background(), followingCacheKey, strconv.Itoa(int(followedID)), followedUserJSON).Err(); err != nil {
-				server.LogWarn(context.Background(), errors.WrapServer(err, errors.CacheOperationFailed, "Failed to add user to following cache", fiber.StatusInternalServerError))
-			}
+		if err := CacheService.SetUserFollowing(ctx, userID, followedID, &followedUser); err != nil {
+			server.LogWarn(ctx, errors.WrapServer(err, errors.CacheOperationFailed, "Failed to add user to following cache", fiber.StatusInternalServerError))
 		}
 
 		response = FollowResponse{
@@ -352,52 +342,40 @@ func HandleGetFollowers(c *fiber.Ctx) error {
 		}
 	}
 
+	var followers []models.User
+	var total int
 	// Step 6: Attempt to retrieve followers from Redis cache first (performance optimization)
-	var cacheKey = fmt.Sprintf("followers:%d", userID)
-	followersHash, err := RedisClient.HGetAll(context.Background(), cacheKey).Result()
-	if err != nil {
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting followers from redis", fiber.StatusInternalServerError)
+	ctx := context.Background()
+	followers, err = CacheService.GetUserFollowers(ctx, uint(userID))
+	if err == nil {
+		response := FollowersResponse{
+			Followers: followers,
+			Total:     len(followers),
+		}
+		return c.JSON(response)
+	} else if errors.HasCode(err, errors.CacheOperationFailed) {
+		server.LogWarn(ctx, errors.WrapServer(err, errors.CacheOperationFailed, "Error getting followers from redis", fiber.StatusInternalServerError))
 	}
 
 	// Step 7: Cache hit - Convert Redis hash to user array and return cached followers
-	if len(followersHash) > 0 {
-		var cachedFollowers []models.User
-		for _, followerJSON := range followersHash {
-			var follower models.User
-			if err := json.Unmarshal([]byte(followerJSON), &follower); err == nil {
-				cachedFollowers = append(cachedFollowers, follower)
-			}
-		}
-		response := FollowersResponse{
-			Followers: cachedFollowers,
-			Total:     len(cachedFollowers),
-		}
-		return c.JSON(response)
-	}
 
 	// Step 8: Cache miss - Query followers from database and populate cache
-	followers, err := models.GetFollowers(uint(userID), limit, offset, db)
+	followers, err = models.GetFollowers(uint(userID), limit, offset, db)
 	if err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting followers from database", fiber.StatusInternalServerError)
 	}
-	total := len(followers)
+	total = len(followers)
 
 	// Step 9: Cache the followers in redis
 	for _, follower := range followers {
-		followerJSON, err := json.Marshal(follower)
-		if err != nil {
-			return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Failed to marshal follower to JSON", fiber.StatusInternalServerError)
-		}
-		if err := RedisClient.HSet(context.Background(), cacheKey, strconv.Itoa(int(follower.ID)), followerJSON).Err(); err != nil {
-			server.LogWarn(context.Background(), errors.WrapServer(err, errors.RedisFailed, "Error caching follower in redis", fiber.StatusInternalServerError))
+		if err := CacheService.SetUserFollowers(ctx, uint(userID), follower.ID, &follower); err != nil {
+			server.LogWarn(ctx, errors.WrapServer(err, errors.RedisFailed, "Error caching follower in redis", fiber.StatusInternalServerError))
 		}
 	}
 
-	// Step 10: Set cache expiration to 30 minutes for optimal balance of freshness and performance
-	// Rationale: Moderate query cost (JOIN), high access frequency, cache updated immediately on follow/unfollow
-	// Longer TTL reduces database load while maintaining freshness through cache updates
-	if err := RedisClient.Expire(context.Background(), cacheKey, 30*time.Minute).Err(); err != nil {
-		server.LogWarn(context.Background(), errors.WrapServer(err, errors.RedisFailed, "Error setting cache expiration for followers", fiber.StatusInternalServerError))
+	// Step 10: Set cache expiration
+	if err := CacheService.SetExpirationUserFollowers(ctx, uint(userID)); err != nil {
+		server.LogWarn(ctx, errors.WrapServer(err, errors.RedisFailed, "Error setting cache expiration for followers", fiber.StatusInternalServerError))
 	}
 
 	// Step 11: Send successful response with followers list and total count
@@ -485,55 +463,39 @@ func HandleGetFollowing(c *fiber.Ctx) error {
 		}
 	}
 
-	// Step 6: Attempt to retrieve following list from Redis cache first (performance optimization)
-	var cacheKey = fmt.Sprintf("following:%d", userID)
-	followingHash, err := RedisClient.HGetAll(context.Background(), cacheKey).Result()
-	if err != nil {
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting following from redis", fiber.StatusInternalServerError)
-	}
-
-	// Step 7: Cache hit - Convert Redis hash to user array and return cached following list
-	if len(followingHash) > 0 {
-		var cachedFollowing []models.User
-		for _, followingJSON := range followingHash {
-			var following models.User
-			if err := json.Unmarshal([]byte(followingJSON), &following); err == nil {
-				cachedFollowing = append(cachedFollowing, following)
-			}
-		}
+	var following []models.User
+	ctx := context.Background()
+	following, err = CacheService.GetUserFollowing(ctx, uint(userID))
+	if err == nil {
 		response := FollowingResponse{
-			Following: cachedFollowing,
-			Total:     len(cachedFollowing),
+			Following: following,
+			Total:     len(following),
 		}
 		return c.JSON(response)
+	} else if errors.HasCode(err, errors.CacheOperationFailed) {
+		server.LogWarn(ctx, errors.WrapServer(err, errors.CacheOperationFailed, "Error getting following from redis", fiber.StatusInternalServerError))
 	}
 
-	// Step 8: Cache miss - Query following list from database and populate cache
-	following, err := models.GetFollowing(uint(userID), limit, offset, db)
+	// Step 7: Cache miss - Query following list from database and populate cache
+	following, err = models.GetFollowing(uint(userID), limit, offset, db)
 	if err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting following from database", fiber.StatusInternalServerError)
 	}
 	total := len(following)
 
-	// Step 9: Cache the following list in Redis for future requests
+	// Step 8: Cache the following list in Redis for future requests
 	for _, followed := range following {
-		followedJSON, err := json.Marshal(followed)
-		if err != nil {
-			return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Failed to marshal followed to JSON", fiber.StatusInternalServerError)
-		}
-		if err := RedisClient.HSet(context.Background(), cacheKey, strconv.Itoa(int(followed.ID)), followedJSON).Err(); err != nil {
-			server.LogWarn(context.Background(), errors.WrapServer(err, errors.RedisFailed, "Error caching followed in redis", fiber.StatusInternalServerError))
+		if err := CacheService.SetUserFollowing(ctx, uint(userID), followed.ID, &followed); err != nil {
+			server.LogWarn(ctx, errors.WrapServer(err, errors.RedisFailed, "Error caching followed in redis", fiber.StatusInternalServerError))
 		}
 	}
 
-	// Step 10: Set cache expiration to 30 minutes for optimal balance of freshness and performance
-	// Rationale: Moderate query cost (JOIN), high access frequency, cache updated immediately on follow/unfollow
-	// Longer TTL reduces database load while maintaining freshness through cache updates
-	if err := RedisClient.Expire(context.Background(), cacheKey, 30*time.Minute).Err(); err != nil {
-		server.LogWarn(context.Background(), errors.WrapServer(err, errors.RedisFailed, "Error setting cache expiration for following", fiber.StatusInternalServerError))
+	// Step 9: Set cache expiration
+	if err := CacheService.SetExpirationUserFollowing(ctx, uint(userID)); err != nil {
+		server.LogWarn(ctx, errors.WrapServer(err, errors.RedisFailed, "Error setting cache expiration for following", fiber.StatusInternalServerError))
 	}
 
-	// Step 11: Send successful response with following list and total count
+	// Step 10: Send successful response with following list and total count
 	response := FollowingResponse{
 		Following: following,
 		Total:     total,

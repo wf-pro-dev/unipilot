@@ -238,7 +238,7 @@ const file_internal_server_sse_grpc_notifications_notifications_proto_rawDesc = 
 	"\x04body\x18\x01 \x01(\tR\x04body2\xad\x01\n" +
 	"\x14NotificationsService\x12V\n" +
 	"\x10SendNotification\x12\x1b.notifications.Notification\x1a#.notifications.NotificationResponse\"\x00\x12=\n" +
-	"\tHeartbeat\x12\x16.notifications.Message\x1a\x16.notifications.Message\"\x00B(Z&internal/server/sse/grpc/notificationsb\x06proto3"
+	"\tHeartbeat\x12\x16.notifications.Message\x1a\x16.notifications.Message\"\x00B,Z*unipilot/internal/server/sse/notificationsb\x06proto3"
 
 var (
 	file_internal_server_sse_grpc_notifications_notifications_proto_rawDescOnce sync.Once

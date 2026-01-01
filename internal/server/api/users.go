@@ -3,8 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"strconv"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -61,7 +59,8 @@ func GetUsersHandler(c *fiber.Ctx) error {
 	c.Locals("message", "Users retrieved successfully")
 
 	// Step 2: Attempt to retrieve users from Redis cache first (performance optimization)
-	usersHash, err := RedisClient.HGetAll(context.Background(), "users").Result()
+	ctx := context.Background()
+	usersHash, err := CacheService.GetUsers(ctx)
 	if err != nil {
 		return errors.WrapServer(err, errors.CacheOperationFailed, "Error getting users from redis", fiber.StatusInternalServerError)
 	}
@@ -82,39 +81,45 @@ func GetUsersHandler(c *fiber.Ctx) error {
 
 	// Step 4: Cache miss - Query users from database and enrich with course data
 	var users []models.User
-	if err := db.Find(&users).Order("name ASC").Error; err != nil {
+	if err := db.Omit("password_hash").Find(&users).Order("username ASC").Error; err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users from database", fiber.StatusInternalServerError)
 	}
 
-	// Step 5: Process each user and enrich with course codes for comprehensive profiles
+	// Step 5: Batch load course codes for all users
+	userIDs := make([]uint, len(users))
+	for i, u := range users {
+		userIDs[i] = u.ID
+	}
+
+	courseCodes, err := models.GetUsersCourseCodes(userIDs, db)
+	if err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting course codes from database", fiber.StatusInternalServerError)
+	}
+
+	// Build map
+	courseCodeMap := make(map[uint][]string)
+	for _, cc := range courseCodes {
+		courseCodeMap[cc.UserID] = append(courseCodeMap[cc.UserID], cc.Code)
+	}
+
+	// Attach to users
 	var usersWithCourses []models.User
-	for _, u := range users {
-		// Query course codes associated with this user
-		var courses_code []string
-		if err := db.Model(&models.Course{}).Select("code").Where("user_id = ? ", u.ID).Find(&courses_code).Error; err != nil {
-			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting user courses", fiber.StatusInternalServerError)
+	for i := range users {
+		users[i].CoursesCode = courseCodeMap[users[i].ID]
+		if users[i].CoursesCode == nil {
+			users[i].CoursesCode = []string{} // Ensure non-nil slice
 		}
-		// Attach course codes to user object and convert to safe map format
-		u.CoursesCode = courses_code
-		u.PasswordHash = ""
-		usersWithCourses = append(usersWithCourses, u)
+		usersWithCourses = append(usersWithCourses, users[i])
 
-		// Step 6: Cache individual user in Redis for future requests (non-blocking)
-		userJSON, err := json.Marshal(u)
-		if err != nil {
-			return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Error marshalling user to json", fiber.StatusInternalServerError)
-		}
-
-		if err := RedisClient.HSet(context.Background(), "users", strconv.Itoa(int(u.ID)), userJSON).Err(); err != nil {
+		// Cache individual user in Redis for future requests (non-blocking)
+		if err := CacheService.SetUsers(ctx, usersWithCourses[i].ID, &usersWithCourses[i]); err != nil {
 			return errors.WrapServer(err, errors.CacheOperationFailed, "Failed to cache user in Redis", fiber.StatusInternalServerError)
 		}
+
 	}
 
 	// Step 7: Set cache expiration to 3 hours for optimal balance of freshness and performance
-	// Rationale: User list query is expensive (N+1 problem: all users + course codes per user)
-	// User data changes moderately (profile updates), but course codes change less frequently
-	// Longer TTL reduces database load while maintaining acceptable freshness
-	if err := RedisClient.Expire(context.Background(), "users", 3*time.Hour).Err(); err != nil {
+	if err := CacheService.SetExpirationUsers(ctx); err != nil {
 		return errors.WrapServer(err, errors.CacheOperationFailed, "Failed to set cache expiration", fiber.StatusInternalServerError)
 	}
 

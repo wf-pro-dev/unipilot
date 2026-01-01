@@ -8,9 +8,11 @@ import (
 
 	"unipilot/internal/errors"
 	"unipilot/internal/secrets"
+	"unipilot/internal/services/cache"
 )
 
 var RedisClient *redis.Client
+var CacheService *cache.Cache
 
 func NewRedisClient() error {
 	redisAddr, err := secrets.GetEnvVar("REDIS_ADDR")
@@ -45,6 +47,9 @@ func NewRedisClient() error {
 		RedisClient.Close()
 		return err
 	}
+
+	// Initialize cache service
+	CacheService = cache.New(RedisClient)
 
 	return nil
 }

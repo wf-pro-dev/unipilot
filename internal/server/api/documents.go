@@ -57,9 +57,7 @@ func GetDocumentsHandler(c *fiber.Ctx) error {
 			))
 	}
 
-	return c.JSON(fiber.Map{
-		"documents": documents,
-	})
+	return c.JSON(documents)
 }
 
 // CreateDocumentHandler creates a new document record with file upload to cloud storage.
@@ -240,14 +238,20 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	link_users, err := models.GetUserIdsByLinkID(doc.Assignment.Course.LinkID, userID, db)
-	if err != nil {
-		return errors.WrapServer(
-			err,
-			errors.DBQueryFailed,
-			"Error getting linked users",
-			fiber.StatusInternalServerError,
-		)
+	// Get linked users for notification distribution
+	ctx := context.Background()
+	users_course, err := CacheService.GetCourseUsers(ctx, doc.Assignment.Course.ID, userID)
+	if err != nil || len(users_course) == 0 {
+		// Cache miss or empty - fallback to DB and sync cache
+		users_course, err = models.GetCourseUsers(doc.Assignment.Course.ID, db)
+		if err != nil {
+			return errors.WrapServer(
+				err,
+				errors.DBQueryFailed,
+				"Error getting linked users",
+				fiber.StatusInternalServerError,
+			)
+		}
 	}
 
 	// Step 11: Prepare document data for notifications
@@ -266,14 +270,14 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 	// Step 12: Send real-time notifications to linked assignment users (only for new uploads)
 	if GrpcClient != nil && doc.IsRoot() {
 		// Send notification to linked assignments
-		for _, link_user := range link_users {
-			if link_user == userID {
+		for _, user_course := range users_course {
+			if user_course == userID {
 				continue
 			}
-			server.LogDebug(context.Background(), "Sending notification to linked assignment", "assignment_id", doc.AssignmentID, "user_id", link_user)
+			server.LogDebug(context.Background(), "Sending notification to linked assignment", "assignment_id", doc.AssignmentID, "user_id", user_course)
 			_, err := (*GrpcClient).SendNotification(context.Background(),
 				&notifications.Notification{
-					UserId:   uint32(link_user),
+					UserId:   uint32(user_course),
 					SenderId: uint32(userID),
 					Entity:   string(models.EntityDocument),
 					EntityId: uint32(doc.AssignmentID),

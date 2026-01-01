@@ -1,9 +1,13 @@
 package models
 
 import (
+	"fmt"
+	"net/mail"
+	"regexp"
+	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
@@ -12,25 +16,32 @@ import (
 // User represents the application user
 type User struct {
 	gorm.Model
-	Username     string `gorm:"unique;not null"`
-	Email        string `gorm:"unique;not null"`
+	Username string `gorm:"unique;not null" validate:"required,min=3,max=30"`
+	Email    string `gorm:"unique;not null" validate:"required,email"`
+
+	Password     string `gorm:"-" validate:"required,min=8,max=100"`
 	PasswordHash string `gorm:"not null"`
 
 	Avatar     string
-	University string
-	Semester   string
-	Year       string
+	University string `validate:"required,min=3,max=100"`
+	Semester   string `validate:"required,min=1,max=20"`
+	Year       string `validate:"required,min=4,max=4"`
 
 	IsVerified bool   `gorm:"default:false"`
-	Language   string `gorm:"default:'en'"`
+	Language   string `gorm:"default:'en'" validate:"required,oneof=en fr es de it pt nl ru tr ja zh ko ar he"`
 
 	CoursesCode []string `gorm:"-"`
 	LastSync    *time.Time
 
 	// Follow relationships
-	Followers []User `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowerID;References:ID;joinReferences:FollowedID"`
-	Following []User `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowedID;References:ID;joinReferences:FollowerID"`
+	Courses     []Course     `gorm:"foreignKey:UserID;references:ID"`
+	Assignments []Assignment `gorm:"foreignKey:UserID;references:ID"`
+	Notes       []Note       `gorm:"foreignKey:UserID;references:ID"`
+	Followers   []User       `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowerID;References:ID;joinReferences:FollowedID"`
+	Following   []User       `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowedID;References:ID;joinReferences:FollowerID"`
 }
+
+// START; TO MAP FUNCTIONS
 
 func (u *User) ToMap() map[string]interface{} {
 	if u == nil {
@@ -54,23 +65,129 @@ func (u *User) ToMap() map[string]interface{} {
 	}
 }
 
-func GetUserById(id uint, db *gorm.DB) (*User, error) {
-	u := &User{}
-	err := db.Where("id = ?", id).First(u).Omit("password_hash").Error
+// END; TO MAP FUNCTIONS
+
+// START; GET FUNCTIONS
+
+func GetUser(id uint, db *gorm.DB) (*User, error) {
+	var user User
+	err := db.Where("id = ?", id).First(&user).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
-	return u, nil
+	return &user, nil
 }
 
-func GetUserIdsByLinkID(linkID uuid.UUID, userID uint, db *gorm.DB) ([]uint, error) {
+func GetUsers(db *gorm.DB) ([]User, error) {
+	var users []User
+	err := db.Find(&users).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return users, nil
+}
+
+type UserCourseCodes struct {
+	UserID uint   `gorm:"column:user_id"`
+	Code   string `gorm:"column:code"`
+}
+
+func GetUsersCourseCodes(userIDs []uint, db *gorm.DB) ([]UserCourseCodes, error) {
+	var courseCodes []UserCourseCodes
+	if err := db.Model(&Course{}).
+		Select("user_id, code").
+		Where("user_id IN ? AND deleted_at IS NULL", userIDs).
+		Find(&courseCodes).Error; err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return courseCodes, nil
+}
+
+func GetCourseUsers(courseID uint, db *gorm.DB) ([]uint, error) {
 	var userIDs []uint
-	err := db.Model(&User{}).Where("link_id = ? AND id != ?", linkID, userID).Pluck("id", &userIDs).Error
+	err := db.Model(&Course{}).Where("id = ?", courseID).Select("user_id").Association("Links").Find(&userIDs)
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
 	return userIDs, nil
 }
+
+// END; GET FUNCTIONS
+
+// START; VALIDATION FUNCTIONS
+
+func (u *User) Validate() error {
+	// Username can contain spaces
+	u.Email = strings.TrimSpace(u.Email)
+	u.Password = strings.TrimSpace(u.Password)
+	u.University = strings.TrimSpace(u.University)
+	u.Semester = strings.TrimSpace(u.Semester)
+	u.Year = strings.TrimSpace(u.Year)
+	u.Language = strings.TrimSpace(u.Language)
+
+	validate := validator.New()
+	if err := validate.Struct(u); err != nil {
+		return errors.Wrap(err, errors.ValidationInvalid, "User Validation failed")
+	}
+	err := isValidUsername(u.Username)
+	if err != nil {
+		return err
+	}
+	err = isValidEmail(u.Email)
+	if err != nil {
+		return err
+	}
+	err = isValidPassword(u.Password)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func isValidUsername(username string) error {
+	pattern := `^[a-zA-Z0-9_\s-]+$`
+	re := regexp.MustCompile(pattern)
+	if !re.MatchString(username) {
+		return errors.Wrap(fmt.Errorf("username invalid"), errors.ValidationInvalid, "Username invalid")
+	}
+	return nil
+}
+
+func isValidEmail(email string) error {
+	_, err := mail.ParseAddress(email)
+	if err != nil {
+		return errors.Wrap(err, errors.ValidationInvalid, "Email invalid")
+	}
+	return nil
+}
+
+func isValidPassword(password string) error {
+	uppercase := regexp.MustCompile(`[A-Z]`)
+	lowercase := regexp.MustCompile(`[a-z]`)
+	number := regexp.MustCompile(`[0-9]`)
+	special := regexp.MustCompile(`[^a-zA-Z0-9]`)
+
+	if len(password) > 100 {
+		return errors.Wrap(fmt.Errorf("password too long"), errors.ValidationInvalid, "Password must be less than 100 characters")
+	}
+
+	if !uppercase.MatchString(password) {
+		return errors.Wrap(fmt.Errorf("password must contain at least one uppercase letter"), errors.ValidationInvalid, "Password must contain at least one uppercase letter")
+	}
+	if !lowercase.MatchString(password) {
+		return errors.Wrap(fmt.Errorf("password must contain at least one lowercase letter"), errors.ValidationInvalid, "Password must contain at least one lowercase letter")
+	}
+	if !number.MatchString(password) {
+		return errors.Wrap(fmt.Errorf("password must contain at least one number"), errors.ValidationInvalid, "Password must contain at least one number")
+	}
+	if !special.MatchString(password) {
+		return errors.Wrap(fmt.Errorf("password must contain at least one special character"), errors.ValidationInvalid, "Password must contain at least one special character")
+	}
+	return nil
+}
+
+// END; VALIDATION FUNCTIONS
 
 // Follow represents a follow relationship between users
 type Follow struct {
@@ -81,9 +198,6 @@ type Follow struct {
 	// Foreign key relationships
 	Follower User `gorm:"foreignKey:FollowerID;references:ID;constraint:OnDelete:CASCADE"`
 	Followed User `gorm:"foreignKey:FollowedID;references:ID;constraint:OnDelete:CASCADE"`
-
-	// Ensure unique follow relationship
-	UniqueFollow string `gorm:"uniqueIndex:idx_follower_followed"`
 }
 
 // Helper functions
@@ -169,7 +283,7 @@ func GetFollowers(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
 		Where("follows.followed_id = ? AND follows.deleted_at is NULL", userID).
 		Limit(limit).Offset(offset).
 		Find(&followers).
-		Order("users.name ASC").
+		Order("users.username ASC").
 		Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
@@ -184,7 +298,7 @@ func GetFollowing(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
 		Where("follows.follower_id = ? AND follows.deleted_at is NULL", userID).
 		Limit(limit).Offset(offset).
 		Find(&following).
-		Order("users.name ASC").
+		Order("users.username ASC").
 		Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)

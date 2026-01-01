@@ -76,7 +76,7 @@ func GetAssignmentHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 2: Query user's assignments from database
-	assignments, err := models.GetAssignments(userID, db)
+	assignments, err := models.GetAssignments(userID, db.Preload("User").Omit("password_hash").Preload("Course"))
 	if err != nil {
 
 		if Errors.Is(err, gorm.ErrRecordNotFound) {
@@ -169,7 +169,7 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 	input.UserID = userID
 
 	// Step 9: Create assignment record in database within transaction
-	result := db.Preload("Course").Create(&input).First(&input)
+	result := db.Preload("User").Preload("Course").Create(&input).First(&input)
 	if result.Error != nil {
 		if Errors.Is(result.Error, gorm.ErrDuplicatedKey) {
 			return errors.WrapServer(result.Error, errors.DBConstraintViolation, "Assignment already exists", fiber.StatusConflict)
@@ -183,20 +183,24 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Error processing assignment data", fiber.StatusInternalServerError)
 	}
 
-	// Get all users linked to this course for notification distribution
-	link_users, err := models.GetUserIdsByLinkID(input.Course.LinkID, userID, db)
-	if err != nil {
-
-		if Errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.WrapServer(err, errors.DBRecordNotFound, "Users linked to course not found", fiber.StatusNotFound)
+	// Get all users sharing this course for notification distribution
+	ctx := context.Background()
+	users_course, err := CacheService.GetCourseUsers(ctx, input.CourseID, userID)
+	if err != nil || len(users_course) == 0 {
+		// Cache miss or empty - fallback to DB and sync cache
+		users_course, err = models.GetCourseUsers(input.CourseID, db)
+		if err != nil {
+			if Errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.WrapServer(err, errors.DBRecordNotFound, "Users linked to course not found", fiber.StatusNotFound)
+			}
+			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError)
 		}
 
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError)
 	}
 
 	// Step 14: Send SSE notifications to linked users via gRPC (if available)
 	if GrpcClient != nil && input.IsRoot() {
-		for _, sendeeID := range link_users {
+		for _, sendeeID := range users_course {
 
 			_, err := (*GrpcClient).SendNotification(context.Background(),
 				&notifications.Notification{

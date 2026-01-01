@@ -24,3 +24,6 @@ func main() {
 
 	log.Println("✅ All server database migrations completed successfully!")
 }
+
+// For uuid type in postgresql, you need to create the extension first:
+// CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

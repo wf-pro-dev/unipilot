@@ -78,7 +78,6 @@ func GetNotesHandler(c *fiber.Ctx) error {
 //
 // HTTP Method: POST
 // Content-Type: application/json
-//
 // Request Body:
 //   - user_id: User identifier (string, optional - overridden by JWT context)
 //   - course_code: Associated course code (string, required)
@@ -179,16 +178,21 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 	}
 
 	// Get linked users for future notification distribution
-	link_users, err := models.GetUserIdsByLinkID(newN.Course.LinkID, currentUser.ID, db)
-	if err != nil {
-		if Errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.WrapServer(err, errors.DBRecordNotFound, "Users linked to course not found", fiber.StatusNotFound)
+	ctx := context.Background()
+	users_course, err := CacheService.GetCourseUsers(ctx, newN.Course.ID, currentUser.ID)
+	if err != nil || len(users_course) == 0 {
+		// Cache miss or empty - fallback to DB and sync cache
+		users_course, err = models.GetCourseUsers(newN.Course.ID, db)
+		if err != nil {
+			if Errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.WrapServer(err, errors.DBRecordNotFound, "Users linked to course not found", fiber.StatusNotFound)
+			}
+			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError)
 		}
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError)
 	}
 
 	if GrpcClient != nil {
-		for _, sendeeID := range link_users {
+		for _, sendeeID := range users_course {
 
 			_, err := (*GrpcClient).SendNotification(context.Background(),
 				&notifications.Notification{

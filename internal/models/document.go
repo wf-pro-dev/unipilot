@@ -33,11 +33,11 @@ type Document struct {
 	Type         DocumentType `gorm:"not null;index"`
 	FileName     string       `gorm:"not null"`
 	FileType     string       `gorm:"not null"` // mime type or extension
-	FilePath     string       `gorm:"not null"` // relative to app data directory
+	FilePath     string       // relative to app data directory
 	FileSize     int64        `gorm:"not null"` // in bytes
 	StorageKey   string       `gorm:"unique"`   // Only for remote storage
 	Version      int          `gorm:"default:1"`
-	ParentID     uint         `gorm:"index"`
+	ParentID     uint         `gorm:"index"`        // For shared assignment tracking
 	ParentDocID  *uint        `gorm:"index"`        // For version history
 	IsOriginal   bool         `gorm:"default:true"` // For shared assignment tracking
 	HasLocalFile bool         `gorm:"default:false"`

@@ -8,7 +8,6 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 
 	"unipilot/internal/models"
 	"unipilot/internal/server/sse/grpc/notifications"
@@ -305,22 +304,6 @@ func LinkRequestCourseHandler(c *fiber.Ctx) error {
 
 	//2. Create an uuid for the link
 
-	var linkId uuid.UUID
-	if courseObj.LinkID == uuid.Nil {
-		linkId = uuid.New()
-		courseObj.LinkID = linkId
-		if err = db.Save(&courseObj).Error; err != nil {
-			return errors.WrapServer(
-				err,
-				errors.DBQueryFailed,
-				"Error saving link identifier",
-				fiber.StatusBadRequest,
-			)
-		}
-	} else {
-		linkId = courseObj.LinkID
-	}
-
 	cJson, err := json.Marshal(courseObj)
 	if err != nil {
 		return errors.WrapServer(
@@ -457,15 +440,35 @@ func GetCoursesLinkedHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
 	}
 
-	coursesLinked, err := models.
-		GetLinkedCourses(
-			currentUser.ID,
-			db.Preload("CoursesLinked", "user_id != ?", currentUser.ID).
-				Preload("CoursesLinked.Assignments.Documents").
-				Preload("CoursesLinked.Notes"),
-		)
+	ctx := context.Background()
+	coursesLinked, err := CacheService.GetUserLinkedCourses(ctx, currentUser.ID)
+	if err == nil && coursesLinked != nil {
+		return c.JSON(coursesLinked)
+	}
+
+	// Get all linked courses with their root assignments and documents and notes
+
+	var fullUser models.User
+	if err := db.Model(&currentUser).
+		Preload("Courses.Links", "COUNT(links.id) > 0").
+		Preload("Courses.Links.Assignments", "parent_id = ?", 0).
+		Preload("Courses.Links.Assignments.Documents").
+		Preload("Courses.Links.Notes").
+		Find(&fullUser).Error; err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting linked courses from database", fiber.StatusInternalServerError)
+	}
 	if err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting linked courses from database", fiber.StatusInternalServerError)
+	}
+	coursesLinked = fullUser.Courses
+
+	// Cache the result for future requests
+	if cacheErr := CacheService.SetUserLinkedCourses(ctx, currentUser.ID, coursesLinked); cacheErr != nil {
+		server.LogWarn(ctx, errors.WrapServer(cacheErr, errors.CacheOperationFailed, "Failed to cache linked courses", fiber.StatusInternalServerError))
+	}
+
+	if err := CacheService.SetExpirationUserLinkedCourses(ctx, currentUser.ID); err != nil {
+		server.LogWarn(ctx, errors.WrapServer(err, errors.CacheOperationFailed, "Failed to set cache expiration for linked courses", fiber.StatusInternalServerError))
 	}
 
 	return c.JSON(coursesLinked)
