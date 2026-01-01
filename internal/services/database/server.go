@@ -27,6 +27,7 @@ func NewServerMigrator() *ServerMigrator {
 		&models.DocumentStorage{},
 		&models.Follow{},
 		&models.Device{},
+		&models.CourseLinkRequest{},
 	}
 
 	return &ServerMigrator{

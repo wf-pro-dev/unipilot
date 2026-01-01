@@ -8,17 +8,22 @@ import (
 	"unipilot/internal/errors"
 )
 
+type BaseNote struct {
+	Title    string `gorm:"not null"`
+	Subject  string `gorm:"not null"`
+	Content  string
+	Videos   string
+	ParentID uint `gorm:"default:0"`
+
+	CourseID   uint   `gorm:"not null;index"`
+	CourseCode string `gorm:"index"`
+}
+
 // Note represents the note stored in the remote database
 type Note struct {
 	gorm.Model
-	UserID     uint   `gorm:"not null;index"`
-	CourseID   uint   `gorm:"not null;index"`
-	CourseCode string `gorm:"index"`
-	Title      string `gorm:"not null"`
-	Subject    string `gorm:"not null"`
-	Content    string
-	Videos     string
-	ParentID   uint `gorm:"default:0"`
+	BaseNote
+	UserID uint `gorm:"not null;index"`
 
 	User     User   `gorm:"foreignKey:UserID;references:ID"`
 	Course   Course `gorm:"foreignKey:CourseID;references:ID"`
@@ -28,36 +33,41 @@ type Note struct {
 
 // LocalNote represents a note in the local database
 type LocalNote struct {
-	Note
+	gorm.Model
+	BaseNote
 	RemoteID       uint `gorm:"unique"`
 	RemoteCourseID uint
 
-	UserID uint        `gorm:"-"`
 	Course LocalCourse `gorm:"foreignKey:CourseID;references:ID"`
 }
 
-func (n *Note) ToMap() map[string]string {
+func (n *BaseNote) ToMap() map[string]string {
 	return map[string]string{
-		"id":          strconv.Itoa(int(n.ID)),
-		"user_id":     strconv.Itoa(int(n.UserID)),
 		"course_id":   strconv.Itoa(int(n.CourseID)),
 		"course_code": n.CourseCode,
 		"title":       n.Title,
 		"subject":     n.Subject,
 		"content":     n.Content,
 		"videos":      n.Videos,
+		"parent_id":   strconv.Itoa(int(n.ParentID)),
 	}
 }
 
+func (n *Note) ToMap() map[string]string {
+	nMap := n.BaseNote.ToMap()
+	nMap["user_id"] = strconv.Itoa(int(n.UserID))
+	return nMap
+}
+
 func (n *LocalNote) ToMap() map[string]string {
-	nMap := n.Note.ToMap()
+	nMap := n.BaseNote.ToMap()
 	nMap["remote_id"] = strconv.Itoa(int(n.RemoteID))
 	nMap["remote_course_id"] = strconv.Itoa(int(n.RemoteCourseID))
 	return nMap
 }
 
 func (n *Note) ToLocal() *LocalNote {
-	innerN := &Note{
+	baseN := &BaseNote{
 		Title:      n.Title,
 		Subject:    n.Subject,
 		Content:    n.Content,
@@ -65,21 +75,22 @@ func (n *Note) ToLocal() *LocalNote {
 		CourseCode: n.CourseCode,
 	}
 	return &LocalNote{
-		Note:           *innerN,
+		BaseNote:       *baseN,
 		RemoteID:       n.ID,
 		RemoteCourseID: n.CourseID,
 	}
 }
 
 func (n *LocalNote) ToRemote() *Note {
-	return &Note{
-		UserID:     n.UserID,
-		CourseID:   n.RemoteCourseID,
-		CourseCode: n.CourseCode,
+	baseN := &BaseNote{
 		Title:      n.Title,
 		Subject:    n.Subject,
 		Content:    n.Content,
 		Videos:     n.Videos,
+		CourseCode: n.CourseCode,
+	}
+	return &Note{
+		BaseNote: *baseN,
 	}
 }
 func GetNote(id uint, db *gorm.DB) (*Note, error) {

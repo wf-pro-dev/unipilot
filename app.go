@@ -218,7 +218,7 @@ func (a *App) CreateCourse(courseData *models.LocalCourse) error {
 	db := a.DB.GetDB()
 
 	localCourse := &models.LocalCourse{
-		Course: models.Course{
+		BaseCourse: models.BaseCourse{
 			Name:            courseData.Name,
 			Code:            courseData.Code,
 			Color:           courseData.Color,
@@ -1799,7 +1799,7 @@ func (a *App) AcceptLink(courseData string) error {
 		return err
 	}
 	// Update the course with the new link ID
-	a.UpdateCourse(&existingCourse, "link_id", c.LinkID.String())
+	//a.UpdateCourse(&existingCourse, "link_id", c.LinkID.String())
 
 	assignments, err := client.AcceptLinkCourse(&c)
 	if err != nil {

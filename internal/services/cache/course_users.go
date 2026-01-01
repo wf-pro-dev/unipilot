@@ -12,7 +12,7 @@ import (
 
 // GetLinkUsers retrieves all user IDs sharing a course via LinkID from cache.
 func (c *Cache) GetCourseUsers(ctx context.Context, courseID uint, excludeUserID uint) ([]uint, error) {
-	cacheKey := FormatKey(KeyCourseUsers, courseID)
+	cacheKey := FormatKey(KeyCoursesLinkedUsers, courseID)
 
 	// Get all user IDs from Redis Set
 	userIDStrings, err := c.redis.SMembers(ctx, cacheKey).Result()
@@ -39,7 +39,7 @@ func (c *Cache) GetCourseUsers(ctx context.Context, courseID uint, excludeUserID
 // AddLinkUser adds a user to a LinkID set (when course is linked).
 // Optimized for write-heavy workflow: O(1) operation.
 func (c *Cache) AddCourseUser(ctx context.Context, courseID uint, userID uint) error {
-	cacheKey := FormatKey(KeyCourseUsers, courseID)
+	cacheKey := FormatKey(KeyCoursesLinkedUsers, courseID)
 
 	// Add user ID to set
 	if err := c.redis.SAdd(ctx, cacheKey, strconv.Itoa(int(userID))).Err(); err != nil {
@@ -52,7 +52,7 @@ func (c *Cache) AddCourseUser(ctx context.Context, courseID uint, userID uint) e
 
 // RemoveUserFromCourse removes a user from a Course set (when course is unlinked).
 func (c *Cache) RemoveCourseUser(ctx context.Context, courseID uint, userID uint) error {
-	cacheKey := FormatKey(KeyCourseUsers, courseID)
+	cacheKey := FormatKey(KeyCoursesLinkedUsers, courseID)
 	return c.redis.SRem(ctx, cacheKey, strconv.Itoa(int(userID))).Err()
 }
 

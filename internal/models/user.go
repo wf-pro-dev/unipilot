@@ -34,11 +34,13 @@ type User struct {
 	LastSync    *time.Time
 
 	// Follow relationships
-	Courses     []Course     `gorm:"foreignKey:UserID;references:ID"`
-	Assignments []Assignment `gorm:"foreignKey:UserID;references:ID"`
-	Notes       []Note       `gorm:"foreignKey:UserID;references:ID"`
-	Followers   []User       `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowerID;References:ID;joinReferences:FollowedID"`
-	Following   []User       `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowedID;References:ID;joinReferences:FollowerID"`
+	Courses          []Course            `gorm:"foreignKey:UserID;references:ID"`
+	Assignments      []Assignment        `gorm:"foreignKey:UserID;references:ID"`
+	Notes            []Note              `gorm:"foreignKey:UserID;references:ID"`
+	OwnerRequests    []CourseLinkRequest `gorm:"foreignKey:OwnerID;references:ID"`
+	ReceiverRequests []CourseLinkRequest `gorm:"foreignKey:ReceiverID;references:ID"`
+	Followers        []User              `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowerID;References:ID;joinReferences:FollowedID"`
+	Following        []User              `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowedID;References:ID;joinReferences:FollowerID"`
 }
 
 // START; TO MAP FUNCTIONS

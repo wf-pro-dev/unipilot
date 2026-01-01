@@ -12,12 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// Course represents a school course
-type Course struct {
-	gorm.Model
-	UserID uint `gorm:"not null"`
-
-	// Common fields
+type BaseCourse struct {
 	Code            string `gorm:"index:idx_courses_user_code_active,unique,where:deleted_at IS NULL;not null"`
 	Name            string `gorm:"not null"`
 	Color           string `gorm:"default:bg-blue-500"`
@@ -29,30 +24,52 @@ type Course struct {
 	Semester        string
 	Instructor      string
 	InstructorEmail string
+	ParentID        uint `gorm:"default:0"`
+}
+
+// Course represents a school course
+type Course struct {
+	gorm.Model
+	BaseCourse
+
+	UserID uint `gorm:"not null;index"`
+	// Common fields
 
 	// Relationships
+	Parent   *Course  `gorm:"foreignKey:ParentID;references:ID"`
+	Children []Course `gorm:"foreignKey:ParentID"`
+
 	User        User         `gorm:"foreignKey:UserID;references:ID"`
 	Assignments []Assignment `gorm:"foreignKey:CourseID;references:ID"`
 	Notes       []Note       `gorm:"foreignKey:CourseID;references:ID"`
-	Links       []Course     `gorm:"many2many:courses_links"`
 }
 
 // LocalCourse represents a course in the local database
 // This is for local operations and caching remote metadata
 type LocalCourse struct {
-	Course
-	RemoteID uint `gorm:"unique"`
+	gorm.Model
+	BaseCourse
 
-	UserID uint `gorm:"-"`
+	RemoteID uint `gorm:"unique"`
 
 	Assignments []LocalAssignment `gorm:"foreignKey:CourseID;references:ID"`
 	Notes       []LocalNote       `gorm:"foreignKey:CourseID;references:ID"`
 }
 
-func (c *Course) ToMap() map[string]string {
+// Course Link Request
+type CourseLinkRequest struct {
+	ID         uint `gorm:"primaryKey"`
+	OwnerID    uint `gorm:"not null;index"`
+	ReceiverID uint `gorm:"not null;index"`
+	CourseID   uint `gorm:"not null;index"`
+
+	Owner    User   `gorm:"foreignKey:OwnerID;references:ID"`
+	Receiver User   `gorm:"foreignKey:ReceiverID;references:ID"`
+	Course   Course `gorm:"foreignKey:CourseID;references:ID"`
+}
+
+func (c *BaseCourse) ToMap() map[string]string {
 	return map[string]string{
-		"id":               strconv.Itoa(int(c.ID)),
-		"user_id":          strconv.Itoa(int(c.UserID)),
 		"name":             c.Name,
 		"code":             c.Code,
 		"color":            c.Color,
@@ -64,51 +81,33 @@ func (c *Course) ToMap() map[string]string {
 		"instructor":       c.Instructor,
 		"instructor_email": c.InstructorEmail,
 		"credits":          strconv.Itoa(int(c.Credits)),
-		"created_at":       c.CreatedAt.Format(time.DateOnly),
-		"updated_at":       c.UpdatedAt.Format(time.DateOnly),
 	}
 }
 
+func (c *Course) ToMap() map[string]string {
+	cMap := c.BaseCourse.ToMap()
+	cMap["user_id"] = strconv.Itoa(int(c.UserID))
+	return cMap
+}
+
 func (c *LocalCourse) ToMap() map[string]string {
-	cMap := c.Course.ToMap()
+	cMap := c.BaseCourse.ToMap()
 	cMap["remote_id"] = strconv.Itoa(int(c.RemoteID))
 	return cMap
 }
 
 func (c *Course) ToLocal() *LocalCourse {
-	innerC := &Course{
-		Name:            c.Name,
-		Code:            c.Code,
-		Color:           c.Color,
-		Location:        c.Location,
-		StartDate:       c.StartDate,
-		EndDate:         c.EndDate,
-		Schedule:        c.Schedule,
-		Credits:         c.Credits,
-		Semester:        c.Semester,
-		Instructor:      c.Instructor,
-		InstructorEmail: c.InstructorEmail,
-	}
 	localCourse := &LocalCourse{
-		Course:   *innerC,
-		RemoteID: c.ID,
+		BaseCourse: c.BaseCourse,
+		RemoteID:   c.ID,
 	}
 	return localCourse
 }
 
 func (lc *LocalCourse) ToRemote() *Course {
+
 	c := &Course{
-		Name:            lc.Name,
-		Code:            lc.Code,
-		Color:           lc.Color,
-		Location:        lc.Location,
-		StartDate:       lc.StartDate,
-		EndDate:         lc.EndDate,
-		Schedule:        lc.Schedule,
-		Credits:         lc.Credits,
-		Semester:        lc.Semester,
-		Instructor:      lc.Instructor,
-		InstructorEmail: lc.InstructorEmail,
+		BaseCourse: lc.BaseCourse,
 	}
 
 	return c
@@ -223,6 +222,16 @@ func GetLCourses(db *gorm.DB) ([]LocalCourse, error) {
 		return nil, errors.HandleDBReadError(err)
 	}
 	return courses, nil
+}
+
+func GetCoursesLinked(courseID uint, db *gorm.DB) ([]Course, error) {
+	var courses []Course
+	err := db.Where("id = ? AND EXISTS (SELECT 1 FROM courses AS c WHERE c.parent_id = courses.id)", courseID).
+		Find(&courses).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return courses, err
 }
 
 // Other Operations

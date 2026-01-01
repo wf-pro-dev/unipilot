@@ -31,15 +31,14 @@ func GetDocumentsHandler(c *fiber.Ctx) error {
 	currentUser := c.Locals("user").(models.User)
 	db := c.Locals("db").(*gorm.DB)
 	currentUserID := currentUser.ID
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "message", "Documents retrieved successfully")
+	c.Locals("message", "Documents retrieved successfully")
 
 	// Get all documents for the current user
 	var documents []models.Document
 	if err := db.Where("user_id = ?", currentUserID).Find(&documents).Error; err != nil {
 		if Errors.Is(err, gorm.ErrRecordNotFound) {
 			return server.LogError(
-				ctx,
+				context.Background(),
 				errors.WrapServer(
 					err,
 					errors.DBRecordNotFound,
@@ -48,7 +47,7 @@ func GetDocumentsHandler(c *fiber.Ctx) error {
 				))
 		}
 		return server.LogError(
-			ctx,
+			context.Background(),
 			errors.WrapServer(
 				err,
 				errors.DBQueryFailed,
@@ -197,18 +196,9 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 
 	// Step 7: Create document metadata record in database
 	// Create document metadata record
-	doc := &models.Document{
-		AssignmentID: localDoc.RemoteAssignmentID,
-		UserID:       userID,
-		Type:         localDoc.Type,
-		FileName:     localDoc.FileName,
-		FileType:     localDoc.FileType,
-		FileSize:     localDoc.FileSize,
-		Version:      localDoc.Version,
-		IsOriginal:   localDoc.IsOriginal,
-		FilePath:     localDoc.FilePath,
-		StorageKey:   newKey,
-	}
+	doc := localDoc.ToRemote()
+	doc.UserID = userID
+	doc.StorageKey = newKey
 
 	if err := db.Preload("Assignment.Course").Create(doc).First(doc).Error; err != nil {
 		if Errors.Is(err, gorm.ErrDuplicatedKey) {
@@ -849,6 +839,15 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 //   - Logs RAG processing metrics for monitoring
 func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 
+	currentUser, ok := c.Locals("user").(models.User)
+	if !ok {
+		return errors.WrapServer(
+			fmt.Errorf("user not found"),
+			errors.ValidationInvalid,
+			"User not found",
+			fiber.StatusInternalServerError,
+		)
+	}
 	c.Locals("message", "Document uploaded for RAG successfully")
 
 	metadata := c.FormValue("metadata")
@@ -914,7 +913,10 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 
 	}
 
-	vectors, err := fileops.GetQdrantVectors(&localDoc)
+	doc := localDoc.ToRemote()
+	doc.UserID = currentUser.ID
+
+	vectors, err := fileops.GetQdrantVectors(doc)
 	if err != nil {
 		if errors.HasCode(err, errors.FSFileTypeNotSupported) {
 			return errors.WrapServer(
@@ -1028,7 +1030,9 @@ func DeleteDocumentRAG(c *fiber.Ctx) error {
 		Model: gorm.Model{
 			ID: uint(docID),
 		},
-		AssignmentID: uint(assignmentID),
+		BaseDocument: models.BaseDocument{
+			AssignmentID: uint(assignmentID),
+		},
 	}
 
 	if err := models.DeleteDocumentVectors(&doc, QdrantClient); err != nil {

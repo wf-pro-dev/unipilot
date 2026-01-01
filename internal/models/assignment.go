@@ -12,12 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// Assignment represents a homework or exam assignment
-type Assignment struct {
-	gorm.Model
-	UserID uint
-
-	// Common fields
+type BaseAssignment struct {
 	Title      string `gorm:"not null"`
 	Type       string `gorm:"not null"`
 	Status     string `gorm:"not null"`
@@ -28,6 +23,13 @@ type Assignment struct {
 	CourseCode string    `gorm:"index"`
 	Priority   string    `gorm:"default:medium"`
 	ParentID   uint      `gorm:"default:0"`
+}
+
+// Assignment represents a homework or exam assignment
+type Assignment struct {
+	gorm.Model
+	BaseAssignment
+	UserID uint `gorm:"not null"`
 
 	// Relationships
 	User      User         `gorm:"foreignKey:UserID;references:ID"`
@@ -38,75 +40,56 @@ type Assignment struct {
 }
 
 type LocalAssignment struct {
-	Assignment
+	gorm.Model
+	BaseAssignment
 	RemoteID       uint `gorm:"unique"`
 	RemoteCourseID uint
-
-	UserID uint `gorm:"-"`
 
 	Course    LocalCourse     `gorm:"foreignKey:CourseID;references:ID"`
 	Documents []LocalDocument `gorm:"foreignKey:AssignmentID;references:ID"`
 }
 
-// ToMap converts the Assignment struct to a map[string]string
-func (a *Assignment) ToMap() map[string]string {
-
+func (a *BaseAssignment) ToMap() map[string]string {
 	return map[string]string{
-		"id":               strconv.Itoa(int(a.ID)),
-		"user_id":          strconv.Itoa(int(a.UserID)),
-		"course_id":        strconv.Itoa(int(a.CourseID)),
-		"parent_id":        strconv.Itoa(int(a.ParentID)),
-		"type":             a.Type,
-		"deadline":         a.Deadline.Format(time.DateOnly),
-		"title":            a.Title,
-		"todo":             a.Todo,
-		"remote_course_id": strconv.Itoa(int(a.CourseID)),
-		"course_code":      a.CourseCode,
-		"status":           a.Status,
-		"link":             a.Link,
-		"priority":         a.Priority,
-		"created_at":       a.CreatedAt.Format(time.RFC3339),
-		"updated_at":       a.UpdatedAt.Format(time.RFC3339),
+		"title":       a.Title,
+		"type":        a.Type,
+		"status":      a.Status,
+		"todo":        a.Todo,
+		"deadline":    a.Deadline.Format(time.DateOnly),
+		"course_id":   strconv.Itoa(int(a.CourseID)),
+		"course_code": a.CourseCode,
+		"priority":    a.Priority,
+		"link":        a.Link,
+		"parent_id":   strconv.Itoa(int(a.ParentID)),
 	}
 }
 
+// ToMap converts the Assignment struct to a map[string]string
+func (a *Assignment) ToMap() map[string]string {
+	aMap := a.BaseAssignment.ToMap()
+	aMap["id"] = strconv.Itoa(int(a.ID))
+	aMap["user_id"] = strconv.Itoa(int(a.UserID))
+	aMap["remote_course_id"] = strconv.Itoa(int(a.CourseID))
+	return aMap
+}
+
 func (a *Assignment) ToLocal() *LocalAssignment {
-	assignment := &Assignment{
-		Title:      a.Title,
-		Todo:       a.Todo,
-		Deadline:   a.Deadline,
-		CourseCode: a.CourseCode,
-		Type:       a.Type,
-		Status:     a.Status,
-		Priority:   a.Priority,
-		Link:       a.Link,
-		ParentID:   a.ParentID,
-	}
 	return &LocalAssignment{
-		Assignment:     *assignment,
+		BaseAssignment: a.BaseAssignment,
 		RemoteID:       a.ID,
 		RemoteCourseID: a.CourseID,
 	}
 }
 
 func (a *LocalAssignment) ToRemote() *Assignment {
-	return &Assignment{
-		UserID:     a.UserID,
-		Title:      a.Title,
-		Todo:       a.Todo,
-		Deadline:   a.Deadline,
-		CourseID:   a.RemoteCourseID,
-		CourseCode: a.CourseCode,
-		Type:       a.Type,
-		Status:     a.Status,
-		Priority:   a.Priority,
-		Link:       a.Link,
-		ParentID:   a.ParentID,
+	assignment := &Assignment{
+		BaseAssignment: a.BaseAssignment,
 	}
+	return assignment
 }
 
 func (la *LocalAssignment) ToMap() map[string]string {
-	laMap := la.Assignment.ToMap()
+	laMap := la.BaseAssignment.ToMap()
 	laMap["remote_id"] = strconv.Itoa(int(la.RemoteID))
 	return laMap
 }

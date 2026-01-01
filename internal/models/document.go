@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -23,13 +24,7 @@ const (
 	DocumentTypeSubmission DocumentType = "submission"
 )
 
-// Document represents a file attached to an assignment
-type Document struct {
-	gorm.Model
-	AssignmentID uint `gorm:"not null;index"`
-	UserID       uint `gorm:"not null;index"` // Original uploader
-
-	// Common fields
+type BaseDocument struct {
 	Type         DocumentType `gorm:"not null;index"`
 	FileName     string       `gorm:"not null"`
 	FileType     string       `gorm:"not null"` // mime type or extension
@@ -42,6 +37,16 @@ type Document struct {
 	IsOriginal   bool         `gorm:"default:true"` // For shared assignment tracking
 	HasLocalFile bool         `gorm:"default:false"`
 
+	AssignmentID uint `gorm:"not null;index"`
+}
+
+// Document represents a file attached to an assignment
+type Document struct {
+	gorm.Model
+	BaseDocument
+
+	UserID uint `gorm:"not null;index"`
+
 	// Relationships
 	User       User       `gorm:"foreignKey:UserID;references:ID"`
 	Assignment Assignment `gorm:"foreignKey:AssignmentID;references:ID"`
@@ -53,12 +58,10 @@ type Document struct {
 // LocalDocument represents a document in the local database
 type LocalDocument struct {
 	gorm.Model
-	Document
+	BaseDocument
 
 	RemoteID           uint `gorm:"unique"`
 	RemoteAssignmentID uint
-
-	UserID uint `gorm:"-"`
 
 	// Local relationships
 	Assignment LocalAssignment `gorm:"foreignKey:AssignmentID;references:ID"`
@@ -67,22 +70,25 @@ type LocalDocument struct {
 	Versions   []LocalDocument `gorm:"foreignKey:ParentDocID;references:ID"`
 }
 
-func (d *Document) ToLocal() *LocalDocument {
-	innerD := &Document{
-		Type:         d.Type,
-		FileName:     d.FileName,
-		FileType:     d.FileType,
-		FilePath:     d.FilePath,
-		FileSize:     d.FileSize,
-		Version:      d.Version,
-		ParentID:     d.ParentID,
-		ParentDocID:  d.ParentDocID,
-		IsOriginal:   d.IsOriginal,
-		StorageKey:   d.StorageKey,
-		HasLocalFile: d.HasLocalFile,
+func (d *BaseDocument) ToMap() map[string]string {
+	return map[string]string{
+		"type":           string(d.Type),
+		"file_name":      d.FileName,
+		"file_type":      d.FileType,
+		"file_path":      d.FilePath,
+		"file_size":      strconv.FormatInt(d.FileSize, 10),
+		"storage_key":    d.StorageKey,
+		"version":        strconv.Itoa(d.Version),
+		"parent_id":      strconv.Itoa(int(d.ParentID)),
+		"parent_doc_id":  strconv.Itoa(int(*d.ParentDocID)),
+		"is_original":    strconv.FormatBool(d.IsOriginal),
+		"has_local_file": strconv.FormatBool(d.HasLocalFile),
 	}
+}
+
+func (d *Document) ToLocal() *LocalDocument {
 	return &LocalDocument{
-		Document:           *innerD,
+		BaseDocument:       d.BaseDocument,
 		RemoteID:           d.ID,
 		RemoteAssignmentID: d.AssignmentID,
 	}
@@ -90,18 +96,9 @@ func (d *Document) ToLocal() *LocalDocument {
 
 // ToRemoteDocument converts local document to remote document format
 func (ld *LocalDocument) ToRemote() *Document {
+
 	return &Document{
-		Model:        ld.Model,
-		AssignmentID: ld.RemoteAssignmentID,
-		UserID:       ld.UserID,
-		Type:         ld.Type,
-		FileName:     ld.FileName,
-		FileType:     ld.FileType,
-		FilePath:     ld.FilePath,
-		FileSize:     ld.FileSize,
-		Version:      ld.Version,
-		ParentDocID:  ld.ParentDocID,
-		IsOriginal:   ld.IsOriginal,
+		BaseDocument: ld.BaseDocument,
 	}
 }
 
@@ -272,17 +269,21 @@ func (d *Document) CreateNewVersion(newFileName string, newFileSize int64, newFi
 	}
 
 	// Create new version
-	newVersion := &Document{
-		AssignmentID: d.AssignmentID,
-		UserID:       d.UserID,
+	baseD := &BaseDocument{
 		Type:         d.Type,
-		FileName:     newFileName,
+		FileName:     d.FileName,
 		FileType:     d.FileType,
-		FilePath:     newFilePath,
-		FileSize:     newFileSize,
+		FilePath:     d.FilePath,
+		FileSize:     d.FileSize,
 		Version:      latestVersion + 1,
 		ParentDocID:  &d.ID,
 		IsOriginal:   d.IsOriginal,
+		HasLocalFile: d.HasLocalFile,
+		AssignmentID: d.AssignmentID,
+	}
+	newVersion := &Document{
+		BaseDocument: *baseD,
+		UserID:       d.UserID,
 	}
 
 	// Validate before creating

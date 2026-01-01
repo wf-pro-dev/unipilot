@@ -156,12 +156,14 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 
 	// Step 7: Construct note object with validated data and AI-generated content
 	nVal := models.Note{
-		UserID:     userID,
-		CourseCode: input.CourseCode,
-		Title:      input.Title,
-		Subject:    input.Subject,
-		Videos:     input.Videos,
-		Content:    content,
+		BaseNote: models.BaseNote{
+			CourseCode: input.CourseCode,
+			Title:      input.Title,
+			Subject:    input.Subject,
+			Videos:     input.Videos,
+			Content:    content,
+		},
+		UserID: userID,
 	}
 
 	// Step 8: Create note record in database within transaction

@@ -5,7 +5,7 @@ import "fmt"
 // Cache key patterns following model hierarchy: resource1:resource2:...:id
 const (
 	// Course -> Users mapping (CRITICAL: write-heavy shared data)
-	KeyCourseUsers = "course:users:%d"
+	KeyCoursesLinkedUsers = "courses_linked:%d:users"
 
 	// Users resource (MEDIUM: read-heavy shared data)
 	KeyUsers = "users"
@@ -17,7 +17,7 @@ const (
 	KeyUserFollowing = "user:following:%d"
 
 	// User -> LinkedCourses (MEDIUM: read-heavy complex query)
-	KeyUserLinkedCourses = "user:linked_courses:%d"
+	KeyCoursesLinked = "courses_linked:%d"
 )
 
 // FormatKey formats a cache key with the given identifier (uint).

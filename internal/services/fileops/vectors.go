@@ -123,7 +123,7 @@ func GetFileChunks(text string) []string {
 	return filteredChunks
 }
 
-func GetQdrantVectors(document *models.LocalDocument) ([]*qdrant.PointStruct, error) {
+func GetQdrantVectors(document *models.Document) ([]*qdrant.PointStruct, error) {
 	fmt.Println("GetQdrantVectors")
 	var vectors []*qdrant.PointStruct
 
@@ -147,7 +147,7 @@ func GetQdrantVectors(document *models.LocalDocument) ([]*qdrant.PointStruct, er
 			Vectors: qdrant.NewVectors(embedding.Values...),
 			Payload: qdrant.NewValueMap(map[string]any{
 				"user_id":       document.UserID,
-				"document_id":   document.RemoteID,
+				"document_id":   document.ID,
 				"assignment_id": document.AssignmentID,
 				"chunk_id":      i,
 				"chunk_text":    chunks[i],

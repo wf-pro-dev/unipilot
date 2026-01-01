@@ -441,33 +441,29 @@ func GetCoursesLinkedHandler(c *fiber.Ctx) error {
 	}
 
 	ctx := context.Background()
-	coursesLinked, err := CacheService.GetUserLinkedCourses(ctx, currentUser.ID)
+	coursesLinked, err := CacheService.GetCoursesLinked(ctx, currentUser.ID)
 	if err == nil && coursesLinked != nil {
 		return c.JSON(coursesLinked)
 	}
 
 	// Get all linked courses with their root assignments and documents and notes
 
-	var fullUser models.User
-	if err := db.Model(&currentUser).
-		Preload("Courses.Links", "COUNT(links.id) > 0").
-		Preload("Courses.Links.Assignments", "parent_id = ?", 0).
-		Preload("Courses.Links.Assignments.Documents").
-		Preload("Courses.Links.Notes").
-		Find(&fullUser).Error; err != nil {
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting linked courses from database", fiber.StatusInternalServerError)
-	}
+	coursesLinked, err = models.GetCoursesLinked(
+		currentUser.ID,
+		db.Preload("Children.Assignments", "parent_id = 0").
+			Preload("Children.Assignments.User").Preload("Children.Assignments.Documents").
+			Preload("Children.Notes", "parent_id = 0").Preload("Children.Notes.User"),
+	)
 	if err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting linked courses from database", fiber.StatusInternalServerError)
 	}
-	coursesLinked = fullUser.Courses
 
 	// Cache the result for future requests
-	if cacheErr := CacheService.SetUserLinkedCourses(ctx, currentUser.ID, coursesLinked); cacheErr != nil {
+	if cacheErr := CacheService.SetCoursesLinked(ctx, currentUser.ID, coursesLinked); cacheErr != nil {
 		server.LogWarn(ctx, errors.WrapServer(cacheErr, errors.CacheOperationFailed, "Failed to cache linked courses", fiber.StatusInternalServerError))
 	}
 
-	if err := CacheService.SetExpirationUserLinkedCourses(ctx, currentUser.ID); err != nil {
+	if err := CacheService.SetExpirationCoursesLinked(ctx, currentUser.ID); err != nil {
 		server.LogWarn(ctx, errors.WrapServer(err, errors.CacheOperationFailed, "Failed to set cache expiration for linked courses", fiber.StatusInternalServerError))
 	}
 

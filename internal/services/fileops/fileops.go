@@ -134,9 +134,8 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 
 	// Create new version
 	newVersion := models.LocalDocument{
-		Document: models.Document{
+		BaseDocument: models.BaseDocument{
 			AssignmentID: existingDoc.AssignmentID,
-			UserID:       existingDoc.UserID,
 			Type:         existingDoc.Type,
 			FileName:     req.FileName,
 			FileType:     GetMimeType(req.FileName),
