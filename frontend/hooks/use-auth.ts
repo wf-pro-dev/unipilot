@@ -104,7 +104,7 @@ export function useRegister() {
       return await Register({ 
         Username: username  , 
         Email: email, 
-        PasswordHash: password, 
+        Password: password, 
         University: university, 
         Language: language, 
         Semester: semester, 

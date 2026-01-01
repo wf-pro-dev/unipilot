@@ -9,6 +9,7 @@ export namespace client {
 	    DeletedAt: gorm.DeletedAt;
 	    Username: string;
 	    Email: string;
+	    Password: string;
 	    PasswordHash: string;
 	    Avatar: string;
 	    University: string;
@@ -19,6 +20,9 @@ export namespace client {
 	    CoursesCode: string[];
 	    // Go type: time
 	    LastSync?: any;
+	    Courses: models.Course[];
+	    Assignments: models.Assignment[];
+	    Notes: models.Note[];
 	    Followers: models.User[];
 	    Following: models.User[];
 	    CoursesCode: string[];
@@ -35,6 +39,7 @@ export namespace client {
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
 	        this.Username = source["Username"];
 	        this.Email = source["Email"];
+	        this.Password = source["Password"];
 	        this.PasswordHash = source["PasswordHash"];
 	        this.Avatar = source["Avatar"];
 	        this.University = source["University"];
@@ -44,6 +49,9 @@ export namespace client {
 	        this.Language = source["Language"];
 	        this.CoursesCode = source["CoursesCode"];
 	        this.LastSync = this.convertValues(source["LastSync"], null);
+	        this.Courses = this.convertValues(source["Courses"], models.Course);
+	        this.Assignments = this.convertValues(source["Assignments"], models.Assignment);
+	        this.Notes = this.convertValues(source["Notes"], models.Note);
 	        this.Followers = this.convertValues(source["Followers"], models.User);
 	        this.Following = this.convertValues(source["Following"], models.User);
 	        this.CoursesCode = source["CoursesCode"];
@@ -302,8 +310,11 @@ export namespace models {
 	    Subject: string;
 	    Content: string;
 	    Videos: string;
+	    ParentID: number;
 	    User: User;
 	    Course: Course;
+	    Parent?: Note;
+	    Children: Note[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Note(source);
@@ -322,8 +333,11 @@ export namespace models {
 	        this.Subject = source["Subject"];
 	        this.Content = source["Content"];
 	        this.Videos = source["Videos"];
+	        this.ParentID = source["ParentID"];
 	        this.User = this.convertValues(source["User"], User);
 	        this.Course = this.convertValues(source["Course"], Course);
+	        this.Parent = this.convertValues(source["Parent"], Note);
+	        this.Children = this.convertValues(source["Children"], Note);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -365,11 +379,10 @@ export namespace models {
 	    Semester: string;
 	    Instructor: string;
 	    InstructorEmail: string;
-	    LinkID: number[];
 	    User: User;
 	    Assignments: Assignment[];
 	    Notes: Note[];
-	    CoursesLinked: Course[];
+	    Links: Course[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Course(source);
@@ -393,11 +406,10 @@ export namespace models {
 	        this.Semester = source["Semester"];
 	        this.Instructor = source["Instructor"];
 	        this.InstructorEmail = source["InstructorEmail"];
-	        this.LinkID = source["LinkID"];
 	        this.User = this.convertValues(source["User"], User);
 	        this.Assignments = this.convertValues(source["Assignments"], Assignment);
 	        this.Notes = this.convertValues(source["Notes"], Note);
-	        this.CoursesLinked = this.convertValues(source["CoursesLinked"], Course);
+	        this.Links = this.convertValues(source["Links"], Course);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -427,6 +439,7 @@ export namespace models {
 	    DeletedAt: gorm.DeletedAt;
 	    Username: string;
 	    Email: string;
+	    Password: string;
 	    PasswordHash: string;
 	    Avatar: string;
 	    University: string;
@@ -437,6 +450,9 @@ export namespace models {
 	    CoursesCode: string[];
 	    // Go type: time
 	    LastSync?: any;
+	    Courses: Course[];
+	    Assignments: Assignment[];
+	    Notes: Note[];
 	    Followers: User[];
 	    Following: User[];
 	
@@ -452,6 +468,7 @@ export namespace models {
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
 	        this.Username = source["Username"];
 	        this.Email = source["Email"];
+	        this.Password = source["Password"];
 	        this.PasswordHash = source["PasswordHash"];
 	        this.Avatar = source["Avatar"];
 	        this.University = source["University"];
@@ -461,6 +478,9 @@ export namespace models {
 	        this.Language = source["Language"];
 	        this.CoursesCode = source["CoursesCode"];
 	        this.LastSync = this.convertValues(source["LastSync"], null);
+	        this.Courses = this.convertValues(source["Courses"], Course);
+	        this.Assignments = this.convertValues(source["Assignments"], Assignment);
+	        this.Notes = this.convertValues(source["Notes"], Note);
 	        this.Followers = this.convertValues(source["Followers"], User);
 	        this.Following = this.convertValues(source["Following"], User);
 	    }
@@ -753,8 +773,11 @@ export namespace models {
 	    Subject: string;
 	    Content: string;
 	    Videos: string;
+	    ParentID: number;
 	    User: User;
 	    Course: Course;
+	    Parent?: Note;
+	    Children: Note[];
 	    RemoteID: number;
 	    RemoteCourseID: number;
 	    UserID: number;
@@ -777,8 +800,11 @@ export namespace models {
 	        this.Subject = source["Subject"];
 	        this.Content = source["Content"];
 	        this.Videos = source["Videos"];
+	        this.ParentID = source["ParentID"];
 	        this.User = this.convertValues(source["User"], User);
 	        this.Course = this.convertValues(source["Course"], Course);
+	        this.Parent = this.convertValues(source["Parent"], Note);
+	        this.Children = this.convertValues(source["Children"], Note);
 	        this.RemoteID = source["RemoteID"];
 	        this.RemoteCourseID = source["RemoteCourseID"];
 	        this.UserID = source["UserID"];
@@ -824,11 +850,10 @@ export namespace models {
 	    Semester: string;
 	    Instructor: string;
 	    InstructorEmail: string;
-	    LinkID: number[];
 	    User: User;
 	    Assignments: Assignment[];
 	    Notes: Note[];
-	    CoursesLinked: Course[];
+	    Links: Course[];
 	    RemoteID: number;
 	    UserID: number;
 	    Assignments: LocalAssignment[];
@@ -856,11 +881,10 @@ export namespace models {
 	        this.Semester = source["Semester"];
 	        this.Instructor = source["Instructor"];
 	        this.InstructorEmail = source["InstructorEmail"];
-	        this.LinkID = source["LinkID"];
 	        this.User = this.convertValues(source["User"], User);
 	        this.Assignments = this.convertValues(source["Assignments"], Assignment);
 	        this.Notes = this.convertValues(source["Notes"], Note);
-	        this.CoursesLinked = this.convertValues(source["CoursesLinked"], Course);
+	        this.Links = this.convertValues(source["Links"], Course);
 	        this.RemoteID = source["RemoteID"];
 	        this.UserID = source["UserID"];
 	        this.Assignments = this.convertValues(source["Assignments"], LocalAssignment);
@@ -914,8 +938,6 @@ export namespace models {
 	    UserID: number;
 	    Course: LocalCourse;
 	    Documents: LocalDocument[];
-	    Parent?: LocalAssignment;
-	    Children: LocalAssignment[];
 	
 	    static createFrom(source: any = {}) {
 	        return new LocalAssignment(source);
@@ -948,8 +970,6 @@ export namespace models {
 	        this.UserID = source["UserID"];
 	        this.Course = this.convertValues(source["Course"], LocalCourse);
 	        this.Documents = this.convertValues(source["Documents"], LocalDocument);
-	        this.Parent = this.convertValues(source["Parent"], LocalAssignment);
-	        this.Children = this.convertValues(source["Children"], LocalAssignment);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

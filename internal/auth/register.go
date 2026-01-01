@@ -12,7 +12,6 @@ import (
 	"unipilot/internal/secrets"
 	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
-	"unipilot/internal/storage"
 )
 
 // Register creates a new user account and automatically authenticates the models.
@@ -68,21 +67,10 @@ func (a *Auth) Register(userData *models.User) (*models.User, error) {
 	// Initialize early to ensure it's never nil for subsequent operations
 	a.SSE = sse.NewSSE()
 
-	// Step 10: Initialize local database schema for offline data storage
-	// Gracefully handle missing database directory (first-time registration scenario)
-	localDB, err := utils.GetUserDB()
-	if err != nil {
-		// If we can't get the local database, just log it and continue
-		// This might happen if the database directory doesn't exist yet
-		fmt.Printf("Warning: Could not get local database: %v\n", err)
-		fmt.Printf("Login successful, but database operations failed\n")
-		return &response.User, nil // Don't fail the registration, just return success
-	}
-	// Initialize the database schema (create tables if they don't exist)
-	// Non-fatal operation - registration succeeds even if schema initialization fails
-	if err := storage.InitializeSchema(localDB); err != nil {
-		fmt.Printf("Warning: Failed to initialize database schema: %v\n", err)
-		// Don't fail the registration, just continue
+	// Step 12: Perform post-login data migration (courses and assignments)
+	// Errors are non-fatal - login succeeds even if migration fails
+	if err := PostLogin(); err != nil {
+		return &response.User, err
 	}
 
 	return &response.User, nil

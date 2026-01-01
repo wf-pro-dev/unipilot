@@ -9,12 +9,13 @@ import (
 	"time"
 	"unipilot/internal/client"
 	"unipilot/internal/errors"
+	Errors "unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/secrets"
+	dbservice "unipilot/internal/services/database"
 	syncservice "unipilot/internal/services/sync"
 	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
-	"unipilot/internal/storage"
 )
 
 // Login authenticates a user with the provided credentials and initializes the session.
@@ -126,23 +127,13 @@ func (a *Auth) Login(username, password string) (*models.User, error) {
 //   - error: Last error encountered (if any), but login succeeds regardless
 func PostLogin() error {
 
-	// Step 1: Get local database connection for data migration
-	// GetUserDB will create the database file if it doesn't exist
-	localDB, err := utils.GetUserDB()
-	if err != nil {
-		// If we can't get the local database, log and return the error
-		fmt.Printf("Warning: Could not get local database: %v\n", err)
-		fmt.Printf("Login successful, but database operations failed\n")
-		return err
+	if err := dbservice.EnsureClientDBInitialized(); err != nil {
+		log.Fatal(Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to ensure client database is initialized").Error())
 	}
 
-	log.Println("Local database connected", localDB)
-
-	// Step 2: Initialize database schema (create tables if they don't exist)
-	// Non-fatal operation - login succeeds even if schema initialization fails
-	if err := storage.InitializeSchema(localDB); err != nil {
-		log.Println("Failed to initialize database schema", err)
-		// Don't fail the login, just continue
+	localDB, err := utils.GetUserDB()
+	if err != nil {
+		log.Fatal(Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to get user database").Error())
 	}
 
 	// Step 3: Migrate courses from remote server to local database
