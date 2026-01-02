@@ -9,22 +9,23 @@ import (
 
 	"unipilot/internal/errors"
 
+	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 )
 
 type BaseCourse struct {
-	Code            string `gorm:"index:idx_courses_user_code_active,unique,where:deleted_at IS NULL;not null"`
-	Name            string `gorm:"not null"`
-	Color           string `gorm:"default:bg-blue-500"`
-	Location        string
-	StartDate       time.Time
-	EndDate         time.Time
-	Schedule        string
-	Credits         int
-	Semester        string
-	Instructor      string
-	InstructorEmail string
-	ParentID        uint `gorm:"default:0"`
+	Code            string    `gorm:"index:idx_courses_user_code_active,unique,where:deleted_at IS NULL;not null" validate:"required,min=1,max=12"`
+	Name            string    `gorm:"not null" validate:"required,min=3,max=100"`
+	Color           string    `gorm:"default:bg-blue-500" validate:"required"`
+	Location        string    `validate:"required,min=3,max=100"`
+	StartDate       time.Time `validate:"required"`
+	EndDate         time.Time `validate:"required,gtfield=StartDate"`
+	Schedule        string    `validate:"required,min=3,max=100"`
+	Credits         int       `validate:"required,min=1,max=10"`
+	Semester        string    `validate:"required,min=1,max=20"`
+	Instructor      string    `validate:"required,min=3,max=100"`
+	InstructorEmail string    `validate:"required,email"`
+	ParentID        uint      `gorm:"default:null"`
 }
 
 // Course represents a school course
@@ -32,14 +33,14 @@ type Course struct {
 	gorm.Model
 	BaseCourse
 
-	UserID uint `gorm:"not null;index"`
+	UserID uint `gorm:"not null;index" validate:"required"`
 	// Common fields
 
 	// Relationships
-	Parent   *Course  `gorm:"foreignKey:ParentID;references:ID"`
+	Parent   *Course  `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
 	Children []Course `gorm:"foreignKey:ParentID"`
 
-	User        User         `gorm:"foreignKey:UserID;references:ID"`
+	User        *User        `gorm:"foreignKey:UserID;references:ID" validate:"-"`
 	Assignments []Assignment `gorm:"foreignKey:CourseID;references:ID"`
 	Notes       []Note       `gorm:"foreignKey:CourseID;references:ID"`
 }
@@ -50,7 +51,7 @@ type LocalCourse struct {
 	gorm.Model
 	BaseCourse
 
-	RemoteID uint `gorm:"unique"`
+	RemoteID uint `gorm:"unique;default:null"`
 
 	Assignments []LocalAssignment `gorm:"foreignKey:CourseID;references:ID"`
 	Notes       []LocalNote       `gorm:"foreignKey:CourseID;references:ID"`
@@ -63,9 +64,9 @@ type CourseLinkRequest struct {
 	ReceiverID uint `gorm:"not null;index"`
 	CourseID   uint `gorm:"not null;index"`
 
-	Owner    User   `gorm:"foreignKey:OwnerID;references:ID"`
-	Receiver User   `gorm:"foreignKey:ReceiverID;references:ID"`
-	Course   Course `gorm:"foreignKey:CourseID;references:ID"`
+	Owner    User   `gorm:"foreignKey:OwnerID;references:ID" validate:"-"`
+	Receiver User   `gorm:"foreignKey:ReceiverID;references:ID" validate:"-"`
+	Course   Course `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
 }
 
 func (c *BaseCourse) ToMap() map[string]string {
@@ -112,6 +113,10 @@ func (lc *LocalCourse) ToRemote() *Course {
 
 	return c
 }
+
+// END: Conversion Functions
+
+// START: GORM Hooks
 
 // BeforeCreate is a GORM hook that runs before creating a record
 func (c *Course) BeforeCreate(tx *gorm.DB) error {
@@ -185,6 +190,54 @@ func (lc *LocalCourse) BeforeDelete(tx *gorm.DB) error {
 	}
 	return nil
 }
+
+// END: GORM Hooks
+
+// START: Validation Functions
+
+func (c *Course) Validate() error {
+
+	c.Code = strings.TrimLeft(c.Code, " ")
+	c.Code = strings.TrimRight(c.Code, " ")
+	c.Code = strings.ToUpper(c.Code)
+
+	c.Name = strings.TrimRight(c.Name, " ")
+	c.Location = strings.TrimRight(c.Location, " ")
+
+	c.Schedule = strings.TrimRight(c.Schedule, " ")
+	c.Schedule = strings.TrimLeft(c.Schedule, " ")
+
+	c.Semester = strings.TrimRight(c.Semester, " ")
+	c.Semester = strings.TrimLeft(c.Semester, " ")
+	c.Semester = strings.ToUpper(c.Semester)
+
+	c.Instructor = strings.TrimRight(c.Instructor, " ")
+	c.Instructor = strings.TrimLeft(c.Instructor, " ")
+
+	c.InstructorEmail = strings.TrimSpace(c.InstructorEmail)
+
+	validate := validator.New()
+	if err := validate.Struct(c); err != nil {
+		return errors.Wrap(err, errors.ValidationInvalid, "Course validation failed")
+	}
+
+	if err := isValidCode(c.Code); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func isValidCode(code string) error {
+	pattern := `^[A-Z0-9\s\-_.]+$`
+	re := regexp.MustCompile(pattern)
+	if !re.MatchString(code) {
+		return errors.Wrap(fmt.Errorf("code invalid"), errors.ValidationInvalid, "Code invalid")
+	}
+	return nil
+}
+
+// END: Validation Functions
 
 // GET Operations
 
