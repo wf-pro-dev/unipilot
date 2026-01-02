@@ -82,7 +82,7 @@ export function Dashboard() {
     const priorityAssignments = useMemo(() => {
         if (!assignments) return []
         return assignments
-            .filter(a => a.StatusName !== "Done")
+            .filter(a => a.Status !== "Done")
             .sort((a, b) => new Date(a.Deadline).getTime() - new Date(b.Deadline).getTime())
             .slice(0, 6)
     }, [assignments])
@@ -114,8 +114,8 @@ export function Dashboard() {
     }
 
     const handleToggleComplete = (assignment: assignment.LocalAssignment) => {
-        const newStatus = assignment.StatusName === "Done" ? "Not started" : "Done"
-        handleEditAssignment(assignment, "status_name", newStatus)
+        const newStatus = assignment.Status === "Done" ? "Not started" : "Done"
+        handleEditAssignment(assignment, "status", newStatus)
     }
 
     const handleDelete = (assignment: assignment.LocalAssignment) => {

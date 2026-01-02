@@ -12,7 +12,7 @@ export interface Assignment {
     Priority: string;
     Deadline: string;
     Todo: string;
-    StatusName: string;
+    Status: string;
 }
 export interface ChatRequest {
     messages: UIMessage[];

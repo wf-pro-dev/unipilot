@@ -17,7 +17,7 @@ export function StatsCards() {
     {
       title: "Due Today",
       value: todayAssignments.length,
-      change: `${todayAssignments.filter((a) => a.StatusName !== "Done").length} pending`,
+      change: `${todayAssignments.filter((a) => a.Status !== "Done").length} pending`,
       icon: Clock,
       color: "text-orange-400",
       bgColor: "bg-orange-500/10",
@@ -26,7 +26,7 @@ export function StatsCards() {
     {
       title: "This Week", 
       value: weekAssignments.length,
-      change: `${weekAssignments.filter((a) => a.StatusName !== "Done").length} pending`,
+      change: `${weekAssignments.filter((a) => a.Status !== "Done").length} pending`,
       icon: Calendar,
       color: "text-blue-400",
       bgColor: "bg-blue-500/10",

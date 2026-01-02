@@ -54,7 +54,7 @@ export function AssignmentDetailsModal({
   // Parse deadline with timezone awareness
   const deadline = parseDeadline(assignment.Deadline)
 
-  const isOverdueStatus = isOverdue(deadline, assignment.StatusName)
+  const isOverdueStatus = isOverdue(deadline, assignment.Status)
   const daysUntilDue = calculateDaysDifference(deadline)
   const handleOpenLink = () => {
     BrowserOpenURL(assignment.Link)
@@ -112,7 +112,7 @@ export function AssignmentDetailsModal({
                     <span>Deadline</span>
                   </div>
                   <Badge variant="outline" className={`border-white/10 bg-white/5 ${isOverdueStatus ? "text-red-400" : daysUntilDue < 0 ? "text-gray-400" : "text-yellow-400"}`}>
-                    {getDueDescription(deadline, assignment.StatusName)}
+                    {getDueDescription(deadline, assignment.Status)}
                   </Badge>
                 </div>
                 <p className="font-medium text-white text-lg">{format(deadline, "EEEE, MMMM d, yyyy")}</p>

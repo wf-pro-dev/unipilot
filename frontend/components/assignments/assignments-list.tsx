@@ -43,10 +43,10 @@ export default function AssignmentsList() {
                     <span className="font-medium">Course:</span> {assignment.Course?.Code || 'N/A'}
                   </div>
                   <div>
-                    <span className="font-medium">Type:</span> {assignment.TypeName}
+                    <span className="font-medium">Type:</span> {assignment.Type}
                   </div>
                   <div>
-                    <span className="font-medium">Status:</span> {assignment.StatusName}
+                    <span className="font-medium">Status:</span> {assignment.Status}
                   </div>
                   <div>
                     <span className="font-medium">Due:</span> {formatDeadline(deadline)}

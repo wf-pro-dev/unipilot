@@ -19,17 +19,17 @@ interface StatusTagProps {
 
 
 function BaseStatusTag({ assignment, onEdit }: StatusTagProps) {
-    const [status, setStatus] = useState(assignment.StatusName)
+    const [status, setStatus] = useState(assignment.Status)
 
 
     useEffect(() => {
-        setStatus(assignment.StatusName)
-    }, [assignment.StatusName])
+        setStatus(assignment.Status)
+    }, [assignment.Status])
 
     const handleEdit = (e: React.MouseEvent<HTMLButtonElement>, status: string) => {
         e.stopPropagation()
         setStatus(status)
-        onEdit(assignment, "status_name", status)
+        onEdit(assignment, "status", status)
     }
 
     return (
@@ -55,6 +55,6 @@ function BaseStatusTag({ assignment, onEdit }: StatusTagProps) {
 }
 
 export const StatusTag = memo(BaseStatusTag, (prevProps, nextProps) => {
-    console.log("StatusTag memo", prevProps.assignment.StatusName, nextProps.assignment.StatusName)
-    return prevProps.assignment.StatusName === nextProps.assignment.StatusName
+    console.log("StatusTag memo", prevProps.assignment.Status, nextProps.assignment.Status)
+    return prevProps.assignment.Status === nextProps.assignment.Status
 })

@@ -24,7 +24,7 @@ function TypeTag({ assignment, onEdit }: TypeTagProps) {
    
     const handleEdit = (e: React.MouseEvent<HTMLButtonElement>, type: string) => {
         e.stopPropagation()
-        onEdit(assignment, "type_name", type)
+        onEdit(assignment, "type", type)
     }
 
     return (
@@ -33,10 +33,10 @@ function TypeTag({ assignment, onEdit }: TypeTagProps) {
                 <Button variant="ghost" size="sm" className="p-0">
                     <Badge
                         variant="outline"
-                        className={`text-xs flex flex-row gap-1 ${typeColors[assignment.TypeName as keyof typeof typeColors]}`}
+                        className={`text-xs flex flex-row gap-1 ${typeColors[assignment.Type as keyof typeof typeColors]}`}
                     >
                         <BookOpen className="h-3 w-3 " />
-                        {assignment.TypeName}
+                        {assignment.Type}
                     </Badge>
                 </Button>
             </DropdownMenuTrigger>

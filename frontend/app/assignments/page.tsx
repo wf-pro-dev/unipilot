@@ -114,7 +114,7 @@ export default function AssignmentsPage() {
    * through optimistic updates. Logs the change and shows success/error toast notifications.
    * 
    * @param {assignment.LocalAssignment} assignment - The assignment to update
-   * @param {string} column - The field name to update (e.g., "status_name", "deadline")
+   * @param {string} column - The field name to update (e.g., "status", "deadline")
    * @param {string} value - The new value for the field
    * @returns {Promise<void>}
    */

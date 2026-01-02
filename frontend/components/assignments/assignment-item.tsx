@@ -44,11 +44,11 @@ export function AssignmentItem({
   onOpenEdit,
   disabled = false
 }: AssignmentItemProps) {
-  const [checked, setChecked] = useState(assignment.StatusName === "Done")
+  const [checked, setChecked] = useState(assignment.Status === "Done")
 
   // Parse deadline with timezone awareness
   const deadline = parseDeadline(assignment.Deadline)
-  const isOverdueStatus = isOverdue(deadline, assignment.StatusName)
+  const isOverdueStatus = isOverdue(deadline, assignment.Status)
 
   function handleToggleComplete() {
     if (disabled) return
@@ -154,11 +154,11 @@ export function AssignmentItem({
 
               {/* 2. Main Info: Title & Description */}
               <div className="space-y-1">
-                <h3 className={`text-h4 ${assignment.StatusName === "Done" ? "line-through text-gray-400" : "text-white"} line-clamp-1 tracking-tight`}>
+                <h3 className={`text-h4 ${assignment.Status === "Done" ? "line-through text-gray-400" : "text-white"} line-clamp-1 tracking-tight`}>
                   {assignment.Title}
                 </h3>
                 {assignment.Todo ? (
-                  <p className={`text-caption ${assignment.StatusName === "Done" ? "text-gray-400" : "text-white"} line-clamp-1 leading-relaxed`}  >{assignment.Todo}</p>
+                  <p className={`text-caption ${assignment.Status === "Done" ? "text-gray-400" : "text-white"} line-clamp-1 leading-relaxed`}  >{assignment.Todo}</p>
                 ) : (
                   <p className="text-caption text-gray-400 line-clamp-1 leading-relaxed">{"No description yet..."}</p>
                 )}
@@ -173,7 +173,7 @@ export function AssignmentItem({
                 <div className="flex items-center space-x-1.5 text-xs text-gray-400 bg-black/20 px-2.5 py-1.5 rounded-lg border border-white/5">
                   <Clock className="h-3 w-3" />
                   <span className={isOverdueStatus ? "text-red-400 font-bold" : "font-medium text-gray-300"}>
-                    {getDueDescription(deadline, assignment.StatusName)}
+                    {getDueDescription(deadline, assignment.Status)}
                   </span>
                 </div>
               </div>

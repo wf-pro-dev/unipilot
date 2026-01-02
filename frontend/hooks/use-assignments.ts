@@ -173,7 +173,7 @@ export function useOverdueAssignments() {
 
   const overdueAssignments = assignments?.filter(assignment => {
     if (!assignment.Deadline) return false
-    return new Date(assignment.Deadline) < addDays(new Date(), -1) && assignment.StatusName !== 'Done'
+    return new Date(assignment.Deadline) < addDays(new Date(), -1) && assignment.Status !== 'Done'
   }) || []
 
   return {
@@ -232,7 +232,7 @@ export function useCompletedAssignments() {
   const { data: assignments, ...rest } = useAssignments()
 
   const completedAssignments = useMemo(() => assignments?.filter(assignment =>
-    assignment.StatusName === 'Done'
+    assignment.Status === 'Done'
   ) || [], [assignments]) // Memoize the result to avoid unnecessary re-renders
 
   return {
@@ -246,7 +246,7 @@ export function useExamAssignments() {
   const { data: assignments, ...rest } = useAssignments()
 
   const examAssignments = useMemo(() => assignments?.filter(assignment =>
-    assignment.TypeName === 'Exam'
+    assignment.Type === 'Exam'
   ) || [], [assignments]) // Memoize the result to avoid unnecessary re-renders
 
   return {

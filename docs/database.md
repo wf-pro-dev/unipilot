@@ -61,8 +61,8 @@ The `assignments` table stores assignment/task information associated with users
 - `todo`: Assignment description and task details
 - `deadline`: Assignment due date
 - `course_code`: Associated course identifier (links to courses)
-- `type_name`: Assignment category/type (e.g., "homework", "project")
-- `status_name`: Current assignment status (e.g., "pending", "completed")
+- `type`: Assignment category/type (e.g., "homework", "project")
+- `status`: Current assignment status (e.g., "pending", "completed")
 - `priority`: Assignment priority level
 - `link`: Related URL or resource link
 - `parent_id`: Foreign key to parent assignment (for sub-assignments)

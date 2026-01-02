@@ -12,7 +12,7 @@ export function AssignmentsDueToday() {
   const { data: assignments = [] } = useAssignments()
   
   const todayAssignments = (assignments || []).filter((a) => isToday(parseDeadline(a.Deadline)))
-  const pendingCount = todayAssignments.filter((a) => a.StatusName !== "Done").length
+  const pendingCount = todayAssignments.filter((a) => a.Status !== "Done").length
 
   return (
     <Card className="glass border-0">
@@ -31,10 +31,10 @@ export function AssignmentsDueToday() {
               <div key={assignment.ID} className="flex items-center justify-between text-sm">
                 <span className="text-gray-300 truncate">{assignment.Title}</span>
                 <Badge 
-                  variant={assignment.StatusName === "Done" ? "default" : "secondary"}
+                  variant={assignment.Status === "Done" ? "default" : "secondary"}
                   className="text-xs"
                 >
-                  {assignment.StatusName}
+                  {assignment.Status}
                 </Badge>
               </div>
             ))}

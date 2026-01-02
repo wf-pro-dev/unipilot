@@ -29,7 +29,7 @@ function CourseItem({ course,
     const { data: assignments } = useAssignments()
 
     const course_assignments = (assignments || []).filter((assignment) => assignment.Course?.Code === course.Code)
-    const completed_assignments_count = course_assignments.filter((assignment) => assignment.StatusName === "Done").length
+    const completed_assignments_count = course_assignments.filter((assignment) => assignment.Status === "Done").length
     const completionPercentage = course_assignments.length > 0 ? (completed_assignments_count / course_assignments.length) * 100 : 0
 
     const [open, setOpen] = useState(false)

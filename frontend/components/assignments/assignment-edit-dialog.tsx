@@ -54,8 +54,8 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
   const [formData, setFormData] = useState({
     title: assignment.Title || "",
     course_code: assignment.CourseCode || "",
-    type_name: assignment.TypeName || "",
-    status_name: assignment.StatusName || "",
+    type: assignment.Type || "",
+    status: assignment.Status || "",
     priority: assignment.Priority || "",
     todo: assignment.Todo || "",
     link: assignment.Link || "",
@@ -64,8 +64,8 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
   const key_to_column = {
     title: "Title",
     course_code: "CourseCode",
-    type_name: "TypeName",
-    status_name: "StatusName",
+    type: "Type",
+    status: "Status",
     priority: "Priority",
     todo: "Todo",
     link: "Link",
@@ -146,7 +146,7 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
                 <Label htmlFor="type" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
                   Type
                 </Label>
-                <Select value={formData.type_name} onValueChange={(value) => setFormData({ ...formData, type_name: value })}>
+                <Select value={formData.type} onValueChange={(value) => setFormData({ ...formData, type: value })}>
                   <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
@@ -191,8 +191,8 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
                   Status
                 </Label>
                 <Select
-                  value={formData.status_name}
-                  onValueChange={(value) => setFormData({ ...formData, status_name: value })}
+                  value={formData.status}
+                  onValueChange={(value) => setFormData({ ...formData, status: value })}
                 >
                   <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10">
                     <SelectValue />

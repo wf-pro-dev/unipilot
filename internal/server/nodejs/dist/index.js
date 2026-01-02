@@ -191,7 +191,7 @@ If chunks don't help, use your model knowledge (SOURCE 3) to provide an answer.
  * @param {string} assignment.Priority - Assignment priority level
  * @param {string} assignment.Deadline - Assignment due date
  * @param {string} assignment.Todo - Assignment todo/description
- * @param {string} assignment.StatusName - Current assignment status
+ * @param {string} assignment.Status - Current assignment status
  * @returns {string} Formatted system prompt for AI context injection
  */
 function buildSystemPrompt(assignment) {
@@ -212,7 +212,7 @@ This is assignment-specific information provided directly in the context:
 - Priority: ${assignment.Priority}
 - Due: ${assignment.Deadline}
 - Todo: ${assignment.Todo}
-- Status: ${assignment.StatusName}
+- Status: ${assignment.Status}
 
 WHEN TO USE: Answer questions directly from this metadata when possible.
 Examples:

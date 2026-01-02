@@ -54,7 +54,7 @@ export function AssignmentsTable({
   const { data: courses } = useCoursesBySemester(user?.Semester || "FALL 2025")
 
   const courseCodes = Array.from(new Set(courses?.map((course) => course.Code) || []))
-  const statuses = Array.from(new Set((assignments || []).map((assignment) => assignment.StatusName)))
+  const statuses = Array.from(new Set((assignments || []).map((assignment) => assignment.Status)))
   const priorities = Array.from(new Set((assignments || []).map((assignment) => assignment.Priority)))
 
   const hasActiveFilters = selectedCourse !== "all" || selectedStatus !== "all" || selectedPriority !== "all" || searchTerm !== ""
@@ -66,7 +66,7 @@ export function AssignmentsTable({
       assignment.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       assignment.Course?.Name.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCourse = selectedCourse === "all" || assignment.Course?.Code === selectedCourse
-    const matchesStatus = selectedStatus === "all" || assignment.StatusName === selectedStatus
+    const matchesStatus = selectedStatus === "all" || assignment.Status === selectedStatus
     const matchesPriority = selectedPriority === "all" || assignment.Priority === selectedPriority
     return matchesSearch && matchesCourse && matchesStatus && matchesPriority
   }), [assignments, searchTerm, selectedCourse, selectedStatus, selectedPriority])

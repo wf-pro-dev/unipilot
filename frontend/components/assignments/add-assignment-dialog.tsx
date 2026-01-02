@@ -250,47 +250,45 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
                         )}
                       />
 
-<FormField
-                      control={form.control}
-                      name="deadline"
-                      render={({ field, fieldState }) => (
-                        <FormItem className="space-y-1">
-                          <FormLabel className="text-xs font-medium uppercase tracking-wider text-gray-400 ml-1">
-                            Due Date
-                          </FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "w-full justify-start text-left font-normal h-11 bg-white/5 border-white/10 hover:bg-white/10 text-white rounded-xl",
-                                  !field.value && "text-gray-400"
-                                )}
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {field.value ? format(field.value, "MMM do, yyyy") : "Pick a date"}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0 border-white/10 bg-black/90 backdrop-blur-xl">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                initialFocus
-                                className="text-white"
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          {fieldState.error && (
-                            <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                          )}
-                        </FormItem>
-                      )}
-                    />
-                    
-                    </div>
+                      <FormField
+                        control={form.control}
+                        name="deadline"
+                        render={({ field, fieldState }) => (
+                          <FormItem className="space-y-1">
+                            <FormLabel className="text-xs font-medium uppercase tracking-wider text-gray-400 ml-1">
+                              Due Date
+                            </FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full justify-start text-left font-normal h-11 bg-white/5 border-white/10 hover:bg-white/10 text-white rounded-xl",
+                                    !field.value && "text-gray-400"
+                                  )}
+                                >
+                                  <CalendarIcon className="mr-2 h-4 w-4" />
+                                  {field.value ? format(field.value, "MMM do, yyyy") : "Pick a date"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0 border-white/10 bg-black/90 backdrop-blur-xl">
+                                <Calendar
+                                  mode="single"
+                                  selected={field.value}
+                                  onSelect={field.onChange}
+                                  initialFocus
+                                  className="text-white"
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            {fieldState.error && (
+                              <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
+                            )}
+                          </FormItem>
+                        )}
+                      />
 
-                   
+                    </div>
 
                     <Button
                       type="button"

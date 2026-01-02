@@ -1069,7 +1069,7 @@
 - `assignment.Priority`: Assignment priority level (string, required)
 - `assignment.Deadline`: Assignment due date (string, required)
 - `assignment.Todo`: Assignment description/tasks (string, required)
-- `assignment.StatusName`: Current assignment status (string, required)
+- `assignment.Status`: Current assignment status (string, required)
 
 **Response:** Streaming AI response with tool integration (Server-Sent Events format)
 

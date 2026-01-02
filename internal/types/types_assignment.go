@@ -180,16 +180,16 @@ type DeletionRequest struct {
 var COLUMNS = map[string]string{
 	"id":        "id",
 	"w%3FC%3B":  "course_code",
-	"S~Ce":      "type_name",
+	"S~Ce":      "type",
 	"title":     "title",
 	"_UjC":      "deadline",
 	"%5DJfC":    "todo",
 	"notion_id": "notion_id",
 	"jgPD":      "link",
-	"%5Bm%5Cs":  "status_name",
+	"%5Bm%5Cs":  "status",
 }
 
-var DEFAULT_COLUMNS_FOR_LS = []string{"id", "type_name", "course_code", "title", "deadline", "todo", "status_name"}
+var DEFAULT_COLUMNS_FOR_LS = []string{"id", "type", "course_code", "title", "deadline", "todo", "status"}
 
 func GetColumnFromPropertyId(property_id string) (column string, err error) {
 

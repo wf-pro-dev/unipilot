@@ -167,46 +167,45 @@ func (a *App) CreateAssignment(assignmentData *models.LocalAssignment) (*models.
 	}
 
 	// Always try to sync with server
-	/*
-		remoteAssignment := localAssignment.ToRemote()
 
-		//Online operation
-		isOnline := network.IsOnline()
-		var remoteID uint
-		var clientErr error
-		if isOnline {
-			remoteID, clientErr = client.CreateAssignment(remoteAssignment)
-		} else {
+	remoteAssignment := localAssignment.ToRemote()
 
-			clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
+	//Online operation
+	isOnline := network.IsOnline()
+	var remoteID uint
+	var clientErr error
+	if isOnline {
+		remoteID, clientErr = client.CreateAssignment(remoteAssignment)
+	} else {
+
+		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
+	}
+
+	if clientErr != nil {
+		// Server operation failed, create sync log
+		syncManager := syncservice.NewManager(db)
+		if syncErr := syncManager.CreateSyncLog(
+			models.EntityAssignment,
+			localAssignment.ID,
+			"create",
+			"",
+			"",
+			clientErr,
+		); syncErr != nil {
+			return nil, Errors.Wrap(syncErr, Errors.ClientRequestFailed, "Failed to create sync log")
 		}
 
-		if clientErr != nil {
-			// Server operation failed, create sync log
-			syncManager := syncservice.NewManager(db)
-			if syncErr := syncManager.CreateSyncLog(
-				models.EntityAssignment,
-				localAssignment.ID,
-				"create",
-				"",
-				"",
-				clientErr,
-			); syncErr != nil {
-				return nil, Errors.Wrap(syncErr, Errors.ClientRequestFailed, "Failed to create sync log")
-			}
+		//Commit the transaction with the sync log
 
-			//Commit the transaction with the sync log
+		return nil, nil
+	}
 
-			return nil, nil
-		}
+	// Server operation succeeded
+	localAssignment.RemoteID = remoteID
 
-		// Server operation succeeded
-		localAssignment.RemoteID = remoteID
-
-		if err := db.Save(localAssignment).Error; err != nil {
-			return nil, Errors.HandleDBWriteError(err)
-		}
-	*/
+	if err := db.Save(localAssignment).Error; err != nil {
+		return nil, Errors.HandleDBWriteError(err)
+	}
 
 	return localAssignment, nil
 }

@@ -156,7 +156,7 @@ export function AssignmentsCalendar({
         "In progress": 0,
         "Done": 2
       }
-      return status[a.StatusName] - status[b.StatusName]
+      return status[a.Status] - status[b.Status]
     })
   }
 

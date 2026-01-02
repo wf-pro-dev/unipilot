@@ -14,7 +14,7 @@ export interface Assignment {
     Priority: string;
     Deadline: string;
     Todo: string;
-    StatusName: string;
+    Status: string;
   }
   
   // Express request/response types

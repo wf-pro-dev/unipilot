@@ -220,7 +220,7 @@ func (s *Scheduler) getWeeklyAssignments() ([]models.LocalAssignment, error) {
 
 	// Query for assignments due in the next 7 days that are not completed
 	query := fmt.Sprintf(
-		"deadline BETWEEN '%s' AND '%s' AND status_name != 'Done'",
+		"deadline BETWEEN '%s' AND '%s' AND status != 'Done'",
 		startDate.Format(time.RFC3339),
 		endDate.Format(time.RFC3339),
 	)

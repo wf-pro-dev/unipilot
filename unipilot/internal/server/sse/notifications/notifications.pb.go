@@ -7,11 +7,12 @@
 package notifications
 
 import (
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -265,9 +266,9 @@ var file_internal_server_sse_grpc_notifications_notifications_proto_depIdxs = []
 	2, // 3: notifications.NotificationsService.Heartbeat:output_type -> notifications.Message
 	2, // [2:4] is the sub-list for method output_type
 	0, // [0:2] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
+	0, // [0:0] is the sub-list for extension type
 	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // [0:0] is the sub-list for field type
 }
 
 func init() { file_internal_server_sse_grpc_notifications_notifications_proto_init() }

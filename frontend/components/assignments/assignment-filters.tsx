@@ -55,7 +55,7 @@ export function AssignmentFilters({
   }
 
   const courses = Array.from(new Set((assignments || []).map((assignment: assignment.LocalAssignment) => assignment.Course?.Code)))
-  const statuses = Array.from(new Set((assignments || []).map((assignment: assignment.LocalAssignment) => assignment.StatusName)))
+  const statuses = Array.from(new Set((assignments || []).map((assignment: assignment.LocalAssignment) => assignment.Status)))
   const priorities = Array.from(new Set((assignments || []).map((assignment: assignment.LocalAssignment) => assignment.Priority)))
 
   return (

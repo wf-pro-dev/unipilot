@@ -7,8 +7,8 @@ interface Assignment {
   Todo: string
   Deadline: Date 
   Link: string
-  TypeName: string
-  StatusName: "Not started" | "In progress" | "Done"
+  Type: string
+  Status: "Not started" | "In progress" | "Done"
   Priority: "low" | "medium" | "high"
   Completed: boolean
   CreatedAt: Date 

@@ -78,7 +78,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
   const [selectedIndex, setSelectedIndex] = useState(0)
 
   var course_assignments = (assignments || []).filter((assignment: assignment.LocalAssignment) => assignment.Course?.Code === course.Code) || []
-  var completed_assignments_count = course_assignments.filter((assignment: assignment.LocalAssignment) => assignment.StatusName === "Done").length
+  var completed_assignments_count = course_assignments.filter((assignment: assignment.LocalAssignment) => assignment.Status === "Done").length
   var completionPercentage = (completed_assignments_count / course_assignments.length) * 100
   var isCompleted = completionPercentage === 100
   const [open, setOpen] = useState(false)

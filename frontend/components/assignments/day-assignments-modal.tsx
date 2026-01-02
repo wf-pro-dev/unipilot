@@ -36,7 +36,7 @@ export function DayAssignmentsModal({
   }: DayAssignmentsModalProps) {
   if (!date) return null
   const dayAssignments = assignments.filter((a) => isSameDay(a.Deadline, date))
-  const completedCount = dayAssignments.filter((a) => a.StatusName === "Done").length
+  const completedCount = dayAssignments.filter((a) => a.Status === "Done").length
   const totalCount = dayAssignments.length
   const isDayComplete = completedCount === totalCount
 

@@ -12,9 +12,9 @@ export function AssignmentsThisWeek() {
   const upcomingAssignments = (assignments || []).filter((a) => isWithinInterval(parseDeadline(a.Deadline), { start: startOfWeek(new Date()), end: endOfWeek(new Date()) }))
   
   const stats = {
-    completed: upcomingAssignments.filter((a) => a.StatusName === "Done").length,
-    pending: upcomingAssignments.filter((a) => a.StatusName !== "Done").length,
-    overdue: upcomingAssignments.filter((a) => isOverdue(parseDeadline(a.Deadline), a.StatusName)).length,
+    completed: upcomingAssignments.filter((a) => a.Status === "Done").length,
+    pending: upcomingAssignments.filter((a) => a.Status !== "Done").length,
+    overdue: upcomingAssignments.filter((a) => isOverdue(parseDeadline(a.Deadline), a.Status)).length,
   }
 
   return (

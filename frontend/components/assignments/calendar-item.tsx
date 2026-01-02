@@ -29,7 +29,7 @@ export function CalendarItem({ assignment, onEdit, onAssignmentClick }: Calendar
     high: "bg-red-500",
   }[assignment.Priority?.toLowerCase() || "low"] || "bg-gray-500"
 
-  const isDone = assignment.StatusName === "Done"
+  const isDone = assignment.Status === "Done"
 
   return (
     <div
