@@ -111,20 +111,13 @@ func CreateCourseHandler(c *fiber.Ctx) error {
 			fiber.StatusBadRequest,
 		)
 	}
+	// Add user id to the input struct
+	input.UserID = userID
 
 	// Step 3: Validate business-critical required fields
-	if input.Code == "" || input.Semester == "" || input.Instructor == "" {
-		err := Errors.New("missing required fields")
-		return errors.WrapServer(
-			err,
-			errors.ReqParamMissing,
-			"Missing required fields",
-			fiber.StatusBadRequest,
-		)
+	if err := input.Validate(); err != nil {
+		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
 	}
-
-	// Add user id
-	input.UserID = userID
 
 	// Step 7: Persist course to database within transaction
 	if result := db.Create(&input); result.Error != nil {

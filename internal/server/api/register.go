@@ -71,7 +71,7 @@ func RegisterHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 5: Hash password using bcrypt with default cost (currently 10 rounds)
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(registrationData.PasswordHash), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(registrationData.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return errors.WrapServer(err, errors.ProcDataProcessingFailed, "Error generating hashed password", fiber.StatusInternalServerError)
 	}

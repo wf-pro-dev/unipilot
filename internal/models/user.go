@@ -131,6 +131,7 @@ func (u *User) Validate() error {
 	if err := validate.Struct(u); err != nil {
 		return errors.Wrap(err, errors.ValidationInvalid, "User Validation failed")
 	}
+
 	err := isValidUsername(u.Username)
 	if err != nil {
 		return err
