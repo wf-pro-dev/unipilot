@@ -160,39 +160,63 @@ func (la *LocalAssignment) AfterDelete(tx *gorm.DB) error {
 
 // START: Validation Functions
 
-func (a *Assignment) Validate() error {
+func (ba *BaseAssignment) Validate() error {
 
-	a.Title = strings.TrimRight(a.Title, " ")
-	a.Title = strings.TrimLeft(a.Title, " ")
+	ba.Title = strings.TrimRight(ba.Title, " ")
+	ba.Title = strings.TrimLeft(ba.Title, " ")
 
-	a.Todo = strings.TrimRight(a.Todo, " ")
-	a.Todo = strings.TrimLeft(a.Todo, " ")
+	ba.Todo = strings.TrimRight(ba.Todo, " ")
+	ba.Todo = strings.TrimLeft(ba.Todo, " ")
 
-	a.Link = strings.TrimSpace(a.Link)
+	ba.Link = strings.TrimSpace(ba.Link)
 
-	a.Priority = strings.TrimRight(a.Priority, " ")
-	a.Priority = strings.TrimLeft(a.Priority, " ")
+	ba.Priority = strings.TrimRight(ba.Priority, " ")
+	ba.Priority = strings.TrimLeft(ba.Priority, " ")
 
-	a.CourseCode = strings.TrimRight(a.CourseCode, " ")
-	a.CourseCode = strings.TrimLeft(a.CourseCode, " ")
-	a.CourseCode = strings.ToUpper(a.CourseCode)
+	ba.CourseCode = strings.TrimRight(ba.CourseCode, " ")
+	ba.CourseCode = strings.TrimLeft(ba.CourseCode, " ")
+	ba.CourseCode = strings.ToUpper(ba.CourseCode)
 
-	a.Type = strings.TrimRight(a.Type, " ")
-	a.Type = strings.TrimLeft(a.Type, " ")
+	ba.Type = strings.TrimRight(ba.Type, " ")
+	ba.Type = strings.TrimLeft(ba.Type, " ")
+	ba.Type = strings.ReplaceAll(ba.Type, " ", "_")
 
-	a.Status = strings.TrimRight(a.Status, " ")
-	a.Status = strings.TrimLeft(a.Status, " ")
+	ba.Status = strings.TrimRight(ba.Status, " ")
+	ba.Status = strings.TrimLeft(ba.Status, " ")
+	ba.Status = strings.ReplaceAll(ba.Status, " ", "_")
 
-	if err := isValidTitle(a.Title); err != nil {
+	if err := isValidTitle(ba.Title); err != nil {
 		return err
 	}
-	if err := isValidTodo(a.Todo); err != nil {
+	if err := isValidTodo(ba.Todo); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Assignment) Validate() error {
+
+	if err := a.BaseAssignment.Validate(); err != nil {
 		return err
 	}
 
 	validate := validator.New()
 	if err := validate.Struct(a); err != nil {
 		return errors.Wrap(err, errors.ValidationInvalid, "Assignment Validation failed")
+	}
+
+	return nil
+}
+
+func (la *LocalAssignment) Validate() error {
+	if err := la.BaseAssignment.Validate(); err != nil {
+		return err
+	}
+
+	validate := validator.New()
+	if err := validate.Struct(la); err != nil {
+		return errors.Wrap(err, errors.ValidationInvalid, "LocalAssignment Validation failed")
 	}
 
 	return nil

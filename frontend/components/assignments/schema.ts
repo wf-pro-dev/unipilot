@@ -11,13 +11,13 @@ const isValidAssignmentTitle = (title: string): boolean => {
     /data:/i,
     /vbscript:/i,
   ]
-  
+
   for (const pattern of dangerousPatterns) {
     if (pattern.test(title)) {
       return false
     }
   }
-  
+
   return true
 }
 
@@ -68,7 +68,13 @@ export const assignmentStep1Schema = z.object({
         message: "Course code can only contain letters, numbers, spaces, and hyphens",
       }
     ),
-  type_name: z
+  course_id: z
+    .number()
+    .min(1, "Course ID is required"),
+  remote_course_id: z
+    .number()
+    .min(1, "Remote Course ID is required"),
+  type: z
     .string()
     .min(1, "Please select an assignment type")
     .refine(
@@ -93,7 +99,7 @@ export const assignmentStep2Schema = z.object({
         message: "Please select a valid priority",
       }
     ),
-  status_name: z
+  status: z
     .string()
     .min(1, "Please select a status")
     .refine(
@@ -122,10 +128,7 @@ export const assignmentSchema = z.intersection(assignmentStep1Schema, assignment
 
 export type AssignmentStep1Values = z.infer<typeof assignmentStep1Schema>
 export type AssignmentStep2Values = z.infer<typeof assignmentStep2Schema>
-export type AssignmentValues = z.infer<typeof assignmentSchema> & {
-  course_id: number
-  remote_course_id: number
-}
+export type AssignmentValues = z.infer<typeof assignmentSchema>
 
 // Export validation functions
 export { isValidAssignmentTitle, isValidLink, isValidCourseCode, validTypes, validPriorities, validStatuses }

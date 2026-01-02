@@ -53,8 +53,8 @@ type LocalCourse struct {
 
 	RemoteID uint `gorm:"unique;default:null"`
 
-	Assignments []LocalAssignment `gorm:"foreignKey:CourseID;references:ID"`
-	Notes       []LocalNote       `gorm:"foreignKey:CourseID;references:ID"`
+	Assignments []LocalAssignment `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
+	Notes       []LocalNote       `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
 }
 
 // Course Link Request
@@ -195,26 +195,34 @@ func (lc *LocalCourse) BeforeDelete(tx *gorm.DB) error {
 
 // START: Validation Functions
 
+func (bc *BaseCourse) Validate() error {
+	bc.Code = strings.TrimLeft(bc.Code, " ")
+	bc.Code = strings.TrimRight(bc.Code, " ")
+	bc.Code = strings.ToUpper(bc.Code)
+
+	bc.Name = strings.TrimRight(bc.Name, " ")
+	bc.Location = strings.TrimRight(bc.Location, " ")
+
+	bc.Schedule = strings.TrimRight(bc.Schedule, " ")
+	bc.Schedule = strings.TrimLeft(bc.Schedule, " ")
+
+	bc.Semester = strings.TrimRight(bc.Semester, " ")
+	bc.Semester = strings.TrimLeft(bc.Semester, " ")
+	bc.Semester = strings.ToUpper(bc.Semester)
+
+	bc.Instructor = strings.TrimRight(bc.Instructor, " ")
+	bc.Instructor = strings.TrimLeft(bc.Instructor, " ")
+
+	bc.InstructorEmail = strings.TrimSpace(bc.InstructorEmail)
+
+	return nil
+}
+
 func (c *Course) Validate() error {
 
-	c.Code = strings.TrimLeft(c.Code, " ")
-	c.Code = strings.TrimRight(c.Code, " ")
-	c.Code = strings.ToUpper(c.Code)
-
-	c.Name = strings.TrimRight(c.Name, " ")
-	c.Location = strings.TrimRight(c.Location, " ")
-
-	c.Schedule = strings.TrimRight(c.Schedule, " ")
-	c.Schedule = strings.TrimLeft(c.Schedule, " ")
-
-	c.Semester = strings.TrimRight(c.Semester, " ")
-	c.Semester = strings.TrimLeft(c.Semester, " ")
-	c.Semester = strings.ToUpper(c.Semester)
-
-	c.Instructor = strings.TrimRight(c.Instructor, " ")
-	c.Instructor = strings.TrimLeft(c.Instructor, " ")
-
-	c.InstructorEmail = strings.TrimSpace(c.InstructorEmail)
+	if err := c.BaseCourse.Validate(); err != nil {
+		return err
+	}
 
 	validate := validator.New()
 	if err := validate.Struct(c); err != nil {
@@ -222,6 +230,23 @@ func (c *Course) Validate() error {
 	}
 
 	if err := isValidCode(c.Code); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (lc *LocalCourse) Validate() error {
+	if err := lc.BaseCourse.Validate(); err != nil {
+		return err
+	}
+
+	validate := validator.New()
+	if err := validate.Struct(lc); err != nil {
+		return errors.Wrap(err, errors.ValidationInvalid, "LocalCourse validation failed")
+	}
+
+	if err := isValidCode(lc.Code); err != nil {
 		return err
 	}
 

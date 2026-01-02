@@ -428,7 +428,7 @@ export namespace models {
 	    UserID: number;
 	    Parent?: Course;
 	    Children: Course[];
-	    User: User;
+	    User?: User;
 	    Assignments: Assignment[];
 	    Notes: Note[];
 	
@@ -576,8 +576,8 @@ export namespace models {
 	    Priority: string;
 	    ParentID: number;
 	    UserID: number;
-	    User: User;
-	    Course: Course;
+	    User?: User;
+	    Course?: Course;
 	    Documents: Document[];
 	    Parent?: Assignment;
 	    Children: Assignment[];
@@ -938,7 +938,7 @@ export namespace models {
 	    ParentID: number;
 	    RemoteID: number;
 	    RemoteCourseID: number;
-	    Course: LocalCourse;
+	    Course?: LocalCourse;
 	    Documents: LocalDocument[];
 	
 	    static createFrom(source: any = {}) {

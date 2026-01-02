@@ -31,7 +31,7 @@ import { CoursesSelect } from "../courses/courses-select"
 
 const types = [
   { value: "HW", label: "HW", icon: "📝", color: "text-blue-400" },
-  { value: "Group Project", label: "Group Project", icon: "👥", color: "text-yellow-400" },
+  { value: "Group project", label: "Group Project", icon: "👥", color: "text-yellow-400" },
   { value: "Exam", label: "Exam", icon: "📚", color: "text-red-400" },
   { value: "Quiz", label: "Quiz", icon: "❓", color: "text-orange-400" },
   { value: "Lab", label: "Lab", icon: "🔬", color: "text-green-400" },
@@ -66,10 +66,12 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
     defaultValues: {
       title: "",
       course_code: "",
-      type_name: "",
+      course_id: 0,
+      remote_course_id: 0,
+      type: "",
       deadline: new Date(),
       priority: "medium",
-      status_name: "Not started",
+      status: "Not started",
       todo: "",
       link: "",
     },
@@ -78,7 +80,7 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
   const handleNext = async () => {
     if (step === 1) {
       setStep1Attempted(true)
-      const step1Valid = await form.trigger(["title", "course_code", "type_name", "deadline"])
+      const step1Valid = await form.trigger(["title", "course_code", "course_id", "remote_course_id", "type", "deadline"])
       if (step1Valid) setStep(2)
     }
   }
@@ -90,14 +92,15 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
   const onSubmit = async (data: AssignmentValues) => {
     setIsSubmitting(true)
     try {
+      console.log("data", data.course_id)
       const assignmentData: models.LocalAssignment = {
         Title: data.title,
         Todo: data.todo || "",
         Deadline: data.deadline,
         CourseID: data.course_id,
         CourseCode: data.course_code,
-        Type: data.type_name,
-        Status: data.status_name,
+        Type: data.type,
+        Status: data.status,
         Priority: data.priority,
         RemoteCourseID: data.remote_course_id,
         Link: data.link || "https://acconline.austincc.edu/ultra/stream",
@@ -197,6 +200,7 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
                           <CoursesSelect
                             value={field.value}
                             onValueChange={(value, courseData) => {
+                              console.log("courseData", courseData)
                               field.onChange(value)
                               if (courseData) {
                                 form.setValue("course_id", courseData.id)
@@ -216,7 +220,7 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
 
                       <FormField
                         control={form.control}
-                        name="type_name"
+                        name="type"
                         render={({ field, fieldState }) => (
                           <FormItem className="space-y-1 group">
                             <FormLabel className="text-xs font-medium uppercase tracking-wider text-gray-400 group-focus-within:text-white ml-1 transition-colors duration-300">
@@ -342,7 +346,7 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
 
                       <FormField
                         control={form.control}
-                        name="status_name"
+                        name="status"
                         render={({ field, fieldState }) => (
                           <FormItem className="space-y-1 group">
                             <FormLabel className="text-xs font-medium uppercase tracking-wider text-gray-400 group-focus-within:text-white ml-1 transition-colors duration-300">
