@@ -179,11 +179,9 @@ func (ba *BaseAssignment) Validate() error {
 
 	ba.Type = strings.TrimRight(ba.Type, " ")
 	ba.Type = strings.TrimLeft(ba.Type, " ")
-	ba.Type = strings.ReplaceAll(ba.Type, " ", "_")
 
 	ba.Status = strings.TrimRight(ba.Status, " ")
 	ba.Status = strings.TrimLeft(ba.Status, " ")
-	ba.Status = strings.ReplaceAll(ba.Status, " ", "_")
 
 	if err := isValidTitle(ba.Title); err != nil {
 		return err
