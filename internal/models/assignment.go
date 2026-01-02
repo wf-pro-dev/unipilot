@@ -17,8 +17,8 @@ import (
 
 type BaseAssignment struct {
 	Title      string    `gorm:"not null" validate:"required,min=3,max=100"`
-	Type       string    `gorm:"not null" validate:"required,oneof=HW Group_project Exam Quiz Lab"`
-	Status     string    `gorm:"not null" validate:"required,oneof=Not_started In_progress Done"`
+	Type       string    `gorm:"not null" validate:"required,oneof=HW 'Group project' Exam Quiz Lab"`
+	Status     string    `gorm:"not null" validate:"required,oneof=@'Not started' 'In progress' 'Done'"`
 	Todo       string    `gorm:"not null" validate:"max=1000"`
 	Deadline   time.Time `gorm:"not null" validate:"required"`
 	Link       string    `gorm:"default:https://acconline.austincc.edu/ultra/stream" validate:"url"`
