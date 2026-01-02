@@ -3,50 +3,53 @@ package models
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"unipilot/internal/errors"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/qdrant/go-client/qdrant"
 	"gorm.io/gorm"
 )
 
 type BaseAssignment struct {
-	Title      string `gorm:"not null"`
-	Type       string `gorm:"not null"`
-	Status     string `gorm:"not null"`
-	Todo       string
-	Deadline   time.Time `gorm:"not null"`
-	Link       string    `gorm:"default:https://acconline.austincc.edu/ultra/stream"`
-	CourseID   uint      `gorm:"not null;index"`
-	CourseCode string    `gorm:"index"`
-	Priority   string    `gorm:"default:medium"`
-	ParentID   uint      `gorm:"default:0"`
+	Title      string    `gorm:"not null" validate:"required,min=3,max=100"`
+	Type       string    `gorm:"not null" validate:"required,oneof=HW Group_project Exam Quiz Lab"`
+	Status     string    `gorm:"not null" validate:"required,oneof=Not_started In_progress Done"`
+	Todo       string    `gorm:"not null" validate:"max=1000"`
+	Deadline   time.Time `gorm:"not null" validate:"required"`
+	Link       string    `gorm:"default:https://acconline.austincc.edu/ultra/stream" validate:"url"`
+	CourseID   uint      `gorm:"not null;index" validate:"required"`
+	CourseCode string    `gorm:"index" validate:"required"`
+	Priority   string    `gorm:"default:low" validate:"required,oneof=low medium high"`
+	ParentID   uint      `gorm:"default:null"`
 }
 
 // Assignment represents a homework or exam assignment
 type Assignment struct {
 	gorm.Model
 	BaseAssignment
-	UserID uint `gorm:"not null"`
+	UserID uint `gorm:"not null" validate:"required"`
 
 	// Relationships
-	User      User         `gorm:"foreignKey:UserID;references:ID"`
-	Course    Course       `gorm:"foreignKey:CourseID;references:ID"`
-	Documents []Document   `gorm:"foreignKey:AssignmentID;references:ID"`
-	Parent    *Assignment  `gorm:"foreignKey:ParentID;references:ID"`
-	Children  []Assignment `gorm:"foreignKey:ParentID"`
+	User      *User        `gorm:"foreignKey:UserID;references:ID" validate:"-"`
+	Course    *Course      `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
+	Documents []Document   `gorm:"foreignKey:AssignmentID;references:ID" validate:"-"`
+	Parent    *Assignment  `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
+	Children  []Assignment `gorm:"foreignKey:ParentID" validate:"-"`
 }
 
 type LocalAssignment struct {
 	gorm.Model
 	BaseAssignment
-	RemoteID       uint `gorm:"unique"`
-	RemoteCourseID uint
+	RemoteID       uint `gorm:"unique;default:null"`
+	RemoteCourseID uint `gorm:"default:null"`
 
-	Course    LocalCourse     `gorm:"foreignKey:CourseID;references:ID"`
-	Documents []LocalDocument `gorm:"foreignKey:AssignmentID;references:ID"`
+	Course    *LocalCourse    `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
+	Documents []LocalDocument `gorm:"foreignKey:AssignmentID;references:ID" validate:"-"`
 }
 
 func (a *BaseAssignment) ToMap() map[string]string {
@@ -93,6 +96,10 @@ func (la *LocalAssignment) ToMap() map[string]string {
 	laMap["remote_id"] = strconv.Itoa(int(la.RemoteID))
 	return laMap
 }
+
+// END: Conversion Functions
+
+// START: GORM Hooks
 
 func (a *Assignment) BeforeDelete(tx *gorm.DB) error {
 	// Retrieve qdrantClient from transaction context
@@ -144,6 +151,86 @@ func (la *LocalAssignment) AfterDelete(tx *gorm.DB) error {
 
 	return nil
 }
+
+// END: GORM Hooks
+
+// START: Validation Functions
+
+func (a *Assignment) Validate() error {
+
+	a.Title = strings.TrimRight(a.Title, " ")
+	a.Title = strings.TrimLeft(a.Title, " ")
+
+	a.Todo = strings.TrimRight(a.Todo, " ")
+	a.Todo = strings.TrimLeft(a.Todo, " ")
+
+	a.Link = strings.TrimSpace(a.Link)
+
+	a.Priority = strings.TrimRight(a.Priority, " ")
+	a.Priority = strings.TrimLeft(a.Priority, " ")
+
+	a.CourseCode = strings.TrimRight(a.CourseCode, " ")
+	a.CourseCode = strings.TrimLeft(a.CourseCode, " ")
+	a.CourseCode = strings.ToUpper(a.CourseCode)
+
+	a.Type = strings.TrimRight(a.Type, " ")
+	a.Type = strings.TrimLeft(a.Type, " ")
+
+	a.Status = strings.TrimRight(a.Status, " ")
+	a.Status = strings.TrimLeft(a.Status, " ")
+
+	if err := isValidTitle(a.Title); err != nil {
+		return err
+	}
+	if err := isValidTodo(a.Todo); err != nil {
+		return err
+	}
+
+	validate := validator.New()
+	if err := validate.Struct(a); err != nil {
+		return errors.Wrap(err, errors.ValidationInvalid, "Assignment Validation failed")
+	}
+
+	return nil
+}
+
+func isValidTitle(title string) error {
+
+	// Remove dangerous patterns but allow most characters
+	dangerousPatterns := []*regexp.Regexp{
+		regexp.MustCompile(`(?i)<script`),
+		regexp.MustCompile(`(?i)javascript:`),
+		regexp.MustCompile(`(?i)on\w+\s*=`),
+		regexp.MustCompile(`(?i)data:`),
+		regexp.MustCompile(`(?i)vbscript:`),
+	}
+
+	for _, pattern := range dangerousPatterns {
+		if pattern.MatchString(title) {
+			return errors.Wrap(fmt.Errorf("title contains unsafe pattern"), errors.ValidationInvalid, "Title contains unsafe content")
+		}
+	}
+
+	return nil
+}
+
+func isValidTodo(todo string) error {
+	dangerousPatterns := []*regexp.Regexp{
+		regexp.MustCompile(`(?i)<script`),
+		regexp.MustCompile(`(?i)javascript:`),
+		regexp.MustCompile(`(?i)on\w+\s*=`),
+		regexp.MustCompile(`(?i)data:`),
+		regexp.MustCompile(`(?i)vbscript:`),
+	}
+	for _, pattern := range dangerousPatterns {
+		if pattern.MatchString(todo) {
+			return errors.Wrap(fmt.Errorf("todo contains unsafe pattern"), errors.ValidationInvalid, "Todo contains unsafe content")
+		}
+	}
+	return nil
+}
+
+// END: Validation Functions
 
 // GET Operation
 

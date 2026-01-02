@@ -157,16 +157,12 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 	if err := c.BodyParser(&input); err != nil {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
+	input.UserID = userID
 
 	// Step 4: Validate all required fields for assignment creation
-	// Validate all required fields
-	if input.CourseID == 0 || input.CourseCode == "" || input.Title == "" || input.Type == "" {
-		return errors.WrapServer(fmt.Errorf("missing required fields"), errors.ReqParamMissing, "Missing required fields", fiber.StatusBadRequest)
-
+	if err := input.Validate(); err != nil {
+		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
 	}
-
-	// update the user id
-	input.UserID = userID
 
 	// Step 9: Create assignment record in database within transaction
 	result := db.Preload("User").Preload("Course").Create(&input).First(&input)
