@@ -26,7 +26,7 @@ const getCourseGradientClasses = (color: string | undefined, isOn: boolean | nul
     if (!color || !isOn) {
         return {
             bg: "bg-white/5",
-            hover: "hover:bg-white/10 hover:border-white/10"
+            hover: color ? "hover:bg-white/10 hover:border-white/10" : ""
         }
     }
 
@@ -60,7 +60,7 @@ const getCourseGradientClasses = (color: string | undefined, isOn: boolean | nul
 
     return colorMap[color] || {
         bg: "bg-white/5",
-        hover: "hover:bg-white/10 hover:border-white/10"
+        hover: "over:bg-white/10 hover:border-white/10"
     }
 }
 
@@ -131,29 +131,33 @@ export function Dashboard() {
     }
 
     return (
-        <div className="flex flex-col h-full gap-6">
+
+        <div className="flex flex-col flex-1 gap-6">
+
             <div className="shrink-0">
                 <StatsCards />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
                 {/* Main Column (Left 2/3) */}
-                <div className="lg:col-span-2 flex flex-col gap-6 h-full min-h-0">
+                <div className="lg:col-span-2 flex flex-col flex-1 gap-6">
 
                     {/* Next Class Card */}
-                    <div className="shrink-0">
+                    <div className="flex flex-1">
                         <GlassCard
-                            variant="interactive"
+                            variant={course ? "interactive" : "default"}
                             onClick={() => course && router.push(`/courses?view=schedule?course=${course.Code}`)}
-                            className={`${getCourseGradientClasses(course?.Color, course && isOn).bg} ${getCourseGradientClasses(course?.Color, course && isOn).hover} border border-white/5 transition-all duration-300 group overflow-hidden relative`}
+                            className={`${getCourseGradientClasses(course?.Color, course && isOn).bg} ${getCourseGradientClasses(course?.Color, course && isOn).hover} flex flex-col flex-1 border border-white/5 transition-all duration-300 group overflow-hidden relative`}
                         >
 
                             <CardHeader className="flex flex-row items-center justify-between pb-4 z-10 relative">
                                 <div className="flex items-center space-x-3">
-                                    <div className="p-2 rounded-xl bg-white/10 backdrop-blur-md border border-white/5 shadow-inner">
-                                        <BookOpen className="h-5 w-5 text-white" />
+
+                                    <div className="p-2 rounded-xl bg-gradient-to-br from-accent-cyan/20 to-transparent border border-accent-cyan/30 shadow-inner">
+                                        <BookOpen className="w-5 h-5 text-accent-cyan" />
                                     </div>
-                                    <h3 className="text-lg font-semibold text-white">Next Class</h3>
+
+                                    <h4 className="text-h4">Next Class</h4>
                                 </div>
                                 {isOn && (
                                     <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 animate-pulse">
@@ -162,7 +166,7 @@ export function Dashboard() {
                                 )}
                             </CardHeader>
 
-                            <CardContent className="z-10 relative">
+                            <CardContent className="flex flex-col flex-1 z-10 relative">
                                 {course ? (
                                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 group/course">
                                         <div className="space-y-4">
@@ -204,7 +208,7 @@ export function Dashboard() {
                                         icon={BookOpen}
                                         title="No upcoming classes"
                                         description="Enjoy your free time!"
-                                        className="py-8"
+                                        className="flex-1 items-center"
                                     />
                                 )}
                             </CardContent>
@@ -212,56 +216,67 @@ export function Dashboard() {
                     </div>
 
                     {/* Priority Assignments */}
-                    <div className="flex flex-col gap-4 flex-1 min-h-0">
-                        <div className="flex items-center justify-between px-1 shrink-0">
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                <Clock className="w-5 h-5 text-orange-400" />
-                                Priority Tasks
-                            </h3>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-gray-400 hover:text-white hover:bg-white/10"
-                                onClick={() => router.push('/assignments')}
-                            >
-                                View All <ArrowRight className="ml-1 w-4 h-4" />
-                            </Button>
-                        </div>
+                    <div className="flex flex-1">
+                        <div className="flex flex-1 flex-col gap-4">
+                            <div className="flex items-center justify-between px-1 shrink-0">
+                                <h4 className="text-h4 flex items-center gap-2">
 
-                        {priorityAssignments.length > 0 ? (
-                            <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 pb-20">
-                                {priorityAssignments.map(assignment => (
-                                    <AssignmentItemCompact
-                                        key={assignment.ID}
-                                        assignment={assignment}
-                                        onToggleComplete={handleToggleComplete}
-                                        onAssignmentClick={(a) => router.push(`/assignments?view=assignment&assignment=${a.ID}`)}
-                                    />
-                                ))}
+                                    <div className="p-2 rounded-xl bg-gradient-to-br from-accent-cyan/20 to-transparent border border-accent-cyan/30 shadow-inner">
+                                        <Clock className="w-5 h-5 text-accent-cyan" />
+                                    </div>
+
+                                    Priority Tasks
+                                </h4>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-body text-text-caption hover:text-white hover:bg-white/10"
+                                    onClick={() => router.push('/assignments')}
+                                >
+                                    View All <ArrowRight className="ml-1 w-4 h-4" />
+                                </Button>
                             </div>
-                        ) : (
-                            <GlassCard className="border-white/5 bg-white/5 py-12 flex-1 flex flex-col justify-center">
-                                <HorizontalEmptyState
-                                    icon={Clock}
-                                    title="All caught up!"
-                                    description="No pending assignments due soon."
-                                    className="bg-transparent border-0"
-                                />
-                            </GlassCard>
-                        )}
+
+                            {priorityAssignments.length > 0 ? (
+                                <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 pb-20">
+                                    {priorityAssignments.map(assignment => (
+                                        <AssignmentItemCompact
+                                            key={assignment.ID}
+                                            assignment={assignment}
+                                            onToggleComplete={handleToggleComplete}
+                                            onAssignmentClick={(a) => router.push(`/assignments?view=assignment&assignment=${a.ID}`)}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <GlassCard className="flex flex-1 border-white/5 bg-white/5">
+                                    <HorizontalEmptyState
+                                        icon={Clock}
+                                        title="All caught up!"
+                                        description="No pending assignments due soon."
+                                        className="flex-1"
+                                    />
+                                </GlassCard>
+                            )}
+                        </div>
                     </div>
+
                 </div>
 
                 {/* Side Column (Right 1/3) */}
-                <div className="flex flex-col gap-6 h-full">
+                <div className="flex flex-col flex-1 gap-6">
 
                     {/* Recent Notes */}
-                    <div className="space-y-4">
+                    <div className="flex flex-1 flex-col gap-4">
                         <div className="flex items-center justify-between px-1">
-                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                                <StickyNote className="w-5 h-5 text-yellow-400" />
+                            <h4 className="text-h4 flex items-center gap-2">
+
+                                <div className="p-2 rounded-xl bg-gradient-to-br from-accent-cyan/20 to-transparent border border-accent-cyan/30 shadow-inner">
+                                    <StickyNote className="w-5 h-5 text-accent-cyan" />
+                                </div>
+
                                 Recent Notes
-                            </h3>
+                            </h4>
                             <div className="flex gap-1">
                                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-white/10" onClick={() => emblaApi?.scrollPrev()}>
                                     <ArrowRight className="w-4 h-4 rotate-180" />
@@ -272,50 +287,51 @@ export function Dashboard() {
                             </div>
                         </div>
 
-                        <div className="overflow-hidden" ref={emblaRef}>
-                            <div className="flex gap-4">
-                                {notes && notes.length > 0 ? (
-                                    notes.slice(0, 5).map((note) => (
-                                        <div key={note.ID} className="flex-[0_0_100%] min-w-0 px-1">
-                                            <GlassCard
-                                                variant="interactive"
-                                                onClick={() => router.push('/notes')}
-                                                className="border-white/5 bg-white/5 hover:bg-white/10 p-4 h-full"
-                                            >
-                                                <div className="flex items-start justify-between mb-3">
-                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/5 ${note.Course.Color ? `text-${note.Course.Color.replace('bg-', '').replace('-500', '-400')}` : 'text-gray-400'}`}>
-                                                        <FileText className="w-4 h-4" />
-                                                    </div>
-                                                    <Badge variant="outline" className="border-white/10 text-gray-400 text-[10px]">{note.course_code}</Badge>
+                        <div className="flex flex-1 overflow-hidden" ref={emblaRef}>
+
+                            {notes && notes.length > 0 ? (
+                                notes.slice(0, 5).map((note) => (
+                                    <div key={note.ID} className="flex-[0_0_100%] min-w-0 px-1">
+                                        <GlassCard
+                                            variant="interactive"
+                                            onClick={() => router.push('/notes')}
+                                            className="border-white/5 bg-white/5 hover:bg-white/10 p-4 h-full"
+                                        >
+                                            <div className="flex items-start justify-between mb-3">
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/5 ${note.Course.Color ? `text-${note.Course.Color.replace('bg-', '').replace('-500', '-400')}` : 'text-gray-400'}`}>
+                                                    <FileText className="w-4 h-4" />
                                                 </div>
-                                                <h4 className="font-medium text-white line-clamp-2 mb-2">{note.title}</h4>
-                                                <p className="text-xs text-gray-400 line-clamp-2">{note.subject}</p>
-                                            </GlassCard>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="w-full">
-                                        <GlassCard className="border-white/5 bg-white/5 py-8">
-                                            <EmptyState
-                                                icon={FileText}
-                                                title="No notes yet"
-                                                description="Create your first note."
-                                                className="bg-transparent border-0 p-0"
-                                            />
+                                                <Badge variant="outline" className="border-white/10 text-gray-400 text-[10px]">{note.course_code}</Badge>
+                                            </div>
+                                            <h4 className="font-medium text-white line-clamp-2 mb-2">{note.title}</h4>
+                                            <p className="text-xs text-gray-400 line-clamp-2">{note.subject}</p>
                                         </GlassCard>
                                     </div>
-                                )}
-                            </div>
+                                ))
+                            ) : (
+
+                                <GlassCard className="flex flex-col flex-1 border-white/5 bg-white/5">
+                                    <EmptyState
+                                        icon={FileText}
+                                        title="No notes yet"
+                                        description="Create your first note."
+                                        className="flex-1"
+                                    />
+                                </GlassCard>
+                            )}
                         </div>
+
                     </div>
 
                     {/* Upcoming Exams */}
-                    <div className="flex flex-col gap-4">
-                        <h3 className="text-lg font-semibold text-white flex items-center gap-2 px-1 shrink-0">
-                            <Calendar className="w-5 h-5 text-red-400" />
+                    <div className="flex flex-col flex-1 gap-4">
+                        <h4 className="text-h4 flex items-center gap-2 px-1 shrink-0">
+                            <div className="p-2 rounded-xl bg-gradient-to-br from-accent-cyan/20 to-transparent border border-accent-cyan/30 shadow-inner">
+                                <Calendar className="w-5 h-5 text-accent-cyan" />
+                            </div>
                             Upcoming Exams
-                        </h3>
-                        <div className="space-y-3  overflow-y-auto">
+                        </h4>
+                        <div className="flex flex-1 overflow-y-auto">
                             {upcomingExams && upcomingExams.length > 0 ? (
                                 upcomingExams.map(exam => (
                                     <GlassCard
@@ -343,12 +359,12 @@ export function Dashboard() {
                                     </GlassCard>
                                 ))
                             ) : (
-                                <GlassCard className="border-white/5 bg-white/5 py-4">
+                                <GlassCard className="flex flex-col flex-1 border-white/5 bg-white/5">
                                     <EmptyState
                                         icon={Calendar}
                                         title="No exams"
                                         description="Time to relax!"
-                                        className="bg-transparent border-0 p-0"
+                                        className="flex-1"
                                     />
                                 </GlassCard>
                             )}
@@ -360,6 +376,7 @@ export function Dashboard() {
 
                 </div>
             </div>
+
 
             <AssignmentEditDialog
                 open={editDialogOpen}

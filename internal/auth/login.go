@@ -51,7 +51,11 @@ func (a *Auth) Login(username, password string) (*models.User, error) {
 
 	// Step 4: Validate response status code
 	if resp.StatusCode != http.StatusOK {
-		return nil, errors.NewAppError(errors.AuthUnauthorized, "Login failed", nil).ToServerError(resp.StatusCode)
+		var serverError *errors.ServerError
+		if err := json.NewDecoder(resp.Body).Decode(&serverError); err != nil {
+			return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse login response")
+		}
+		return nil, serverError
 	}
 
 	// Step 5: Parse API response to extract user data and tokens
@@ -128,12 +132,12 @@ func (a *Auth) Login(username, password string) (*models.User, error) {
 func PostLogin() error {
 
 	if err := dbservice.EnsureClientDBInitialized(); err != nil {
-		log.Fatal(Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to ensure client database is initialized").Error())
+		log.Println(Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to ensure client database is initialized").Error())
 	}
 
 	localDB, err := utils.GetUserDB()
 	if err != nil {
-		log.Fatal(Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to get user database").Error())
+		log.Println(Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to get user database").Error())
 	}
 
 	// Step 3: Migrate courses from remote server to local database

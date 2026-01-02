@@ -65,7 +65,7 @@ export default function CoursesTable({ courses, filter, onCourseClick, onEdit, o
 
     const hasActiveFilters = selectedSemester !== "all" || selectedInstructor !== "all" || searchTerm !== ""
     return (
-        <div className="space-y-6">
+        <div className="flex flex-col flex-1 space-y-6">
             <GlassCard className="border-white/5 bg-white/5 backdrop-blur-xl shadow-lg shadow-black/20">
                 <CardContent className="p-5">
                     <div className="space-y-4">

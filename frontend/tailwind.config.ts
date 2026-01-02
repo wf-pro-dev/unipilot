@@ -102,6 +102,7 @@ const config: Config = {
   				base: 'hsl(var(--bg-base))',
   				elevation: 'hsl(var(--bg-elevation))',
   				glass: 'hsl(var(--bg-glass))',
+				accent: 'hsl(var(--bg-accent))',
   				'glass-hover': 'hsl(var(--bg-glass-hover))',
   				'glass-elevated': 'hsl(var(--bg-glass-elevated))',
   			},
@@ -113,7 +114,7 @@ const config: Config = {
   			},
   			text: {
   				title: 'hsl(var(--text-title))',
-  				subtitle: 'hsl(var(--text-subtitle))',
+  				caption: 'hsl(var(--text-caption))',
   				body: 'hsl(var(--text-body))',
   				muted: 'hsl(var(--text-muted))',
   				disabled: 'hsl(var(--text-disabled))',

@@ -100,9 +100,9 @@ export function RegisterForm({ onRegisterSuccess, onLoginClick, className }: Reg
     return (
         <div className={cn("space-y-2 w-full mx-auto flex flex-col items-center justify-center ", className)}>
 
-            <div className="p-8 space-y-8 w-1/3 bg-white/5 border-white/30 shadow-lg shadow-black/20 relative rounded-2xl overflow-hidden transition-height duration-300 ease-in-out">
+            <div className="p-8 space-y-8 w-1/3 bg-white/5 border border-white/15 shadow-lg shadow-black/20 relative rounded-2xl overflow-hidden z-10">
                 {/* Shine effect on hover */}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent z-0 rounded-2xl" />
+                <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent z-0 rounded-2xl pointer-events-none" />
 
                 <div className="flex items-center justify-between mb-2 z-10">
                     <div>

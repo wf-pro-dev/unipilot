@@ -9,7 +9,7 @@ import (
 func main() {
 
 	localDoc := models.LocalDocument{
-		Document: models.Document{
+		BaseDocument: models.BaseDocument{
 			AssignmentID: uint(10),
 			FileName:     "test.docx",
 			FileType:     "docx",

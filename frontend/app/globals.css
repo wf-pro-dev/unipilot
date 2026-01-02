@@ -10,10 +10,10 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --primary: 217 91% 60%; /* #3B82F6 */
+    --primary-foreground: 210 40% 98%; /* #FFFFFF */  
+    --secondary: 258 90% 66%; /* #8B5CF6 */
+    --secondary-foreground: 222.2 47.4% 11.2%; /* #0A0E27 */
     --muted: 210 40% 96%;
     --muted-foreground: 215.4 16.3% 46.9%;
     --accent: 210 40% 96%;
@@ -76,7 +76,8 @@
     --bg-glass: 0 0% 0%;              /* Glass Background Base (light mode, use with opacity) */
     --bg-glass-hover: 0 0% 0%;        /* Glass Hover Base (light mode, use with opacity) */
     --bg-glass-elevated: 0 0% 0%;     /* Glass Elevated Base (light mode, use with opacity) */
-
+    --bg-accent: 0 0% 0%;
+    
     /* Glassmorphism Colors */
     --glass-bg: 0 0% 0%;              /* Glass Background Base (light mode, use with opacity) */
     --glass-border: 0 0% 0%;          /* Glass Border Base (light mode, use with opacity) */
@@ -85,7 +86,7 @@
 
     /* Text Colors - Hierarchy & Readability */
     --text-title: 222 47% 11%;        /* Title/Heading (light mode) */
-    --text-subtitle: 215 16% 46%;     /* Subtitle (light mode) */
+    --text-caption: 215 16% 46%;     /* Caption (light mode) */
     --text-body: 215 20% 25%;         /* Body Text (light mode) */
     --text-muted: 215 16% 46%;        /* Muted Text (light mode) */
     --text-disabled: 215 16% 65%;    /* Disabled Text (light mode) */
@@ -114,16 +115,16 @@
     --card-foreground: 210 40% 98%;
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --primary: 217 91% 53%; /* #2563EB */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+    --secondary: 258 90% 61%; /* #8B5CF6 */
+    --secondary-foreground: 0 0% 100%; /* #FFFFFF */ 
     --muted: 217.2 32.6% 17.5%;
     --muted-foreground: 215 20.2% 65.1%;
     --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent-foreground: 0 0% 100%; /* #FFFFFF */
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
@@ -132,6 +133,8 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+
+   
 
     /* ============================================
        ACADEMIC HORIZON COLOR PALETTE
@@ -179,6 +182,7 @@
     --bg-glass: 0 0% 100%;            /* Glass Background Base (use with opacity) */
     --bg-glass-hover: 0 0% 100%;      /* Glass Hover Base (use with opacity) */
     --bg-glass-elevated: 0 0% 100%;   /* Glass Elevated Base (use with opacity) */
+    --bg-accent: 0 0% 10%;
 
     /* Glassmorphism Colors */
     --glass-bg: 0 0% 100%;            /* Glass Background Base (use with opacity) */
@@ -187,11 +191,11 @@
     --glass-shadow: 0 0% 0%;          /* Glass Shadow Base (use with opacity) */
 
     /* Text Colors - Hierarchy & Readability */
-    --text-title: 0 0% 100%;          /* Title/Heading - #FFFFFF */
-    --text-subtitle: 210 20% 90%;     /* Subtitle - #E5E7EB */
-    --text-body: 210 16% 82%;         /* Body Text - #D1D5DB */
-    --text-muted: 216 12% 66%;        /* Muted Text - #9CA3AF */
-    --text-disabled: 215 16% 47%;     /* Disabled Text - #6B7280 */
+    --text-title: 0 0% 100%;              /* Title/Heading - white */
+    --text-caption: 218 12.1% 64.3%;     /* Caption - gray-400 */
+    --text-body: 0 0% 100%;                /* Body Text - white */
+    --text-muted: 220 10.2% 46.3%;        /* Muted Text - gray-500 */
+    --text-disabled: 216 15.4% 34.3%;     /* Disabled Text - gray-600 */
 
     /* Status Colors */
     --status-success: 160 84% 39%;    /* Success - #10B981 */
@@ -253,7 +257,7 @@
    
    Text Colors:
    - Title: text-text-title
-   - Subtitle: text-text-subtitle
+   - Caption: text-text-caption
    - Body: text-text-body
    - Muted: text-text-muted
    
@@ -270,36 +274,33 @@
 
 /* Typography System */
 @layer utilities {
-  .text-display {
-    @apply text-[36px] leading-[44px] font-bold tracking-tight;
-  }
   
   .text-h1 {
-    @apply text-[30px] leading-[38px] font-bold tracking-tight;
+    @apply text-[30px] leading-[38px] font-bold text-text-title tracking-tight;
   }
   
   .text-h2 {
-    @apply text-[24px] leading-[32px] font-semibold tracking-tight;
+    @apply text-[24px] leading-[32px] font-semibold text-text-title tracking-tight;
   }
   
   .text-h3 {
-    @apply text-[20px] leading-[28px] font-semibold tracking-tight;
+    @apply text-[20px] leading-[28px] font-semibold text-text-body tracking-tight;
   }
   
   .text-h4 {
-    @apply text-[18px] leading-[26px] font-medium tracking-tight;
+    @apply text-[18px] leading-[26px] font-medium text-text-body tracking-tight;
+  }
+
+  .text-h5 {
+    @apply text-[16px] leading-[24px] font-medium text-text-body tracking-tight;
   }
   
   .text-body {
-    @apply text-[16px] leading-[24px] font-normal;
-  }
-  
-  .text-body-small {
-    @apply text-[14px] leading-[20px] font-normal;
+    @apply text-[14px] leading-[24px] text-text-body font-normal;
   }
   
   .text-caption {
-    @apply text-[12px] leading-[16px] font-normal;
+    @apply text-[12px] leading-[20px] font-normal text-text-caption;
   }
 }
 

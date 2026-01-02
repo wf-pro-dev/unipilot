@@ -240,9 +240,9 @@ export default function CoursesPage() {
   }
 
   return (
-    <div className="">
+    <div className="flex flex-col flex-1">
 
-      <div className="relative z-10">
+      <div className="flex flex-col flex-1">
         {/* Page header with course count and add course button */}
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -257,7 +257,7 @@ export default function CoursesPage() {
         </div>
 
         {/* Tab navigation with URL synchronization */}
-        <Tabs value={activeView} onValueChange={handleTabChange} className="w-full">
+        <Tabs value={activeView} onValueChange={handleTabChange} className="flex flex-col flex-1 w-full">
           <div className="flex justify-between items-center mb-6">
             <TabsList className="h-full flex w-fit bg-white/5 p-1 rounded-xl  border border-white/5">
               <TabsTrigger
@@ -304,7 +304,7 @@ export default function CoursesPage() {
           </div>
 
           {/* Schedule view: Calendar-based course display */}
-          <TabsContent value="schedule">
+          <TabsContent value="schedule" className="flex flex-col data-[state=active]:flex-1 m-0">
             <CoursesSchedule
               selectedSemester={selectedSemester}
               onEdit={handleEditCourse}
@@ -314,8 +314,13 @@ export default function CoursesPage() {
             />
           </TabsContent>
 
+           {/* Linked Resources View */}
+           <TabsContent value="linked" className="flex flex-col data-[state=active]:flex-1 m-0">
+            <LinkedResources />
+          </TabsContent>
+
           {/* List view: Table-based course display with filtering */}
-          <TabsContent value="list">
+          <TabsContent value="list" className="flex flex-col data-[state=active]:flex-1 m-0">
             <CoursesTable
               courses={courses || []}
               filter={{ semester: semester || "all", instructor: instructor || "all" }}
@@ -325,10 +330,7 @@ export default function CoursesPage() {
             />
           </TabsContent>
 
-          {/* Linked Resources View */}
-          <TabsContent value="linked">
-            <LinkedResources />
-          </TabsContent>
+         
         </Tabs>
 
 

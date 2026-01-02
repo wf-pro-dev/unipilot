@@ -27,11 +27,6 @@ type DocCreateResp struct {
 
 // GetDocuments retrieves all documents
 func GetDocuments() ([]models.Document, error) {
-	var response struct {
-		Message   string            `json:"message"`
-		Documents []models.Document `json:"documents"`
-		Error     string            `json:"error,omitempty"`
-	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/documents", api_url))
@@ -49,15 +44,12 @@ func GetDocuments() ([]models.Document, error) {
 		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
 	}
 
-	if err := json.Unmarshal(body, &response); err != nil {
+	var documents []models.Document
+	if err := json.Unmarshal(body, &documents); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	if response.Error != "" {
-		return nil, fmt.Errorf(response.Error)
-	}
-
-	return response.Documents, nil
+	return documents, nil
 }
 
 // GetAssignmentDocuments retrieves documents for a specific assignment

@@ -155,11 +155,12 @@ func EnsureClientDBInitialized() error {
 		return nil
 	}
 
-	// Step 2: Check if database file exists (without creating it)
+	// Step 2: Check if database file exists :(without creating it)
 	dbFilePath, err := utils.GetDBPath()
 	if err != nil {
 
 		if errors.HasCode(err, errors.FSFileNotFound) {
+			log.Printf("[ClientDB] Database file not found, creating database file...")
 			if _, err := os.Create(dbFilePath); err != nil {
 				return errors.Wrap(err, errors.FSFileFailed, "Failed to create database file")
 			}

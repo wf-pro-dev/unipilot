@@ -42,7 +42,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       {!isChatPage ? (
         <SidebarProvider>
           <MainSidebar />
-          <main className="flex-1 w-full p-12">
+          <main className="flex flex-col flex-1 w-full p-12">
             <SidebarTrigger className="fixed top-4 left-4 z-50 md:hidden" />
             {children}
           </main>

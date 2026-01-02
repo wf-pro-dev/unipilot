@@ -85,8 +85,12 @@ func (a *Assignment) ToLocal() *LocalAssignment {
 }
 
 func (a *LocalAssignment) ToRemote() *Assignment {
+
+	baseAssignment := a.BaseAssignment
+	baseAssignment.CourseID = a.RemoteCourseID
+
 	assignment := &Assignment{
-		BaseAssignment: a.BaseAssignment,
+		BaseAssignment: baseAssignment,
 	}
 	return assignment
 }

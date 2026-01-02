@@ -1,20 +1,20 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { GlassCard } from "@/components/ui/glass-card"
 import { AssignmentItem } from "./assignment-item"
 import { CalendarDays, CheckCircle2, Loader2 } from "lucide-react"
-import { assignment } from "@/wailsjs/go/models"
 import { EmptyState } from "@/components/ui/empty-state"
+import { models } from "@/wailsjs/go/models"
 
 interface AssignmentViewProps {
   title: string
-  assignments: assignment.LocalAssignment[]
-  onToggleComplete: (assignment: assignment.LocalAssignment) => void
-  onAssignmentClick: (assignment: assignment.LocalAssignment) => void
-  onOpenEdit: (assignment: assignment.LocalAssignment) => void
-  onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
-  onDelete: (assignment: assignment.LocalAssignment) => void
+  assignments: models.LocalAssignment[]
+  onToggleComplete: (assignment: models.LocalAssignment) => void
+  onAssignmentClick: (assignment: models.LocalAssignment) => void
+  onOpenEdit: (assignment: models.LocalAssignment) => void
+  onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
+  onDelete: (assignment: models.LocalAssignment) => void
+  onEmptyClick: () => void
   isLoading?: boolean
 }
 
@@ -26,15 +26,19 @@ export function AssignmentView({
   onDelete, 
   onEdit, 
   onOpenEdit, 
+  onEmptyClick,
   isLoading }: AssignmentViewProps) {
 
   if (assignments.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+      <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
         <EmptyState
           icon={CheckCircle2}
           title="No assignments found"
           description="You're all caught up! create a new assignment to get started tracking your work."
+          className="flex-1 items-center"
+          buttonText="Create Assignment"
+          onClick={onEmptyClick}
         />
       </div>
     )

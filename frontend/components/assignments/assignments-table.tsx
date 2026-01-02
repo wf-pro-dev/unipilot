@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation"
 import { useCoursesBySemester } from "@/hooks/use-courses"
 import { useAuthContext } from "../provider/auth-provider"
 import { CoursesSelect } from "../courses/courses-select"
+import { EmptyState } from "../ui/empty-state"
 
 interface Filter {
   course: string | null
@@ -104,7 +105,8 @@ export function AssignmentsTable({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col flex-1 space-y-4">
+
       <GlassCard className="border-white/5 bg-white/5 backdrop-blur-xl shadow-lg shadow-black/20">
         <CardContent className="p-5">
           <div className="space-y-4">
@@ -206,18 +208,18 @@ export function AssignmentsTable({
       </GlassCard>
 
       {filteredAssignments.length === 0 ? (
-        <div className="flex items-center justify-center py-16 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
-          <div className="flex flex-col items-center">
-            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-              <List className="h-8 w-8 text-gray-500" />
-            </div>
-            <h3 className="text-lg font-medium text-white mb-1">No assignments found</h3>
-            <p className="text-gray-400 text-sm">Try adjusting your filters or search terms</p>
-            <Button variant="outline" onClick={clearFilters} className="mt-4 bg-white/5 border-white/10 hover:bg-white/10 text-white">
-              Clear Filters
-            </Button>
-          </div>
+        <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
+          <EmptyState
+            icon={List}
+            title="No assignments found"
+            description="Try adjusting your filters or search terms"
+            className="flex-1 items-center"
+            onClick={clearFilters}
+            buttonText="Clear Filters"
+          />
+
         </div>
+
       ) : (
         <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-4">
           {filteredAssignments.map((assignment) => (
@@ -233,8 +235,9 @@ export function AssignmentsTable({
             />
           ))}
         </div>
-      )}
+      )
+      }
 
-    </div>
+    </div >
   )
 }

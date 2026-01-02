@@ -109,14 +109,14 @@ export function AddNoteDialog({ onAdd }: AddNoteDialogProps) {
         <>
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
-                    <Button className="text-white bg-green-600 hover:bg-green-500 shadow-[0_0_15px_rgba(22,163,74,0.3)] transition-all duration-300 border-0">
+                    <Button variant="default" className="text-body">
                         <Plus className="h-4 w-4 mr-2" />
                         Add Note
                     </Button>
                 </DialogTrigger>
                 <DialogContent className="glass border-white/10 text-white max-w-md p-0 overflow-hidden gap-0">
                     <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
-                        <DialogTitle className="text-xl font-semibold">Add Note</DialogTitle>
+                        <DialogTitle className="text-h3">Add Note</DialogTitle>
                     </DialogHeader>
                     
                     <div className="p-6">

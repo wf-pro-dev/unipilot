@@ -8,7 +8,7 @@ import { AssignmentsTable } from "@/components/assignments/assignments-table"
 import { AddAssignmentDialog } from "@/components/assignments/add-assignment-dialog"
 import { AssignmentDetailsModal } from "@/components/assignments/assignment-details-modal"
 import { Calendar, List, Clock, CheckCircle2, AlertTriangle, CalendarDays, Loader2 } from "lucide-react"
-import { assignment } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import {
   useAssignments,
   useUpdateAssignment,
@@ -69,8 +69,9 @@ export default function AssignmentsPage() {
   const createMutation = useCreateAssignment()
 
   const [selectedAssignmentID, setSelectedAssignmentID] = useState<number | null>(null)
-  const [selectedAssignmentEdit, setSelectedAssignmentEdit] = useState<assignment.LocalAssignment | null>(null)
+  const [selectedAssignmentEdit, setSelectedAssignmentEdit] = useState<models.LocalAssignment | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [addAssignmentOpen, setAddAssignmentOpen] = useState(false)
 
   // Get the current view from URL parameters, default to "today"
   const currentView = searchParams.get("view") || "today"
@@ -87,6 +88,7 @@ export default function AssignmentsPage() {
   const priorityFilter = searchParams.get("priority") || null
   const currentAssignment = searchParams.get("assignment") || null
 
+
   useEffect(() => {
     if (currentAssignment) {
       const assignment = assignments?.find((assignment) => assignment.ID === parseInt(currentAssignment))
@@ -101,7 +103,7 @@ export default function AssignmentsPage() {
    * 
    * @param {assignment.LocalAssignment} assignment - The assignment that was clicked
    */
-  const handleAssignmentClick = (assignment: assignment.LocalAssignment) => {
+  const handleAssignmentClick = (assignment: models.LocalAssignment) => {
     setSelectedAssignmentID(assignment.ID)
   }
 
@@ -116,7 +118,7 @@ export default function AssignmentsPage() {
    * @param {string} value - The new value for the field
    * @returns {Promise<void>}
    */
-  const handleEditAssignment = async (assignment: assignment.LocalAssignment, column: string, value: string) => {
+  const handleEditAssignment = async (assignment: models.LocalAssignment, column: string, value: string) => {
     const message = "[Frontend] assignment " + assignment.ID + " remote_id " + assignment.RemoteID + " " + column + " changed to " + value
     LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
 
@@ -141,9 +143,9 @@ export default function AssignmentsPage() {
    * @param {assignment.LocalAssignment} assignment - The assignment to toggle
    * @returns {Promise<void>}
    */
-  const handleToggleComplete = async (assignment: assignment.LocalAssignment) => {
-    const newStatus = assignment.StatusName === "Done" ? "Not started" : "Done"
-    handleEditAssignment(assignment, "status_name", newStatus)
+  const handleToggleComplete = async (assignment: models.LocalAssignment) => {
+    const newStatus = assignment.Status === "Done" ? "Not started" : "Done"
+    handleEditAssignment(assignment, "status", newStatus)
   }
 
   /**
@@ -155,7 +157,7 @@ export default function AssignmentsPage() {
    * @param {assignment.LocalAssignment} assignment - The assignment to delete
    * @returns {Promise<void>}
    */
-  const handleDeleteAssignment = async (assignment: assignment.LocalAssignment) => {
+  const handleDeleteAssignment = async (assignment: models.LocalAssignment) => {
     const message = "[Frontend] assignment " + assignment.Title + " deleted"
     LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
     deleteMutation.mutate(assignment, {
@@ -178,7 +180,7 @@ export default function AssignmentsPage() {
    * @param {assignment.LocalAssignment} assignment - The assignment to create
    * @returns {Promise<void>}
    */
-  const handleAddAssignment = async (assignment: assignment.LocalAssignment) => {
+  const handleAddAssignment = async (assignment: models.LocalAssignment) => {
     const message = "[Frontend] assignment " + assignment.Title + " added"
     LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
     createMutation.mutate(assignment, {
@@ -201,7 +203,7 @@ export default function AssignmentsPage() {
    * @param {Date} date - The new deadline date
    * @returns {Promise<void>}
    */
-  const handleMoveAssignment = async (assignment: assignment.LocalAssignment, date: Date) => {
+  const handleMoveAssignment = async (assignment: models.LocalAssignment, date: Date) => {
     const newDeadline = format(date, "yyyy-MM-dd HH:mm:ssxxx")
     if (!isSameDay(assignment.Deadline, date)) {
       handleEditAssignment(assignment, "deadline", newDeadline)
@@ -248,8 +250,8 @@ export default function AssignmentsPage() {
   }
 
   return (
-    <div className="">
-      <div className="relative z-10">
+    <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 relative z-10">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-h1 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
@@ -257,12 +259,12 @@ export default function AssignmentsPage() {
             </h1>
             <p className="text-body-small text-gray-400 mt-3">Track and manage your coursework deadlines</p>
           </div>
-          <AddAssignmentDialog onAdd={handleAddAssignment} />
+          <AddAssignmentDialog isOpen={addAssignmentOpen} setOpen={setAddAssignmentOpen} onAdd={handleAddAssignment} />
         </div>
 
-        <Tabs value={activeView} onValueChange={handleTabChange} className="w-full">
+        <Tabs value={activeView} onValueChange={handleTabChange} className="flex flex-col flex-1 w-full">
           
-          <TabsList className="h-full flex flex-row bg-white/5 p-1 rounded-xl w-full mb-6 border border-white/5">
+          <TabsList className="flex flex-row bg-white/5 p-1 rounded-xl w-full mb-6 border border-white/5">
             <TabsTrigger 
               value="today" 
               className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
@@ -307,7 +309,7 @@ export default function AssignmentsPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="today">
+          <TabsContent value="today" className="flex flex-col data-[state=active]:flex-1 m-0">
             <AssignmentView
               title="Today's Assignments"
               assignments={todayAssignments}
@@ -316,12 +318,13 @@ export default function AssignmentsPage() {
               onEdit={handleEditAssignment} 
               onDelete={handleDeleteAssignment}
               onOpenEdit={setSelectedAssignmentEdit}
+              onEmptyClick={() => setAddAssignmentOpen(true)}
               isLoading={isLoading}
             />
           </TabsContent>
 
-          <TabsContent value="week">
-            <AssignmentView
+            <TabsContent value="week" className="flex flex-col data-[state=active]:flex-1 m-0">
+              <AssignmentView
               title="Due This Week"
               assignments={weekAssignments}
               onToggleComplete={handleToggleComplete}
@@ -329,11 +332,12 @@ export default function AssignmentsPage() {
               onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               onOpenEdit={setSelectedAssignmentEdit}
+              onEmptyClick={() => setAddAssignmentOpen(true)}
               isLoading={isLoading}
             />
           </TabsContent>
 
-          <TabsContent value="overdue">
+          <TabsContent value="overdue" className="flex flex-col data-[state=active]:flex-1 m-0">
             <AssignmentView
               title="Overdue Assignments"
               assignments={overdueAssignments}
@@ -342,11 +346,12 @@ export default function AssignmentsPage() {
               onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               onOpenEdit={setSelectedAssignmentEdit}
+              onEmptyClick={() => setAddAssignmentOpen(true)}
               isLoading={isLoading}
             />
           </TabsContent>
 
-          <TabsContent value="exam">
+          <TabsContent value="exam" className="flex flex-col data-[state=active]:flex-1 m-0">
             <AssignmentView
               title="Exam Assignments"
               assignments={examAssignments}
@@ -355,11 +360,12 @@ export default function AssignmentsPage() {
               onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               onOpenEdit={setSelectedAssignmentEdit}
+              onEmptyClick={() => setAddAssignmentOpen(true)}
               isLoading={isLoading}
             />
           </TabsContent>
 
-          <TabsContent value="calendar">
+          <TabsContent value="calendar" className="flex flex-col data-[state=active]:flex-1 m-0">
             <AssignmentsCalendar
               assignments={assignments || []}
               onAddAssignment={() => { }}
@@ -371,7 +377,7 @@ export default function AssignmentsPage() {
             />
           </TabsContent>
 
-          <TabsContent value="list">
+          <TabsContent value="list" className="flex flex-col  data-[state=active]:flex-1 m-0">
             <AssignmentsTable
               assignments={assignments || []}
               onToggleComplete={handleToggleComplete}

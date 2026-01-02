@@ -23,6 +23,8 @@ export namespace client {
 	    Courses: models.Course[];
 	    Assignments: models.Assignment[];
 	    Notes: models.Note[];
+	    OwnerRequests: models.CourseLinkRequest[];
+	    ReceiverRequests: models.CourseLinkRequest[];
 	    Followers: models.User[];
 	    Following: models.User[];
 	    CoursesCode: string[];
@@ -52,6 +54,8 @@ export namespace client {
 	        this.Courses = this.convertValues(source["Courses"], models.Course);
 	        this.Assignments = this.convertValues(source["Assignments"], models.Assignment);
 	        this.Notes = this.convertValues(source["Notes"], models.Note);
+	        this.OwnerRequests = this.convertValues(source["OwnerRequests"], models.CourseLinkRequest);
+	        this.ReceiverRequests = this.convertValues(source["ReceiverRequests"], models.CourseLinkRequest);
 	        this.Followers = this.convertValues(source["Followers"], models.User);
 	        this.Following = this.convertValues(source["Following"], models.User);
 	        this.CoursesCode = source["CoursesCode"];
@@ -229,8 +233,6 @@ export namespace models {
 	    // Go type: time
 	    UpdatedAt: any;
 	    DeletedAt: gorm.DeletedAt;
-	    AssignmentID: number;
-	    UserID: number;
 	    Type: string;
 	    FileName: string;
 	    FileType: string;
@@ -242,6 +244,8 @@ export namespace models {
 	    ParentDocID?: number;
 	    IsOriginal: boolean;
 	    HasLocalFile: boolean;
+	    AssignmentID: number;
+	    UserID: number;
 	    User: User;
 	    Assignment: Assignment;
 	    Parent?: Document;
@@ -258,8 +262,6 @@ export namespace models {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
-	        this.AssignmentID = source["AssignmentID"];
-	        this.UserID = source["UserID"];
 	        this.Type = source["Type"];
 	        this.FileName = source["FileName"];
 	        this.FileType = source["FileType"];
@@ -271,11 +273,55 @@ export namespace models {
 	        this.ParentDocID = source["ParentDocID"];
 	        this.IsOriginal = source["IsOriginal"];
 	        this.HasLocalFile = source["HasLocalFile"];
+	        this.AssignmentID = source["AssignmentID"];
+	        this.UserID = source["UserID"];
 	        this.User = this.convertValues(source["User"], User);
 	        this.Assignment = this.convertValues(source["Assignment"], Assignment);
 	        this.Parent = this.convertValues(source["Parent"], Document);
 	        this.ParentDoc = this.convertValues(source["ParentDoc"], Document);
 	        this.Versions = this.convertValues(source["Versions"], Document);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class CourseLinkRequest {
+	    ID: number;
+	    OwnerID: number;
+	    ReceiverID: number;
+	    CourseID: number;
+	    Owner: User;
+	    Receiver: User;
+	    Course: Course;
+	
+	    static createFrom(source: any = {}) {
+	        return new CourseLinkRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ID = source["ID"];
+	        this.OwnerID = source["OwnerID"];
+	        this.ReceiverID = source["ReceiverID"];
+	        this.CourseID = source["CourseID"];
+	        this.Owner = this.convertValues(source["Owner"], User);
+	        this.Receiver = this.convertValues(source["Receiver"], User);
+	        this.Course = this.convertValues(source["Course"], Course);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -303,14 +349,14 @@ export namespace models {
 	    // Go type: time
 	    UpdatedAt: any;
 	    DeletedAt: gorm.DeletedAt;
-	    UserID: number;
-	    CourseID: number;
-	    CourseCode: string;
 	    Title: string;
 	    Subject: string;
 	    Content: string;
 	    Videos: string;
 	    ParentID: number;
+	    CourseID: number;
+	    CourseCode: string;
+	    UserID: number;
 	    User: User;
 	    Course: Course;
 	    Parent?: Note;
@@ -326,14 +372,14 @@ export namespace models {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
-	        this.UserID = source["UserID"];
-	        this.CourseID = source["CourseID"];
-	        this.CourseCode = source["CourseCode"];
 	        this.Title = source["Title"];
 	        this.Subject = source["Subject"];
 	        this.Content = source["Content"];
 	        this.Videos = source["Videos"];
 	        this.ParentID = source["ParentID"];
+	        this.CourseID = source["CourseID"];
+	        this.CourseCode = source["CourseCode"];
+	        this.UserID = source["UserID"];
 	        this.User = this.convertValues(source["User"], User);
 	        this.Course = this.convertValues(source["Course"], Course);
 	        this.Parent = this.convertValues(source["Parent"], Note);
@@ -365,7 +411,6 @@ export namespace models {
 	    // Go type: time
 	    UpdatedAt: any;
 	    DeletedAt: gorm.DeletedAt;
-	    UserID: number;
 	    Code: string;
 	    Name: string;
 	    Color: string;
@@ -379,10 +424,13 @@ export namespace models {
 	    Semester: string;
 	    Instructor: string;
 	    InstructorEmail: string;
+	    ParentID: number;
+	    UserID: number;
+	    Parent?: Course;
+	    Children: Course[];
 	    User: User;
 	    Assignments: Assignment[];
 	    Notes: Note[];
-	    Links: Course[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Course(source);
@@ -394,7 +442,6 @@ export namespace models {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
-	        this.UserID = source["UserID"];
 	        this.Code = source["Code"];
 	        this.Name = source["Name"];
 	        this.Color = source["Color"];
@@ -406,10 +453,13 @@ export namespace models {
 	        this.Semester = source["Semester"];
 	        this.Instructor = source["Instructor"];
 	        this.InstructorEmail = source["InstructorEmail"];
+	        this.ParentID = source["ParentID"];
+	        this.UserID = source["UserID"];
+	        this.Parent = this.convertValues(source["Parent"], Course);
+	        this.Children = this.convertValues(source["Children"], Course);
 	        this.User = this.convertValues(source["User"], User);
 	        this.Assignments = this.convertValues(source["Assignments"], Assignment);
 	        this.Notes = this.convertValues(source["Notes"], Note);
-	        this.Links = this.convertValues(source["Links"], Course);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -453,6 +503,8 @@ export namespace models {
 	    Courses: Course[];
 	    Assignments: Assignment[];
 	    Notes: Note[];
+	    OwnerRequests: CourseLinkRequest[];
+	    ReceiverRequests: CourseLinkRequest[];
 	    Followers: User[];
 	    Following: User[];
 	
@@ -481,6 +533,8 @@ export namespace models {
 	        this.Courses = this.convertValues(source["Courses"], Course);
 	        this.Assignments = this.convertValues(source["Assignments"], Assignment);
 	        this.Notes = this.convertValues(source["Notes"], Note);
+	        this.OwnerRequests = this.convertValues(source["OwnerRequests"], CourseLinkRequest);
+	        this.ReceiverRequests = this.convertValues(source["ReceiverRequests"], CourseLinkRequest);
 	        this.Followers = this.convertValues(source["Followers"], User);
 	        this.Following = this.convertValues(source["Following"], User);
 	    }
@@ -510,7 +564,6 @@ export namespace models {
 	    // Go type: time
 	    UpdatedAt: any;
 	    DeletedAt: gorm.DeletedAt;
-	    UserID: number;
 	    Title: string;
 	    Type: string;
 	    Status: string;
@@ -522,6 +575,7 @@ export namespace models {
 	    CourseCode: string;
 	    Priority: string;
 	    ParentID: number;
+	    UserID: number;
 	    User: User;
 	    Course: Course;
 	    Documents: Document[];
@@ -538,7 +592,6 @@ export namespace models {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
-	        this.UserID = source["UserID"];
 	        this.Title = source["Title"];
 	        this.Type = source["Type"];
 	        this.Status = source["Status"];
@@ -549,6 +602,7 @@ export namespace models {
 	        this.CourseCode = source["CourseCode"];
 	        this.Priority = source["Priority"];
 	        this.ParentID = source["ParentID"];
+	        this.UserID = source["UserID"];
 	        this.User = this.convertValues(source["User"], User);
 	        this.Course = this.convertValues(source["Course"], Course);
 	        this.Documents = this.convertValues(source["Documents"], Document);
@@ -574,6 +628,7 @@ export namespace models {
 		    return a;
 		}
 	}
+	
 	
 	
 	export class DocumentStorage {
@@ -668,14 +723,6 @@ export namespace models {
 	    // Go type: time
 	    UpdatedAt: any;
 	    DeletedAt: gorm.DeletedAt;
-	    ID: number;
-	    // Go type: time
-	    CreatedAt: any;
-	    // Go type: time
-	    UpdatedAt: any;
-	    DeletedAt: gorm.DeletedAt;
-	    AssignmentID: number;
-	    UserID: number;
 	    Type: string;
 	    FileName: string;
 	    FileType: string;
@@ -687,14 +734,9 @@ export namespace models {
 	    ParentDocID?: number;
 	    IsOriginal: boolean;
 	    HasLocalFile: boolean;
-	    User: User;
-	    Assignment: Assignment;
-	    Parent?: Document;
-	    ParentDoc?: Document;
-	    Versions: Document[];
+	    AssignmentID: number;
 	    RemoteID: number;
 	    RemoteAssignmentID: number;
-	    UserID: number;
 	    Assignment: LocalAssignment;
 	    Parent?: LocalDocument;
 	    ParentDoc?: LocalDocument;
@@ -710,12 +752,6 @@ export namespace models {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
-	        this.ID = source["ID"];
-	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
-	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
-	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
-	        this.AssignmentID = source["AssignmentID"];
-	        this.UserID = source["UserID"];
 	        this.Type = source["Type"];
 	        this.FileName = source["FileName"];
 	        this.FileType = source["FileType"];
@@ -727,14 +763,9 @@ export namespace models {
 	        this.ParentDocID = source["ParentDocID"];
 	        this.IsOriginal = source["IsOriginal"];
 	        this.HasLocalFile = source["HasLocalFile"];
-	        this.User = this.convertValues(source["User"], User);
-	        this.Assignment = this.convertValues(source["Assignment"], Assignment);
-	        this.Parent = this.convertValues(source["Parent"], Document);
-	        this.ParentDoc = this.convertValues(source["ParentDoc"], Document);
-	        this.Versions = this.convertValues(source["Versions"], Document);
+	        this.AssignmentID = source["AssignmentID"];
 	        this.RemoteID = source["RemoteID"];
 	        this.RemoteAssignmentID = source["RemoteAssignmentID"];
-	        this.UserID = source["UserID"];
 	        this.Assignment = this.convertValues(source["Assignment"], LocalAssignment);
 	        this.Parent = this.convertValues(source["Parent"], LocalDocument);
 	        this.ParentDoc = this.convertValues(source["ParentDoc"], LocalDocument);
@@ -766,21 +797,15 @@ export namespace models {
 	    // Go type: time
 	    UpdatedAt: any;
 	    DeletedAt: gorm.DeletedAt;
-	    UserID: number;
-	    CourseID: number;
-	    CourseCode: string;
 	    Title: string;
 	    Subject: string;
 	    Content: string;
 	    Videos: string;
 	    ParentID: number;
-	    User: User;
-	    Course: Course;
-	    Parent?: Note;
-	    Children: Note[];
+	    CourseID: number;
+	    CourseCode: string;
 	    RemoteID: number;
 	    RemoteCourseID: number;
-	    UserID: number;
 	    Course: LocalCourse;
 	
 	    static createFrom(source: any = {}) {
@@ -793,21 +818,15 @@ export namespace models {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
-	        this.UserID = source["UserID"];
-	        this.CourseID = source["CourseID"];
-	        this.CourseCode = source["CourseCode"];
 	        this.Title = source["Title"];
 	        this.Subject = source["Subject"];
 	        this.Content = source["Content"];
 	        this.Videos = source["Videos"];
 	        this.ParentID = source["ParentID"];
-	        this.User = this.convertValues(source["User"], User);
-	        this.Course = this.convertValues(source["Course"], Course);
-	        this.Parent = this.convertValues(source["Parent"], Note);
-	        this.Children = this.convertValues(source["Children"], Note);
+	        this.CourseID = source["CourseID"];
+	        this.CourseCode = source["CourseCode"];
 	        this.RemoteID = source["RemoteID"];
 	        this.RemoteCourseID = source["RemoteCourseID"];
-	        this.UserID = source["UserID"];
 	        this.Course = this.convertValues(source["Course"], LocalCourse);
 	    }
 	
@@ -836,7 +855,6 @@ export namespace models {
 	    // Go type: time
 	    UpdatedAt: any;
 	    DeletedAt: gorm.DeletedAt;
-	    UserID: number;
 	    Code: string;
 	    Name: string;
 	    Color: string;
@@ -850,12 +868,8 @@ export namespace models {
 	    Semester: string;
 	    Instructor: string;
 	    InstructorEmail: string;
-	    User: User;
-	    Assignments: Assignment[];
-	    Notes: Note[];
-	    Links: Course[];
+	    ParentID: number;
 	    RemoteID: number;
-	    UserID: number;
 	    Assignments: LocalAssignment[];
 	    Notes: LocalNote[];
 	
@@ -869,7 +883,6 @@ export namespace models {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
-	        this.UserID = source["UserID"];
 	        this.Code = source["Code"];
 	        this.Name = source["Name"];
 	        this.Color = source["Color"];
@@ -881,12 +894,8 @@ export namespace models {
 	        this.Semester = source["Semester"];
 	        this.Instructor = source["Instructor"];
 	        this.InstructorEmail = source["InstructorEmail"];
-	        this.User = this.convertValues(source["User"], User);
-	        this.Assignments = this.convertValues(source["Assignments"], Assignment);
-	        this.Notes = this.convertValues(source["Notes"], Note);
-	        this.Links = this.convertValues(source["Links"], Course);
+	        this.ParentID = source["ParentID"];
 	        this.RemoteID = source["RemoteID"];
-	        this.UserID = source["UserID"];
 	        this.Assignments = this.convertValues(source["Assignments"], LocalAssignment);
 	        this.Notes = this.convertValues(source["Notes"], LocalNote);
 	    }
@@ -916,7 +925,6 @@ export namespace models {
 	    // Go type: time
 	    UpdatedAt: any;
 	    DeletedAt: gorm.DeletedAt;
-	    UserID: number;
 	    Title: string;
 	    Type: string;
 	    Status: string;
@@ -928,14 +936,8 @@ export namespace models {
 	    CourseCode: string;
 	    Priority: string;
 	    ParentID: number;
-	    User: User;
-	    Course: Course;
-	    Documents: Document[];
-	    Parent?: Assignment;
-	    Children: Assignment[];
 	    RemoteID: number;
 	    RemoteCourseID: number;
-	    UserID: number;
 	    Course: LocalCourse;
 	    Documents: LocalDocument[];
 	
@@ -949,7 +951,6 @@ export namespace models {
 	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
 	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
-	        this.UserID = source["UserID"];
 	        this.Title = source["Title"];
 	        this.Type = source["Type"];
 	        this.Status = source["Status"];
@@ -960,14 +961,8 @@ export namespace models {
 	        this.CourseCode = source["CourseCode"];
 	        this.Priority = source["Priority"];
 	        this.ParentID = source["ParentID"];
-	        this.User = this.convertValues(source["User"], User);
-	        this.Course = this.convertValues(source["Course"], Course);
-	        this.Documents = this.convertValues(source["Documents"], Document);
-	        this.Parent = this.convertValues(source["Parent"], Assignment);
-	        this.Children = this.convertValues(source["Children"], Assignment);
 	        this.RemoteID = source["RemoteID"];
 	        this.RemoteCourseID = source["RemoteCourseID"];
-	        this.UserID = source["UserID"];
 	        this.Course = this.convertValues(source["Course"], LocalCourse);
 	        this.Documents = this.convertValues(source["Documents"], LocalDocument);
 	    }

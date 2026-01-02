@@ -58,7 +58,7 @@ export function StatsCards() {
         <Link href={stat.link} key={index}>
         <Card className="bg-white/5 border-white/5 hover:bg-white/10 hover:scale-[1.02] hover:shadow-xl shadow-lg shadow-black/20 transition-all duration-300 backdrop-blur-xl">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <CardTitle className="text-sm font-semibold text-white">
+            <CardTitle className="text-h5">
               {stat.title}
             </CardTitle>
             <div className={`p-2 rounded-xl ${stat.bgColor} border border-white/5`}>
@@ -67,7 +67,7 @@ export function StatsCards() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-white mb-1 tracking-tight">{stat.value}</div>
-            <p className="text-xs text-gray-400 font-medium">
+            <p className="text-caption">
               {stat.change}
             </p>
           </CardContent>

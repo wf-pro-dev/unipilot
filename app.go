@@ -46,14 +46,14 @@ func NewApp() *App {
 	// Ensure client database is initialized if user is connected
 	// This creates the database file if it doesn't exist (works offline)
 	if err := dbservice.EnsureClientDBInitialized(); err != nil {
-		log.Fatal(Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to ensure client database is initialized").Error())
+		log.Println(Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to ensure client database is initialized").Error())
 	}
 
 	authService := auth.NewAuth()
 
 	user, err := utils.GetUserFromFile()
 	if err != nil {
-		log.Println(Errors.Wrap(err, Errors.FSFileNotFound, "Failed to get user from file").Error())
+		log.Println(Errors.Wrap(err, Errors.FSFileNotFound, "Failed to get user from file"))
 	}
 	authService.User = user
 	var dbService *database.Database
@@ -142,7 +142,7 @@ func (a *App) CreateAssignment(assignmentData *models.LocalAssignment) (*models.
 	db := a.DB.GetDB()
 
 	localAssignment := &models.LocalAssignment{
-		Assignment: models.Assignment{
+		BaseAssignment: models.BaseAssignment{
 			Title:      assignmentData.Title,
 			Todo:       assignmentData.Todo,
 			Deadline:   assignmentData.Deadline,
@@ -1243,14 +1243,6 @@ func (a *App) Login(username, password string) (*models.User, error) {
 
 	// Set the user to the auth struct
 	a.Auth.User = user
-
-	// Ensure client database is initialized and synced for this user
-	// This creates the database file, runs migrations, and triggers server-to-client sync
-	_, err = dbservice.EnsureClientDBAndSync(user.ID)
-	if err != nil {
-		log.Printf("Warning: Failed to ensure database initialization and sync: %v", err)
-		// Continue anyway - database may still be usable
-	}
 
 	dbService, err := database.NewDatabase(user)
 	if err != nil {

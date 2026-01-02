@@ -4,8 +4,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UserItemCompact } from "@/components/community/user-item-compact"
 import { AssignmentItemCompact } from "@/components/assignments/assignment-item-compact"
 import { NoteItemCompact } from "@/components/notes/note-item-compact"
-import { Users, FileText, BookOpen, GraduationCap, Search } from "lucide-react"
-import { assignment, note, user } from "@/wailsjs/go/models"
+import { Users, FileText, BookOpen, Search, User } from "lucide-react"
+import { models } from "@/wailsjs/go/models"
 import { useState, useMemo, useCallback } from "react"
 import { Masonry } from "react-plock"
 import { Badge } from "@/components/ui/badge"
@@ -16,118 +16,16 @@ import { AssignmentDetailsModal } from "../assignments/assignment-details-modal"
 import { toast } from "sonner"
 import { useAssignments, useCreateAssignment } from "@/hooks/use-assignments"
 import { format } from "date-fns"
+import { EmptyState } from "../ui/empty-state"
+import { useRouter } from "next/navigation"
 
-// Mock Data
-const MOCK_USERS: user.User[] = [
-  {
-    ID: 1,
-    Username: "Alice Johnson",
-    Email: "alice@university.edu",
-    University: "Stanford University",
-    Avatar: "/placeholder-user.jpg",
-    CoursesCode: ["CS101", "MATH202"],
-    IsVerified: true,
-  } as unknown as user.User,
-  {
-    ID: 2,
-    Username: "Bob Smith",
-    Email: "bob@university.edu",
-    University: "MIT",
-    Avatar: "/placeholder-user.jpg",
-    CoursesCode: ["CS101", "PHYS101"],
-    IsVerified: false,
-  } as unknown as user.User,
-  {
-    ID: 3,
-    Username: "Carol Williams",
-    Email: "carol@university.edu",
-    University: "Stanford University",
-    Avatar: "/placeholder-user.jpg",
-    CoursesCode: ["CS101", "BIO101"],
-    IsVerified: true,
-  } as unknown as user.User,
-]
-
-const MOCK_ASSIGNMENTS: assignment.LocalAssignment[] = [
-  {
-    ID: 101,
-    Title: "Midterm Project: AI Ethics",
-    StatusName: "In progress",
-    Deadline: new Date(2024, 3, 15).toISOString(),
-    Priority: "high",
-    Type: { Name: "Project", Color: "bg-purple-500" },
-    Course: { Code: "CS101", Color: "bg-blue-500" },
-    CourseCode: "CS101",
-    Link: "https://example.com",
-    Todo: "Research paper on ethical implications of AI...",
-  } as unknown as assignment.LocalAssignment,
-  {
-    ID: 102,
-    Title: "Algorithm Analysis Essay",
-    StatusName: "Done",
-    Deadline: new Date(2024, 2, 28).toISOString(),
-    Priority: "medium",
-    Type: { Name: "Essay", Color: "bg-green-500" },
-    Course: { Code: "CS101", Color: "bg-blue-500" },
-    CourseCode: "CS101",
-    Link: "https://example.com",
-    Todo: "Analyze the time complexity of sorting algorithms...",
-  } as unknown as assignment.LocalAssignment,
-  {
-    ID: 103,
-    Title: "Calculus Problem Set 5",
-    StatusName: "Not started",
-    Deadline: new Date(2024, 3, 20).toISOString(),
-    Priority: "medium",
-    Type: { Name: "Homework", Color: "bg-orange-500" },
-    Course: { Code: "MATH202", Color: "bg-red-500" },
-    CourseCode: "MATH202",
-    Link: "https://example.com",
-    Todo: "Complete problems 1-10...",
-  } as unknown as assignment.LocalAssignment,
-]
-
-const MOCK_NOTES: note.LocalNote[] = [
-  {
-    ID: 201,
-    title: "Lecture 12: Neural Networks",
-    subject: "Deep Learning",
-    content: "Introduction to backpropagation...",
-    course_code: "CS101",
-    Course: { Code: "CS101", Color: "bg-blue-500" },
-    CreatedAt: new Date(2024, 3, 10).toISOString(),
-    UpdatedAt: new Date(2024, 3, 10).toISOString(),
-    videos: "[]",
-  } as unknown as note.LocalNote,
-  {
-    ID: 202,
-    title: "Study Guide for Midterm",
-    subject: "General",
-    content: "Key concepts to review...",
-    course_code: "CS101",
-    Course: { Code: "CS101", Color: "bg-blue-500" },
-    CreatedAt: new Date(2024, 3, 12).toISOString(),
-    UpdatedAt: new Date(2024, 3, 12).toISOString(),
-    videos: "[]",
-  } as unknown as note.LocalNote,
-  {
-    ID: 203,
-    title: "Derivatives and Integrals",
-    subject: "Calculus",
-    content: "Review of integration rules...",
-    course_code: "MATH202",
-    Course: { Code: "MATH202", Color: "bg-red-500" },
-    CreatedAt: new Date(2024, 3, 14).toISOString(),
-    UpdatedAt: new Date(2024, 3, 14).toISOString(),
-    videos: "[]",
-  } as unknown as note.LocalNote,
-]
 
 export function LinkedResources() {
+  const router = useRouter()
   const { data: coursesLinked } = useCoursesLinked()
   const [activeTab, setActiveTab] = useState("users")
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedAssignment, setSelectedAssignment] = useState<assignment.LocalAssignment | null>(null)
+  const [selectedAssignment, setSelectedAssignment] = useState<models.LocalAssignment | null>(null)
 
   const createMutation = useCreateAssignment()
 
@@ -138,7 +36,7 @@ export function LinkedResources() {
    * 
    * @param {assignment.LocalAssignment} assignment - The assignment that was clicked
    */
-  const handleAssignmentClick = (assignment: assignment.LocalAssignment) => {
+  const handleAssignmentClick = (assignment: models.LocalAssignment) => {
     setSelectedAssignment(assignment)
   }
 
@@ -151,14 +49,14 @@ export function LinkedResources() {
   * @param {assignment.LocalAssignment} assignment - The assignment to create
   * @returns {Promise<void>}
   */
-  const handleCopyAssignment = async (assignment: assignment.LocalAssignment) => {
+  const handleCopyAssignment = async (assignment: models.LocalAssignment) => {
     const message = "[Frontend] assignment " + assignment.Title + " added"
     LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
     createMutation.mutate({
       ...assignment,
-      StatusName: "Not started",
+      Status: "Not started",
       ParentID: assignment.ID
-    } as assignment.LocalAssignment, {
+    } as models.LocalAssignment, {
       onSuccess: () => {
         toast.success("Assignment added successfully")
         setSelectedAssignment(null)
@@ -169,16 +67,15 @@ export function LinkedResources() {
     })
   }
 
-  const filteredUsers = useMemo(() => {
-    if (!searchQuery) return MOCK_USERS
-    const query = searchQuery.toLowerCase()
-    return MOCK_USERS.filter(user =>
-      user.CoursesCode?.some(code => code.toLowerCase().includes(query)) ||
-      // Assuming courses have names, but user model only has codes. 
-      // In a real app, we'd probably map codes to names or search other user fields.
-      user.CoursesCode?.some(code => code.toLowerCase().includes(query))
+  const filteredUsers = useCallback((code: string) => {
+    return (coursesLinked?.find(c => c.Code === code)?.User || []).filter((u: models.User) =>
+      !userAssignments?.some(a => a.ParentID === u.ID) && ( // If the assignment is already in the user's assignments, don't show it
+        u.Username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        u.University.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        u.Semester.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     )
-  }, [searchQuery])
+  }, [coursesLinked, searchQuery, userAssignments])
 
   const filteredAssignments = useCallback((code: string) => {
     return (coursesLinked?.[code]?.Assignments || []).filter(assignment =>
@@ -190,14 +87,15 @@ export function LinkedResources() {
     )
   }, [coursesLinked, searchQuery, userAssignments])
 
-  const filteredNotes = useMemo(() => {
-    if (!searchQuery) return MOCK_NOTES
-    const query = searchQuery.toLowerCase()
-    return MOCK_NOTES.filter(note =>
-      note.course_code?.toLowerCase().includes(query) ||
-      note.Course?.Name?.toLowerCase().includes(query)
+  const filteredNotes = useCallback((code: string) => {
+    return (coursesLinked?.find(c => c.Code === code)?.Notes || []).filter(note =>
+      note.CourseCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      note.Course?.Name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      note.Title.toLowerCase().includes(searchQuery.toLowerCase())
     )
-  }, [searchQuery])
+  }, [coursesLinked, searchQuery, userAssignments])
+
+
 
 
 
@@ -206,9 +104,31 @@ export function LinkedResources() {
     return codes.sort()
   }, [coursesLinked])
 
+  var uersrsCount = useMemo(() => {
+    return new Set(coursesLinked?.map(course => course.Children?.map(user => user.ID))).size
+  }, [coursesLinked])
+  var assignmentsCount = useMemo(() => {
+    var count = 0
+    coursesLinked?.map(course => {
+      course.Children?.map(child => {
+        count += child.Assignments?.length || 0
+      })
+    })
+    return count
+  }, [coursesLinked])
+  var notesCount = useMemo(() => {
+    var count = 0
+    coursesLinked?.map(course => {
+      course.Children?.map(child => {
+        count += child.Notes?.length || 0
+      })
+    })
+    return count
+  }, [coursesLinked])
+
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col flex-1 space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -221,46 +141,45 @@ export function LinkedResources() {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-white/5 p-1 rounded-xl border border-white/5 w-fit mb-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 w-full">
+        <TabsList className="bg-white/5 p-1 rounded-xl border border-white/5 w-fit">
           <TabsTrigger
             value="users"
             className="flex items-center space-x-2 px-4 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
           >
             <Users className="w-4 h-4" />
-            <span className="text-sm font-medium">Users ({MOCK_USERS.length})</span>
+            <span className="text-sm font-medium">Users ({uersrsCount})</span>
           </TabsTrigger>
           <TabsTrigger
             value="assignments"
             className="flex items-center space-x-2 px-4 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
           >
             <FileText className="w-4 h-4" />
-            <span className="text-sm font-medium">Assignments ({MOCK_ASSIGNMENTS.length})</span>
+            <span className="text-sm font-medium">Assignments ({assignmentsCount})</span>
           </TabsTrigger>
           <TabsTrigger
             value="notes"
             className="flex items-center space-x-2 px-4 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
           >
             <BookOpen className="w-4 h-4" />
-            <span className="text-sm font-medium">Notes ({MOCK_NOTES.length})</span>
+            <span className="text-sm font-medium">Notes ({notesCount})</span>
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="users" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <TabsContent value="users" className="flex flex-col data-[state=active]:flex-1 m-0 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
           {courseCodes.map(code => {
-            const courseData = coursesLinked?.[code]
-            const users = courseData?.Users  // lowercase 'user' from API
-            if (!users?.length) return null
+         
+            if (!filteredUsers(code)?.length) return null
             return (
               <div key={code} className="space-y-4">
                 <div className="flex items-center gap-2 pb-2 border-b border-white/10">
                   <h3 className="text-lg font-bold text-white">{code}</h3>
                   <Badge variant="outline" className="text-xs border-white/10 text-gray-400">
-                    {users.length} Users
+                    {filteredUsers(code).length} Users
                   </Badge>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {users.map((u: user.User) => (
+                  {filteredUsers(code).map((u: models.User) => (
                     <UserItemCompact key={u.ID} user={u} />
                   ))}
                 </div>
@@ -268,13 +187,19 @@ export function LinkedResources() {
             )
           })}
           {courseCodes.length === 0 && (
-            <div className="text-center py-12 text-gray-500">No linked users found</div>
+            <EmptyState
+              icon={User}
+              title="No linked users found"
+              description="Share your courses with other users"
+              className="flex-1 items-center"
+              onClick={() => router.push("/courses")}
+              buttonText="Go to Courses"
+            />
           )}
         </TabsContent>
 
-        <TabsContent value="assignments" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <TabsContent value="assignments" className="flex flex-col data-[state=active]:flex-1 m-0 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
           {courseCodes.map(code => {
-            const courseData = coursesLinked?.[code]  // lowercase 'assignments' from API
             if (!filteredAssignments(code)?.length) return null
             return (
               <div key={code} className="space-y-4">
@@ -291,7 +216,7 @@ export function LinkedResources() {
                     gap: [16, 16, 16],
                     media: [640, 1024, 1280],
                   }}
-                  render={(a: assignment.LocalAssignment, idx: number) => (
+                  render={(a: models.LocalAssignment, idx: number) => (
                     <div key={a.ID} className="mb-4">
                       <AssignmentItemCompact
                         assignment={a}
@@ -306,31 +231,36 @@ export function LinkedResources() {
             )
           })}
           {courseCodes.length === 0 && (
-            <div className="text-center py-12 text-gray-500">No linked assignments found</div>
+            <EmptyState
+              icon={FileText}
+              title="No linked assignments found"
+              description="Create a new assignment in a shared course"
+              className="flex-1 items-center"
+              onClick={() => router.push("/assignments")}
+              buttonText="Go to Assignments"
+            />
           )}
         </TabsContent>
 
-        <TabsContent value="notes" className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <TabsContent value="notes" className="flex flex-col data-[state=active]:flex-1 m-0 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-300">
           {courseCodes.map(code => {
-            const courseData = coursesLinked?.[code]
-            const notes = courseData?.Notes  // lowercase 'notes' from API
-            if (!notes?.length) return null
+            if (!filteredNotes(code)?.length) return null
             return (
               <div key={code} className="space-y-4">
                 <div className="flex items-center gap-2 pb-2 border-b border-white/10">
                   <h3 className="text-lg font-bold text-white">{code}</h3>
                   <Badge variant="outline" className="text-xs border-white/10 text-gray-400">
-                    {notes.length} Notes
+                    {filteredNotes(code).length} Notes
                   </Badge>
                 </div>
                 <Masonry
-                  items={notes}
+                  items={filteredNotes(code)}
                   config={{
                     columns: [1, 2, 3],
                     gap: [24, 24, 24],
                     media: [640, 1024, 1280],
                   }}
-                  render={(n: note.LocalNote, idx: number) => (
+                  render={(n: models.LocalNote, idx: number) => (
                     <div key={n.ID} className="mb-4">
                       <NoteItemCompact
                         note={n}
@@ -344,8 +274,15 @@ export function LinkedResources() {
             )
           })}
           {courseCodes.length === 0 && (
-            <div className="text-center py-12 text-gray-500">No linked notes found</div>
-          )}
+            <EmptyState
+              icon={BookOpen}
+              title="No linked notes found"
+              description="Create a new note in a shared course"
+              className="flex-1 items-center"
+              onClick={() => router.push("/notes")}
+              buttonText="Go to Notes"
+            />
+          )}  
         </TabsContent>
       </Tabs>
       <AssignmentDetailsModal

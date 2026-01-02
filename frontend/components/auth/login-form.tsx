@@ -52,10 +52,10 @@ export function LoginForm({ onLoginSuccess, onRegisterClick, className }: LoginF
   return (
     <div className={cn("space-y-2 w-full mx-auto flex flex-col items-center justify-center", className)}>
 
-      <div className="p-8 space-y-8 min-w-lg bg-white/5 border-white/30 shadow-lg shadow-black/20  relative rounded-2xl overflow-hidden">
-        {/* Shine effect on hover */}
-        <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent z-0 rounded-2xl" />
+      <div className="p-8 space-y-8 min-w-lg bg-white/5 border border-white/15 shadow-lg shadow-black/20  relative rounded-2xl overflow-hidden z-10">
 
+        {/* Shine effect on hover */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent z-0 rounded-2xl pointer-events-none" />
 
         <div className="space-y-2 text-center z-10">
           <h1 className="text-2xl font-semibold tracking-tight text-white">Welcome back</h1>
@@ -117,19 +117,21 @@ export function LoginForm({ onLoginSuccess, onRegisterClick, className }: LoginF
               />
             </div>
 
-            <Button
-              type="submit"
-              className="w-full h-11 bg-white text-black hover:bg-gray-200 rounded-xl font-medium transition-all hover:scale-[1.01] active:scale-[0.99]"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <span className="flex items-center gap-2">
-                  Login <ArrowRight className="h-4 w-4 opacity-50" />
-                </span>
-              )}
-            </Button>
+            <div className="w-full">
+              <Button
+                type="submit"
+                className="w-full h-11 bg-white text-black hover:bg-gray-200 rounded-xl font-medium transition-all hover:scale-[1.01] active:scale-[0.99]"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <span className="flex items-center gap-2">
+                    Login <ArrowRight className="h-4 w-4 opacity-50" />
+                  </span>
+                )}
+              </Button>
+            </div>
           </form>
         </Form>
 
