@@ -107,7 +107,7 @@ func GetUsersCourseCodes(userIDs []uint, db *gorm.DB) ([]UserCourseCodes, error)
 
 func GetCourseUsers(courseID uint, db *gorm.DB) ([]uint, error) {
 	var userIDs []uint
-	err := db.Model(&Course{}).Where("id = ?", courseID).Select("user_id").Association("Links").Find(&userIDs)
+	err := db.Model(&Course{}).Where("id = ?", courseID).Select("user_id").Association("Children").Find(&userIDs)
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
