@@ -22,8 +22,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 import { models } from "@/wailsjs/go/models"
 import {
-  assignmentStep1Schema,
-  assignmentStep2Schema,
   assignmentSchema,
   AssignmentValues
 } from "./schema"
