@@ -6,8 +6,10 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/qdrant/go-client/qdrant"
 	"gorm.io/gorm"
@@ -25,19 +27,19 @@ const (
 )
 
 type BaseDocument struct {
-	Type         DocumentType `gorm:"not null;index"`
-	FileName     string       `gorm:"not null"`
-	FileType     string       `gorm:"not null"` // mime type or extension
+	Type         DocumentType `gorm:"not null;index" validate:"required,oneof=support submission"`
+	FileName     string       `gorm:"not null" validate:"required,min=3,max=150"`
+	FileType     string       `gorm:"not null" validate:"required,min=3,max=10"` // mime type or extension
 	FilePath     string       // relative to app data directory
-	FileSize     int64        `gorm:"not null"` // in bytes
-	StorageKey   string       `gorm:"unique"`   // Only for remote storage
-	Version      int          `gorm:"default:1"`
-	ParentID     uint         `gorm:"index"`        // For shared assignment tracking
-	ParentDocID  *uint        `gorm:"index"`        // For version history
-	IsOriginal   bool         `gorm:"default:true"` // For shared assignment tracking
-	HasLocalFile bool         `gorm:"default:false"`
+	FileSize     int64        `gorm:"not null" validate:"required,min=1"` // in bytes
+	StorageKey   string       `gorm:"unique"`                             // Only for remote storage
+	Version      int          `gorm:"default:1" validate:"min=1"`
+	ParentID     uint         `gorm:"index;default:null" validate:"min=1"` // For shared assignment tracking
+	ParentDocID  *uint        `gorm:"index;default:null" validate:"min=1"` // For version history
+	IsOriginal   bool         `gorm:"default:true" validate:"boolean"`     // For shared assignment tracking
+	HasLocalFile bool         `gorm:"default:false" validate:"boolean"`
 
-	AssignmentID uint `gorm:"not null;index"`
+	AssignmentID uint `gorm:"not null;index" validate:"required,min=1"`
 }
 
 // Document represents a file attached to an assignment
@@ -45,14 +47,14 @@ type Document struct {
 	gorm.Model
 	BaseDocument
 
-	UserID uint `gorm:"not null;index"`
+	UserID uint `gorm:"not null;index" validate:"required,min=1"`
 
 	// Relationships
-	User       User       `gorm:"foreignKey:UserID;references:ID"`
-	Assignment Assignment `gorm:"foreignKey:AssignmentID;references:ID"`
-	Parent     *Document  `gorm:"foreignKey:ParentID;references:ID"`
-	ParentDoc  *Document  `gorm:"foreignKey:ParentDocID;references:ID"`
-	Versions   []Document `gorm:"foreignKey:ParentDocID;references:ID"`
+	User       *User       `gorm:"foreignKey:UserID;references:ID" validate:"-"`
+	Assignment *Assignment `gorm:"foreignKey:AssignmentID;references:ID" validate:"-"`
+	Parent     *Document   `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
+	ParentDoc  *Document   `gorm:"foreignKey:ParentDocID;references:ID" validate:"-"`
+	Versions   []Document  `gorm:"foreignKey:ParentDocID;references:ID" validate:"-"`
 }
 
 // LocalDocument represents a document in the local database
@@ -60,15 +62,17 @@ type LocalDocument struct {
 	gorm.Model
 	BaseDocument
 
-	RemoteID           uint `gorm:"unique"`
-	RemoteAssignmentID uint
+	RemoteID           uint `gorm:"unique;default:null" validate:"min=1"`
+	RemoteAssignmentID uint `gorm:"default:null" validate:"min=1"`
 
 	// Local relationships
-	Assignment LocalAssignment `gorm:"foreignKey:AssignmentID;references:ID"`
-	Parent     *LocalDocument  `gorm:"foreignKey:ParentID;references:ID"`
-	ParentDoc  *LocalDocument  `gorm:"foreignKey:ParentDocID;references:ID"`
-	Versions   []LocalDocument `gorm:"foreignKey:ParentDocID;references:ID"`
+	Assignment LocalAssignment `gorm:"foreignKey:AssignmentID;references:ID" validate:"-"`
+	Parent     *LocalDocument  `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
+	ParentDoc  *LocalDocument  `gorm:"foreignKey:ParentDocID;references:ID" validate:"-"`
+	Versions   []LocalDocument `gorm:"foreignKey:ParentDocID;references:ID" validate:"-"`
 }
+
+// START: Conversion Functions
 
 func (d *BaseDocument) ToMap() map[string]string {
 	return map[string]string{
@@ -101,6 +105,53 @@ func (ld *LocalDocument) ToRemote() *Document {
 		BaseDocument: ld.BaseDocument,
 	}
 }
+
+// END: Conversion Functions
+
+// START: Validation Functions
+
+func (bd *BaseDocument) Validate() error {
+
+	bd.FileName = strings.TrimRight(bd.FileName, " ")
+	bd.FileName = strings.TrimLeft(bd.FileName, " ")
+
+	bd.FileType = strings.TrimRight(bd.FileType, " ")
+	bd.FileType = strings.TrimLeft(bd.FileType, " ")
+
+	bd.FilePath = strings.TrimRight(bd.FilePath, " ")
+	bd.FilePath = strings.TrimLeft(bd.FilePath, " ")
+
+	bd.StorageKey = strings.TrimRight(bd.StorageKey, " ")
+	bd.StorageKey = strings.TrimLeft(bd.StorageKey, " ")
+
+	if err := validator.New().Struct(bd); err != nil {
+		return errors.Wrap(err, errors.ValidationInvalid, "BaseDocument validation failed")
+	}
+	return nil
+}
+
+func (d *Document) Validate() error {
+
+	if err := d.BaseDocument.Validate(); err != nil {
+		return err
+	}
+	if err := validator.New().Struct(d); err != nil {
+		return errors.Wrap(err, errors.ValidationInvalid, "Document validation failed")
+	}
+	return nil
+}
+
+func (ld *LocalDocument) Validate() error {
+	if err := ld.BaseDocument.Validate(); err != nil {
+		return err
+	}
+	if err := validator.New().Struct(ld); err != nil {
+		return errors.Wrap(err, errors.ValidationInvalid, "LocalDocument validation failed")
+	}
+	return nil
+}
+
+// END: Validation Functions
 
 // DocumentStorageInfo holds storage statistics
 type DocumentStorage struct {

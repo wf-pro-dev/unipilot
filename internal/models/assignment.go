@@ -18,7 +18,7 @@ import (
 type BaseAssignment struct {
 	Title      string    `gorm:"not null" validate:"required,min=3,max=100"`
 	Type       string    `gorm:"not null" validate:"required,oneof=HW 'Group project' Exam Quiz Lab"`
-	Status     string    `gorm:"not null" validate:"required,oneof=@'Not started' 'In progress' 'Done'"`
+	Status     string    `gorm:"not null" validate:"required,oneof='Not started' 'In progress' 'Done'"`
 	Todo       string    `gorm:"not null" validate:"max=1000"`
 	Deadline   time.Time `gorm:"not null" validate:"required"`
 	Link       string    `gorm:"default:https://acconline.austincc.edu/ultra/stream" validate:"url"`
@@ -45,8 +45,8 @@ type Assignment struct {
 type LocalAssignment struct {
 	gorm.Model
 	BaseAssignment
-	RemoteID       uint `gorm:"unique;default:null"`
-	RemoteCourseID uint `gorm:"default:null"`
+	RemoteID       uint `gorm:"unique;default:null" validate:"min=1"`
+	RemoteCourseID uint `gorm:"default:null" validate:"min=1"`
 
 	Course    *LocalCourse    `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
 	Documents []LocalDocument `gorm:"foreignKey:AssignmentID;references:ID" validate:"-"`

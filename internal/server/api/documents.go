@@ -200,6 +200,15 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 	doc.UserID = userID
 	doc.StorageKey = newKey
 
+	if err := doc.Validate(); err != nil {
+		return errors.WrapServer(
+			err,
+			errors.ValidationInvalid,
+			"Error validating document",
+			fiber.StatusBadRequest,
+		)
+	}
+
 	if err := db.Preload("Assignment.Course").Create(doc).First(doc).Error; err != nil {
 		if Errors.Is(err, gorm.ErrDuplicatedKey) {
 			return errors.WrapServer(
@@ -246,7 +255,7 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 
 	// Step 11: Prepare document data for notifications
 	// Marshal document
-	doc.User = currentUser // Link the creator data with the document
+	doc.User = &currentUser // Link the creator data with the document
 	dJson, err := json.Marshal(doc)
 	if err != nil {
 		return errors.WrapServer(
