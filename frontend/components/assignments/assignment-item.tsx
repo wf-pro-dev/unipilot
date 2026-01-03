@@ -156,9 +156,9 @@ export function AssignmentItem({
                   {getDueDescription(deadline, assignment.Status)}
                 </p>
 
-                <p className="text-caption flex items-center gap-1 line-clamp-1 leading-relaxed">
+                <p className="text-caption flex items-center gap-1">
                   <div className={cn("w-2 h-2 rounded-full shrink-0", assignment.Course?.Color)} />
-                  {assignment.Course?.Code}
+                  <span className="text-white">{assignment.Course?.Code}</span>
                 </p>
               </div>
             </div>
@@ -226,9 +226,9 @@ export function AssignmentItem({
                   {getDueDescription(deadline, assignment.Status)}
                 </p>
 
-                <p className="text-caption flex items-center gap-1 line-clamp-1 leading-relaxed">
+                <p className="text-caption flex items-center gap-1">
                   <div className={cn("w-2 h-2 rounded-full shrink-0", assignment.Course?.Color)} />
-                  {assignment.Course?.Code}
+                  <span className="text-white">{assignment.Course?.Code}</span>
                 </p>
               </div>
             </div>

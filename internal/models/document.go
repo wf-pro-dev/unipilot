@@ -80,7 +80,7 @@ type LocalDocument struct {
 	gorm.Model
 	BaseDocument
 
-	RemoteID           uint `gorm:"unique;default:null" validate:"min=1"`
+	RemoteID           uint `gorm:"unique;default:null"`
 	RemoteAssignmentID uint `gorm:"default:null" validate:"min=1"`
 
 	// Local relationships

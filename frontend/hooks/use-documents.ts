@@ -354,12 +354,10 @@ export function useAcceptDocument() {
 export function useAssignmentDocumentData(assignmentId: number) {
   const supportDocuments = useSupportDocuments(assignmentId)
   const submissionDocuments = useSubmissionDocuments(assignmentId)
-  const storageInfo = useUserStorageInfo()
   
   return {
     supportDocuments, 
     submissionDocuments,
-    storageInfo,
     isLoading: supportDocuments.isLoading || submissionDocuments.isLoading,
     error: supportDocuments.error || submissionDocuments.error,
   }

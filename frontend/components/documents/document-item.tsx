@@ -117,6 +117,7 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
   return (
     <>
       <GlassCard
+        variant="outline"
         className="
           grid grid-cols-[auto,1fr,auto] items-center gap-3
           p-3
@@ -129,7 +130,7 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
 
         {/* File Info */}
         <div className="min-w-0 flex flex-col gap-1.5">
-          <p className="text-sm font-medium truncate text-gray-200 group-hover:text-white transition-colors">
+          <p className={`text-body line-clamp-1 tracking-tight`}>
             {doc.FileName}
           </p>
 
@@ -145,12 +146,12 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
               v{doc.Version}
             </Badge>
 
-            <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{formatFileSize(doc.FileSize)}</span>
-            
-            <span className="text-[10px] text-gray-500 flex items-center gap-1 ml-auto sm:ml-0">
-              <Clock className="h-3 w-3" />
+            <span className="text-caption font-medium uppercase tracking-wider">{formatFileSize(doc.FileSize)}</span>
+
+            <p className={`text-caption flex items-center gap-1 line-clamp-1 leading-relaxed`}  >
+              <Clock className="w-3.5 h-3.5" />
               {format(new Date(doc.UpdatedAt), "MMM d")}
-            </span>
+            </p>
           </div>
         </div>
 
@@ -211,7 +212,7 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={()=>handleDelete(doc.ID)}
+              onClick={() => handleDelete(doc.ID)}
               className="bg-red-600 hover:bg-red-700"
               disabled={isLoading}
             >

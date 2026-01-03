@@ -43,7 +43,7 @@ function BaseTypeTag({ assignment, onEdit, variant = "default", className = "" }
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("text-caption", className)}>
+                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("text-caption text-white font-normal", className)}>
                     {type}
                 </Button> 
             </DropdownMenuTrigger>
@@ -51,7 +51,7 @@ function BaseTypeTag({ assignment, onEdit, variant = "default", className = "" }
                 <GlassCard variant="board">
                 {types.map((type) => (
                     <DropdownMenuItem key={type.value} onClick={(e) => handleEdit(e, type.value)}>
-                            <Badge variant="outline" className={`text-caption`}>
+                                <Badge variant="outline" className={`text-caption text-white font-normal`}>
                                 {type.label}
                             </Badge>
                     </DropdownMenuItem>

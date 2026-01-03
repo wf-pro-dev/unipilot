@@ -10,13 +10,12 @@ import { models as goModels } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
 import { BrowserOpenURL } from "@/wailsjs/runtime/runtime"
 import { StatusTag } from "@/components/assignments/tags/status-tag"
-import { AssignmentDocuments } from "./assignment-documents"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
-import { Separator } from "../ui/separator"
 import { TypeTag } from "./tags/type-tag"
 import { useAssignments } from "@/hooks/use-assignments"
 import { PriorityTag } from "./tags/priority-tag"
 import { useRouter } from "next/navigation"
+import FileUpload05 from "../file-upload-05"
 
 interface AssignmentDetailsModalProps {
   isOpen: boolean
@@ -151,7 +150,9 @@ export function AssignmentDetailsModal({
             </TabsContent>
 
             <TabsContent value="documents" className="animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <AssignmentDocuments assignment={assignment} documents={assignment.Documents} viewMode={!!assignmentProp} />
+              <FileUpload05
+                assignment={assignment}
+              />
             </TabsContent>
 
           </Tabs>

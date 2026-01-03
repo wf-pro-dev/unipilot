@@ -235,7 +235,6 @@ export namespace models {
 	    DeletedAt: gorm.DeletedAt;
 	    Type: string;
 	    FileName: string;
-	    FileType: string;
 	    FilePath: string;
 	    FileSize: number;
 	    StorageKey: string;
@@ -264,7 +263,6 @@ export namespace models {
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
 	        this.Type = source["Type"];
 	        this.FileName = source["FileName"];
-	        this.FileType = source["FileType"];
 	        this.FilePath = source["FilePath"];
 	        this.FileSize = source["FileSize"];
 	        this.StorageKey = source["StorageKey"];
@@ -725,7 +723,6 @@ export namespace models {
 	    DeletedAt: gorm.DeletedAt;
 	    Type: string;
 	    FileName: string;
-	    FileType: string;
 	    FilePath: string;
 	    FileSize: number;
 	    StorageKey: string;
@@ -754,7 +751,6 @@ export namespace models {
 	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
 	        this.Type = source["Type"];
 	        this.FileName = source["FileName"];
-	        this.FileType = source["FileType"];
 	        this.FilePath = source["FilePath"];
 	        this.FileSize = source["FileSize"];
 	        this.StorageKey = source["StorageKey"];

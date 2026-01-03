@@ -40,7 +40,7 @@ function BaseStatusTag({ assignment, onEdit, variant = "default", className = ""
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("text-caption", className)}>
+                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("text-caption text-white font-normal", className)}>
                     {status}
                 </Button>
             </DropdownMenuTrigger>
@@ -48,7 +48,7 @@ function BaseStatusTag({ assignment, onEdit, variant = "default", className = ""
                 <GlassCard variant="board">
                     {statuses.map((status) => (
                         <DropdownMenuItem key={status.value} onClick={(e) => handleEdit(e, status.value)}>
-                            <Badge variant="outline" className={`text-caption`}>
+                            <Badge variant="outline" className={`text-caption text-white font-normal`}>
                                 {status.label}
                             </Badge>
                         </DropdownMenuItem>

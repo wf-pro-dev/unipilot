@@ -41,7 +41,7 @@ function BasePriorityTag({ assignment, onEdit, variant = "default", className = 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("text-caption", className)}>
+                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("text-caption text-white font-normal", className)}>
                     {priority}
                 </Button>
             </DropdownMenuTrigger>
@@ -49,7 +49,7 @@ function BasePriorityTag({ assignment, onEdit, variant = "default", className = 
                 <GlassCard variant="board">
                     {priorities.map((priority) => (
                         <DropdownMenuItem key={priority.value} onClick={(e) => handleEdit(e, priority.value)}>
-                            <Badge variant="outline" className={`text-caption`}>
+                            <Badge variant="outline" className={`text-caption text-white font-normal`}>
                                 {priority.label}
                             </Badge>
                         </DropdownMenuItem>
