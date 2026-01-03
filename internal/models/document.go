@@ -117,9 +117,11 @@ func (d *Document) ToLocal() *LocalDocument {
 
 // ToRemoteDocument converts local document to remote document format
 func (ld *LocalDocument) ToRemote() *Document {
+	baseDocument := ld.BaseDocument
+	baseDocument.AssignmentID = ld.RemoteAssignmentID
 
 	return &Document{
-		BaseDocument: ld.BaseDocument,
+		BaseDocument: baseDocument,
 	}
 }
 
