@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { GlassCardVariants } from "@/components/ui/glass-card"
+import { GlassCard, GlassCardVariants } from "@/components/ui/glass-card"
 import { cn } from "@/lib/utils"
 import { models } from "@/wailsjs/go/models"
 import { useState, memo, useEffect } from "react"
@@ -40,18 +40,20 @@ function BaseStatusTag({ assignment, onEdit, variant = "default", className = ""
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("",className)}>
+                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("text-caption", className)}>
                     {status}
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="glass border-gray-600">
-                {statuses.map((status) => (
-                    <DropdownMenuItem key={status.value} onClick={(e) => handleEdit(e, status.value)}>
-                        <Badge variant="outline" className={`text-caption`}>
-                            {status.label}
-                        </Badge>
-                    </DropdownMenuItem>
-                ))}
+            <DropdownMenuContent align="end" className="bg-transparent border-none">
+                <GlassCard variant="board">
+                    {statuses.map((status) => (
+                        <DropdownMenuItem key={status.value} onClick={(e) => handleEdit(e, status.value)}>
+                            <Badge variant="outline" className={`text-caption`}>
+                                {status.label}
+                            </Badge>
+                        </DropdownMenuItem>
+                    ))}
+                </GlassCard>
             </DropdownMenuContent>
         </DropdownMenu>
     )

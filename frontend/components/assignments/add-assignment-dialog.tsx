@@ -26,6 +26,7 @@ import {
   AssignmentValues
 } from "./schema"
 import { CoursesSelect } from "../courses/courses-select"
+import { FormErrorMessage } from "../auth/form-error-message"
 
 const types = [
   { value: "HW", label: "HW", icon: "📝", color: "text-blue-400" },
@@ -36,9 +37,9 @@ const types = [
 ]
 
 const priorities = [
-  { value: "low", label: "Low", color: "text-green-400", icon: "⬇️" },
-  { value: "medium", label: "Medium", color: "text-yellow-400", icon: "➡️" },
-  { value: "high", label: "High", color: "text-red-400", icon: "⬆️" },
+  { value: "low", label: "Low", color: "text-green-400"},
+  { value: "medium", label: "Medium", color: "text-accent-amber-500"},
+  { value: "high", label: "High", color: "text-red-400"},
 ]
 
 const statuses = [
@@ -57,6 +58,7 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
   const [step, setStep] = useState(1)
   const [step1Attempted, setStep1Attempted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedCourse, setSelectedCourse] = useState<models.LocalCourse | undefined>(undefined)
 
   const form = useForm<AssignmentValues>({
     resolver: zodResolver(assignmentSchema),
@@ -123,15 +125,31 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
     }
   }
 
+  const handleCourseChange = (course: models.LocalCourse | undefined) => {
+    if (!course) return
+    setSelectedCourse(course)
+    form.setValue("course_id", course.ID)
+    form.setValue("remote_course_id", course.RemoteID)
+  }
+
+  const handleErrorResolved = () => {
+    if (step === 1) {
+      setTimeout(() => {
+        setStep1Attempted(false)
+      }, 200)
+    }
+
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="default" className="text-body bg-white/10 hover:bg-white/20 border-white/20">
+        <Button variant="default" size="lg">
           <Plus className="h-4 w-4 mr-2" />
           Add Assignment
         </Button>
       </DialogTrigger>
-      <DialogContent className="glass border-white/10 text-white max-w-lg p-0 overflow-hidden gap-0">
+      <DialogContent className="glass border-white/10 text-white max-w-md p-0 overflow-hidden gap-0">
         <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-h3">Add New Assignment</DialogTitle>
@@ -180,9 +198,12 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
                               />
                             </FormControl>
                           </div>
-                          {fieldState.error && (
-                            <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                          )}
+                          <FormErrorMessage
+                            fieldState={fieldState}
+                            formState={form.formState}
+                            config={{ strategy: "onStepAttempt", stepAttempted: step1Attempted }}
+                            onErrorResolved={handleErrorResolved}
+                          />
                         </FormItem>
                       )}
                     />
@@ -197,18 +218,16 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
                           </FormLabel>
                           <CoursesSelect
                             value={field.value}
-                            onValueChange={(value, courseData) => {
-                              console.log("courseData", courseData)
-                              field.onChange(value)
-                              if (courseData) {
-                                form.setValue("course_id", courseData.id)
-                                form.setValue("remote_course_id", courseData.remoteId)
-                              }
-                            }}
+                            onValueChange={field.onChange}
+                            onCourseChange={handleCourseChange}
+                            selectedCourse={selectedCourse}
                           />
-                          {fieldState.error && (
-                            <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                          )}
+                          <FormErrorMessage
+                            fieldState={fieldState}
+                            formState={form.formState}
+                            config={{ strategy: "onStepAttempt", stepAttempted: step1Attempted }}
+                            onErrorResolved={handleErrorResolved}
+                          />
                         </FormItem>
                       )}
                     />
@@ -241,9 +260,12 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
                                 ))}
                               </SelectContent>
                             </Select>
-                            {fieldState.error && (
-                              <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                            )}
+                            <FormErrorMessage
+                              fieldState={fieldState}
+                              formState={form.formState}
+                              config={{ strategy: "onStepAttempt", stepAttempted: step1Attempted }}
+                              onErrorResolved={handleErrorResolved}
+                            />
                           </FormItem>
                         )}
                       />
@@ -279,9 +301,12 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
                                 />
                               </PopoverContent>
                             </Popover>
-                            {fieldState.error && (
-                              <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                            )}
+                            <FormErrorMessage
+                              fieldState={fieldState}
+                              formState={form.formState}
+                              config={{ strategy: "onTouched" }}
+                              onErrorResolved={handleErrorResolved}
+                            />
                           </FormItem>
                         )}
                       />
@@ -326,16 +351,19 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
                                 {priorities.map((priority) => (
                                   <SelectItem key={priority.value} value={priority.value} className="focus:bg-white/10 focus:text-white cursor-pointer">
                                     <div className="flex items-center gap-2">
-                                      <span className={priority.color}>{priority.icon}</span>
-                                      <span>{priority.label}</span>
+                                    <span className={priority.color}>●</span>
+                                    <span>{priority.label}</span>
                                     </div>
                                   </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
-                            {fieldState.error && (
-                              <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                            )}
+                            <FormErrorMessage
+                              fieldState={fieldState}
+                              formState={form.formState}
+                              config={{ strategy: "onStepAttempt", stepAttempted: step1Attempted }}
+                              onErrorResolved={handleErrorResolved}
+                            />
                           </FormItem>
                         )}
                       />
@@ -365,9 +393,12 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
                                 ))}
                               </SelectContent>
                             </Select>
-                            {fieldState.error && (
-                              <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                            )}
+                            <FormErrorMessage
+                              fieldState={fieldState}
+                              formState={form.formState}
+                              config={{ strategy: "onStepAttempt", stepAttempted: step1Attempted }}
+                              onErrorResolved={handleErrorResolved}
+                            />
                           </FormItem>
                         )}
                       />
@@ -393,9 +424,12 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
                               />
                             </FormControl>
                           </div>
-                          {fieldState.error && (
-                            <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                          )}
+                          <FormErrorMessage
+                            fieldState={fieldState}
+                            formState={form.formState}
+                            config={{ strategy: "onStepAttempt", stepAttempted: step1Attempted }}
+                            onErrorResolved={handleErrorResolved}
+                          />
                         </FormItem>
                       )}
                     />
@@ -420,9 +454,12 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
                               />
                             </FormControl>
                           </div>
-                          {fieldState.error && (
-                            <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                          )}
+                          <FormErrorMessage
+                            fieldState={fieldState}
+                            formState={form.formState}
+                            config={{ strategy: "onStepAttempt", stepAttempted: step1Attempted }}
+                            onErrorResolved={handleErrorResolved}
+                          />
                         </FormItem>
                       )}
                     />

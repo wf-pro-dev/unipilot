@@ -14,6 +14,7 @@ import { MainSidebar } from "@/components/sidebar/sidebar";
 import { usePathname } from 'next/navigation';
 import { MeshBackground } from '@/components/ui/mesh-gradient';
 
+
 const inter = Inter({ subsets: ["latin"] })
 // In your layout.tsx, replace BackgroundWrapper with:
 
@@ -68,11 +69,11 @@ export default function RootLayout({
         <QueryProvider>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
             <NetworkProvider>
-              <BackgroundWrapper>
+              <MeshBackground>
                 <AuthProvider>
                   <AppContent>{children}</AppContent>
                 </AuthProvider>
-              </BackgroundWrapper>
+              </MeshBackground>
               <Toaster />
             </NetworkProvider>
           </ThemeProvider>

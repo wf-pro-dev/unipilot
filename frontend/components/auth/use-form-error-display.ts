@@ -74,7 +74,7 @@ export function shouldShowError<TFieldValues extends FieldValues>(
             return submitAttempted ?? formState.submitCount > 0
 
         case "onStepAttempt":
-            return stepAttempted ?? false
+            return stepAttempted  ?? false
 
         case "onDirty":
             return fieldState.isDirty

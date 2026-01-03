@@ -15,7 +15,7 @@ import {
   Clock,
   CheckCircle2
 } from "lucide-react"
-import { document } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import {
   useOpenDocument,
   useSaveDocumentAs,
@@ -25,9 +25,10 @@ import {
 } from "@/hooks/use-documents"
 import { format } from "date-fns"
 import { toast } from "sonner"
+import { GlassCard } from "../ui/glass-card"
 
 interface DocumentItemProps {
-  document: document.LocalDocument
+  document: models.LocalDocument
 }
 
 export function DocumentItem({ document: doc }: DocumentItemProps) {
@@ -115,15 +116,11 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
 
   return (
     <>
-      <div
+      <GlassCard
         className="
           grid grid-cols-[auto,1fr,auto] items-center gap-3
-          bg-white/5 
-          border border-white/5 
           p-3
-          rounded-xl 
-          text-white
-          hover:bg-white/10 transition-all duration-300 group relative"
+         group relative"
       >
         {/* File Icon */}
         <div className="flex-shrink-0 p-2.5 rounded-lg bg-white/5 border border-white/5">
@@ -200,7 +197,7 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-      </div >
+      </GlassCard >
 
       {/* Delete Confirmation Dialog */}
       < AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} >

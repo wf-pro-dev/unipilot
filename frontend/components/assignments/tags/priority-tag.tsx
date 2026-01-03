@@ -4,7 +4,7 @@ import { models } from "@/wailsjs/go/models"
 import { Button } from "@/components/ui/button"
 import { Flag } from "lucide-react"
 import { memo, useEffect, useState } from "react"
-import { GlassCardVariants } from "@/components/ui/glass-card"
+import { GlassCard, GlassCardVariants } from "@/components/ui/glass-card"
 import { cn } from "@/lib/utils"
 
 
@@ -41,18 +41,20 @@ function BasePriorityTag({ assignment, onEdit, variant = "default", className = 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("", className)}>
+                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("text-caption", className)}>
                     {priority}
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="glass border-gray-600">
-                {priorities.map((priority) => (
-                    <DropdownMenuItem key={priority.value} onClick={(e) => handleEdit(e, priority.value)}>
-                        <Badge variant="outline" className="text-caption text-text-body">
-                            {priority.label}
-                        </Badge>
-                    </DropdownMenuItem>
-                ))}
+            <DropdownMenuContent align="end" className="bg-transparent border-none">
+                <GlassCard variant="board">
+                    {priorities.map((priority) => (
+                        <DropdownMenuItem key={priority.value} onClick={(e) => handleEdit(e, priority.value)}>
+                            <Badge variant="outline" className={`text-caption`}>
+                                {priority.label}
+                            </Badge>
+                        </DropdownMenuItem>
+                    ))}
+                </GlassCard>
             </DropdownMenuContent>
         </DropdownMenu>
     )

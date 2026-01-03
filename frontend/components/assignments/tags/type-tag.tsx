@@ -3,7 +3,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { models } from "@/wailsjs/go/models"
 import { Button } from "@/components/ui/button"
 import { memo, useEffect, useState } from "react"
-import { GlassCardVariants } from "@/components/ui/glass-card"
+import { GlassCard, GlassCardVariants } from "@/components/ui/glass-card"
 import { cn } from "@/lib/utils"
 
 
@@ -43,23 +43,24 @@ function BaseTypeTag({ assignment, onEdit, variant = "default", className = "" }
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("", className)}>
+                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("text-caption", className)}>
                     {type}
                 </Button> 
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="glass border-gray-600">
+            <DropdownMenuContent align="end" className="bg-transparent border-none">
+                <GlassCard variant="board">
                 {types.map((type) => (
                     <DropdownMenuItem key={type.value} onClick={(e) => handleEdit(e, type.value)}>
-                        <Badge variant="outline" className="text-caption text-text-body">
-                            {type.label}
-                        </Badge>
+                            <Badge variant="outline" className={`text-caption`}>
+                                {type.label}
+                            </Badge>
                     </DropdownMenuItem>
                 ))}
+                </GlassCard>
             </DropdownMenuContent>
         </DropdownMenu>
     )
 }
-
 export const TypeTag = memo(BaseTypeTag, (prevProps, nextProps) => {
     return prevProps.assignment.Type === nextProps.assignment.Type
 })

@@ -43,7 +43,6 @@ export function DocumentUploadDialog({
 
   const handleUpload = async () => {
 
-
     const result = await uploadDocument.mutateAsync({
       assignmentId,
       remoteAssignmentId,
@@ -64,8 +63,6 @@ export function DocumentUploadDialog({
         toast.error("Failed to upload document")
       }
     })
-
-
   }
 
   const handleClose = () => {

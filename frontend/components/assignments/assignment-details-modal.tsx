@@ -63,23 +63,21 @@ export function AssignmentDetailsModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="glass border-white/10 text-white max-w-xl max-h-[95vh] overflow-y-auto p-0 overflow-hidden gap-0">
-        <div className="p-6 pb-4 border-b border-white/5 bg-white/5">
-          <div className="flex justify-between items-start">
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2 mb-1">
-                <div className={`w-2 h-2 rounded-full ${assignment.Course?.Color}`} />
-                <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">{assignment.Course?.Name}</span>
-              </div>
-              <DialogTitle className="text-xl font-semibold text-white leading-tight">
-                {assignment.Title}
-              </DialogTitle>
-            </div>
+      <DialogContent className="glass border-white/10 text-white max-w-lg p-0 overflow-hidden gap-0">
+
+        <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
+
+          <div className="flex items-center space-x-2 mb-1">
+            <div className={`w-2 h-2 rounded-full ${assignment.Course?.Color}`} />
+            <span className="text-sm text-gray-400 uppercase tracking-wider">{assignment.Course?.Name}</span>
           </div>
-        </div>
+          <DialogTitle className="text-H3">{assignment.Title}</DialogTitle>
+
+        </DialogHeader>
 
 
         <div className="p-6">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent z-0 rounded-2xl pointer-events-none" />
 
           <Tabs value={activeView} onValueChange={setActiveView} className="w-full space-y-6">
 
@@ -124,7 +122,7 @@ export function AssignmentDetailsModal({
               <div className="grid grid-cols-3 gap-3">
                 <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
                   <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Status</span>
-                  <StatusTag assignment={assignment} onEdit={onEdit!}  variant="outline" />
+                  <StatusTag assignment={assignment} onEdit={onEdit!} variant="outline" />
                 </div>
 
                 <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
@@ -167,6 +165,7 @@ export function AssignmentDetailsModal({
               <Button
                 variant="outline"
                 size="sm"
+                className="rounded-full"
                 onClick={() => router.push(`/chat?assignment=${assignment.ID}`)}
               >
                 <Bot className="w-4 h-4" />
@@ -213,7 +212,7 @@ export function AssignmentDetailsModal({
                   onCopy?.(assignment)
                 }}
               >
-                
+
                 <CopyPlus className="h-4 w-4" />
                 <span>Copy</span>
               </Button>

@@ -383,8 +383,9 @@ export function RegisterForm({ onRegisterSuccess, onLoginClick, className }: Reg
                                         </Button>
                                         <Button
                                             type="submit"
-                                            className="w-3/4 h-11 bg-white text-black hover:bg-gray-200 rounded-xl font-medium transition-all hover:scale-[1.01] active:scale-[0.99]"
+                                            variant="default"
                                             disabled={isLoading}
+                                            className="w-3/4"
                                         >
                                             {isLoading ? (
                                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
