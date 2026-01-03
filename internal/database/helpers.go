@@ -153,24 +153,12 @@ func (h *Database) DeleteNotification(notification *models.LocalNotification) er
 
 func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUploadRequest, hasLocalFile bool) (*fileops.FileUploadResponse, error) {
 
-	// Validate file type
-	if err := fileops.ValidateFileType(uploadReq.FileName); err != nil {
-		return nil, errors.NewAppError(errors.ValidationInvalid, "Unsupported file type", err)
-	}
-
-	// Validate file size
-	if uploadReq.FileSize > models.MaxFileSize {
-
-		return nil, errors.NewAppError(errors.ValidationInvalid, "File size exceeds limit", fmt.Errorf("file size exceeds limit of %d MB", models.MaxFileSize/(1024*1024)))
-	}
-
 	// Create LocalDocument record
 	localDoc := models.LocalDocument{
 		BaseDocument: models.BaseDocument{
 			AssignmentID: uploadReq.AssignmentID,
 			Type:         uploadReq.Type,
 			FileName:     uploadReq.FileName,
-			FileType:     fileops.GetMimeType(uploadReq.FileName),
 			FileSize:     uploadReq.FileSize,
 			StorageKey:   uploadReq.StorageKey,
 			Version:      1,
@@ -190,19 +178,11 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 	filePath := filepath.Join(documentDir, fileName)
 	localDoc.FilePath = filePath
 
-	//Check storage quota
-	var totalSize int64
-	h.db.Model(&models.LocalDocument{}).
-		Where("user_id = ? AND has_local_file = ?", uploadReq.UserID, true).
-		Select("COALESCE(SUM(file_size), 0)").
-		Scan(&totalSize)
-
-	if totalSize+uploadReq.FileSize > models.MaxUserQuota {
-		return nil, errors.NewAppError(errors.ValidationInvalid, "Storage quota exceeded", fmt.Errorf("storage quota exceeded. Current: %d MB, Limit: %d MB",
-			totalSize/(1024*1024), models.MaxUserQuota/(1024*1024)))
-	}
-
 	var response *fileops.FileUploadResponse
+
+	if err := localDoc.Validate(h.db); err != nil {
+		return nil, err
+	}
 
 	if err := h.db.Create(&localDoc).Error; err != nil {
 		return nil, errors.HandleDBCreateError(err)

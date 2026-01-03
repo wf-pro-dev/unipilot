@@ -405,7 +405,7 @@ func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documen
 
 	document, err := a.CreateDocument(uploadReq, true)
 	if err != nil {
-		return nil, Errors.HandleDBWriteError(err)
+		return nil, err
 	}
 
 	return document, nil

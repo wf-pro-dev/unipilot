@@ -246,8 +246,8 @@ export namespace models {
 	    HasLocalFile: boolean;
 	    AssignmentID: number;
 	    UserID: number;
-	    User: User;
-	    Assignment: Assignment;
+	    User?: User;
+	    Assignment?: Assignment;
 	    Parent?: Document;
 	    ParentDoc?: Document;
 	    Versions: Document[];

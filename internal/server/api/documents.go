@@ -200,7 +200,7 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 	doc.UserID = userID
 	doc.StorageKey = newKey
 
-	if err := doc.Validate(); err != nil {
+	if err := doc.Validate(db); err != nil {
 		return errors.WrapServer(
 			err,
 			errors.ValidationInvalid,

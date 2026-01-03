@@ -32,7 +32,7 @@ type BaseAssignment struct {
 type Assignment struct {
 	gorm.Model
 	BaseAssignment
-	UserID uint `gorm:"not null" validate:"required"`
+	UserID uint `gorm:"not null" validate:"required,min=1"`
 
 	// Relationships
 	User      *User        `gorm:"foreignKey:UserID;references:ID" validate:"-"`
@@ -45,7 +45,7 @@ type Assignment struct {
 type LocalAssignment struct {
 	gorm.Model
 	BaseAssignment
-	RemoteID       uint `gorm:"unique;default:null" validate:"min=1"`
+	RemoteID       uint `gorm:"unique;default:null""`
 	RemoteCourseID uint `gorm:"default:null" validate:"min=1"`
 
 	Course    *LocalCourse    `gorm:"foreignKey:CourseID;references:ID" validate:"-"`

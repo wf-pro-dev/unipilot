@@ -6,7 +6,6 @@ import (
 	"mime"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"gorm.io/gorm"
 
@@ -33,34 +32,6 @@ type FileUploadResponse struct {
 	LocalDocument *models.LocalDocument
 	Success       bool
 	Message       string
-}
-
-// SupportedFileTypes defines the allowed file extensions
-var SupportedFileTypes = map[string]bool{
-	".pdf":  true,
-	".doc":  true,
-	".docx": true,
-	".ppt":  true,
-	".pptx": true,
-	".xls":  true,
-	".xlsx": true,
-	".txt":  true,
-	".md":   true,
-	".png":  true,
-	".jpg":  true,
-	".jpeg": true,
-	".gif":  true,
-	".bmp":  true,
-	".svg":  true,
-}
-
-// ValidateFileType checks if the file extension is supported
-func ValidateFileType(fileName string) error {
-	ext := strings.ToLower(filepath.Ext(fileName))
-	if !SupportedFileTypes[ext] {
-		return errors.Wrap(fmt.Errorf("file type %s is not supported", ext), errors.FSFileTypeNotSupported, "File type not supported")
-	}
-	return nil
 }
 
 // GetMimeType returns the MIME type for a file extension
@@ -124,21 +95,12 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 		}, errors.Wrap(err, errors.DBRecordNotFound, "Original document not found")
 	}
 
-	// Validate file type
-	if err := ValidateFileType(req.FileName); err != nil {
-		return &FileUploadResponse{
-			Success: false,
-			Message: "File type not supported",
-		}, errors.Wrap(err, errors.ValidationInvalid, "Invalid file")
-	}
-
 	// Create new version
 	newVersion := models.LocalDocument{
 		BaseDocument: models.BaseDocument{
 			AssignmentID: existingDoc.AssignmentID,
 			Type:         existingDoc.Type,
 			FileName:     req.FileName,
-			FileType:     GetMimeType(req.FileName),
 			FileSize:     req.FileSize,
 			Version:      existingDoc.Version + 1,
 			ParentDocID:  &existingDoc.ID,

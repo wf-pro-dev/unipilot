@@ -24,19 +24,37 @@ type DocumentType string
 const (
 	DocumentTypeSupport    DocumentType = "support"
 	DocumentTypeSubmission DocumentType = "submission"
+	// SupportedFileTypes defines the allowed file extensions
 )
+
+var SupportedFileTypes = map[string]bool{
+	".pdf":  true,
+	".doc":  true,
+	".docx": true,
+	".ppt":  true,
+	".pptx": true,
+	".xls":  false,
+	".xlsx": false,
+	".txt":  true,
+	".md":   true,
+	".png":  false,
+	".jpg":  false,
+	".jpeg": false,
+	".gif":  false,
+	".bmp":  false,
+	".svg":  false,
+}
 
 type BaseDocument struct {
 	Type         DocumentType `gorm:"not null;index" validate:"required,oneof=support submission"`
 	FileName     string       `gorm:"not null" validate:"required,min=3,max=150"`
-	FileType     string       `gorm:"not null" validate:"required,min=3,max=10"` // mime type or extension
 	FilePath     string       // relative to app data directory
 	FileSize     int64        `gorm:"not null" validate:"required,min=1"` // in bytes
 	StorageKey   string       `gorm:"unique"`                             // Only for remote storage
 	Version      int          `gorm:"default:1" validate:"min=1"`
-	ParentID     uint         `gorm:"index;default:null" validate:"min=1"` // For shared assignment tracking
-	ParentDocID  *uint        `gorm:"index;default:null" validate:"min=1"` // For version history
-	IsOriginal   bool         `gorm:"default:true" validate:"boolean"`     // For shared assignment tracking
+	ParentID     uint         `gorm:"index;default:null"`              // For shared assignment tracking
+	ParentDocID  *uint        `gorm:"index;default:null"`              // For version history
+	IsOriginal   bool         `gorm:"default:true" validate:"boolean"` // For shared assignment tracking
 	HasLocalFile bool         `gorm:"default:false" validate:"boolean"`
 
 	AssignmentID uint `gorm:"not null;index" validate:"required,min=1"`
@@ -78,7 +96,6 @@ func (d *BaseDocument) ToMap() map[string]string {
 	return map[string]string{
 		"type":           string(d.Type),
 		"file_name":      d.FileName,
-		"file_type":      d.FileType,
 		"file_path":      d.FilePath,
 		"file_size":      strconv.FormatInt(d.FileSize, 10),
 		"storage_key":    d.StorageKey,
@@ -115,14 +132,21 @@ func (bd *BaseDocument) Validate() error {
 	bd.FileName = strings.TrimRight(bd.FileName, " ")
 	bd.FileName = strings.TrimLeft(bd.FileName, " ")
 
-	bd.FileType = strings.TrimRight(bd.FileType, " ")
-	bd.FileType = strings.TrimLeft(bd.FileType, " ")
-
 	bd.FilePath = strings.TrimRight(bd.FilePath, " ")
 	bd.FilePath = strings.TrimLeft(bd.FilePath, " ")
 
 	bd.StorageKey = strings.TrimRight(bd.StorageKey, " ")
 	bd.StorageKey = strings.TrimLeft(bd.StorageKey, " ")
+
+	if err := ValidateFileType(bd.FileName); err != nil {
+		return errors.Wrap(err, errors.ValidationInvalid, "Unsupported file type")
+	}
+
+	// Validate file size
+	if bd.FileSize > MaxFileSize {
+
+		return errors.Wrap(fmt.Errorf("file size exceeds limit of %d MB", MaxFileSize/(1024*1024)), errors.ValidationInvalid, "File size exceeds limit")
+	}
 
 	if err := validator.New().Struct(bd); err != nil {
 		return errors.Wrap(err, errors.ValidationInvalid, "BaseDocument validation failed")
@@ -130,9 +154,12 @@ func (bd *BaseDocument) Validate() error {
 	return nil
 }
 
-func (d *Document) Validate() error {
+func (d *Document) Validate(db *gorm.DB) error {
 
 	if err := d.BaseDocument.Validate(); err != nil {
+		return err
+	}
+	if err := ValidateFileSize(d, db); err != nil {
 		return err
 	}
 	if err := validator.New().Struct(d); err != nil {
@@ -141,12 +168,33 @@ func (d *Document) Validate() error {
 	return nil
 }
 
-func (ld *LocalDocument) Validate() error {
+func (ld *LocalDocument) Validate(db *gorm.DB) error {
 	if err := ld.BaseDocument.Validate(); err != nil {
 		return err
 	}
+	if err := ValidateLocalFileSize(ld, db); err != nil {
+		return err
+	}
+
 	if err := validator.New().Struct(ld); err != nil {
 		return errors.Wrap(err, errors.ValidationInvalid, "LocalDocument validation failed")
+	}
+	return nil
+}
+
+// ValidateFileType checks if the file extension is supported
+func ValidateFileType(fileName string) error {
+	ext := strings.ToLower(filepath.Ext(fileName))
+	if !SupportedFileTypes[ext] {
+		return errors.Wrap(fmt.Errorf("file type %s is not supported", ext), errors.FSFileTypeNotSupported, "File type not supported")
+	}
+	return nil
+}
+
+func ValidateFileTypeRAG(fileName string) error {
+	ext := strings.ToLower(filepath.Ext(fileName))
+	if SupportedFileTypes[ext] {
+		return errors.Wrap(fmt.Errorf("file type %s is supported for RAG", ext), errors.FSFileTypeNotSupported, "File type not supported for RAG")
 	}
 	return nil
 }
@@ -204,41 +252,79 @@ func (d *Document) AfterDelete(tx *gorm.DB) error {
 func (d *Document) IsRoot() bool { return d.ParentID == 0 }
 
 // ValidateFileSize checks if file size is within limits
-func (d *Document) ValidateFileSize(db *gorm.DB) error {
+func ValidateFileSize(doc *Document, db *gorm.DB) error {
 	// Check individual file size
-	if d.FileSize > MaxFileSize {
+	if doc.FileSize > MaxFileSize {
 		return errors.NewAppError(errors.ValidationInvalid, "File size exceeds maximum of 50MB", nil)
 	}
 
 	// Check assignment total size
 	var assignmentTotal int64
 	err := db.Model(&Document{}).
-		Where("assignment_id = ? AND id != ?", d.AssignmentID, d.ID).
+		Where("assignment_id = ? AND id != ?", doc.AssignmentID, doc.ID).
 		Select("COALESCE(SUM(file_size), 0)").
 		Scan(&assignmentTotal).Error
 	if err != nil {
 		return errors.HandleDBReadError(err)
 	}
 
-	if assignmentTotal+d.FileSize > MaxAssignmentSize {
+	if assignmentTotal+doc.FileSize > MaxAssignmentSize {
 		return errors.NewAppError(errors.ValidationInvalid, "Assignment storage would exceed 200MB limit", nil)
 	}
 
 	// Check user quota
 	var userTotal int64
 	err = db.Model(&Document{}).
-		Where("user_id = ? AND id != ?", d.UserID, d.ID).
+		Where("user_id = ? AND id != ?", doc.UserID, doc.ID).
 		Select("COALESCE(SUM(file_size), 0)").
 		Scan(&userTotal).Error
 	if err != nil {
 		return errors.HandleDBReadError(err)
 	}
 
-	if userTotal+d.FileSize > MaxUserQuota {
+	if userTotal+doc.FileSize > MaxUserQuota {
 		return errors.NewAppError(errors.ValidationInvalid, "User storage would exceed 2GB quota", nil)
 	}
 
 	return nil
+}
+
+func ValidateLocalFileSize(doc *LocalDocument, db *gorm.DB) error {
+
+	if doc.FileSize > MaxFileSize {
+		return errors.NewAppError(errors.ValidationInvalid, "File size exceeds maximum of 50MB", nil)
+	}
+
+	// Check assignment total size
+	var assignmentTotal int64
+	err := db.Model(&LocalDocument{}).
+		Where("assignment_id = ? AND id != ?", doc.AssignmentID, doc.ID).
+		Select("COALESCE(SUM(file_size), 0)").
+		Scan(&assignmentTotal).Error
+	if err != nil {
+		return errors.HandleDBReadError(err)
+	}
+
+	if assignmentTotal+doc.FileSize > MaxAssignmentSize {
+		return errors.NewAppError(errors.ValidationInvalid, "Assignment storage would exceed 200MB limit", nil)
+	}
+
+	// Check user quota
+	var userTotal int64
+	err = db.Model(&LocalDocument{}).
+		Where("id != ?", doc.ID).
+		Select("COALESCE(SUM(file_size), 0)").
+		Scan(&userTotal).Error
+	if err != nil {
+		return errors.HandleDBReadError(err)
+	}
+
+	if userTotal+doc.FileSize > MaxUserQuota {
+		return errors.NewAppError(errors.ValidationInvalid, "User storage would exceed 2GB quota", nil)
+	}
+
+	return nil
+
 }
 
 // GetAppDataPath returns the application data directory for file storage
@@ -323,7 +409,6 @@ func (d *Document) CreateNewVersion(newFileName string, newFileSize int64, newFi
 	baseD := &BaseDocument{
 		Type:         d.Type,
 		FileName:     d.FileName,
-		FileType:     d.FileType,
 		FilePath:     d.FilePath,
 		FileSize:     d.FileSize,
 		Version:      latestVersion + 1,
@@ -338,7 +423,7 @@ func (d *Document) CreateNewVersion(newFileName string, newFileSize int64, newFi
 	}
 
 	// Validate before creating
-	if err := newVersion.ValidateFileSize(db); err != nil {
+	if err := ValidateFileSize(newVersion, db); err != nil {
 		return nil, errors.Inherit(err, errors.FSFileTooLarge)
 	}
 
