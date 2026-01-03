@@ -13,7 +13,7 @@ import { AiDocumentCard } from "./ai-chat-documents";
 import { GlassCard } from "../ui/glass-card";
 import { useNextAssignments } from "@/hooks/use-assignments";
 import { AiAssignmentCard } from "./ai-chat-assignments";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback  } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -44,7 +44,7 @@ export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
 
   return (
     <Sidebar collapsible="icon" className="h-screen shadow-2xl border-none bg-transparent" variant="sidebar">
-      <GlassCard variant="default" className="flex flex-col flex-1 border-white/5 bg-white/5 rounded-none h-full p-0 overflow-hidden">
+      <GlassCard variant="board" className="flex flex-col flex-1 border-white/5 bg-white/5 rounded-none h-full p-0 overflow-hidden">
         <SidebarHeader className="p-6 pb-4 border-b border-white/5 bg-white/5 backdrop-blur-3xl">
           <div className="flex flex-col gap-3 group-data-[collapsible=icon]:hidden">
             <div className="flex items-center justify-between">
@@ -57,8 +57,8 @@ export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
                 <ArrowLeft className="h-4 w-4 text-white/70" />
               </Button>
               <div className="flex items-center gap-2 px-1 py-0.5 rounded-full bg-white/5 border border-white/5 w-fit">
-                <div className={`w-1.5 h-1.5 rounded-full ${assignment.Course.Color} shadow-[0_0_8px] shadow-${assignment.Course.Color}/80 ml-1.5`} />
-                <span className="text-[10px] font-medium pr-2 opacity-80 uppercase tracking-wider">{assignment.Course.Code}</span>
+                <div className={`w-1.5 h-1.5 rounded-full ${assignment.Course?.Color} shadow-[0_0_8px] shadow-${assignment.Course?.Color}/80 ml-1.5`} />
+                <span className="text-[10px] font-medium pr-2 opacity-80 uppercase tracking-wider">{assignment.Course?.Code}</span>
               </div>
             </div>
             <h1 className="text-h4 font-semibold leading-tight text-white drop-shadow-sm truncate">{assignment.Title}</h1>
@@ -72,7 +72,7 @@ export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
               >
                 <ArrowLeft className="h-4 w-4 text-white/70" />
               </Button>
-             <div className={`w-4 h-4 rounded-full ${assignment.Course.Color} shadow-[0_0_12px] shadow-${assignment.Course.Color}`} />
+             <div className={`w-4 h-4 rounded-full ${assignment.Course?.Color} shadow-[0_0_12px] shadow-${assignment.Course?.Color}`} />
           </div>
         </SidebarHeader>
 
@@ -82,7 +82,7 @@ export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
               <SidebarGroupLabel className="text-xs uppercase tracking-widest text-white/40 font-bold">
                 Context Sources
               </SidebarGroupLabel>
-              <span className="text-caption font-semibold text-muted-foreground/40 bg-white/5 rounded px-1.5">{documents?.length || 0}</span>
+              <span className="text-caption font-semibold text-muted-foreground/40 bg-white/5 rounded px-1.5">{assignment.Documents?.length || 0}</span>
             </div>
             <div className="flex flex-col gap-2.5">
               {assignment.Documents?.map((document) => {

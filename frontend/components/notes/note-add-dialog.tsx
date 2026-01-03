@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, BookOpen, FileText, Tag, Video } from "lucide-react"
+import { Plus } from "lucide-react"
 import { useCourses } from "@/hooks/use-courses"
-import { note } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { CoursesSelect } from "../courses/courses-select"
 import { useStreamNote } from "@/hooks/use-stream-notes"
 import { NoteStreamModal } from "./note-stream-modal"
@@ -30,11 +30,12 @@ const subjects = [
 ]
 
 interface AddNoteDialogProps {
-    onAdd: (note: note.LocalNote) => void
+    isOpen: boolean
+    setOpen: (open: boolean) => void
 }
 
-export function AddNoteDialog({ onAdd }: AddNoteDialogProps) {
-    const [open, setOpen] = useState(false)
+export function AddNoteDialog({ isOpen, setOpen }: AddNoteDialogProps) {
+    
     const [showStreamModal, setShowStreamModal] = useState(false)
     const [formData, setFormData] = useState({
         title: "",
@@ -48,7 +49,6 @@ export function AddNoteDialog({ onAdd }: AddNoteDialogProps) {
         course_code: string
     } | null>(null)
 
-    const { data: courses } = useCourses()
     const { 
         content, 
         isStreaming, 
@@ -107,7 +107,7 @@ export function AddNoteDialog({ onAdd }: AddNoteDialogProps) {
 
     return (
         <>
-            <Dialog open={open} onOpenChange={setOpen}>
+            <Dialog open={isOpen} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
                     <Button variant="default" className="text-body">
                         <Plus className="h-4 w-4 mr-2" />

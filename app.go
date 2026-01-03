@@ -157,6 +157,8 @@ func (a *App) CreateAssignment(assignmentData *models.LocalAssignment) (*models.
 		RemoteCourseID: assignmentData.RemoteCourseID,
 	}
 
+	log.Println("localAssignment", localAssignment.Status)
+
 	if err := localAssignment.Validate(); err != nil {
 		return nil, err
 	}

@@ -236,7 +236,7 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
                         switch (message.role) {
                           case 'user':
                             return (
-                              <GlassCard key={`${message.id}-${i}`} className="bg-white/5 border-white/5 shadow-md shadow-black/20 max-w-[85%] px-4 py-3 rounded-2xl rounded-tr-sm">
+                              <GlassCard key={`${message.id}-${i}`} variant="board">
                                 <div className="text-sm leading-relaxed">{part.text}</div>
                               </GlassCard>
                             );
@@ -319,9 +319,9 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
             ].map((suggestion, idx) => (
               <GlassCard
                 key={suggestion.text}
-                variant="interactive"
+                variant="outline"
                 onClick={() => handleSuggestionClick(suggestion.text)}
-                className="p-5 flex items-start gap-4 group/card overflow-hidden relative border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300"
+                className="p-5 flex items-start gap-4 group/card overflow-hidden relative"
                 style={{ animationDelay: `${idx * 100}ms` }}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover/card:opacity-100 transition-opacity duration-500" />

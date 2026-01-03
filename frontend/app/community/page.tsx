@@ -6,6 +6,8 @@ import { FollowersView } from "@/components/community/followers-view"
 import { FollowingView } from "@/components/community/following-view"
 import { Search, Users } from "lucide-react"
 import { useAuthContext } from "@/components/provider/auth-provider"
+import { useEffect, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 
 /**
  * Community page component for user discovery and social connections.
@@ -31,11 +33,39 @@ export default function CommunityPage() {
   // Context provides pre-fetched data avoiding prop drilling through component tree
   const { followers, following, users } = useAuthContext()
 
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  // Get the current view from URL parameters, default to "today"
+  const currentView = searchParams.get("view") || "explore"
+
+  // Valid view values
+  const validViews = ["explore", "followers", "following"]
+
+  // Ensure the current view is valid, otherwise default to "today"
+  const activeView = validViews.includes(currentView) ? currentView : "explore"
+
+
+   /**
+   * Handles tab change and synchronizes the active view with URL query parameters.
+   * 
+   * Updates the URL to reflect the selected tab view while preserving other
+   * query parameters (filters, assignment ID, etc.).
+   * 
+   * @param {string} value - The tab value to switch to ("explore" | "followers" | "following")
+   */
+   const handleTabChange = (value: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("view", value)
+    router.push(`/community?${params.toString()}`)
+  }
+
+
+
   return (
-    <div className="">
+    <div className="flex flex-col flex-1">
 
       {/* Main content container with max-width constraint and z-index above background */}
-      <div className="max-w-7xl mx-auto relative z-10">
+      <div className="flex flex-col flex-1 relative z-10">
         {/* Page header with gradient text effect for visual appeal */}
         <div className="mb-8">
           <h1 className="text-h1 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
@@ -45,9 +75,9 @@ export default function CommunityPage() {
         </div>
 
         {/* Tab navigation with default "explore" view for user discovery */}
-        <Tabs defaultValue="explore" className="w-full">
+        <Tabs value={activeView} onValueChange={handleTabChange} className="flex flex-col flex-1 w-full">
           {/* Tab list with glass morphism styling matching design system */}
-          <TabsList className="h-full flex w-fit bg-white/5 p-1 rounded-xl mb-6 border border-white/5">
+          <TabsList className="flex w-fit bg-white/5 p-1 rounded-xl mb-6 border border-white/5">
             <TabsTrigger 
               value="explore" 
               className="flex w-60 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
@@ -72,17 +102,17 @@ export default function CommunityPage() {
           </TabsList>
 
           {/* Explore tab: displays all users for discovery and following */}
-          <TabsContent value="explore">
+          <TabsContent value="explore" className="flex flex-col data-[state=active]:flex-1 m-0">
             <ExploreView users={users} />
           </TabsContent>
 
           {/* Followers tab: shows users who follow the current user */}
-          <TabsContent value="followers">
+          <TabsContent value="followers" className="flex flex-col data-[state=active]:flex-1 m-0">
             <FollowersView followers={followers} />
           </TabsContent>
 
           {/* Following tab: displays users the current user is following */}
-          <TabsContent value="following">
+          <TabsContent value="following" className="flex flex-col data-[state=active]:flex-1 m-0">
             <FollowingView following={following} />
           </TabsContent>
 

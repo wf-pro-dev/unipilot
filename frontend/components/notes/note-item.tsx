@@ -6,15 +6,15 @@ import { CardContent } from "@/components/ui/card"
 import { GlassCard } from "@/components/ui/glass-card"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { MoreVertical, Edit, Trash2, BookOpen, Tag, Video, FileText } from "lucide-react"
-import { note } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { useCourses } from "@/hooks/use-courses"
 import { Skeleton } from "../ui/skeleton"
 
 interface NoteItemProps {
-  note: note.LocalNote
-  onEdit: (note: note.LocalNote, column: string, value: string) => void
+  note: models.LocalNote
+  onEdit: (note: models.LocalNote, column: string, value: string) => void
   onNoteClick?: (noteID: number) => void
-  onDelete: (note: note.LocalNote) => void
+  onDelete: (note: models.LocalNote) => void
   disabled?: boolean
 }
 
@@ -27,7 +27,7 @@ export function NoteItem({
 }: NoteItemProps) {
 
   const { data: courses } = useCourses()
-  const course = courses?.find(c => c.Code === note.course_code)
+  const course = courses?.find(c => c.Code === note.CourseCode)
 
   const handleCardClick = () => {
     if (onNoteClick && !disabled) {
@@ -43,16 +43,16 @@ export function NoteItem({
 
   // Parse keywords if they're stored as JSON string
   // Parse videos if they're stored as JSON string
-  const videos = note.videos ?
-    (note.videos.startsWith('[') ? JSON.parse(note.videos) : []) :
+  const videos = note.Videos ?
+    (note.Videos.startsWith('[') ? JSON.parse(note.Videos) : []) :
     []
 
 
     return (
     <div>
       <GlassCard
-        variant={!disabled && onNoteClick ? "interactive" : "default"}
-        className={`border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300 ${disabled ? 'opacity-50' : ''}`}
+        variant="outline"
+        className={`${disabled ? 'opacity-50' : ''}`}
         onClick={handleCardClick}
       >
         <CardContent className="p-5">
@@ -60,8 +60,8 @@ export function NoteItem({
             <div className="flex-1 space-y-3">
               <div className="flex gap-3 justify-between items-start">
                 <div className="space-y-1 flex-1 min-w-0">
-                  <h3 className="text-base font-semibold text-white line-clamp-1 tracking-tight">{note.title}</h3>
-                  <p className="text-xs text-gray-400 line-clamp-1 font-medium">{note.subject}</p>
+                  <h3 className="text-base font-semibold text-white line-clamp-1 tracking-tight">{note.Title}</h3>
+                  <p className="text-xs text-gray-400 line-clamp-1 font-medium">{note.Subject}</p>
                 </div>
                 <div className="flex items-center flex-shrink-0">
                   <DropdownMenu>

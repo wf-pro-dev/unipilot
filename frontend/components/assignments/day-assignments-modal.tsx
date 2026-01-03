@@ -101,7 +101,7 @@ export function DayAssignmentsModal({
                 <AssignmentItem
                   key={assignment.ID}
                   assignment={assignment}
-                  onToggleComplete={onToggleComplete}
+                  variant="outline"
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onAssignmentClick={onAssignmentClick}

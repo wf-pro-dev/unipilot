@@ -2,20 +2,21 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Filter, X } from "lucide-react"
+import { Search, Filter, X, Users } from "lucide-react"
 import { useState } from "react"
 import { UserItem } from "./user-item"
 import { Input } from "../ui/input"
 import { useNetworkStatus } from "@/hooks/use-network-status"
 import { OfflineBanner } from "../ui/offline-banner"
-import { user } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import { useAuthContext } from "../provider/auth-provider"
 import { GlassCard } from "../ui/glass-card"
+import { EmptyState } from "../ui/empty-state"
 
 interface ExploreViewProps {
-  users: user.User[] | undefined
+  users: models.User[] | undefined
 }
 
 export function ExploreView({ users }: ExploreViewProps) {
@@ -50,10 +51,24 @@ export function ExploreView({ users }: ExploreViewProps) {
     return <OfflineBanner />
   }
 
+  // if there is only one user (current user), show a message that there are no users to explore
+  if ((users?.length || 0) <= 1) {
+    return (
+      <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
+        <EmptyState
+          icon={Users}
+          title="No users found"
+          description="Wait for other users to join the platform."
+          className="flex-1 items-center"
+        />
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col flex-1 space-y-6">
       {/* Search and Filters */}
-      <GlassCard className="border-white/5 bg-white/5 backdrop-blur-xl shadow-lg shadow-black/20">
+      <GlassCard variant="board">
         <CardContent className="p-5">
           <div className="space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
@@ -112,22 +127,29 @@ export function ExploreView({ users }: ExploreViewProps) {
         </CardContent>
       </GlassCard>
 
-      {/* Users Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredUsers.map((user) => (
-          <UserItem
-            key={user.ID}
-            userID={user.ID}
-          />
-        ))}
-      </div>
+
 
       {
-        filteredUsers.length === 0 && (
-          <div className="text-center py-12">
-            <Search className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-white mb-2">No users found</h3>
-            <p className="text-gray-400">Try adjusting your search or filter criteria.</p>
+        filteredUsers.length === 0 ? (
+          <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
+            <EmptyState
+              icon={Search}
+              title="No users found"
+              description="Try adjusting your search or filter criteria."
+              className="flex-1 items-center"
+              onClick={clearFilters}
+              buttonText="Clear Filters"
+            />
+          </div>
+        ) : (
+          // Users Grid
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredUsers.map((user) => (
+              <UserItem
+                key={user.ID}
+                userID={user.ID}
+              />
+            ))}
           </div>
         )
       }

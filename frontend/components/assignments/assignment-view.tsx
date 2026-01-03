@@ -9,7 +9,6 @@ import { models } from "@/wailsjs/go/models"
 interface AssignmentViewProps {
   title: string
   assignments: models.LocalAssignment[]
-  onToggleComplete: (assignment: models.LocalAssignment) => void
   onAssignmentClick: (assignment: models.LocalAssignment) => void
   onOpenEdit: (assignment: models.LocalAssignment) => void
   onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
@@ -21,7 +20,6 @@ interface AssignmentViewProps {
 export function AssignmentView({ 
   title, 
   assignments, 
-  onToggleComplete,
   onAssignmentClick, 
   onDelete, 
   onEdit, 
@@ -46,7 +44,7 @@ export function AssignmentView({
 
   return (
     <div className="space-y-4">
-      <GlassCard className="p-4 border-white/5 bg-white/5 flex items-center justify-between shadow-lg shadow-black/20 backdrop-blur-xl rounded-xl">
+      <GlassCard variant="board" className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-500/10 rounded-lg border border-blue-500/10">
             <CalendarDays className="h-5 w-5 text-blue-400" />
@@ -62,17 +60,17 @@ export function AssignmentView({
       </GlassCard>
 
 
-      <div className="grid md:grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-4">
         {(assignments || []).map((assignment, index) => (
           <AssignmentItem
             key={assignment.ID}
             assignment={assignment}
-            onToggleComplete={onToggleComplete}
             onEdit={onEdit}
             onDelete={onDelete}
             onAssignmentClick={onAssignmentClick}
             disabled={isLoading}
             onOpenEdit={onOpenEdit}
+            variant="outline"
           />
         ))}
       </div>

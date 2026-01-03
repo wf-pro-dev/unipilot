@@ -13,20 +13,22 @@ import { Badge } from "../ui/badge"
 import { useAssignments, useDeleteAssignment, useExamAssignments, useUpdateAssignment } from "@/hooks/use-assignments"
 import { toast } from "sonner"
 import { LogInfo } from "@/wailsjs/runtime"
-import { assignment, note } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { format, isAfter, isSameDay } from "date-fns"
 import { useNotes } from "@/hooks/use-notes"
 import useEmblaCarousel from 'embla-carousel-react'
 import { AssignmentEditDialog } from "../assignments/assignment-edit-dialog"
 import { AssignmentItemCompact } from "../assignments/assignment-item-compact"
+import { AssignmentItem } from "../assignments/assignment-item"
+import { cn } from "@/lib/utils"
 
 // Helper function to get gradient classes for course colors
 // This ensures Tailwind can detect all possible class combinations
 const getCourseGradientClasses = (color: string | undefined, isOn: boolean | null) => {
     if (!color || !isOn) {
         return {
-            bg: "bg-white/5",
-            hover: color ? "hover:bg-white/10 hover:border-white/10" : ""
+            bg: "",
+            hover: ""
         }
     }
 
@@ -75,7 +77,7 @@ export function Dashboard() {
     const deleteMutation = useDeleteAssignment()
     const updateMutation = useUpdateAssignment()
 
-    const [editAssignment, setEditAssignment] = useState<assignment.LocalAssignment | null>(null)
+    const [editAssignment, setEditAssignment] = useState<models.LocalAssignment | null>(null)
     const [editDialogOpen, setEditDialogOpen] = useState(false)
 
     // Filter priority assignments (Not Done, sorted by deadline)
@@ -103,7 +105,7 @@ export function Dashboard() {
     // Notes carousel
     const [emblaRef, emblaApi] = useEmblaCarousel({ align: 'start', containScroll: 'trimSnaps' })
 
-    const handleEditAssignment = async (assignment: assignment.LocalAssignment, column: string, value: string) => {
+    const handleEditAssignment = async (assignment: models.LocalAssignment, column: string, value: string) => {
         const message = "[Frontend] assignment " + assignment.ID + " remote_id " + assignment.RemoteID + " " + column + " changed to " + value
         LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
 
@@ -113,19 +115,19 @@ export function Dashboard() {
         })
     }
 
-    const handleToggleComplete = (assignment: assignment.LocalAssignment) => {
+    const handleToggleComplete = (assignment: models.LocalAssignment) => {
         const newStatus = assignment.Status === "Done" ? "Not started" : "Done"
         handleEditAssignment(assignment, "status", newStatus)
     }
 
-    const handleDelete = (assignment: assignment.LocalAssignment) => {
+    const handleDelete = (assignment: models.LocalAssignment) => {
         deleteMutation.mutate(assignment, {
             onSuccess: () => toast.success("Assignment deleted"),
             onError: () => toast.error("Delete failed")
         })
     }
 
-    const handleOpenEdit = (assignment: assignment.LocalAssignment) => {
+    const handleOpenEdit = (assignment: models.LocalAssignment) => {
         setEditAssignment(assignment)
         setEditDialogOpen(true)
     }
@@ -145,16 +147,16 @@ export function Dashboard() {
                     {/* Next Class Card */}
                     <div className="flex flex-1">
                         <GlassCard
-                            variant={course ? "interactive" : "default"}
+                            variant={course ? "board" : "default"}
                             onClick={() => course && router.push(`/courses?view=schedule?course=${course.Code}`)}
-                            className={`${getCourseGradientClasses(course?.Color, course && isOn).bg} ${getCourseGradientClasses(course?.Color, course && isOn).hover} flex flex-col flex-1 border border-white/5 transition-all duration-300 group overflow-hidden relative`}
+                            className={cn("relative group",getCourseGradientClasses(course?.Color, course && isOn).bg,getCourseGradientClasses(course?.Color, course && isOn).hover)}
                         >
 
                             <CardHeader className="flex flex-row items-center justify-between pb-4 z-10 relative">
                                 <div className="flex items-center space-x-3">
 
-                                    <div className="p-2 rounded-xl bg-gradient-to-br from-accent-cyan/20 to-transparent border border-accent-cyan/30 shadow-inner">
-                                        <BookOpen className="w-5 h-5 text-accent-cyan" />
+                                    <div className="p-2 rounded-xl bg-gradient-to-br from-white/15 to-transparent border border-white/15 shadow-inner">
+                                        <BookOpen className="w-3 h-3 text-white" />
                                     </div>
 
                                     <h4 className="text-h4">Next Class</h4>
@@ -221,8 +223,8 @@ export function Dashboard() {
                             <div className="flex items-center justify-between px-1 shrink-0">
                                 <h4 className="text-h4 flex items-center gap-2">
 
-                                    <div className="p-2 rounded-xl bg-gradient-to-br from-accent-cyan/20 to-transparent border border-accent-cyan/30 shadow-inner">
-                                        <Clock className="w-5 h-5 text-accent-cyan" />
+                                    <div className="p-2 rounded-xl bg-gradient-to-br from-white/15 to-transparent border border-white/15 shadow-inner">
+                                        <Clock className="w-3 h-3 text-white" />
                                     </div>
 
                                     Priority Tasks
@@ -240,16 +242,19 @@ export function Dashboard() {
                             {priorityAssignments.length > 0 ? (
                                 <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 pb-20">
                                     {priorityAssignments.map(assignment => (
-                                        <AssignmentItemCompact
+                                        <AssignmentItem
                                             key={assignment.ID}
                                             assignment={assignment}
-                                            onToggleComplete={handleToggleComplete}
-                                            onAssignmentClick={(a) => router.push(`/assignments?view=assignment&assignment=${a.ID}`)}
+                                            onEdit={handleEditAssignment}
+                                            onDelete={(assignment) => handleDelete(assignment as models.LocalAssignment)}
+                                            onOpenEdit={(assignment) => handleOpenEdit(assignment as models.LocalAssignment)}
+                                            size="sm"
+                                       
                                         />
                                     ))}
                                 </div>
                             ) : (
-                                <GlassCard className="flex flex-1 border-white/5 bg-white/5">
+                                <GlassCard variant="board">
                                     <HorizontalEmptyState
                                         icon={Clock}
                                         title="All caught up!"
@@ -271,8 +276,8 @@ export function Dashboard() {
                         <div className="flex items-center justify-between px-1">
                             <h4 className="text-h4 flex items-center gap-2">
 
-                                <div className="p-2 rounded-xl bg-gradient-to-br from-accent-cyan/20 to-transparent border border-accent-cyan/30 shadow-inner">
-                                    <StickyNote className="w-5 h-5 text-accent-cyan" />
+                                <div className="p-2 rounded-xl bg-gradient-to-br from-white/15 to-transparent border border-white/15 shadow-inner">
+                                    <StickyNote className="w-3 h-3 text-white" />
                                 </div>
 
                                 Recent Notes
@@ -293,7 +298,7 @@ export function Dashboard() {
                                 notes.slice(0, 5).map((note) => (
                                     <div key={note.ID} className="flex-[0_0_100%] min-w-0 px-1">
                                         <GlassCard
-                                            variant="interactive"
+                                            variant="board"
                                             onClick={() => router.push('/notes')}
                                             className="border-white/5 bg-white/5 hover:bg-white/10 p-4 h-full"
                                         >
@@ -310,7 +315,7 @@ export function Dashboard() {
                                 ))
                             ) : (
 
-                                <GlassCard className="flex flex-col flex-1 border-white/5 bg-white/5">
+                                <GlassCard variant="board">
                                     <EmptyState
                                         icon={FileText}
                                         title="No notes yet"
@@ -326,8 +331,8 @@ export function Dashboard() {
                     {/* Upcoming Exams */}
                     <div className="flex flex-col flex-1 gap-4">
                         <h4 className="text-h4 flex items-center gap-2 px-1 shrink-0">
-                            <div className="p-2 rounded-xl bg-gradient-to-br from-accent-cyan/20 to-transparent border border-accent-cyan/30 shadow-inner">
-                                <Calendar className="w-5 h-5 text-accent-cyan" />
+                            <div className="p-2 rounded-xl bg-gradient-to-br from-white/15 to-transparent border border-white/15 shadow-inner">
+                                <Calendar className="w-3 h-3 text-white" />
                             </div>
                             Upcoming Exams
                         </h4>
@@ -336,7 +341,7 @@ export function Dashboard() {
                                 upcomingExams.map(exam => (
                                     <GlassCard
                                         key={exam.ID}
-                                        variant="interactive"
+                                        variant="board"
                                         onClick={() => router.push(`/assignments?view=exam&assignment=${exam.ID}`)}
                                         className="border-white/5 bg-white/5 hover:bg-white/10 p-4 transition-all group/exam"
                                     >
@@ -359,7 +364,7 @@ export function Dashboard() {
                                     </GlassCard>
                                 ))
                             ) : (
-                                <GlassCard className="flex flex-col flex-1 border-white/5 bg-white/5">
+                                <GlassCard variant="board">
                                     <EmptyState
                                         icon={Calendar}
                                         title="No exams"

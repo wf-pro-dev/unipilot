@@ -124,17 +124,17 @@ export function AssignmentDetailsModal({
               <div className="grid grid-cols-3 gap-3">
                 <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
                   <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Status</span>
-                  <StatusTag assignment={assignment} onEdit={onEdit!} />
+                  <StatusTag assignment={assignment} onEdit={onEdit!}  variant="outline" />
                 </div>
 
                 <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
                   <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Priority</span>
-                  <PriorityTag assignment={assignment} onEdit={onEdit!} />
+                  <PriorityTag assignment={assignment} onEdit={onEdit!} variant="outline" />
                 </div>
 
                 <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
                   <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Type</span>
-                  <TypeTag assignment={assignment} onEdit={onEdit!} />
+                  <TypeTag assignment={assignment} onEdit={onEdit!} variant="outline" />
                 </div>
               </div>
 
@@ -160,7 +160,7 @@ export function AssignmentDetailsModal({
 
           {/* Actions */}
 
-          <div className="grid grid-cols-2 gap-4 mt-6">
+          <div className="grid grid-cols-4 gap-3 mt-6">
 
             {!assignmentProp && (
 
@@ -168,10 +168,9 @@ export function AssignmentDetailsModal({
                 variant="outline"
                 size="sm"
                 onClick={() => router.push(`/chat?assignment=${assignment.ID}`)}
-                className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white h-10"
               >
-                <Bot className="h-4 w-4 mr-2" />
-                <span className="text-sm">AI Help</span>
+                <Bot className="w-4 h-4" />
+                <span>AI Help</span>
               </Button>
 
             )}
@@ -181,55 +180,56 @@ export function AssignmentDetailsModal({
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white h-10"
+                className="rounded-full"
                 onClick={(e) => {
                   e.stopPropagation()
                   onOpenEdit(assignment)
                 }}
               >
-                <Edit className="mr-2 w-4 h-4" />
-                Edit
+                <Edit className="w-4 h-4" />
+                <span>Edit</span>
               </Button>
             )}
             <Button
               variant="outline"
               size="sm"
-              className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white h-10"
+              className="rounded-full"
               onClick={(e) => {
                 e.stopPropagation()
                 handleOpenLink()
               }}
             >
-              <ExternalLink className="mr-2 w-4 h-4" />
-              Open Link
+              <ExternalLink className="w-4 h-4" />
+              <span>Open Link</span>
             </Button>
 
             {onCopy && (
               <Button
-                variant="outline"
+                variant="primary"
                 size="sm"
-                className="text-blue-400 bg-blue-500/5 border-blue-500/20 hover:bg-blue-500/10 hover:text-blue-300 h-10"
+                className=" rounded-full"
                 onClick={(e) => {
                   e.stopPropagation()
                   onCopy?.(assignment)
                 }}
               >
-                <CopyPlus className="h-4 w-4 mr-2" />
-                <span className="text-sm">Copy</span>
+                
+                <CopyPlus className="h-4 w-4" />
+                <span>Copy</span>
               </Button>
             )}
             {onDelete && (
               <Button
-                variant="outline"
+                variant="danger"
                 size="sm"
-                className="text-red-400 bg-red-500/5 border-red-500/20 hover:bg-red-500/10 hover:text-red-300 h-10"
+                className="rounded-full"
                 onClick={(e) => {
                   e.stopPropagation()
                   onDelete(assignment)
                 }}
               >
-                <Trash2 className="mr-2 w-4 h-4" />
-                Delete
+                <Trash2 className="w-4 h-4" />
+                <span>Delete</span>
               </Button>
             )}
           </div>

@@ -74,7 +74,7 @@ function CoursesSchedule({ courses, selectedSemester, onCourseClick, onEdit, onD
         <div className="flex flex-1 space-y-6">
 
             {hasScheduledCourses && (
-                <GlassCard className="flex flex-1 border-white/5 bg-white/5 overflow-hidden shadow-xl shadow-black/20">
+                <GlassCard variant="board" className=" overflow-hidden">
                     <CardContent className="p-0">
                         <div className="overflow-auto custom-scrollbar">
                             <div className="flex min-w-full">

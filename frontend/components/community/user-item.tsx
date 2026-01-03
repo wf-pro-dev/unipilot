@@ -60,7 +60,8 @@ export function UserItem({ userID, user: userProp }: UserItemProps) {
   return (
     <GlassCard
       key={userID}
-      className="border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300 cursor-pointer group shadow-lg shadow-black/20"
+      variant="board"
+      className="cursor-pointer group"
     >
       <CardContent className="p-5">
         <div className="flex items-start space-x-4 mb-6">

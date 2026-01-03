@@ -94,8 +94,8 @@ function CourseItem({ course,
         <div>
 
             <GlassCard
-                variant={!disabled && onCourseClick ? "interactive" : "default"}
-                className={`border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300 ${disabled ? 'opacity-50' : ''}`}
+                variant={"outline"}
+                className={`${disabled ? 'opacity-50' : ''}`}
                 onClick={handleCardClick}
                 key={course.ID}
             >

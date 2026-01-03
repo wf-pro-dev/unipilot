@@ -11,7 +11,7 @@ interface UserItemCompactProps {
 export function UserItemCompact({ user }: UserItemCompactProps) {
   
   return (
-    <GlassCard className="p-3 flex items-center gap-3 border-white/5 bg-white/5 hover:bg-white/10 transition-all cursor-pointer group">
+    <GlassCard variant="outline" className="p-3 flex items-center gap-3 cursor-pointer group">
       <Avatar className="h-10 w-10 border border-white/10">
         <AvatarImage src={user.Avatar || "/placeholder.svg"} />
         <AvatarFallback className="bg-blue-600 text-white text-xs">

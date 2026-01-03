@@ -74,13 +74,13 @@ export default function AssignmentsPage() {
   const [addAssignmentOpen, setAddAssignmentOpen] = useState(false)
 
   // Get the current view from URL parameters, default to "today"
-  const currentView = searchParams.get("view") || "today"
+  const currentView = searchParams.get("view") || "week"
 
   // Valid view values
-  const validViews = ["today", "week", "overdue", "exam", "calendar", "list"]
+  const validViews = ["week", "exam", "calendar", "list"]
 
   // Ensure the current view is valid, otherwise default to "today"
-  const activeView = validViews.includes(currentView) ? currentView : "today"
+  const activeView = validViews.includes(currentView) ? currentView : "week"
 
   // Get the filter from URL parameters, default to null
   const courseFilter = searchParams.get("course") || null
@@ -265,13 +265,7 @@ export default function AssignmentsPage() {
         <Tabs value={activeView} onValueChange={handleTabChange} className="flex flex-col flex-1 w-full">
           
           <TabsList className="flex flex-row bg-white/5 p-1 rounded-xl w-full mb-6 border border-white/5">
-            <TabsTrigger 
-              value="today" 
-              className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
-            >
-              <Clock className="h-4 w-4" />
-              <span className="hidden sm:inline text-sm font-medium">Today ({todayAssignments?.length || 0})</span>
-            </TabsTrigger>
+           
             <TabsTrigger 
               value="week" 
               className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
@@ -279,13 +273,7 @@ export default function AssignmentsPage() {
               <CalendarDays className="h-4 w-4" />
               <span className="hidden sm:inline text-sm font-medium">This Week ({weekAssignments?.length || 0})</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="overdue" 
-              className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
-            >
-              <AlertTriangle className="h-4 w-4" />
-              <span className="hidden sm:inline text-sm font-medium">Overdue ({overdueAssignments?.length || 0})</span>
-            </TabsTrigger>
+            
             <TabsTrigger 
               value="exam" 
               className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
@@ -309,58 +297,26 @@ export default function AssignmentsPage() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="today" className="flex flex-col data-[state=active]:flex-1 m-0">
-            <AssignmentView
-              title="Today's Assignments"
-              assignments={todayAssignments}
-              onToggleComplete={handleToggleComplete}
-              onAssignmentClick={handleAssignmentClick}
-              onEdit={handleEditAssignment} 
-              onDelete={handleDeleteAssignment}
-              onOpenEdit={setSelectedAssignmentEdit}
-              onEmptyClick={() => setAddAssignmentOpen(true)}
-              isLoading={isLoading}
-            />
-          </TabsContent>
 
             <TabsContent value="week" className="flex flex-col data-[state=active]:flex-1 m-0">
-              <AssignmentView
-              title="Due This Week"
-              assignments={weekAssignments}
-              onToggleComplete={handleToggleComplete}
-              onAssignmentClick={handleAssignmentClick}
+              <AssignmentsTable
+              assignments={weekAssignments || []}
               onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
-              onOpenEdit={setSelectedAssignmentEdit}
-              onEmptyClick={() => setAddAssignmentOpen(true)}
-              isLoading={isLoading}
-            />
-          </TabsContent>
-
-          <TabsContent value="overdue" className="flex flex-col data-[state=active]:flex-1 m-0">
-            <AssignmentView
-              title="Overdue Assignments"
-              assignments={overdueAssignments}
-              onToggleComplete={handleToggleComplete}
+              onOpenEdit={(assignment) => setSelectedAssignmentEdit(assignment as models.LocalAssignment)}
               onAssignmentClick={handleAssignmentClick}
-              onEdit={handleEditAssignment}
-              onDelete={handleDeleteAssignment}
-              onOpenEdit={setSelectedAssignmentEdit}
-              onEmptyClick={() => setAddAssignmentOpen(true)}
+              filter={{ course: courseFilter || "all", status: statusFilter || "all", priority: priorityFilter || "all" }}
               isLoading={isLoading}
             />
-          </TabsContent>
-
+          </TabsContent> 
           <TabsContent value="exam" className="flex flex-col data-[state=active]:flex-1 m-0">
-            <AssignmentView
-              title="Exam Assignments"
-              assignments={examAssignments}
-              onToggleComplete={handleToggleComplete}
-              onAssignmentClick={handleAssignmentClick}
+            <AssignmentsTable
+              assignments={examAssignments || []}
               onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
-              onOpenEdit={setSelectedAssignmentEdit}
-              onEmptyClick={() => setAddAssignmentOpen(true)}
+              onOpenEdit={(assignment) => setSelectedAssignmentEdit(assignment as models.LocalAssignment)}
+              onAssignmentClick={handleAssignmentClick}
+              filter={{ course: courseFilter || "all", status: statusFilter || "all", priority: priorityFilter || "all" }}
               isLoading={isLoading}
             />
           </TabsContent>
@@ -380,7 +336,6 @@ export default function AssignmentsPage() {
           <TabsContent value="list" className="flex flex-col  data-[state=active]:flex-1 m-0">
             <AssignmentsTable
               assignments={assignments || []}
-              onToggleComplete={handleToggleComplete}
               onEdit={handleEditAssignment}
               onDelete={handleDeleteAssignment}
               onAssignmentClick={handleAssignmentClick}

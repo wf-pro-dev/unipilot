@@ -114,7 +114,7 @@ export function MainSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="h-screen shadow-2xl border-none bg-transparent" variant="sidebar">
-      <GlassCard variant="default" className="flex flex-col flex-1 border-white/5 bg-white/5 rounded-none h-full p-0 overflow-hidden">
+      <GlassCard variant="board" className="flex flex-col flex-1 rounded-none h-full p-0 overflow-hidden">
         <SidebarHeader className="p-6 pb-4 border-b border-white/5 bg-white/5 backdrop-blur-3xl">
           <Link href="/" className="flex items-center space-x-2 w-full overflow-hidden">
             <Image src="/icon.png" alt="Unipilot" className="rounded-lg shrink-0 w-8 h-8 group-data-[collapsible=icon]:w-6 group-data-[collapsible=icon]:h-6" />

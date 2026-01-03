@@ -3,7 +3,7 @@ import { AddNoteDialog } from "@/components/notes/note-add-dialog"
 import { NoteView } from "@/components/notes/note-view"
 import { NoteDetailModal } from "@/components/notes/note-detail-modal"
 import { useNotes, useDeleteNote, useUpdateNote, useCreateNote } from "@/hooks/use-notes"
-import { note } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { useState } from "react"
 import { toast } from "sonner"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
@@ -21,13 +21,14 @@ export default function NotesPage() {
   const updateNote = useUpdateNote()
   const [selectedNoteID, setSelectedNoteID] = useState<number | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
+  const [addNoteOpen, setAddNoteOpen] = useState(false)
 
   const courseFilter = searchParams.get("course") || "all"
 
   console.log("route", pathname)
   console.log("filter (page)", { courseFilter })
 
-  const handleAddNote = async (note: note.LocalNote) => {
+  const handleAddNote = async (note: models.LocalNote) => {
     const message = "note " + note.Title + " added"
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     createNote.mutate(note, {
@@ -45,7 +46,7 @@ export default function NotesPage() {
     setIsDetailModalOpen(true)
   }
 
-  const handleDeleteNote = async (note: note.LocalNote) => {
+  const handleDeleteNote = async (note: models.LocalNote) => {
     const message = "note " + note.Title + " deleted"
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     deleteNote.mutate(note, {
@@ -58,7 +59,7 @@ export default function NotesPage() {
     })
   }
 
-  const handleEditNote = async (note: note.LocalNote, column: string, value: string) => {
+  const handleEditNote = async (note: models.LocalNote, column: string, value: string) => {
     const message = "note " + note.Title + " " + column + " changed to " + value
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     updateNote.mutate({ note, column, value }, {
@@ -74,9 +75,10 @@ export default function NotesPage() {
   }
 
   return (
-    <div className="">
+    <div className="flex flex-col flex-1">
 
-      <div className="relative z-10">
+      <div className="flex flex-col flex-1 relative z-10">
+        
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-h1 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
@@ -84,7 +86,7 @@ export default function NotesPage() {
             </h1>
             <p className="mt-3 text-body-small text-gray-400">Generate AI-powered study notes for your courses</p>
           </div>
-          <AddNoteDialog onAdd={handleAddNote} />
+          <AddNoteDialog isOpen={addNoteOpen} setOpen={setAddNoteOpen} />
         </div>
 
 
@@ -95,6 +97,7 @@ export default function NotesPage() {
           onNoteClick={handleNoteClick}
           onDelete={handleDeleteNote}
           onEdit={handleEditNote}
+          setAddOpen={setAddNoteOpen}
           isLoading={isLoading}
           filter={{ course: courseFilter }}
         />

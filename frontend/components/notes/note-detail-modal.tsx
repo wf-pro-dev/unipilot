@@ -1,11 +1,9 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { BookOpen, Tag, Video, Calendar, User, X, List, FileText, ChevronLeft, ChevronRight } from "lucide-react"
-import { note } from "@/wailsjs/go/models"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Video, FileText} from "lucide-react"
+import { models } from "@/wailsjs/go/models"
 import { NoteVideo } from "./note-video"
 import { useMemo, useState, useRef } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
@@ -14,15 +12,14 @@ import { useNotes } from "@/hooks/use-notes"
 import { AddVideosDialog } from "./add-videos-dialog"
 import { toast } from "sonner"
 import { StyledMarkdownRenderer } from "./markdown-renderer"
-import { cn } from "@/lib/utils"
-import { motion, useScroll, useTransform, AnimatePresence, useMotionValue } from "framer-motion"
+import { motion, useScroll, useTransform } from "framer-motion"
 
 interface NoteDetailModalProps {
   noteID: number | null
   isOpen: boolean
   onClose: () => void
-  onEdit: (note: note.LocalNote, column: string, value: string) => void
-  onDelete: (note: note.LocalNote) => void
+  onEdit: (note: models.LocalNote, column: string, value: string) => void
+  onDelete: (note: models.LocalNote) => void
 }
 
 export function NoteDetailModal({
@@ -71,7 +68,7 @@ export function NoteDetailModal({
   const { data: notes } = useNotes()
   const note = notes?.find(n => n.ID === noteID)
 
-  const course = courses?.find(c => c.Code === note?.course_code)
+  const course = courses?.find(c => c.Code === note?.CourseCode)
 
   const handleDelete = () => {
     if (confirm("Are you sure you want to delete this note?")) {
@@ -81,14 +78,14 @@ export function NoteDetailModal({
   }
   
   const videos = useMemo(() => {
-    if (!note?.videos) return []
+    if (!note?.Videos) return []
     try {
-      return note.videos.startsWith('[') ? JSON.parse(note.videos) : []
+      return note.Videos.startsWith('[') ? JSON.parse(note.Videos) : []
     } catch (error) {
       console.error('Error parsing videos:', error)
       return []
     }
-  }, [note?.videos])
+  }, [note?.Videos])
 
   // Extract YouTube video ID from various URL formats
   const extractVideoId = (url: string): string | null => {
@@ -105,7 +102,7 @@ export function NoteDetailModal({
     return null
   }
 
-  const handleAddVideo = (note: note.LocalNote, video: string) => {
+  const handleAddVideo = (note: models.LocalNote, video: string) => {
     const videoId = extractVideoId(video)
     if (videoId) {
       // Use the current videos state instead of parsing from note
@@ -121,7 +118,7 @@ export function NoteDetailModal({
     }
   }
 
-  const handleRemoveVideo = (note: note.LocalNote, videoId: string) => {
+  const handleRemoveVideo = (note: models.LocalNote, videoId: string) => {
     const newVideos = videos.filter((id: string) => id !== videoId)
     onEdit(note, "videos", JSON.stringify(newVideos))
     toast.success("Video removed successfully")
@@ -156,12 +153,12 @@ export function NoteDetailModal({
                >
                  <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-white/5 border border-white/5 w-fit">
                     {course && <div className={`w-1.5 h-1.5 rounded-full ${course?.Color} shadow-[0_0_8px] shadow-${course?.Color}/80 ml-0.5`} />}
-                    <span className="text-[10px] font-medium pr-1 opacity-80 uppercase tracking-wider text-gray-300">{note.subject || "General"}</span>
+                    <span className="text-[10px] font-medium pr-1 opacity-80 uppercase tracking-wider text-gray-300">{note.Subject || "General"}</span>
                  </div>
                  
                  <div className="flex items-center space-x-2">
                     <div className="text-xs text-gray-500 font-medium px-2">
-                      {new Date(note.CreatedAt).toLocaleDateString()}
+                        {new Date(note.CreatedAt).toLocaleDateString()}
                     </div>
                  </div>
                </motion.div>
@@ -170,7 +167,7 @@ export function NoteDetailModal({
                 className="font-bold text-white leading-tight tracking-tight"
                 style={{ fontSize: titleSize }}
               >
-                {note.title}
+                {note.Title}
               </motion.h2>
 
               {/* Course & Date Info - Collapsible */}
@@ -241,9 +238,9 @@ export function NoteDetailModal({
                   <TabsContent value="note" className="animate-in fade-in slide-in-from-bottom-4 duration-300 focus-visible:ring-0 focus-visible:outline-none mt-0">
                     <div className="space-y-4">
                       {/* Check if we have HTML content from the server */}
-                      {note.content ? (
+                      {note.Content ? (
                         <StyledMarkdownRenderer
-                          content={note.content}
+                          content={note.Content}
                           className="bg-white/5 rounded-xl p-6 border border-white/5 min-h-[300px]"
                         />
                       ) : (

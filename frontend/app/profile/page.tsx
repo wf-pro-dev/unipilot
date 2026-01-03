@@ -267,7 +267,7 @@ export default function ProfilePage() {
           {/* Left Column - Profile Info */}
           <div className="lg:col-span-1 space-y-6">
             {/* Profile Card */}
-            <GlassCard className="border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300">
+            <GlassCard variant="board">
               <CardContent className="p-6">
                 <div className="flex flex-col items-center space-y-6">
                   <div className="relative">
@@ -315,7 +315,7 @@ export default function ProfilePage() {
             </GlassCard>
 
             {/* Stats Card */}
-            <GlassCard className="border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300">
+            <GlassCard variant="board">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center space-x-2 text-white">
                   <div className="p-1.5 rounded-lg bg-green-500/10 border border-green-500/20">
@@ -349,7 +349,7 @@ export default function ProfilePage() {
           {/* Right Column - Details */}
           <div className="lg:col-span-2 space-y-6">
             {/* Personal Information */}
-            <GlassCard className="border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300">
+            <GlassCard variant="board">
               <form onSubmit={handleSubmit}>
                 <CardHeader className="pb-4">
                   <CardTitle className="flex items-center justify-between text-white">
@@ -494,7 +494,7 @@ export default function ProfilePage() {
 
             {/* Current Courses */}
             <div className="space-y-4">
-              <GlassCard className="border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-300">
+              <GlassCard variant="board">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2.5">

@@ -42,7 +42,8 @@ export function NoteItemCompact({
   return (
     <div className={className}>
       <GlassCard
-        className={`p-4 border-white/5 bg-white/5 hover:bg-white/10 transition-all ${disabled ? 'opacity-50' : ''}`}
+        variant="outline"
+        className={`p-4 ${disabled ? 'opacity-50' : ''}`}
       >
         <div className="flex items-start gap-3">
           {/* Course Accent Dot */}

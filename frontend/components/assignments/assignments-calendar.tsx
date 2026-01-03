@@ -178,7 +178,7 @@ export function AssignmentsCalendar({
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="space-y-6">
-        <GlassCard className="border-white/5 bg-white/5 backdrop-blur-xl shadow-lg shadow-black/20">
+        <GlassCard variant="board">
           <CardHeader className="p-5 pb-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">

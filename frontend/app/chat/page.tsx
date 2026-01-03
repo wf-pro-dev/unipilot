@@ -64,13 +64,14 @@ export default function AIChatPage() {
     <div className="" >
       {/* SidebarProvider enables collapsible sidebar state management */}
 
-
+      <SidebarProvider>
         <AiChatSidebar assignment={assignment} />
-
-        {/* z-10 ensures chat interface renders above background decorative elements */}
         <div className="relative w-full">
           <AIChatInterface assignment={assignment} />
         </div>
+      </SidebarProvider>
+
+
 
     </div>
   );

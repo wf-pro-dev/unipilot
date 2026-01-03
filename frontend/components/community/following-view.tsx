@@ -8,17 +8,20 @@ import { UserItem } from "./user-item"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useNetworkStatus } from "@/hooks/use-network-status"
 import { OfflineBanner } from "../ui/offline-banner"
-import { user } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { GlassCard } from "../ui/glass-card"
+import { EmptyState } from "../ui/empty-state"
+import { useRouter } from "next/navigation"
 
 interface FollowingViewProps {
-  following: user.User[] | undefined
+  following: models.User[] | undefined
 }
 
 export function FollowingView({ following }: FollowingViewProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedUniversity, setSelectedUniversity] = useState("All Universities")
 
+  const router = useRouter()
   const { isOnline } = useNetworkStatus()
 
   const universities = Array.from(new Set(following?.map((user) => user.University) || [])).filter((university) => university !== "")
@@ -33,14 +36,34 @@ export function FollowingView({ following }: FollowingViewProps) {
     return matchesSearch && matchesUniversity
   })
 
+  const clearFilters = () => {
+    setSearchQuery("")
+    setSelectedUniversity("All Universities")
+  }
+
   if (!isOnline) {
     return <OfflineBanner />
+  }
+
+  if (following?.length === 0) {
+    return (
+      <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
+        <EmptyState
+          icon={Users}
+          title="No following found"
+          description="Explore and connect with other students"
+          className="flex-1 items-center"
+          onClick={() => router.push("/community?view=explore")}
+          buttonText="Go to Explore"
+        />
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
       {/* Search */}
-      <GlassCard className="border-white/5 bg-white/5 backdrop-blur-xl shadow-lg shadow-black/20">
+      <GlassCard variant="board">
         <CardContent className="p-5">
           <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
             <div className="relative flex-1">
@@ -78,10 +101,15 @@ export function FollowingView({ following }: FollowingViewProps) {
         ))}
       </div>
       {filteredFollowing?.length === 0 && (
-        <div className="text-center py-12">
-          <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-white mb-2">No following found</h3>
-          <p className="text-gray-400">No following match your search criteria.</p>
+        <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
+          <EmptyState
+            icon={Users}
+            title="No following found"
+            description="Try adjusting your search or filter criteria."
+            className="flex-1 items-center"
+            onClick={clearFilters}
+            buttonText="Clear Filters"
+          />
         </div>
       )}
     </div>

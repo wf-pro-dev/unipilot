@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { CardContent } from "@/components/ui/card"
 import { NoteItem } from "./note-item"
-import { CalendarDays, CheckCircle2, FileText, Filter, Loader2, Search, X } from "lucide-react"
-import { note } from "@/wailsjs/go/models"
+import { FileText, Filter, Search, StickyNote, X } from "lucide-react"
+import { models } from "@/wailsjs/go/models"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Button } from "../ui/button"
@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation"
 import { useCoursesBySemester } from "@/hooks/use-courses"
 import { useAuthContext } from "../provider/auth-provider"
 import { GlassCard } from "../ui/glass-card"
+import { EmptyState } from "../ui/empty-state"
 
 interface Filter {
   course: string | null
@@ -21,15 +22,16 @@ interface Filter {
 
 interface NoteViewProps {
   title: string
-  notes: note.LocalNote[]
+  notes: models.LocalNote[]
   onNoteClick: (noteID: number) => void
-  onEdit: (note: note.LocalNote, column: string, value: string) => void
-  onDelete: (note: note.LocalNote) => void
+  onEdit: (note: models.LocalNote, column: string, value: string) => void
+  onDelete: (note: models.LocalNote) => void
+  setAddOpen: (open: boolean) => void
   filter: Filter
   isLoading?: boolean
 }
 
-export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, isLoading }: NoteViewProps) {
+export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, setAddOpen, filter, isLoading }: NoteViewProps) {
   const router = useRouter()
   const [selectedCourse, setSelectedCourse] = useState(filter.course || "all")
   const [searchTerm, setSearchTerm] = useState("")
@@ -43,8 +45,8 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
     return notes
       .filter((note) => {
         const matchesSearch =
-          note.title.toLowerCase().includes(searchTerm.toLowerCase())
-        const matchesCourse = selectedCourse === "all" || note.course_code === selectedCourse
+          note.Title.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesCourse = selectedCourse === "all" || note.CourseCode === selectedCourse
         return matchesSearch && matchesCourse
       })
       .sort((a, b) => {
@@ -69,23 +71,38 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
     }
   }, [filter])
 
+  if (notes.length === 0) {
+    return (
+      <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
+        <EmptyState
+          icon={StickyNote}
+          title="No notes found"
+          description="Create a note to get started"
+          className="flex-1 items-center"
+          onClick={() => setAddOpen(true)}
+          buttonText="Create Note"
+        />
+      </div>
+    )
+  }
+
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col flex-1">
       {/* Search and Filters */}
-        <GlassCard className="border-white/5 bg-white/5 backdrop-blur-xl shadow-lg shadow-black/20">
-          <CardContent className="p-5">
-            <div className="space-y-4">
-              <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search notes by title or keywords..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 bg-white/5 border-white/10    transition-all duration-300 h-10"
-                  />
-                </div>
+
+      <GlassCard variant="board">
+        <CardContent className="p-5">
+            <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search notes by title or keywords..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 bg-white/5 border-white/10    transition-all duration-300 h-10"
+                />
+              </div>
 
 
               <Select value={selectedCourse} onValueChange={onCourseChange}>
@@ -126,17 +143,23 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
               </div>
             )}
 
-          </div>
+
         </CardContent>
       </GlassCard>
+
       {(filteredNotes || []).length === 0 ? (
-        <div className="flex flex-col items-center justify-center">
-          <div className="my-32 p-10 glass rounded-lg text-center">
-            <FileText className="h-12 w-12 text-white/20 mx-auto mb-4" strokeWidth={1.5} />
-            <h3 className="text-lg font-medium text-white mb-2">No notes found</h3>
-            <p className="text-gray-400">Create a note to get started</p>
-          </div>
+        <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
+          <EmptyState
+            icon={StickyNote}
+            title="No notes found"
+            description="Clear your filters or search terms to see all notes"
+            className="flex-1 items-center"
+            onClick={clearFilters}
+            buttonText="Clear Filters"
+          />
         </div>
+
+
       ) : (
 
 
@@ -150,7 +173,7 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onNoteClick={onNoteClick}
-                disabled={isLoading || !note.content}
+                disabled={isLoading || !note.Content}
               />
             ))}
           </div>

@@ -1,24 +1,29 @@
 import { Badge } from "@/components/ui/badge"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { assignment } from "@/wailsjs/go/models"
 import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { GlassCardVariants } from "@/components/ui/glass-card"
+import { cn } from "@/lib/utils"
+import { models } from "@/wailsjs/go/models"
 import { useState, memo, useEffect } from "react"
 
 
-const statusColors = {
-    "Not started": "bg-gray-500/20 text-gray-400",
-    "In progress": "bg-blue-500/20 text-blue-400",
-    "Done": "bg-green-500/20 text-green-400",
-}
+
+const statuses = [
+    { value: "Not started", label: "Not started" },
+    { value: "In progress", label: "In progress" },
+    { value: "Done", label: "Done" },
+]
 
 interface StatusTagProps {
-    assignment: assignment.LocalAssignment
-    onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
+    assignment: models.LocalAssignment
+    onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
+    variant?: GlassCardVariants
+    className?: string
 }
 
 
 
-function BaseStatusTag({ assignment, onEdit }: StatusTagProps) {
+function BaseStatusTag({ assignment, onEdit, variant = "default", className = "" }: StatusTagProps) {
     const [status, setStatus] = useState(assignment.Status)
 
 
@@ -26,7 +31,7 @@ function BaseStatusTag({ assignment, onEdit }: StatusTagProps) {
         setStatus(assignment.Status)
     }, [assignment.Status])
 
-    const handleEdit = (e: React.MouseEvent<HTMLButtonElement>, status: string) => {
+    const handleEdit = (e: React.MouseEvent<HTMLDivElement>, status: string) => {
         e.stopPropagation()
         setStatus(status)
         onEdit(assignment, "status", status)
@@ -35,17 +40,15 @@ function BaseStatusTag({ assignment, onEdit }: StatusTagProps) {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="p-0 w-fit rounded-full">
-                    <Badge variant="outline" className={`text-xs ${statusColors[status as keyof typeof statusColors]}`}>
-                        {status}
-                    </Badge>
+                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("",className)}>
+                    {status}
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="glass border-gray-600">
-                {Object.keys(statusColors).map((status) => (
-                    <DropdownMenuItem key={status} onClick={(e) => handleEdit(e, status)}>
-                        <Badge variant="outline" className={`text-xs ${statusColors[status as keyof typeof statusColors]}`}>
-                            {status}
+                {statuses.map((status) => (
+                    <DropdownMenuItem key={status.value} onClick={(e) => handleEdit(e, status.value)}>
+                        <Badge variant="outline" className={`text-caption`}>
+                            {status.label}
                         </Badge>
                     </DropdownMenuItem>
                 ))}
@@ -55,6 +58,5 @@ function BaseStatusTag({ assignment, onEdit }: StatusTagProps) {
 }
 
 export const StatusTag = memo(BaseStatusTag, (prevProps, nextProps) => {
-    console.log("StatusTag memo", prevProps.assignment.Status, nextProps.assignment.Status)
     return prevProps.assignment.Status === nextProps.assignment.Status
 })

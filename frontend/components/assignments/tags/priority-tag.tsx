@@ -1,48 +1,55 @@
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { assignment } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { Button } from "@/components/ui/button"
 import { Flag } from "lucide-react"
+import { memo, useEffect, useState } from "react"
+import { GlassCardVariants } from "@/components/ui/glass-card"
+import { cn } from "@/lib/utils"
 
 
-const priorityColors = {
-    low: "text-green-400 border-green-400",
-    medium: "text-yellow-400 border-yellow-400",
-    high: "text-red-400 border-red-400",
-}
+
+
+const priorities = [
+    { value: "low", label: "Low" },
+    { value: "medium", label: "Medium" },
+    { value: "high", label: "High" },
+]
 
 interface PriorityTagProps {
-    assignment: assignment.LocalAssignment
-    onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
+    assignment: models.LocalAssignment
+    onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
+    variant?: GlassCardVariants
+    className?: string
 }
 
 
 
-function PriorityTag({ assignment, onEdit }: PriorityTagProps) {
-    const handleEdit = (type: string) => {
+function BasePriorityTag({ assignment, onEdit, variant = "default", className = "" }: PriorityTagProps) {
 
-        onEdit(assignment, "priority", type)
+    const [priority, setPriority] = useState(assignment.Priority)
+
+    useEffect(() => {
+        setPriority(assignment.Priority)
+    }, [assignment.Priority])
+
+    const handleEdit = (e: React.MouseEvent<HTMLDivElement>, priority: string) => {
+        e.stopPropagation()
+        onEdit(assignment, "priority", priority)
     }
 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="p-0">
-                    <Badge
-                        variant="outline"
-                        className={`text-xs flex flex-row gap-1 ${priorityColors[assignment.Priority as keyof typeof priorityColors]}`}
-                    >
-                        <Flag className="h-3 w-3 " />
-                        {assignment.Priority}
-                    </Badge>
+                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("", className)}>
+                    {priority}
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="glass border-gray-600">
-                {Object.keys(priorityColors).map((priority) => (
-                    <DropdownMenuItem key={priority} onClick={() => handleEdit(priority)}>
-                        <Badge variant="outline" className={`text-xs flex flex-row gap-1 ${priorityColors[priority as keyof typeof priorityColors]}`}>
-                            <Flag className="h-3 w-3" />
-                            {priority}
+                {priorities.map((priority) => (
+                    <DropdownMenuItem key={priority.value} onClick={(e) => handleEdit(e, priority.value)}>
+                        <Badge variant="outline" className="text-caption text-text-body">
+                            {priority.label}
                         </Badge>
                     </DropdownMenuItem>
                 ))}
@@ -51,4 +58,6 @@ function PriorityTag({ assignment, onEdit }: PriorityTagProps) {
     )
 }
 
-export { PriorityTag }
+export const PriorityTag = memo(BasePriorityTag, (prevProps, nextProps) => {
+    return prevProps.assignment.Priority === nextProps.assignment.Priority
+})
