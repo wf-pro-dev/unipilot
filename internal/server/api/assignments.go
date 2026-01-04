@@ -328,7 +328,7 @@ func DeleteAssignmentHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to int", fiber.StatusBadRequest)
 	}
 
-	if err := db.Set("qdrantClient", QdrantClient).Delete(&models.Assignment{}, uint(assignmentID)).Error; err != nil {
+	if err := db.Set("qdrantClient", QdrantClient).Delete(&models.Assignment{Model: gorm.Model{ID: uint(assignmentID)}}).Error; err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error deleting assignment from database", fiber.StatusInternalServerError)
 	}
 

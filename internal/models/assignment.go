@@ -107,12 +107,12 @@ func (la *LocalAssignment) ToMap() map[string]string {
 
 func (a *Assignment) BeforeDelete(tx *gorm.DB) error {
 	// Retrieve qdrantClient from transaction context
-	qdrantClient, ok := tx.Get("qdrantClient")
+	client, ok := tx.Get("qdrantClient")
 	if !ok {
 		return nil
 	}
 
-	client, ok := qdrantClient.(*qdrant.Client)
+	qdrantClient, ok := client.(*qdrant.Client)
 	if !ok {
 		return nil
 	}
@@ -126,10 +126,17 @@ func (a *Assignment) BeforeDelete(tx *gorm.DB) error {
 	tx.Delete(documents)
 
 	// Delete the Qdrant collection for the assignment
+
 	collectionName := GetQdrantCollectionName(a.ID)
-	err = client.DeleteCollection(context.Background(), collectionName)
+	exists, err := qdrantClient.CollectionExists(context.Background(), collectionName)
 	if err != nil {
-		return errors.Wrap(err, errors.QdrantFailed, "Error deleting Qdrant collection")
+		return errors.Wrap(err, errors.QdrantFailed, "Error checking if Qdrant collection exists")
+	}
+	if exists {
+		err = qdrantClient.DeleteCollection(context.Background(), collectionName)
+		if err != nil {
+			return errors.Wrap(err, errors.QdrantFailed, "Error deleting Qdrant collection")
+		}
 	}
 
 	return nil
