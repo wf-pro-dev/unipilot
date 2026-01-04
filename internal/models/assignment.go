@@ -135,7 +135,7 @@ func (a *Assignment) BeforeDelete(tx *gorm.DB) error {
 	return nil
 }
 
-func (la *LocalAssignment) AfterDelete(tx *gorm.DB) error {
+func (la *LocalAssignment) BeforeDelete(tx *gorm.DB) error {
 
 	documents, err := la.GetDocumentsByAssignment(tx)
 	if err != nil {
