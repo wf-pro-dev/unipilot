@@ -12,8 +12,6 @@ import {
   Eye,
   Trash2,
   Upload,
-  Clock,
-  CheckCircle2
 } from "lucide-react"
 import { models } from "@/wailsjs/go/models"
 import {
@@ -23,10 +21,9 @@ import {
   useUploadDocumentVersion,
   useDownloadDocument
 } from "@/hooks/use-documents"
-import { format } from "date-fns"
 import { toast } from "sonner"
 import { GlassCard } from "../ui/glass-card"
-import { LogDebug } from "@/wailsjs/runtime/runtime"
+import { EventsOn } from "@/wailsjs/runtime/runtime"
 
 interface DocumentItemProps {
   document: models.LocalDocument
@@ -36,6 +33,29 @@ interface DocumentItemProps {
 export function DocumentItem({ document: doc }: DocumentItemProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [isUploading, setIsUploading] = useState(true)
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
+
+
+  useEffect(() => {
+    EventsOn("upload:progress", (progress: number) => {
+      setProgress(progress)
+      console.log("Upload progress:", progress)
+    })
+    EventsOn("upload:status", (status: string) => {
+      setStatus(status)
+      console.log("Upload status:", status)
+    })
+    EventsOn("upload:complete", () => {
+      setIsUploading(false)
+      console.log("Upload complete")
+      toast.success("Document uploaded successfully")
+    })
+    EventsOn("upload:error", (error: string) => {
+      setError(error)
+    })
+  }, [])
 
   // Document action hooks
   const openDocument = useOpenDocument()
@@ -156,7 +176,7 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
               </Badge>
 
               <span className="text-caption font-medium uppercase tracking-wider">{formatFileSize(doc.FileSize)}</span>
-{/* 
+              {/* 
               <p className={`text-caption flex items-center gap-1 line-clamp-1 leading-relaxed`}  >
                 <Clock className="w-3.5 h-3.5" />
                 {format(new Date(doc.UpdatedAt) || new Date(), "MMM d")}

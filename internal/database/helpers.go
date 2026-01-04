@@ -156,6 +156,7 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 	// Create LocalDocument record
 	localDoc := models.LocalDocument{
 		BaseDocument: models.BaseDocument{
+			UploadID:     uploadReq.UploadID,
 			AssignmentID: uploadReq.AssignmentID,
 			Type:         uploadReq.Type,
 			FileName:     uploadReq.FileName,

@@ -16,7 +16,6 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/google/uuid"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"unipilot/internal/auth"
@@ -354,7 +353,7 @@ func (a *App) GetFileInfo(filePath string) (*FileInfo, error) {
 }
 
 // UploadDocument opens a file dialog and uploads a document to an assignment
-func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documentType string, filePath string, uploadID *uuid.UUID) (*models.LocalDocument, error) {
+func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documentType string, filePath string, uploadID string) (*models.LocalDocument, error) {
 
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
@@ -536,16 +535,15 @@ func (a *App) CreateDocument(uploadReq fileops.FileUploadRequest, hasLocalFile b
 }
 
 func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse) (*models.LocalDocument, error) {
+
+	log.Printf(" Progress Upload ID: %s", uploadResp.LocalDocument.UploadID)
 	document := uploadResp.LocalDocument
 
 	// Initialize progress manager (reuse if exists, or create new)
 	progressManager := progress.GetManager()
 
-	// Create unique upload ID
-	uploadID := fmt.Sprintf("upload_%d", document.ID)
-
 	// Create progress tracker
-	tracker := progressManager.Create(uploadID, document.FileSize)
+	tracker := progressManager.Create(document.UploadID, document.FileSize)
 	tracker.SetStatus("starting")
 
 	// Register progress callback to emit events to frontend
@@ -555,28 +553,28 @@ func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse)
 
 		if snapshot.Error != nil {
 			runtime.EventsEmit(a.ctx, "upload:error", map[string]interface{}{
-				"upload_id": uploadID,
+				"upload_id": document.UploadID,
 				"error":     snapshot.Error.Error(),
 			})
 		}
 
 		if snapshot.Status == "completed" {
 			runtime.EventsEmit(a.ctx, "upload:complete", map[string]interface{}{
-				"upload_id": uploadID,
+				"upload_id": document.UploadID,
 			})
 		}
 	})
 
 	// Emit started event
 	runtime.EventsEmit(a.ctx, "upload:started", map[string]string{
-		"upload_id": uploadID,
+		"upload_id": document.UploadID,
 		"file_name": document.FileName,
 	})
 
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(a.ctx)
-	progress.StoreCancelFunc(uploadID, cancel)
-	defer progress.RemoveCancelFunc(uploadID)
+	progress.StoreCancelFunc(document.UploadID, cancel)
+	defer progress.RemoveCancelFunc(document.UploadID)
 
 	// Perform upload with progress tracking
 	response, err := a.sendDocumentWithProgress(ctx, uploadResp, tracker)
@@ -591,6 +589,7 @@ func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse)
 
 // sendDocumentWithProgress sends document to server with progress tracking
 func (a *App) sendDocumentWithProgress(ctx context.Context, uploadResp *fileops.FileUploadResponse, tracker *progress.Tracker) (*models.LocalDocument, error) {
+
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -599,30 +598,31 @@ func (a *App) sendDocumentWithProgress(ctx context.Context, uploadResp *fileops.
 		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 
+	document := uploadResp.LocalDocument
+
 	db := a.DB.GetDB()
 	tracker.SetStatus("uploading to server")
 
 	// Send document with progress tracking
-	serverResponse, clientErr := client.SendDocumentWithProgress(ctx, uploadResp.LocalDocument, tracker)
+	serverResponse, clientErr := client.SendDocumentWithProgress(ctx, document, tracker)
 	if clientErr != nil {
 		return nil, Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
 	}
 
 	// Update document with server response
-	uploadResp.LocalDocument.StorageKey = serverResponse.StorageKey
-	uploadResp.LocalDocument.RemoteID = serverResponse.RemoteID
-	uploadResp.LocalDocument.RemoteAssignmentID = serverResponse.RemoteAssignmentID
+	document.StorageKey = serverResponse.StorageKey
+	document.RemoteID = serverResponse.RemoteID
+	document.RemoteAssignmentID = serverResponse.RemoteAssignmentID
 
-	if err := db.Save(uploadResp.LocalDocument).Error; err != nil {
+	if err := db.Save(document).Error; err != nil {
 		return nil, Errors.HandleDBWriteError(err)
 	}
 
 	// Poll server for R2 upload progress
 	tracker.SetStatus("uploading to cloud storage")
-	uploadID := fmt.Sprintf("upload_%d", uploadResp.LocalDocument.ID)
-	go client.PollServerProgress(ctx, uploadID, tracker)
+	go client.PollServerProgress(ctx, document.UploadID, tracker)
 
-	return uploadResp.LocalDocument, nil
+	return document, nil
 }
 
 // CancelUpload cancels an active upload

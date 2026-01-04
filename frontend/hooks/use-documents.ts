@@ -1,11 +1,9 @@
 "use client"
 
-import fs from 'fs'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { models } from "@/wailsjs/go/models"
-import { LogDebug, LogError } from "@/wailsjs/runtime/runtime"
+import {  LogError } from "@/wailsjs/runtime/runtime"
 import {
-
   GetFileInfo,
   GetSupportDocuments,
   GetSubmissionDocuments,
@@ -21,7 +19,7 @@ import {
   GetAssignmentDocumentIDsRAG
 } from "@/wailsjs/go/main/App"
 import { toast } from 'sonner'
-import path from 'path'
+import { uuidv4 } from 'zod/v4'
 
 
 // Query keys for consistent cache management
@@ -113,7 +111,9 @@ export function useUploadDocument() {
       documentType: string
       filePath: string
     }) => {
-      return await UploadDocument(assignmentId, remoteAssignmentId, documentType, filePath)
+      // Generate a unique upload ID
+      const uploadId = uuidv4().toString()
+      return await UploadDocument(assignmentId, remoteAssignmentId, documentType, filePath, uploadId)
     },
 
     // Optimistically update the cache

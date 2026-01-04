@@ -18,6 +18,10 @@ export function AcceptNote(arg1) {
   return window['go']['main']['App']['AcceptNote'](arg1);
 }
 
+export function CancelUpload(arg1) {
+  return window['go']['main']['App']['CancelUpload'](arg1);
+}
+
 export function CreateAssignment(arg1) {
   return window['go']['main']['App']['CreateAssignment'](arg1);
 }
@@ -64,6 +68,10 @@ export function DownloadDocument(arg1) {
 
 export function Follow(arg1) {
   return window['go']['main']['App']['Follow'](arg1);
+}
+
+export function GetActiveUploads() {
+  return window['go']['main']['App']['GetActiveUploads']();
 }
 
 export function GetAssignmentDocumentIDsRAG(arg1) {
@@ -148,6 +156,10 @@ export function GetSubmissionDocuments(arg1) {
 
 export function GetSupportDocuments(arg1) {
   return window['go']['main']['App']['GetSupportDocuments'](arg1);
+}
+
+export function GetUploadProgress(arg1) {
+  return window['go']['main']['App']['GetUploadProgress'](arg1);
 }
 
 export function GetUser(arg1) {
@@ -238,8 +250,8 @@ export function UpdateUser(arg1, arg2) {
   return window['go']['main']['App']['UpdateUser'](arg1, arg2);
 }
 
-export function UploadDocument(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['UploadDocument'](arg1, arg2, arg3, arg4);
+export function UploadDocument(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['UploadDocument'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function UploadDocumentRAG(arg1) {

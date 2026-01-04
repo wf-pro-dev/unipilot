@@ -85,6 +85,7 @@ export namespace client {
 export namespace fileops {
 	
 	export class FileUploadRequest {
+	    UploadID: string;
 	    AssignmentID: number;
 	    RemoteAssignmentID: number;
 	    UserID: number;
@@ -101,6 +102,7 @@ export namespace fileops {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.UploadID = source["UploadID"];
 	        this.AssignmentID = source["AssignmentID"];
 	        this.RemoteAssignmentID = source["RemoteAssignmentID"];
 	        this.UserID = source["UserID"];
@@ -258,6 +260,7 @@ export namespace models {
 	    IsOriginal: boolean;
 	    HasLocalFile: boolean;
 	    AssignmentID: number;
+	    UploadID: string;
 	    UserID: number;
 	    User?: User;
 	    Assignment?: Assignment;
@@ -286,6 +289,7 @@ export namespace models {
 	        this.IsOriginal = source["IsOriginal"];
 	        this.HasLocalFile = source["HasLocalFile"];
 	        this.AssignmentID = source["AssignmentID"];
+	        this.UploadID = source["UploadID"];
 	        this.UserID = source["UserID"];
 	        this.User = this.convertValues(source["User"], User);
 	        this.Assignment = this.convertValues(source["Assignment"], Assignment);
@@ -746,6 +750,7 @@ export namespace models {
 	    IsOriginal: boolean;
 	    HasLocalFile: boolean;
 	    AssignmentID: number;
+	    UploadID: string;
 	    RemoteID: number;
 	    RemoteAssignmentID: number;
 	    Assignment: LocalAssignment;
@@ -774,6 +779,7 @@ export namespace models {
 	        this.IsOriginal = source["IsOriginal"];
 	        this.HasLocalFile = source["HasLocalFile"];
 	        this.AssignmentID = source["AssignmentID"];
+	        this.UploadID = source["UploadID"];
 	        this.RemoteID = source["RemoteID"];
 	        this.RemoteAssignmentID = source["RemoteAssignmentID"];
 	        this.Assignment = this.convertValues(source["Assignment"], LocalAssignment);
@@ -1060,6 +1066,54 @@ export namespace models {
 		}
 	}
 	
+
+}
+
+export namespace progress {
+	
+	export class TrackerSnapshot {
+	    upload_id: string;
+	    total: number;
+	    current: number;
+	    status: string;
+	    // Go type: time
+	    start_time: any;
+	    error: any;
+	    percentage: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new TrackerSnapshot(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.upload_id = source["upload_id"];
+	        this.total = source["total"];
+	        this.current = source["current"];
+	        this.status = source["status"];
+	        this.start_time = this.convertValues(source["start_time"], null);
+	        this.error = source["error"];
+	        this.percentage = source["percentage"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 
 }
 

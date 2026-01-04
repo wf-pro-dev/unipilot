@@ -6,12 +6,12 @@ import (
 
 // Reader wraps an io.Reader to track read progress
 type Reader struct {
-	reader  io.Reader
+	reader  io.ReadSeeker
 	tracker *Tracker
 }
 
 // NewReader creates a progress-tracking reader
-func NewReader(reader io.Reader, tracker *Tracker) *Reader {
+func NewReader(reader io.ReadSeeker, tracker *Tracker) *Reader {
 	return &Reader{
 		reader:  reader,
 		tracker: tracker,
@@ -26,4 +26,8 @@ func (pr *Reader) Read(p []byte) (int, error) {
 	}
 
 	return n, err
+}
+
+func (pr *Reader) Seek(offset int64, whence int) (int64, error) {
+	return pr.reader.Seek(offset, whence)
 }

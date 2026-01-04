@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 	"unipilot/internal/secrets"
@@ -33,26 +34,21 @@ func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.
 				continue
 			}
 
-			var progressData map[string]interface{}
+			var progressData progress.TrackerSnapshot
 			json.NewDecoder(resp.Body).Decode(&progressData)
 			resp.Body.Close()
 
-			if status, ok := progressData["status"].(string); ok {
-				switch status {
-				case "completed":
-					tracker.Complete()
-					return
-				case "error":
-					tracker.SetError(fmt.Errorf("server upload error"))
-					return
-				}
+			switch progressData.Status {
+			case "completed":
+				tracker.Complete()
+				return
+			case "error":
+				tracker.SetError(fmt.Errorf("server upload error"))
+				return
 			}
 
-			// Update tracker with server progress if available
-			if serverProgress, ok := progressData["progress"].(float64); ok {
-				// Server progress is 0-100, map it to tracker's total
-				tracker.Update(int64(serverProgress * float64(tracker.Total) / 100))
-			}
+			tracker.Update(progressData.Current)
+			log.Printf("Upload progress: %d", progressData.Current)
 
 		case <-time.After(60 * time.Second):
 			tracker.SetError(fmt.Errorf("server upload timeout"))
