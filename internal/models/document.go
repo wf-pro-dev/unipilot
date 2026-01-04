@@ -201,58 +201,6 @@ func ValidateFileTypeRAG(fileName string) error {
 	return nil
 }
 
-// END: Validation Functions
-
-// DocumentStorageInfo holds storage statistics
-type DocumentStorage struct {
-	UserID           uint      `gorm:"primaryKey"`
-	TotalSize        int64     `gorm:"default:0"` // Total bytes used by user
-	DocumentCount    int       `gorm:"default:0"`
-	LastCalculatedAt time.Time `gorm:"default:CURRENT_TIMESTAMP"`
-
-	User User `gorm:"foreignKey:UserID;references:ID"`
-}
-
-type TempFileRag struct {
-	FilePath     string    `json:"file_path"`
-	FileName     string    `json:"file_name"`
-	AssignmentID uint      `json:"assignment_id"`
-	CreatedAt    time.Time `json:"created_at"`
-}
-
-// Storage limits (in bytes)
-const (
-	MaxFileSize       = 50 * 1024 * 1024       // 50MB per file
-	MaxAssignmentSize = 200 * 1024 * 1024      // 200MB per assignment
-	MaxUserQuota      = 2 * 1024 * 1024 * 1024 // 2GB per user
-)
-
-// Hooks
-
-func (d *Document) BeforeDelete(tx *gorm.DB) error {
-
-	// Delete the document on cloud
-	if err := cloudstorage.DeleteFile(d.StorageKey); err != nil {
-		if errors.HasCode(err, errors.StorageFileNotFound) || errors.HasCode(err, errors.AuthForbidden) {
-			return errors.Inherit(err, errors.StorageDeleteFailed)
-		}
-		return errors.Wrap(err, errors.StorageDeleteFailed, "Failed to delete document from storage")
-	}
-
-	return nil
-}
-
-func (d *Document) AfterDelete(tx *gorm.DB) error {
-	if err := UpdateStorageInfo(d.UserID, tx); err != nil {
-		return errors.HandleDBWriteError(err)
-	}
-	return nil
-}
-
-// Check Operations
-
-func (d *Document) IsRoot() bool { return d.ParentID == 0 }
-
 // ValidateFileSize checks if file size is within limits
 func ValidateFileSize(doc *Document, db *gorm.DB) error {
 	// Check individual file size
@@ -328,6 +276,79 @@ func ValidateLocalFileSize(doc *LocalDocument, db *gorm.DB) error {
 	return nil
 
 }
+
+// END: Validation Functions
+
+// DocumentStorageInfo holds storage statistics
+type DocumentStorage struct {
+	UserID           uint      `gorm:"primaryKey"`
+	TotalSize        int64     `gorm:"default:0"` // Total bytes used by user
+	DocumentCount    int       `gorm:"default:0"`
+	LastCalculatedAt time.Time `gorm:"default:CURRENT_TIMESTAMP"`
+
+	User User `gorm:"foreignKey:UserID;references:ID"`
+}
+
+type TempFileRag struct {
+	FilePath     string    `json:"file_path"`
+	FileName     string    `json:"file_name"`
+	AssignmentID uint      `json:"assignment_id"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+// Storage limits (in bytes)
+const (
+	MaxFileSize       = 50 * 1024 * 1024       // 50MB per file
+	MaxAssignmentSize = 200 * 1024 * 1024      // 200MB per assignment
+	MaxUserQuota      = 2 * 1024 * 1024 * 1024 // 2GB per user
+)
+
+// Hooks
+
+func (d *Document) BeforeDelete(tx *gorm.DB) error {
+
+	if d.HasLocalFile {
+		// Delete the document on cloud
+		if err := cloudstorage.DeleteFile(d.StorageKey); err != nil {
+			if errors.HasCode(err, errors.StorageFileNotFound) || errors.HasCode(err, errors.AuthForbidden) {
+				return errors.Inherit(err, errors.StorageDeleteFailed)
+			}
+			return errors.Wrap(err, errors.StorageDeleteFailed, "Failed to delete document from storage")
+		}
+	}
+
+	return nil
+
+}
+
+func (d *Document) AfterDelete(tx *gorm.DB) error {
+	// Commit the transaction
+	if err := UpdateStorageInfo(d.UserID, tx); err != nil {
+		return errors.HandleDBWriteError(err)
+	}
+	return nil
+}
+
+func GetDocument(docID uint, db *gorm.DB) (*Document, error) {
+
+	var doc Document
+	if err := db.Where("id = ?", docID).First(&doc).Error; err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return &doc, nil
+}
+func GetLDocument(docID uint, db *gorm.DB) (*LocalDocument, error) {
+
+	var doc LocalDocument
+	if err := db.Where("id = ?", docID).First(&doc).Error; err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return &doc, nil
+}
+
+// Check Operations
+
+func (d *Document) IsRoot() bool { return d.ParentID == 0 }
 
 // GetAppDataPath returns the application data directory for file storage
 func GetAppDataPath() (string, error) {
@@ -437,11 +458,11 @@ func (d *Document) CreateNewVersion(newFileName string, newFileSize int64, newFi
 }
 
 // GetDocumentsByAssignment retrieves all documents for an assignment
-func GetDocumentsByAssignment(assignmentID uint, db *gorm.DB) ([]Document, error) {
+func (a *Assignment) GetDocumentsByAssignment(db *gorm.DB) ([]Document, error) {
 	var documents []Document
 	err := db.Preload("User").
 		//Preload("ParentDoc").
-		Where("assignment_id = ?", assignmentID).
+		Where("assignment_id = ?", a.ID).
 		Order("type ASC, created_at DESC").
 		Find(&documents).Error
 
@@ -449,6 +470,17 @@ func GetDocumentsByAssignment(assignmentID uint, db *gorm.DB) ([]Document, error
 		return nil, errors.HandleDBReadError(err)
 	}
 
+	return documents, nil
+}
+
+func (ld *LocalAssignment) GetDocumentsByAssignment(db *gorm.DB) ([]LocalDocument, error) {
+	var documents []LocalDocument
+	err := db.Where("assignment_id = ?", ld.ID).
+		Order("type ASC, created_at DESC").
+		Find(&documents).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
 	return documents, nil
 }
 

@@ -678,11 +678,12 @@ func GetAssignmentDocumentsHandler(c *fiber.Ctx) error {
 			fiber.StatusBadRequest,
 		)
 	}
+	assignment := models.Assignment{Model: gorm.Model{ID: uint(assignmentID)}}
 
 	// Step 4: Query documents for the specified assignment with user information
 	var documents []models.Document
 
-	if documents, err = models.GetDocumentsByAssignment(uint(assignmentID), db); err != nil {
+	if documents, err = assignment.GetDocumentsByAssignment(db); err != nil {
 		return errors.WrapServer(
 			err,
 			errors.DBQueryFailed,
@@ -748,8 +749,15 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 			fiber.StatusInternalServerError,
 		)
 	}
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "message", "Document deleted successfully")
+	currentUser, ok := c.Locals("user").(models.User)
+	if !ok {
+		return errors.WrapServer(
+			fmt.Errorf("user not found"),
+			errors.ValidationInvalid,
+			"User not found",
+			fiber.StatusInternalServerError,
+		)
+	}
 	// Step 2: Extract document ID from path parameter
 	docID := c.Params("id")
 	if docID == "" {
@@ -760,12 +768,31 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 			fiber.StatusBadRequest,
 		)
 	}
+	docIDUint, err := strconv.ParseUint(docID, 10, 32)
+	if err != nil {
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting document ID to uint", fiber.StatusBadRequest)
+	}
 
+	var doc *models.Document
+	if doc, err = models.GetDocument(uint(docIDUint), db.Select("user_id", "has_local_file", "storage_key")); err != nil {
+		return errors.WrapServer(err, errors.DBRecordNotFound, "Document not found", fiber.StatusNotFound)
+	}
+
+	if doc.UserID != currentUser.ID {
+		return errors.WrapServer(
+			fmt.Errorf("document not found"),
+			errors.DBRecordNotFound,
+			"Document not found",
+			fiber.StatusNotFound,
+		)
+	}
+
+	doc.ID = uint(docIDUint)
 	// Step 4: Remove document record from database
-	if err := db.Delete(&models.Document{}, "id = ?", docID).Error; err != nil {
+	if err := db.Delete(&doc).Error; err != nil {
 		if Errors.Is(err, gorm.ErrRecordNotFound) {
 			return server.LogError(
-				ctx,
+				c.Context(),
 				errors.WrapServer(
 					err,
 					errors.DBRecordNotFound,

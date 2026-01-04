@@ -136,7 +136,7 @@ func (c *Course) BeforeCreate(tx *gorm.DB) error {
 
 func (c *Course) BeforeDelete(tx *gorm.DB) error {
 
-	assignments, err := GetAssignmentsByCourse(c.ID, tx)
+	assignments, err := c.GetAssignmentsByCourse(tx)
 	if err != nil {
 		return errors.Wrap(err, errors.DBQueryFailed, "Error getting assignments by course")
 	}
@@ -146,48 +146,32 @@ func (c *Course) BeforeDelete(tx *gorm.DB) error {
 		return errors.Wrap(err, errors.DBQueryFailed, "Error getting notes by course")
 	}
 
-	for _, assignment := range assignments {
-		err := tx.Delete(&assignment).Error
-		if err != nil {
-			return errors.Wrap(err, errors.DBQueryFailed, "Error deleting assignment")
-		}
-	}
+	// Batch delete assignments
+	tx.Delete(assignments) //  Uses QdrantClient from transaction context
 
-	for _, note := range notes {
-		err := tx.Delete(&note).Error
-		if err != nil {
-			return errors.Wrap(err, errors.DBQueryFailed, "Error deleting note")
-		}
-	}
+	// Batch delete notes
+	tx.Delete(notes)
 
-	// Retrieve qdrantClient from transaction context
 	return nil
 }
 
 func (lc *LocalCourse) BeforeDelete(tx *gorm.DB) error {
-	assignments, err := GetLAssignmentsByCourse(lc.Code, tx)
+	assignments, err := lc.GetAssignmentsByCourse(tx)
 	if err != nil {
 		return errors.Wrap(err, errors.DBQueryFailed, "Error getting assignments by course")
 	}
 
-	notes, err := GetLNotesByCourse(lc.ID, tx)
+	notes, err := lc.GetNotesByCourse(tx)
 	if err != nil {
 		return errors.Wrap(err, errors.DBQueryFailed, "Error getting notes by course")
 	}
 
-	for _, assignment := range assignments {
-		err := tx.Delete(&assignment).Error
-		if err != nil {
-			return errors.Wrap(err, errors.DBQueryFailed, "Error deleting assignment")
-		}
-	}
+	// Batch delete assignments
+	tx.Delete(assignments)
 
-	for _, note := range notes {
-		err := tx.Delete(&note).Error
-		if err != nil {
-			return errors.Wrap(err, errors.DBQueryFailed, "Error deleting note")
-		}
-	}
+	// Batch delete notes
+	tx.Delete(notes)
+
 	return nil
 }
 

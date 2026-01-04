@@ -45,7 +45,7 @@ func GetRemoteDB() (*gorm.DB, error) {
 		NamingStrategy: schema.NamingStrategy{
 			TablePrefix: "public.",
 		},
-		Logger: logger.Default.LogMode(logger.Warn), // Disable GORM's default logger
+		Logger: logger.Default.LogMode(logger.Info), // Disable GORM's default logger
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, errors.DBConnectionFailed, "cannot connect to the database")

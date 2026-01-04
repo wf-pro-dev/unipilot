@@ -137,9 +137,9 @@ func GetNotesByCourse(courseID uint, db *gorm.DB) ([]Note, error) {
 	return notes, nil
 }
 
-func GetLNotesByCourse(courseID uint, db *gorm.DB) ([]LocalNote, error) {
+func (lc *LocalCourse) GetNotesByCourse(db *gorm.DB) ([]LocalNote, error) {
 	var notes []LocalNote
-	err := db.Where("course_id = ?", courseID).Find(&notes).Error
+	err := db.Where("course_id = ?", lc.ID).Find(&notes).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}

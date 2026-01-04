@@ -385,7 +385,7 @@ func AcceptLinkCourseHandler(c *fiber.Ctx) error {
 
 	// Step 3: Retrieve all assignments for the course being linked
 	var responseAssignments []models.Assignment
-	responseAssignments, err := models.GetAssignmentsByCourse(courseObj.ID, db.Preload("Documents").Order("created_at"))
+	responseAssignments, err := courseObj.GetAssignmentsByCourse(db.Preload("Documents").Order("created_at"))
 	if err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting course assignments", fiber.StatusInternalServerError)
 	}

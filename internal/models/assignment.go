@@ -117,17 +117,13 @@ func (a *Assignment) BeforeDelete(tx *gorm.DB) error {
 		return nil
 	}
 
-	documents, err := GetDocumentsByAssignment(a.ID, tx)
+	documents, err := a.GetDocumentsByAssignment(tx)
 	if err != nil {
 		return errors.Wrap(err, errors.DBQueryFailed, "Error getting documents by assignment")
 	}
 
-	for _, document := range documents {
-		err := tx.Delete(&document).Error
-		if err != nil {
-			return errors.Wrap(err, errors.DBQueryFailed, "Error deleting document")
-		}
-	}
+	// Batch delete documents
+	tx.Delete(documents)
 
 	// Delete the Qdrant collection for the assignment
 	collectionName := GetQdrantCollectionName(a.ID)
@@ -141,17 +137,13 @@ func (a *Assignment) BeforeDelete(tx *gorm.DB) error {
 
 func (la *LocalAssignment) AfterDelete(tx *gorm.DB) error {
 
-	documents, err := GetDocumentsByAssignment(la.ID, tx)
+	documents, err := la.GetDocumentsByAssignment(tx)
 	if err != nil {
 		return errors.Wrap(err, errors.DBQueryFailed, "Error getting documents by assignment")
 	}
 
-	for _, document := range documents {
-		err := tx.Delete(&document).Error
-		if err != nil {
-			return errors.Wrap(err, errors.DBQueryFailed, "Error deleting document")
-		}
-	}
+	// Batch delete documents
+	tx.Delete(documents)
 
 	return nil
 }
@@ -296,18 +288,18 @@ func GetLAssignments(db *gorm.DB) ([]LocalAssignment, error) {
 	return assignments, nil
 }
 
-func GetAssignmentsByCourse(courseID uint, db *gorm.DB) ([]Assignment, error) {
+func (c *Course) GetAssignmentsByCourse(db *gorm.DB) ([]Assignment, error) {
 	var assignments []Assignment
-	err := db.Where("course_id = ?", courseID).Find(&assignments).Error
+	err := db.Where("course_id = ?", c.ID).Find(&assignments).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
 	return assignments, nil
 }
 
-func GetLAssignmentsByCourse(courseCode string, db *gorm.DB) ([]LocalAssignment, error) {
+func (lc *LocalCourse) GetAssignmentsByCourse(db *gorm.DB) ([]LocalAssignment, error) {
 	var assignments []LocalAssignment
-	err := db.Where("course_code = ?", courseCode).Find(&assignments).Error
+	err := db.Where("course_code = ?", lc.Code).Find(&assignments).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
