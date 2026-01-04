@@ -16,6 +16,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/google/uuid"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"unipilot/internal/auth"
@@ -353,7 +354,7 @@ func (a *App) GetFileInfo(filePath string) (*FileInfo, error) {
 }
 
 // UploadDocument opens a file dialog and uploads a document to an assignment
-func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documentType string, filePath string) (*models.LocalDocument, error) {
+func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documentType string, filePath string, uploadID *uuid.UUID) (*models.LocalDocument, error) {
 
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
@@ -388,6 +389,7 @@ func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documen
 
 	// Create upload request
 	uploadReq := fileops.FileUploadRequest{
+		UploadID:           uploadID,
 		AssignmentID:       assignmentID,
 		RemoteAssignmentID: remoteAssignmentID,
 		UserID:             a.Auth.User.ID,

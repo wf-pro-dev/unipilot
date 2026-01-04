@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/google/uuid"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"gorm.io/gorm"
 
@@ -18,6 +19,7 @@ import (
 
 // FileUploadRequest represents a file upload request
 type FileUploadRequest struct {
+	UploadID           *uuid.UUID
 	AssignmentID       uint
 	RemoteAssignmentID uint
 	UserID             uint
