@@ -28,6 +28,7 @@ import (
 	"unipilot/internal/services/daemon"
 	dbservice "unipilot/internal/services/database"
 	"unipilot/internal/services/fileops"
+	"unipilot/internal/services/fileops/progress"
 	syncservice "unipilot/internal/services/sync"
 	"unipilot/internal/services/utils"
 )
@@ -520,12 +521,125 @@ func (a *App) CreateDocument(uploadReq fileops.FileUploadRequest, hasLocalFile b
 		return nil, Errors.HandleDBWriteError(err)
 	}
 
+	if hasLocalFile {
+		return a.uploadDocumentWithProgress(uploadResp)
+	}
+
 	response, err = a.SendDocument(uploadResp)
 	if err != nil {
 		return nil, Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to send document")
 	}
 
 	return response, err
+}
+
+func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse) (*models.LocalDocument, error) {
+	document := uploadResp.LocalDocument
+
+	// Initialize progress manager (reuse if exists, or create new)
+	progressManager := progress.GetManager()
+
+	// Create unique upload ID
+	uploadID := fmt.Sprintf("upload_%d", document.ID)
+
+	// Create progress tracker
+	tracker := progressManager.Create(uploadID, document.FileSize)
+	tracker.SetStatus("starting")
+
+	// Register progress callback to emit events to frontend
+	tracker.OnProgress(func(t *progress.Tracker) {
+		snapshot := t.Snapshot()
+		runtime.EventsEmit(a.ctx, "upload:progress", snapshot)
+
+		if snapshot.Error != nil {
+			runtime.EventsEmit(a.ctx, "upload:error", map[string]interface{}{
+				"upload_id": uploadID,
+				"error":     snapshot.Error.Error(),
+			})
+		}
+
+		if snapshot.Status == "completed" {
+			runtime.EventsEmit(a.ctx, "upload:complete", map[string]interface{}{
+				"upload_id": uploadID,
+			})
+		}
+	})
+
+	// Emit started event
+	runtime.EventsEmit(a.ctx, "upload:started", map[string]string{
+		"upload_id": uploadID,
+		"file_name": document.FileName,
+	})
+
+	// Create cancellable context
+	ctx, cancel := context.WithCancel(a.ctx)
+	progress.StoreCancelFunc(uploadID, cancel)
+	defer progress.RemoveCancelFunc(uploadID)
+
+	// Perform upload with progress tracking
+	response, err := a.sendDocumentWithProgress(ctx, uploadResp, tracker)
+	if err != nil {
+		tracker.SetError(err)
+		return nil, Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to send document")
+	}
+
+	tracker.Complete()
+	return response, nil
+}
+
+// sendDocumentWithProgress sends document to server with progress tracking
+func (a *App) sendDocumentWithProgress(ctx context.Context, uploadResp *fileops.FileUploadResponse, tracker *progress.Tracker) (*models.LocalDocument, error) {
+	if a.DB == nil {
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
+	}
+
+	db := a.DB.GetDB()
+	tracker.SetStatus("uploading to server")
+
+	// Send document with progress tracking
+	serverResponse, clientErr := client.SendDocumentWithProgress(ctx, uploadResp.LocalDocument, tracker)
+	if clientErr != nil {
+		return nil, Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
+	}
+
+	// Update document with server response
+	uploadResp.LocalDocument.StorageKey = serverResponse.StorageKey
+	uploadResp.LocalDocument.RemoteID = serverResponse.RemoteID
+	uploadResp.LocalDocument.RemoteAssignmentID = serverResponse.RemoteAssignmentID
+
+	if err := db.Save(uploadResp.LocalDocument).Error; err != nil {
+		return nil, Errors.HandleDBWriteError(err)
+	}
+
+	// Poll server for R2 upload progress
+	tracker.SetStatus("uploading to cloud storage")
+	uploadID := fmt.Sprintf("upload_%d", uploadResp.LocalDocument.ID)
+	go client.PollServerProgress(ctx, uploadID, tracker)
+
+	return uploadResp.LocalDocument, nil
+}
+
+// CancelUpload cancels an active upload
+func (a *App) CancelUpload(uploadID string) error {
+	return client.CancelUpload(uploadID)
+}
+
+// GetActiveUploads returns all active uploads
+func (a *App) GetActiveUploads() []progress.TrackerSnapshot {
+	return progress.GetManager().List()
+}
+
+// GetUploadProgress gets progress for a specific upload
+func (a *App) GetUploadProgress(uploadID string) (progress.TrackerSnapshot, error) {
+	snapshot, exists := progress.GetManager().GetSnapshot(uploadID)
+	if !exists {
+		return progress.TrackerSnapshot{}, fmt.Errorf("upload not found")
+	}
+	return snapshot, nil
 }
 
 func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse) (*models.LocalDocument, error) {

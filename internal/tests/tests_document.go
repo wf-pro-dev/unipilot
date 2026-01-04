@@ -12,7 +12,6 @@ func main() {
 		BaseDocument: models.BaseDocument{
 			AssignmentID: uint(10),
 			FileName:     "test.docx",
-			FileType:     "docx",
 		},
 		RemoteAssignmentID: uint(10),
 	}

@@ -54,7 +54,6 @@ interface LocalDocument {
   UserID: number
   Type: string // Changed from union type to string to match Go generated types
   FileName: string
-  FileType: string
   FilePath: string
   FileSize: number
   Version: number

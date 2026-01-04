@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"unipilot/internal/models"
 	"unipilot/internal/secrets"
+	"unipilot/internal/services/fileops/progress"
 
 	"unipilot/internal/errors"
 
@@ -114,11 +116,11 @@ func SendDocument(localDocument *models.LocalDocument) (*DocCreateResp, error) {
 		defer fileContent.Close()
 
 		// Copy file content to form
-		bytesWritten, err := io.Copy(fileWriter, fileContent)
+		_, err = io.Copy(fileWriter, fileContent)
 		if err != nil {
 			return nil, fmt.Errorf("error copying file content: %v", err)
 		}
-		log.Printf("bytes written: %d", bytesWritten)
+
 	}
 
 	// Add metadata part
@@ -184,6 +186,105 @@ func SendDocument(localDocument *models.LocalDocument) (*DocCreateResp, error) {
 	return &uploadResp, nil
 
 }
+
+// SendDocumentWithProgress sends document with progress tracking
+func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDocument, tracker *progress.Tracker) (*DocCreateResp, error) {
+	api_url := secrets.CONSTANTS["API_URL"]
+	url := fmt.Sprintf("%s/documents", api_url)
+
+	// Create multipart form
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+
+	// Create form file field
+	fileWriter, err := writer.CreateFormFile("file", localDocument.FileName)
+	if err != nil {
+		return nil, fmt.Errorf("error creating form file: %v", err)
+	}
+
+	if localDocument.HasLocalFile {
+		// Open the file
+		fileContent, err := os.Open(localDocument.FilePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open file: %w", err)
+		}
+		defer fileContent.Close()
+
+		// Wrap with progress reader
+		progressReader := progress.NewReader(fileContent, tracker)
+
+		// Copy file content with progress tracking
+		_, err = io.Copy(fileWriter, progressReader)
+		if err != nil {
+			return nil, fmt.Errorf("error copying file content: %v", err)
+		}
+	}
+
+	// Add metadata
+	metadataWriter, err := writer.CreateFormField("metadata")
+	if err != nil {
+		return nil, fmt.Errorf("error creating form field: %v", err)
+	}
+
+	metadataJSON, err := json.Marshal(localDocument)
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling metadata: %v", err)
+	}
+
+	_, err = metadataWriter.Write(metadataJSON)
+	if err != nil {
+		return nil, fmt.Errorf("error writing metadata: %v", err)
+	}
+
+	writer.Close()
+
+	// Create HTTP request with context for cancellation
+	req, err := http.NewRequestWithContext(ctx, "POST", url, &buf)
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	if err := SetAuthHeaderRequest(req); err != nil {
+		return nil, err
+	}
+
+	// Send request
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		// Check if cancelled
+		if ctx.Err() == context.Canceled {
+			return nil, fmt.Errorf("upload cancelled")
+		}
+		return nil, fmt.Errorf("error sending request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading response: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		var serverError *errors.AppError
+		if err := json.Unmarshal(respBody, &serverError); err != nil {
+			return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
+		}
+		return nil, serverError.ToServerError(resp.StatusCode)
+	}
+
+	var uploadResp DocCreateResp
+	if err := json.Unmarshal(respBody, &uploadResp); err != nil {
+		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse success response")
+	}
+
+	return &uploadResp, nil
+}
+
+// SendDocument remains for metadata-only uploads (no progress tracking)
+// ... keep existing implementation
+
 func DownloadDocument(document *models.LocalDocument) (io.Reader, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]

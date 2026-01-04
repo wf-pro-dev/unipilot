@@ -57,6 +57,7 @@ func (eh *EventHandler) InitializeForDaemon(userID uint) error {
 
 // StartEventHandler initializes and starts listening to SSE events using existing SSE connection
 func (eh *EventHandler) StartEventHandler(existingSSE *sse.SSE) error {
+	// Thread safe lock
 	eh.mu.Lock()
 	defer eh.mu.Unlock()
 

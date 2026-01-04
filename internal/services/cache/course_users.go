@@ -36,6 +36,15 @@ func (c *Cache) GetCourseUsers(ctx context.Context, courseID uint, excludeUserID
 	return userIDs, nil
 }
 
+// SetCourseUsers sets the course users in cache.
+func (c *Cache) SetCourseUsers(ctx context.Context, courseID uint, userIDs []uint) error {
+	cacheKey := FormatKey(KeyCoursesLinkedUsers, courseID)
+	if err := c.redis.SAdd(ctx, cacheKey, userIDs).Err(); err != nil {
+		return errors.Wrap(err, errors.CacheOperationFailed, "Error setting course users in cache")
+	}
+	return c.redis.Expire(ctx, cacheKey, TTLLinkUsers).Err()
+}
+
 // AddLinkUser adds a user to a LinkID set (when course is linked).
 // Optimized for write-heavy workflow: O(1) operation.
 func (c *Cache) AddCourseUser(ctx context.Context, courseID uint, userID uint) error {

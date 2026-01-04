@@ -28,7 +28,7 @@ func GetUserDB() (*gorm.DB, error) {
 	// Open database connection
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
 		PrepareStmt: true, // Better performance
-		Logger:      logger.Default.LogMode(logger.Warn),
+		Logger:      logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to open SQLite database")

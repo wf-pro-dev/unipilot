@@ -147,7 +147,7 @@ export function Dashboard() {
                     {/* Next Class Card */}
                     <div className="flex flex-1">
                         <GlassCard
-                            variant={course ? "board" : "default"}
+                            variant={course ? "outline" : "board"}
                             onClick={() => course && router.push(`/courses?view=schedule?course=${course.Code}`)}
                             className={cn("relative group",getCourseGradientClasses(course?.Color, course && isOn).bg,getCourseGradientClasses(course?.Color, course && isOn).hover)}
                         >
@@ -245,6 +245,7 @@ export function Dashboard() {
                                         <AssignmentItem
                                             key={assignment.ID}
                                             assignment={assignment}
+                                            variant="outline"
                                             onEdit={handleEditAssignment}
                                             onDelete={(assignment) => handleDelete(assignment as models.LocalAssignment)}
                                             onOpenEdit={(assignment) => handleOpenEdit(assignment as models.LocalAssignment)}
