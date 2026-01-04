@@ -18,4 +18,7 @@ const (
 
 	// User -> LinkedCourses (MEDIUM: read-heavy complex query)
 	TTLUserLinkedCourses = 15 * time.Minute
+
+	// TTL for progress cache
+	TTLProgress = 30 * time.Minute
 )

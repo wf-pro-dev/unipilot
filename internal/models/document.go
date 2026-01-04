@@ -58,6 +58,8 @@ type BaseDocument struct {
 	HasLocalFile bool         `gorm:"default:false" validate:"boolean"`
 
 	AssignmentID uint `gorm:"not null;index" validate:"required,min=1"`
+
+	UploadID string `gorm:"-"` // For tracking upload progress
 }
 
 // Document represents a file attached to an assignment
@@ -104,6 +106,8 @@ func (d *BaseDocument) ToMap() map[string]string {
 		"parent_doc_id":  strconv.Itoa(int(*d.ParentDocID)),
 		"is_original":    strconv.FormatBool(d.IsOriginal),
 		"has_local_file": strconv.FormatBool(d.HasLocalFile),
+		"upload_id":      d.UploadID,
+		"assignment_id":  strconv.Itoa(int(d.AssignmentID)),
 	}
 }
 

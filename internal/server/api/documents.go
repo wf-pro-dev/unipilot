@@ -23,6 +23,7 @@ import (
 	"unipilot/internal/server/sse/grpc/notifications"
 	cloudstorage "unipilot/internal/services/cloud_storage"
 	"unipilot/internal/services/fileops"
+	"unipilot/internal/services/fileops/progress"
 
 	"unipilot/internal/errors"
 )
@@ -483,8 +484,12 @@ func UploadFileLegacy(localDoc models.LocalDocument, key string, w http.Response
 		)
 	}
 
+	uploadID := localDoc.UploadID
+	progressManager := progress.GetManager()
+	progressTracker := progressManager.Create(uploadID, localDoc.FileSize)
+
 	// Upload to aws S3
-	if err := cloudstorage.UploadFile(filePath, localDoc.FileName, key); err != nil {
+	if err := cloudstorage.UploadFile(filePath, localDoc.FileName, key, progressTracker); err != nil {
 		return fmt.Errorf("failed to upload file to R2: %w", err)
 	}
 
@@ -505,8 +510,22 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 		)
 	}
 
+	uploadID := localDoc.UploadID
+	progressManager := progress.GetManager()
+
+	progressTracker := progressManager.Create(uploadID, localDoc.FileSize)
+
+	CacheService.UpdatePercentage(c.Context(), uploadID, 0, "Uploading to cloud")
+	progressTracker.OnProgress(func(t *progress.Tracker) {
+		// Calculate progress percentage
+		progress := float64(t.Current) / float64(t.Total) * 100
+
+		// Store in cache
+		CacheService.UpdatePercentage(c.Context(), uploadID, progress, t.Status)
+	})
+
 	// Upload to aws S3
-	if err := cloudstorage.UploadFile(filePath, localDoc.FileName, key); err != nil {
+	if err := cloudstorage.UploadFile(filePath, localDoc.FileName, key, progressTracker); err != nil {
 		return errors.Wrap(
 			err,
 			errors.StorageUploadFailed,

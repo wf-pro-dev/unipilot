@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
@@ -14,7 +15,7 @@ import (
 // GetUserLinkedCourses retrieves user's linked courses from cache.
 // Returns nil on cache miss (not an error).
 func (c *Cache) GetCoursesLinked(ctx context.Context, userID uint) ([]models.Course, error) {
-	cacheKey := FormatKey(KeyCoursesLinked, userID)
+	cacheKey := FormatKey(KeyCoursesLinked, fmt.Sprintf("%d", userID))
 	cachedData, err := c.redis.Get(ctx, cacheKey).Result()
 	if err != nil {
 		return nil, err // Cache miss
@@ -29,7 +30,7 @@ func (c *Cache) GetCoursesLinked(ctx context.Context, userID uint) ([]models.Cou
 
 // SetUserLinkedCourses stores user's linked courses in cache.
 func (c *Cache) SetCoursesLinked(ctx context.Context, userID uint, courses []models.Course) error {
-	cacheKey := FormatKey(KeyCoursesLinked, userID)
+	cacheKey := FormatKey(KeyCoursesLinked, fmt.Sprintf("%d", userID))
 	coursesJSON, err := json.Marshal(courses)
 	if err != nil {
 		return errors.Wrap(err, errors.ProcJSONMarshalFailed, "Error marshalling user linked courses")
@@ -39,11 +40,11 @@ func (c *Cache) SetCoursesLinked(ctx context.Context, userID uint, courses []mod
 
 // DeleteUserLinkedCourses invalidates user's linked courses cache.
 func (c *Cache) DeleteCoursesLinked(ctx context.Context, userID uint) error {
-	cacheKey := FormatKey(KeyCoursesLinked, userID)
+	cacheKey := FormatKey(KeyCoursesLinked, fmt.Sprintf("%d", userID))
 	return c.redis.Del(ctx, cacheKey).Err()
 }
 
 func (c *Cache) SetExpirationCoursesLinked(ctx context.Context, userID uint) error {
-	cacheKey := FormatKey(KeyCoursesLinked, userID)
+	cacheKey := FormatKey(KeyCoursesLinked, fmt.Sprintf("%d", userID))
 	return c.redis.Expire(ctx, cacheKey, TTLUserLinkedCourses).Err()
 }

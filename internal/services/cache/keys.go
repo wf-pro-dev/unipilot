@@ -18,9 +18,12 @@ const (
 
 	// User -> LinkedCourses (MEDIUM: read-heavy complex query)
 	KeyCoursesLinked = "courses_linked:%d"
+
+	// Progress cache
+	KeyProgress = "progress:%d"
 )
 
 // FormatKey formats a cache key with the given identifier (uint).
-func FormatKey(pattern string, id uint) string {
+func FormatKey(pattern string, id string) string {
 	return fmt.Sprintf(pattern, id)
 }

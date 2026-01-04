@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"unipilot/internal/errors"
+	"unipilot/internal/services/fileops/progress"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -18,7 +19,7 @@ import (
 	"github.com/aws/smithy-go"
 )
 
-func UploadFile(filePath, fileName, key string) error {
+func UploadFile(filePath, fileName, key string, progressTracker *progress.Tracker) error {
 
 	// Get S3 client
 	svc, err := S3Client()
@@ -41,18 +42,12 @@ func UploadFile(filePath, fileName, key string) error {
 		return errors.Wrap(err, errors.InternalError, "Unable to get file info")
 	}
 
-	// Read the contents of the file into a buffer
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, file); err != nil {
-
-		return errors.Wrap(err, errors.InternalError, "Unable to read file")
-	}
-
+	progressReader := progress.NewReader(file, progressTracker)
 	// Upload file
 	_, err = svc.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(Bucket),
 		Key:    aws.String(key), // format : user_id/assignment_id/file_name
-		Body:   bytes.NewReader(buf.Bytes()),
+		Body:   progressReader,
 		Metadata: map[string]string{
 			"original-name": fileName,
 			"upload-time":   time.Now().Format(time.RFC3339),
