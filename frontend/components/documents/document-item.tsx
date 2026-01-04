@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -26,13 +26,16 @@ import {
 import { format } from "date-fns"
 import { toast } from "sonner"
 import { GlassCard } from "../ui/glass-card"
+import { LogDebug } from "@/wailsjs/runtime/runtime"
 
 interface DocumentItemProps {
   document: models.LocalDocument
+
 }
 
 export function DocumentItem({ document: doc }: DocumentItemProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [isUploading, setIsUploading] = useState(true)
 
   // Document action hooks
   const openDocument = useOpenDocument()
@@ -111,12 +114,17 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
     }
   }
 
+  useEffect(() => {
+    setIsUploading(doc.ID === 0)
+  }, [doc])
+
   const isLoading = openDocument.isPending || saveDocumentAs.isPending ||
     deleteDocument.isPending || uploadVersion.isPending
 
   return (
     <>
       <GlassCard
+        id={doc.ID.toString()}
         variant="outline"
         className="
           grid grid-cols-[auto,1fr,auto] items-center gap-3
@@ -134,25 +142,35 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
             {doc.FileName}
           </p>
 
-          <div className="flex flex-wrap gap-2 items-center">
-            <Badge
-              variant="secondary"
-              className={`text-[10px] border-0 px-1.5 py-0 font-medium h-5 ${getDocumentTypeColor(doc.Type)}`}
-            >
-              {doc.Type === "support" ? "Support" : "Submission"}
-            </Badge>
+          {!isUploading && (
+            <div className="flex flex-wrap gap-2 items-center">
+              <Badge
+                variant="secondary"
+                className={`text-[10px] border-0 px-1.5 py-0 font-medium h-5 ${getDocumentTypeColor(doc.Type)}`}
+              >
+                {doc.Type === "support" ? "Support" : "Submission"}
+              </Badge>
 
-            <Badge variant="outline" className="text-[10px] border-white/10 bg-white/5 text-gray-400 px-1.5 py-0 h-5">
-              v{doc.Version}
-            </Badge>
+              <Badge variant="outline" className="text-[10px] border-white/10 bg-white/5 text-gray-400 px-1.5 py-0 h-5">
+                v{doc.Version}
+              </Badge>
 
-            <span className="text-caption font-medium uppercase tracking-wider">{formatFileSize(doc.FileSize)}</span>
+              <span className="text-caption font-medium uppercase tracking-wider">{formatFileSize(doc.FileSize)}</span>
+{/* 
+              <p className={`text-caption flex items-center gap-1 line-clamp-1 leading-relaxed`}  >
+                <Clock className="w-3.5 h-3.5" />
+                {format(new Date(doc.UpdatedAt) || new Date(), "MMM d")}
+              </p> */}
+            </div>
+          )}
 
-            <p className={`text-caption flex items-center gap-1 line-clamp-1 leading-relaxed`}  >
-              <Clock className="w-3.5 h-3.5" />
-              {format(new Date(doc.UpdatedAt), "MMM d")}
-            </p>
-          </div>
+          {isUploading && (
+            <div className="flex flex-wrap gap-2 items-center">
+              <Badge variant="outline" className="text-[10px] border-white/10 bg-white/5 text-gray-400 px-1.5 py-0 h-5">
+                Uploading...
+              </Badge>
+            </div>
+          )}
         </div>
 
         {/* Actions */}

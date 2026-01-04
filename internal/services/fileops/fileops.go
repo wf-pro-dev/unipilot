@@ -1,12 +1,14 @@
 package fileops
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"mime"
 	"os"
 	"path/filepath"
 
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
@@ -32,6 +34,40 @@ type FileUploadResponse struct {
 	LocalDocument *models.LocalDocument
 	Success       bool
 	Message       string
+}
+
+func PickFile(ctx context.Context) (string, error) {
+
+	// Open file dialog
+	filters := []runtime.FileFilter{
+		{
+			DisplayName: "Documents",
+			Pattern:     "*.pdf;*.doc;*.docx;*.ppt;*.pptx;*.xls;*.xlsx;*.txt;*.md",
+		},
+		{
+			DisplayName: "Images",
+			Pattern:     "*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.svg",
+		},
+		{
+			DisplayName: "All Files",
+			Pattern:     "*",
+		},
+	}
+
+	filePath, err := runtime.OpenFileDialog(ctx, runtime.OpenDialogOptions{
+		Title:   "Select Document to Upload",
+		Filters: filters,
+	})
+
+	if err != nil {
+		return "", errors.Wrap(err, errors.FSOpenFailed, "Failed to open file dialog")
+	}
+
+	return filePath, nil
+}
+
+func GetFileName(filePath string) string {
+	return filepath.Base(filePath)
 }
 
 // GetMimeType returns the MIME type for a file extension

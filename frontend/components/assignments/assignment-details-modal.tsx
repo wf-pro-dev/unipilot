@@ -149,7 +149,7 @@ export function AssignmentDetailsModal({
               )}
             </TabsContent>
 
-            <TabsContent value="documents" className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <TabsContent value="documents" className="flex flex-col flex-1 animate-in fade-in slide-in-from-bottom-4 duration-300">
               <FileUpload05
                 assignment={assignment}
               />

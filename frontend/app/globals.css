@@ -106,6 +106,7 @@
     --link-default: 217 91% 60%;      /* Link - Primary Blue */
     --link-hover: 217 91% 53%;        /* Link Hover - Primary Blue Dark */
     --link-active: 215 91% 47%;       /* Link Active - Primary Blue Darker */
+
   }
 
   .dark {
@@ -595,6 +596,10 @@
 
 .note-markdown-inline .note-markdown-content pre {
   @apply text-xs p-2;
+}
+
+.wails-drop-target-active {
+  @apply border-2 border-dashed border-primary-blue-500 bg-primary-blue-500/10;
 }
 
 

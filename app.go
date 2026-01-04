@@ -333,8 +333,26 @@ func (a *App) CreateNote(noteData *models.LocalNote) error {
 
 }
 
+type FileInfo struct {
+	FileName string
+	FileSize int64
+}
+
+func (a *App) GetFileInfo(filePath string) (*FileInfo, error) {
+	fileName := fileops.GetFileName(filePath)
+	fileInfo, err := os.Stat(filePath)
+	if err != nil {
+		return nil, Errors.Wrap(err, Errors.FSFileNotFound, "File not found")
+	}
+	fileSize := fileInfo.Size()
+	return &FileInfo{
+		FileName: fileName,
+		FileSize: fileSize,
+	}, nil
+}
+
 // UploadDocument opens a file dialog and uploads a document to an assignment
-func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documentType string) (*models.LocalDocument, error) {
+func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documentType string, filePath string) (*models.LocalDocument, error) {
 
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
@@ -343,35 +361,12 @@ func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documen
 	if !a.Auth.IsAuthenticated() {
 		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
-
-	// Validate document type
-	if documentType != string(models.DocumentTypeSupport) && documentType != string(models.DocumentTypeSubmission) {
-		return nil, Errors.Wrap(fmt.Errorf("invalid document type: %s", documentType), Errors.ValidationInvalid, "Invalid document type")
-	}
-
-	// Open file dialog
-	filters := []runtime.FileFilter{
-		{
-			DisplayName: "Documents",
-			Pattern:     "*.pdf;*.doc;*.docx;*.ppt;*.pptx;*.xls;*.xlsx;*.txt;*.md",
-		},
-		{
-			DisplayName: "Images",
-			Pattern:     "*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.svg",
-		},
-		{
-			DisplayName: "All Files",
-			Pattern:     "*",
-		},
-	}
-
-	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:   "Select Document to Upload",
-		Filters: filters,
-	})
-
-	if err != nil {
-		return nil, Errors.Wrap(err, Errors.FSOpenFailed, "Failed to open file dialog")
+	var err error
+	if filePath == "" {
+		filePath, err = fileops.PickFile(a.ctx)
+		if err != nil {
+			return nil, Errors.Wrap(err, Errors.FSOpenFailed, "Failed to pick file")
+		}
 	}
 
 	if filePath == "" {

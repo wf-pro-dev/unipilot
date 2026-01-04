@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { ChevronLeft, ChevronRight, FileText, Upload } from "lucide-react";
 import { GlassCard } from "./ui/glass-card";
+import { OnFileDrop } from "@/wailsjs/runtime/runtime";
+
+
 import { models } from "@/wailsjs/go/models";
 import { useAssignmentDocumentData, useUploadDocument } from "@/hooks/use-documents";
 import { toast } from "sonner";
@@ -113,12 +115,13 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
 
   const uploadDocument = useUploadDocument()
 
-  const handleUpload = async () => {
+  const handleUpload = async (filePath: string) => {
 
     const result = await uploadDocument.mutateAsync({
       assignmentId: assignment.ID,
       remoteAssignmentId: assignment.RemoteID,
-      documentType: uploadType
+      documentType: uploadType,
+      filePath: filePath
     }, {
       onSuccess: (doc) => {
         toast.success("Document uploaded successfully")
@@ -131,7 +134,7 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    await handleUpload()
+    await handleUpload("")
   }
 
   // Handle loading state
@@ -148,6 +151,18 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
       </div>
     )
   }
+
+  OnFileDrop((x, y, paths) => {
+    if (paths.length > 1) {
+      toast.error("Please drop only one file")
+      return
+    }
+   
+    handleUpload(paths[0])
+  }, true);
+
+
+
 
   // Handle error state
   if (error) {
@@ -198,25 +213,31 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
 
         </div>
 
-        <GlassCard variant="board" className="mt-4 items-center justify-center border border-dashed border-input py-10">
+        <GlassCard variant="board"
+          style={{ "--wails-drop-target": "drop" } as React.CSSProperties}
+          className="mt-4 items-center justify-center border border-dashed border-input py-10
+          [--wails-drop-target:drop] 
+         [.wails-drop-target-active_&]:border-blue-500 [.wails-drop-target-active_&]:bg-blue-50 
+          "
+        >
           <div className="sm:flex sm:items-center sm:gap-x-3">
 
-            <div className="p-2 rounded-xl bg-gradient-to-br from-white/15 to-transparent border border-white/15 shadow-inner">
+            <div className="pointer-events-none p-2 rounded-xl bg-gradient-to-br from-white/15 to-transparent border border-white/15 shadow-inner">
               <Upload className="w-3 h-3 text-white" />
             </div>
 
-            <div className="mt-4 flex items-center text-sm leading-6 text-foreground sm:mt-0">
-              <p>Drag and drop or</p>
+            <div className="[--wails-drop-target:none] mt-4 flex items-center text-sm leading-6 text-foreground sm:mt-0">
+              <p className="pointer-events-none">Drag and drop or</p>
               <Button
                 type="button"
                 variant="link"
                 size="sm"
-                className="text-primary-blue-500 hover:text-primary-blue-600 px-2"
+                className="[--wails-drop-target:none] text-primary-blue-500 hover:text-primary-blue-600 px-2"
                 onClick={() => setUploadDialogOpen(true)}
               >
                 Choose a file
               </Button>
-              <p className="pl-1">to upload</p>
+              <p className="pointer-events-none pl-1">to upload</p>
             </div>
           </div>
 

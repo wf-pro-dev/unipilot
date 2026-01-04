@@ -40,6 +40,12 @@ func main() {
 				Icon:    icon,
 			},
 		},
+		DragAndDrop: &options.DragAndDrop{
+			EnableFileDrop:     true,
+			DisableWebViewDrop: true,
+			CSSDropProperty:    "--wails-drop-target",
+			CSSDropValue:       "drop",
+		},
 	})
 
 	if err != nil {

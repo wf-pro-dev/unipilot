@@ -189,6 +189,20 @@ export namespace gorm {
 
 export namespace main {
 	
+	export class FileInfo {
+	    FileName: string;
+	    FileSize: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.FileName = source["FileName"];
+	        this.FileSize = source["FileSize"];
+	    }
+	}
 	export class FollowResponse {
 	    users: models.User[];
 	    count: number;

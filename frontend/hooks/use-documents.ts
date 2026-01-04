@@ -1,10 +1,12 @@
 "use client"
 
+import fs from 'fs'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { models } from "@/wailsjs/go/models"
-import { LogError } from "@/wailsjs/runtime/runtime"
-import { 
+import { LogDebug, LogError } from "@/wailsjs/runtime/runtime"
+import {
 
+  GetFileInfo,
   GetSupportDocuments,
   GetSubmissionDocuments,
   GetUserStorageInfo,
@@ -19,6 +21,8 @@ import {
   GetAssignmentDocumentIDsRAG
 } from "@/wailsjs/go/main/App"
 import { toast } from 'sonner'
+import path from 'path'
+
 
 // Query keys for consistent cache management
 export const documentKeys = {
@@ -87,61 +91,75 @@ export function useUserStorageInfo() {
   })
 }
 
+
+interface FileInfo {
+  FileName: string
+  FileSize: number
+}
+
 // Hook for uploading documents
 export function useUploadDocument() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
-    mutationFn: async ({ 
-      assignmentId, 
+    mutationFn: async ({
+      assignmentId,
       remoteAssignmentId,
-      documentType 
-    }: { 
+      documentType,
+      filePath
+    }: {
       assignmentId: number
       remoteAssignmentId: number
-      documentType: string 
+      documentType: string
+      filePath: string
     }) => {
-      return await UploadDocument(assignmentId, remoteAssignmentId, documentType)
+      return await UploadDocument(assignmentId, remoteAssignmentId, documentType, filePath)
     },
-    
+
     // Optimistically update the cache
-    onMutate: async ({ assignmentId }) => {
+    onMutate: async ({ assignmentId, remoteAssignmentId, documentType, filePath }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: documentKeys.list(assignmentId) })
       await queryClient.cancelQueries({ queryKey: documentKeys.support(assignmentId) })
       await queryClient.cancelQueries({ queryKey: documentKeys.submissions(assignmentId) })
-      
+
+      const previousDocuments = queryClient.getQueryData<models.LocalDocument[]>(documentKeys.list(assignmentId))
+
+      const fileInfo = await GetFileInfo(filePath)
+      var newDocument = new models.LocalDocument({
+        ID: 0,
+        AssignmentID: assignmentId,
+        RemoteAssignmentID: remoteAssignmentId,
+        DocumentType: documentType,
+        FilePath: filePath,
+        FileName: fileInfo.FileName,
+        FileSize: fileInfo.FileSize,
+      })
+
+      queryClient.setQueryData<models.LocalDocument[]>(documentKeys.list(assignmentId), (old) => {
+        if (!old) return [newDocument]
+        return [newDocument, ...old]
+      })
+
+      const typeKey = documentType === 'support'
+        ? documentKeys.support(assignmentId)
+        : documentKeys.submissions(assignmentId)
+
+      queryClient.setQueryData<models.LocalDocument[]>(
+        typeKey,
+        (old) => old ? [newDocument, ...old] : [newDocument]
+      )
+
+      return { previousDocuments }
+
       // Note: We don't do optimistic updates for uploads since we need the actual file data
     },
-    
-    onSuccess: (newDocument, { assignmentId, documentType }) => {
-      // Add the new document to the appropriate caches
-      if (newDocument) {
-        // Update all documents list
-        queryClient.setQueryData<models.LocalDocument[]>(
-          documentKeys.list(assignmentId), 
-          (old) => old ? [newDocument, ...old] : [newDocument]
-        )
-        
-        // Update specific type list
-        const typeKey = documentType === 'support' 
-          ? documentKeys.support(assignmentId)
-          : documentKeys.submissions(assignmentId)
-          
-        queryClient.setQueryData<models.LocalDocument[]>(
-          typeKey, 
-          (old) => old ? [newDocument, ...old] : [newDocument]
-        )
-        
-        // Invalidate storage info to refresh quota
-        queryClient.invalidateQueries({ queryKey: documentKeys.storage() })
+    onError: (err, variables, context) => {
+      if (context?.previousDocuments) {
+        queryClient.setQueryData(documentKeys.list(variables.assignmentId), context.previousDocuments)
       }
-    },
-    
-    onError: (err) => {
       LogError("Failed to upload document: " + err)
     },
-    
     // Always refetch to ensure consistency
     onSettled: (data, error, { assignmentId }) => {
       queryClient.invalidateQueries({ queryKey: documentKeys.list(assignmentId) })
@@ -154,19 +172,19 @@ export function useUploadDocument() {
 // Hook for uploading new document versions
 export function useUploadDocumentVersion() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (documentId: number) => {
       return await UploadNewDocumentVersion(documentId)
     },
-    
+
     onSuccess: (newVersion, documentId) => {
       if (newVersion) {
         // Find the assignment ID from existing cache to update the right lists
-        const allQueries = queryClient.getQueriesData<models.LocalDocument[]>({ 
-          queryKey: documentKeys.lists() 
+        const allQueries = queryClient.getQueriesData<models.LocalDocument[]>({
+          queryKey: documentKeys.lists()
         })
-        
+
         // Update all relevant caches
         allQueries.forEach(([queryKey, data]) => {
           if (data && Array.isArray(data)) {
@@ -174,8 +192,8 @@ export function useUploadDocumentVersion() {
             if (hasDocument) {
               queryClient.setQueryData<models.LocalDocument[]>(queryKey, (old) => {
                 if (!old) return []
-                return old.map(doc => 
-                  doc.ID === documentId 
+                return old.map(doc =>
+                  doc.ID === documentId
                     ? newVersion // Replace with new version
                     : doc
                 )
@@ -183,12 +201,12 @@ export function useUploadDocumentVersion() {
             }
           }
         })
-        
+
         // Invalidate storage info
         queryClient.invalidateQueries({ queryKey: documentKeys.storage() })
       }
     },
-    
+
     onError: (err) => {
       LogError("Failed to upload document version: " + err)
     },
@@ -198,35 +216,35 @@ export function useUploadDocumentVersion() {
 // Hook for downloading documents
 export function useDownloadDocument() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (document: models.LocalDocument) => {
       return await DownloadDocument(document)
     },
-    onMutate: async (document) => { 
-      
+    onMutate: async (document) => {
+
       await queryClient.cancelQueries({ queryKey: documentKeys.list(document.AssignmentID) })
-     
+
       // Change HasLocalFile to true
-    const previousDocuments = queryClient.getQueryData<models.LocalDocument[]>(documentKeys.list(document.AssignmentID))
-    
-    queryClient.setQueryData<models.LocalDocument[]>(documentKeys.list(document.AssignmentID), (old) => {
-      if (!old) return []
-      return old.map(d => d.ID === document.ID ?  {
-        ...d,
-        HasLocalFile: true
+      const previousDocuments = queryClient.getQueryData<models.LocalDocument[]>(documentKeys.list(document.AssignmentID))
+
+      queryClient.setQueryData<models.LocalDocument[]>(documentKeys.list(document.AssignmentID), (old) => {
+        if (!old) return []
+        return old.map(d => d.ID === document.ID ? {
+          ...d,
+          HasLocalFile: true
         } : d) as models.LocalDocument[]
-     })
-     
-     return { previousDocuments }
+      })
+
+      return { previousDocuments }
     },
-   // If the mutation fails, rollback
-   onError: (err, variables, context) => {
-    if (context?.previousDocuments) {
-      queryClient.setQueryData(documentKeys.list(variables.AssignmentID), context.previousDocuments)
-    }
-    LogError("Failed to update document: " + err)
-  },
+    // If the mutation fails, rollback
+    onError: (err, variables, context) => {
+      if (context?.previousDocuments) {
+        queryClient.setQueryData(documentKeys.list(variables.AssignmentID), context.previousDocuments)
+      }
+      LogError("Failed to update document: " + err)
+    },
     onSettled: () => {
       // Invalidate all queries
       queryClient.invalidateQueries({ queryKey: documentKeys.all })
@@ -235,23 +253,23 @@ export function useDownloadDocument() {
 }
 
 // Hook for deleting documents
-export function  useDeleteDocument() {
+export function useDeleteDocument() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (documentId: number) => {
       return await DeleteDocument(documentId)
     },
-    
+
     // Optimistically remove the document
     onMutate: async (documentId) => {
       // Find and update all relevant caches
-      const allQueries = queryClient.getQueriesData<models.LocalDocument[]>({ 
-        queryKey: documentKeys.lists() 
+      const allQueries = queryClient.getQueriesData<models.LocalDocument[]>({
+        queryKey: documentKeys.lists()
       })
-      
+
       const previousData: Array<[unknown, models.LocalDocument[] | undefined]> = []
-      
+
       allQueries.forEach(([queryKey, data]) => {
         if (data && Array.isArray(data)) {
           const hasDocument = data.some(doc => doc.ID === documentId)
@@ -264,10 +282,10 @@ export function  useDeleteDocument() {
           }
         }
       })
-      
+
       return { previousData }
     },
-    
+
     // If the mutation fails, rollback
     onError: (err, variables, context) => {
       if (context?.previousData) {
@@ -277,13 +295,13 @@ export function  useDeleteDocument() {
       }
       toast.error("Failed to delete document")
     },
-    
+
     onSuccess: () => {
       // Invalidate storage info to refresh quota
       queryClient.invalidateQueries({ queryKey: documentKeys.storage() })
       toast.success("Document deleted successfully")
     },
-    
+
     // Always refetch after error or success to ensure consistency
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: documentKeys.all })
@@ -298,7 +316,7 @@ export function useOpenDocument() {
     mutationFn: async (documentId: number) => {
       return await OpenDocument(documentId)
     },
-    
+
     onError: (err) => {
       LogError("Failed to open document: " + err)
     },
@@ -311,7 +329,7 @@ export function useSaveDocumentAs() {
     mutationFn: async (documentId: number) => {
       return await SaveDocumentAs(documentId)
     },
-    
+
     onError: (err) => {
       LogError("Failed to save document: " + err)
     },
@@ -354,14 +372,14 @@ export function useAcceptDocument() {
 export function useAssignmentDocumentData(assignmentId: number) {
   const supportDocuments = useSupportDocuments(assignmentId)
   const submissionDocuments = useSubmissionDocuments(assignmentId)
-  
+
   return {
-    supportDocuments, 
+    supportDocuments,
     submissionDocuments,
     isLoading: supportDocuments.isLoading || submissionDocuments.isLoading,
     error: supportDocuments.error || submissionDocuments.error,
   }
-} 
+}
 
 // Hook for uploading documents to RAG
 export function useUploadDocumentRAG() {
@@ -370,7 +388,7 @@ export function useUploadDocumentRAG() {
   return useMutation({
     onMutate: async (document) => {
       await queryClient.cancelQueries({ queryKey: documentKeys.rag(document.RemoteAssignmentID) })
-      
+
       // Update all queries that match the base key
       queryClient.setQueriesData<number[]>({ queryKey: documentKeys.rag(document.RemoteAssignmentID) }, (old) => {
         if (!old) return [document.RemoteID]
@@ -399,7 +417,7 @@ export function useDeleteDocumentRAG() {
   return useMutation({
     onMutate: async (document) => {
       await queryClient.cancelQueries({ queryKey: documentKeys.rag(document.RemoteAssignmentID) })
-      
+
       // Update all queries that match the base key
       queryClient.setQueriesData<number[]>({ queryKey: documentKeys.rag(document.RemoteAssignmentID) }, (old) => {
         if (!old) return []

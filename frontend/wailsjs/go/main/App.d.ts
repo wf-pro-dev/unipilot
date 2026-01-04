@@ -57,6 +57,8 @@ export function GetCurrentUser():Promise<models.User>;
 
 export function GetFileAsDataURL(arg1:string):Promise<string>;
 
+export function GetFileInfo(arg1:string):Promise<main.FileInfo>;
+
 export function GetFollowers(arg1:number):Promise<main.FollowResponse>;
 
 export function GetFollowing(arg1:number):Promise<main.FollowResponse>;
@@ -121,7 +123,7 @@ export function UpdateNote(arg1:models.LocalNote,arg2:string,arg3:string):Promis
 
 export function UpdateUser(arg1:string,arg2:string):Promise<models.User>;
 
-export function UploadDocument(arg1:number,arg2:number,arg3:string):Promise<models.LocalDocument>;
+export function UploadDocument(arg1:number,arg2:number,arg3:string,arg4:string):Promise<models.LocalDocument>;
 
 export function UploadDocumentRAG(arg1:models.LocalDocument):Promise<void>;
 

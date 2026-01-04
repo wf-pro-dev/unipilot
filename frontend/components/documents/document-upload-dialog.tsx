@@ -38,6 +38,14 @@ export function DocumentUploadDialog({
   onSuccess
 }: DocumentUploadDialogProps) {
   const [selectedType, setSelectedType] = useState<"support" | "submission" | "all">(documentType)
+  const [filePath, setFilePath] = useState<string>("")
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setFilePath(file.name)
+    }
+  }
 
   const uploadDocument = useUploadDocument()
 
@@ -184,7 +192,8 @@ export function DocumentUploadDialog({
             variant="outline"
             size="sm"
             className="flex-1 bg-blue-600 hover:bg-blue-500 text-white border-0 h-10 shadow-[0_0_15px_rgba(37,99,235,0.2)]"
-            onClick={handleUpload}
+            
+
             disabled={uploadDocument.isPending}
           >
             {uploadDocument.isPending ? (

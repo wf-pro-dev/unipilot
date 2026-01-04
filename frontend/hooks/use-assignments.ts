@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { addDays, startOfWeek, endOfWeek, isWithinInterval, isAfter, isSameDay } from 'date-fns'
-import { assignment, course } from '@/wailsjs/go/models'
+import { models } from '@/wailsjs/go/models'
 import { useMemo } from 'react'
 
 // Query keys for consistent cache management
@@ -19,7 +19,7 @@ export const assignmentKeys = {
 export function useAssignments() {
   return useQuery({
     queryKey: assignmentKeys.lists(),
-    queryFn: async (): Promise<assignment.LocalAssignment[]> => {
+    queryFn: async (): Promise<models.LocalAssignment[]> => {
       try {
         return await window.go.main.App.GetAssignments()
       } catch (error) {
@@ -39,7 +39,7 @@ export function useUpdateAssignment() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async ({ assignment, column, value }: { assignment: assignment.LocalAssignment, column: string, value: string }) => {
+    mutationFn: async ({ assignment, column, value }: { assignment: models.LocalAssignment, column: string, value: string }) => {
       return await window.go.main.App.UpdateAssignment(assignment, column, value)
     },
     
@@ -47,13 +47,13 @@ export function useUpdateAssignment() {
     onMutate: async ({ assignment, column, value }) => {
       await queryClient.cancelQueries({ queryKey: assignmentKeys.lists() })
       
-      const previousAssignments = queryClient.getQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists())
+      const previousAssignments = queryClient.getQueryData<models.LocalAssignment[]>(assignmentKeys.lists())
       
-      queryClient.setQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
+      queryClient.setQueryData<models.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
         if (!old) return []
         return old.map(a => 
           a.ID === assignment.ID 
-            ? { ...a, [column]: value, UpdatedAt: new Date() } as assignment.LocalAssignment
+            ? { ...a, [column]: value, UpdatedAt: new Date() } as models.LocalAssignment
             : a
         )
       })
@@ -82,7 +82,7 @@ export function useCreateAssignment() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (newAssignment: assignment.LocalAssignment) => {
+    mutationFn: async (newAssignment: models.LocalAssignment) => {
       return await window.go.main.App.CreateAssignment(newAssignment)
     },
 
@@ -90,9 +90,9 @@ export function useCreateAssignment() {
     onMutate: async (newAssignment) => {
       await queryClient.cancelQueries({ queryKey: assignmentKeys.lists() })
 
-      const previousAssignments = queryClient.getQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists())
+      const previousAssignments = queryClient.getQueryData<models.LocalAssignment[]>(assignmentKeys.lists())
 
-      queryClient.setQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
+      queryClient.setQueryData<models.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
         if (!old) return [newAssignment]
         return [newAssignment, ...old]
       })
@@ -119,7 +119,7 @@ export function useDeleteAssignment() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (assignment: assignment.LocalAssignment) => {
+    mutationFn: async (assignment: models.LocalAssignment) => {
       return await window.go.main.App.DeleteAssignment(assignment)
     },
 
@@ -127,9 +127,9 @@ export function useDeleteAssignment() {
     onMutate: async (assignment) => {
       await queryClient.cancelQueries({ queryKey: assignmentKeys.lists() })
 
-      const previousAssignments = queryClient.getQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists())
+      const previousAssignments = queryClient.getQueryData<models.LocalAssignment[]>(assignmentKeys.lists())
 
-      queryClient.setQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
+      queryClient.setQueryData<models.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
         if (!old) return []
         return old.filter(a => a.ID !== assignment.ID)
       })
@@ -150,10 +150,10 @@ export function useDeleteAssignment() {
   })
 }
 
-export function useCourseAssignments(course: course.LocalCourse) {
+export function useCourseAssignments(course: models.LocalCourse) {
   return useQuery({
     queryKey: assignmentKeys.list(course.ID.toString()),
-    queryFn: async (): Promise<assignment.LocalAssignment[]> => {
+    queryFn: async (): Promise<models.LocalAssignment[]> => {
       try {
         return await window.go.main.App.GetCourseAssignments(course)
       } catch (error) {
@@ -280,9 +280,9 @@ export function useAcceptAssignment() {
     onSuccess: async (newAssignment) => {
       await queryClient.cancelQueries({ queryKey: assignmentKeys.lists() })
 
-      const previousAssignments = queryClient.getQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists())
+      const previousAssignments = queryClient.getQueryData<models.LocalAssignment[]>(assignmentKeys.lists())
 
-      queryClient.setQueryData<assignment.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
+      queryClient.setQueryData<models.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
         if (!old) return [newAssignment]
         return [newAssignment, ...old]
       })

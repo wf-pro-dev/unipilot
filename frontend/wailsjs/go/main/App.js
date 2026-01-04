@@ -106,6 +106,10 @@ export function GetFileAsDataURL(arg1) {
   return window['go']['main']['App']['GetFileAsDataURL'](arg1);
 }
 
+export function GetFileInfo(arg1) {
+  return window['go']['main']['App']['GetFileInfo'](arg1);
+}
+
 export function GetFollowers(arg1) {
   return window['go']['main']['App']['GetFollowers'](arg1);
 }
@@ -234,8 +238,8 @@ export function UpdateUser(arg1, arg2) {
   return window['go']['main']['App']['UpdateUser'](arg1, arg2);
 }
 
-export function UploadDocument(arg1, arg2, arg3) {
-  return window['go']['main']['App']['UploadDocument'](arg1, arg2, arg3);
+export function UploadDocument(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['UploadDocument'](arg1, arg2, arg3, arg4);
 }
 
 export function UploadDocumentRAG(arg1) {
