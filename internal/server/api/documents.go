@@ -515,13 +515,13 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 
 	progressTracker := progressManager.Create(uploadID, localDoc.FileSize)
 
-	CacheService.UpdatePercentage(c.Context(), uploadID, 0, "Uploading to cloud")
+	CacheService.UpdatePercentage(c.Context(), uploadID, 0)
 	progressTracker.OnProgress(func(t *progress.Tracker) {
 		// Calculate progress percentage
 		progress := float64(t.Current) / float64(t.Total) * 100
 
 		// Store in cache
-		CacheService.UpdatePercentage(c.Context(), uploadID, progress, t.Status)
+		CacheService.UpdatePercentage(c.Context(), uploadID, progress)
 	})
 
 	// Upload to aws S3

@@ -102,6 +102,7 @@ func StartServer() error {
 
 	app.Get("/documents", server.AuthMiddleware, GetDocumentsHandler)
 	app.Post("/documents", server.AuthMiddleware, CreateDocumentHandler)
+	app.Get("/documents/progress/:upload_id", server.AuthMiddleware, GetUploadProgressHandler)
 	app.Post("/documents/:id/download", server.AuthMiddleware, DownloadDocumentHandler)
 	app.Delete("/documents/:id", server.AuthMiddleware, DeleteDocumentHandler)
 	app.Post("/documents/:id/rag", server.AuthMiddleware, UploadDocumentForRAGHandler)

@@ -20,7 +20,7 @@ func GetUploadProgressHandler(c *fiber.Ctx) error {
 	}
 
 	// Get progress from Redis
-	progressData, err := CacheService.Get(c.Context(), uploadID)
+	progressData, err := CacheService.GetProgress(c.Context(), uploadID)
 	if err != nil {
 		if errors.HasCode(err, errors.CacheOperationFailed) {
 			return fiber.ErrNotFound

@@ -36,12 +36,6 @@ func UploadFile(filePath, fileName, key string, progressTracker *progress.Tracke
 	}
 	defer file.Close()
 
-	// Get file info
-	fileInfo, err := file.Stat()
-	if err != nil {
-		return errors.Wrap(err, errors.InternalError, "Unable to get file info")
-	}
-
 	progressReader := progress.NewReader(file, progressTracker)
 	// Upload file
 	_, err = svc.PutObject(context.TODO(), &s3.PutObjectInput{
@@ -51,7 +45,7 @@ func UploadFile(filePath, fileName, key string, progressTracker *progress.Tracke
 		Metadata: map[string]string{
 			"original-name": fileName,
 			"upload-time":   time.Now().Format(time.RFC3339),
-			"file-size":     fmt.Sprintf("%d", fileInfo.Size()),
+			"file-size":     fmt.Sprintf("%d", progressTracker.Total),
 		},
 	})
 
