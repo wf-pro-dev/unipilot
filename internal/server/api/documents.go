@@ -6,7 +6,6 @@ import (
 	Errors "errors"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -133,8 +132,6 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 	userID := currentUser.ID
 	c.Locals("message", "Document created successfully")
 
-	log.Printf("Creating document for user: %d", userID)
-
 	// Step 3: Extract and validate document metadata from form
 	metadata := c.FormValue("metadata")
 	if metadata == "" {
@@ -157,9 +154,6 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 			fiber.StatusBadRequest,
 		)
 	}
-
-	log.Printf("Local document: %s, %d, %t", localDoc.FileName, localDoc.FileSize, localDoc.HasLocalFile)
-
 	// Step 5: Generate unique storage paths and file names for cloud storage
 	// Create user, assignment  directory
 	assignmentDir := fmt.Sprintf("users_data/user_%d/documents/assign_%d", userID, localDoc.RemoteAssignmentID)
@@ -522,14 +516,11 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 	snapshot := progressTracker.Snapshot()
 
 	CacheService.SetProgress(c.Context(), uploadID, &snapshot)
-	log.Printf("Upload started for upload ID: %s", uploadID)
-
 	progressTracker.OnProgress(func(t *progress.Tracker) {
 		// Calculate progress pe
 		progress := float64(t.Current) / float64(t.Total) * 100
 
 		if progress >= 100 || t.Current >= t.Total {
-			log.Printf("Upload completed for upload ID: %s", uploadID)
 			CacheService.SetStatus(c.Context(), uploadID, "completed")
 			CacheService.UpdatePercentage(c.Context(), uploadID, t.Current, progress)
 			return

@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"log"
 	"time"
 	"unipilot/internal/errors"
 	"unipilot/internal/services/fileops/progress"
@@ -48,8 +47,6 @@ func GetUploadProgressHandler(c *fiber.Ctx) error {
 			)
 		}
 	}
-
-	log.Printf("Progress data: %d, %f, %s", progressData.Current, progressData.Percentage, progressData.Status)
 
 	return c.JSON(progressData)
 }
