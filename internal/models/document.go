@@ -83,6 +83,8 @@ type LocalDocument struct {
 	gorm.Model
 	BaseDocument
 
+	StorageKey string // Overrides Gorm constraint (NO UNIQUE)
+
 	RemoteID           uint `gorm:"unique;default:null"`
 	RemoteAssignmentID uint `gorm:"default:null" validate:"min=1"`
 
