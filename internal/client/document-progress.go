@@ -1,12 +1,16 @@
 package client
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
+	"unipilot/internal/errors"
 	"unipilot/internal/secrets"
 	"unipilot/internal/services/fileops/progress"
 
@@ -20,8 +24,6 @@ func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
-	tracker.SetStatus("uploading to cloud storage")
-	log.Printf("Starting Upload ID: %s", uploadID)
 	for {
 		select {
 		case <-ctx.Done():
@@ -63,7 +65,8 @@ func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.
 				tracker.SetError(fmt.Errorf("server upload error"))
 				return
 			default:
-				progressData.Percentage = 20 + progressData.Percentage*0.8 // 80% of the total progress				runtime.EventsEmit(ctx, "upload:progress", progressData)
+				progressData.Percentage = 60 + progressData.Percentage*0.4 // 40% of the total progress
+				runtime.EventsEmit(ctx, "upload:progress", progressData)
 
 			}
 
@@ -75,55 +78,136 @@ func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.
 }
 
 // CancelUpload cancels an upload on the server
-func CancelUpload(uploadID string) error {
+// GetProgress listens for upload progress via SSE
+func GetProgress(ctx context.Context, uploadID string) error {
 	api_url := secrets.CONSTANTS["API_URL"]
+	url := fmt.Sprintf("%s/documents/progress/%s", api_url, uploadID)
 
-	// Cancel local context
-	cancel, exists := progress.GetCancelFunc(uploadID)
-	if exists {
-		cancel()
-	}
-
-	// Cancel on server
-	url := fmt.Sprintf("%s/documents/upload/%s", api_url, uploadID)
-	req, err := http.NewRequest("DELETE", url, nil)
+	// Create request with context
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		return err
+		return errors.Wrap(err, errors.ClientRequestFailed, "Failed to create request")
 	}
 
-	// Set auth header
 	if err := SetAuthHeaderRequest(req); err != nil {
 		return err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	// Set SSE headers
+	req.Header.Set("Accept", "text/event-stream")
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Connection", "keep-alive")
+
+	// Create client WITHOUT custom transport for SSE
+	// SSE requires persistent connection
+	httpClient := &http.Client{
+		Timeout: 0, // No timeout for SSE streams
+	}
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
-		return err
+		return errors.Wrap(err, errors.NetworkConnectionFailed, "HTTP request failed")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to cancel upload on server: status %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return errors.NewAppError(
+			errors.ClientResponseInvalid,
+			fmt.Sprintf("Received non-200 status code: %d - %s", resp.StatusCode, string(body)),
+			nil,
+		)
 	}
 
-	return nil
-}
+	// Create SSE reader
+	reader := bufio.NewReader(resp.Body)
+	var eventType string
+	var dataBuffer strings.Builder
 
-// GetUploadProgress gets the current progress of an upload from the server
-func GetUploadProgress(uploadID string) (map[string]interface{}, error) {
-	api_url := secrets.CONSTANTS["API_URL"]
+	for {
+		// Check context
+		select {
+		case <-ctx.Done():
+			log.Println("Context done", ctx.Err())
+			return ctx.Err()
+		default:
+		}
 
-	url := fmt.Sprintf("%s/documents/progress/%s", api_url, uploadID)
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			if err == io.EOF {
+				log.Println("EOF")
+				return nil // Normal stream end
+			}
+			log.Println("Error reading from SSE stream:", err)
+			return errors.Wrap(err, errors.FSStreamFailed, "Error reading from SSE stream")
+		}
+
+		line = strings.TrimSpace(line)
+
+		if line == "" {
+			// Empty line indicates end of event
+			if dataBuffer.Len() > 0 {
+				data := dataBuffer.String()
+
+				// Handle based on event type
+				switch eventType {
+				case "connected":
+					log.Println("Connected to SSE stream")
+				case "error":
+					log.Println("Server error:", data)
+					runtime.EventsEmit(ctx, "upload:error", map[string]interface{}{
+						"upload_id": uploadID,
+						"error":     data,
+					})
+					return fmt.Errorf("server error: %s", data)
+				default:
+					log.Println("Default event:", eventType)
+					// Parse progress data
+					var progressData progress.TrackerSnapshot
+					if err := json.Unmarshal([]byte(data), &progressData); err != nil {
+						log.Printf("Failed to unmarshal progress data: %v %s", err, data)
+						return errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal progress data")
+					}
+
+					// Adjust percentage if needed
+					progressData.Percentage = 60 + progressData.Percentage*0.4
+
+					log.Println("Progress data:", progressData)
+					// Emit progress
+					runtime.EventsEmit(ctx, "upload:progress", progressData)
+
+					// Check for completion
+					if progressData.Status == "completed" {
+						log.Println("Server upload completed")
+						return nil
+					}
+					if progressData.Status == "error" {
+						log.Println("Server upload error:", progressData.Error)
+						return fmt.Errorf("server upload error: %s", progressData.Error)
+					}
+				}
+
+				// Reset for next event
+				dataBuffer.Reset()
+				eventType = ""
+			}
+			continue
+		}
+
+		// Parse SSE fields
+		if strings.HasPrefix(line, "event:") {
+			eventType = strings.TrimSpace(strings.TrimPrefix(line, "event:"))
+		} else if strings.HasPrefix(line, "data:") {
+			data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+			if dataBuffer.Len() > 0 {
+				dataBuffer.WriteString("\n")
+			}
+			dataBuffer.WriteString(data)
+		} else if strings.HasPrefix(line, ":") {
+			// Comment line, ignore
+			log.Println("Comment line:", line)
+			continue
+		}
 	}
-	defer resp.Body.Close()
-
-	var progressData map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&progressData); err != nil {
-		return nil, err
-	}
-
-	return progressData, nil
 }

@@ -237,14 +237,14 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
         >
           <div className="sm:flex sm:items-center sm:gap-x-3">
 
-            <div className="[--wails-drop-target:none] text-caption mt-4 flex items-center text-body leading-6 sm:mt-0">
+            <div className="[--wails-drop-target:none] text-body text-text-caption mt-4 flex items-center  leading-6 sm:mt-0">
               <p className="pointer-events-none ">Drag and drop or</p>
 
               <Button
                 type="button"
                 variant="link"
                 size="sm"
-                className="[--wails-drop-target:none] text-caption text-white  px-2"
+                className="[--wails-drop-target:none] text-body px-2"
                 onClick={handlePickFile}
               >
                 Choose a file

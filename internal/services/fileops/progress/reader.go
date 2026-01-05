@@ -2,11 +2,18 @@ package progress
 
 import (
 	"io"
+	"net"
 )
 
 // Reader wraps an io.Reader to track read progress
 type Reader struct {
 	reader  io.ReadSeeker
+	tracker *Tracker
+}
+
+type ConnReader struct {
+	net.Conn
+	OnWrite func(n int64)
 	tracker *Tracker
 }
 
@@ -30,4 +37,13 @@ func (pr *Reader) Read(p []byte) (int, error) {
 
 func (pr *Reader) Seek(offset int64, whence int) (int64, error) {
 	return pr.reader.Seek(offset, whence)
+}
+
+func (cr *ConnReader) Write(p []byte) (int, error) {
+	n, err := cr.Conn.Write(p)
+
+	if n > 0 {
+		cr.OnWrite(int64(n))
+	}
+	return n, err
 }

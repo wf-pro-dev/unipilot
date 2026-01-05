@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"os"
 	"unipilot/internal/models"
@@ -18,6 +19,7 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // DocCreateResp represents the server response
@@ -250,13 +252,43 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 		return nil, err
 	}
 
-	pollCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	// Poll server for R2 upload progress
-	go PollServerProgress(pollCtx, localDocument.UploadID, tracker)
+	// Initialize progress manager (reuse if exists, or create new)
+	progressManager := progress.GetManager()
 
-	// Send request
-	resp, err := http.DefaultClient.Do(req)
+	// Create progress tracker
+	connTracker := progressManager.Create(localDocument.UploadID, localDocument.FileSize)
+	connTracker.SetStatus("Connecting to server")
+	connTracker.OnProgress(func(t *progress.Tracker) {
+		snapshot := t.Snapshot()
+		snapshot.Percentage = 20 + t.Percentage()*0.4 // 40% of the total progress
+
+		runtime.EventsEmit(ctx, "upload:progress", snapshot)
+
+		if snapshot.Error != nil {
+			runtime.EventsEmit(ctx, "upload:error", map[string]interface{}{
+				"upload_id": localDocument.UploadID,
+				"error":     snapshot.Error.Error(),
+			})
+		}
+
+	})
+
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+				conn, err := (&net.Dialer{}).DialContext(ctx, network, addr)
+				if err != nil {
+					return nil, err
+				}
+				return &progress.ConnReader{
+					Conn:    conn,
+					OnWrite: connTracker.Increment,
+				}, nil
+			},
+		},
+	}
+	go GetProgress(ctx, localDocument.UploadID)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 
 		// Check if cancelled

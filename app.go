@@ -621,11 +621,6 @@ func (a *App) sendDocumentWithProgress(ctx context.Context, uploadResp *fileops.
 	return document, nil
 }
 
-// CancelUpload cancels an active upload
-func (a *App) CancelUpload(uploadID string) error {
-	return client.CancelUpload(uploadID)
-}
-
 // GetActiveUploads returns all active uploads
 func (a *App) GetActiveUploads() []progress.TrackerSnapshot {
 	return progress.GetManager().List()

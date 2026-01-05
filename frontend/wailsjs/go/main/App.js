@@ -18,10 +18,6 @@ export function AcceptNote(arg1) {
   return window['go']['main']['App']['AcceptNote'](arg1);
 }
 
-export function CancelUpload(arg1) {
-  return window['go']['main']['App']['CancelUpload'](arg1);
-}
-
 export function CreateAssignment(arg1) {
   return window['go']['main']['App']['CreateAssignment'](arg1);
 }

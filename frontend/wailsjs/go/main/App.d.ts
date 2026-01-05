@@ -14,8 +14,6 @@ export function AcceptLink(arg1:string):Promise<void>;
 
 export function AcceptNote(arg1:string):Promise<void>;
 
-export function CancelUpload(arg1:string):Promise<void>;
-
 export function CreateAssignment(arg1:models.LocalAssignment):Promise<models.LocalAssignment>;
 
 export function CreateCourse(arg1:models.LocalCourse):Promise<void>;

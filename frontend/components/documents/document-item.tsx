@@ -46,7 +46,7 @@ function BaseDocumentItem({ document: doc }: DocumentItemProps) {
       if (progressData.percentage > progress) {
         setProgress(progressData.percentage)
       }
-      console.log("Upload progress:", progressData)
+      console.log("Upload progress:", progressData.percentage)
     })
     EventsOn("upload:status", (status: string) => {
       setStatus(status)
