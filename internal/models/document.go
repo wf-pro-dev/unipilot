@@ -51,7 +51,7 @@ type BaseDocument struct {
 	FileName     string       `gorm:"not null" validate:"required,min=3,max=150"`
 	FilePath     string       // relative to app data directory
 	FileSize     int64        `gorm:"not null" validate:"required,min=1"` // in bytes
-	StorageKey   string       `gorm:"unique"`                             // Only for remote storage
+	StorageKey   string       // Only for remote storage
 	Version      int          `gorm:"default:1" validate:"min=1"`
 	ParentID     uint         `gorm:"index;default:null"`              // For shared assignment tracking
 	ParentDocID  *uint        `gorm:"index;default:null"`              // For version history
@@ -68,7 +68,8 @@ type Document struct {
 	gorm.Model
 	BaseDocument
 
-	UserID uint `gorm:"not null;index" validate:"required,min=1"`
+	StorageKey string `gorm:"unique"` // Adds unique Gorm constraint
+	UserID     uint   `gorm:"not null;index" validate:"required,min=1"`
 
 	// Relationships
 	User       *User       `gorm:"foreignKey:UserID;references:ID" validate:"-"`
@@ -82,8 +83,6 @@ type Document struct {
 type LocalDocument struct {
 	gorm.Model
 	BaseDocument
-
-	StorageKey string // Overrides Gorm constraint (NO UNIQUE)
 
 	RemoteID           uint `gorm:"unique;default:null"`
 	RemoteAssignmentID uint `gorm:"default:null" validate:"min=1"`
