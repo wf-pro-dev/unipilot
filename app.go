@@ -536,7 +536,6 @@ func (a *App) CreateDocument(uploadReq fileops.FileUploadRequest, hasLocalFile b
 
 func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse) (*models.LocalDocument, error) {
 
-	log.Printf(" Progress Upload ID: %s", uploadResp.LocalDocument.UploadID)
 	document := uploadResp.LocalDocument
 
 	// Initialize progress manager (reuse if exists, or create new)
@@ -549,18 +548,13 @@ func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse)
 	// Register progress callback to emit events to frontend
 	tracker.OnProgress(func(t *progress.Tracker) {
 		snapshot := t.Snapshot()
+		snapshot.Percentage = t.Percentage() * 0.2 // 20% of the total progress
 		runtime.EventsEmit(a.ctx, "upload:progress", snapshot)
 
 		if snapshot.Error != nil {
 			runtime.EventsEmit(a.ctx, "upload:error", map[string]interface{}{
 				"upload_id": document.UploadID,
 				"error":     snapshot.Error.Error(),
-			})
-		}
-
-		if snapshot.Status == "completed" {
-			runtime.EventsEmit(a.ctx, "upload:complete", map[string]interface{}{
-				"upload_id": document.UploadID,
 			})
 		}
 	})
@@ -582,8 +576,6 @@ func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse)
 		tracker.SetError(err)
 		return nil, Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to send document")
 	}
-
-	tracker.Complete()
 	return response, nil
 }
 
@@ -601,7 +593,7 @@ func (a *App) sendDocumentWithProgress(ctx context.Context, uploadResp *fileops.
 	document := uploadResp.LocalDocument
 
 	db := a.DB.GetDB()
-	tracker.SetStatus("uploading to server")
+	// Upload to server
 
 	// Send document with progress tracking
 	serverResponse, clientErr := client.SendDocumentWithProgress(ctx, document, tracker)
@@ -617,10 +609,6 @@ func (a *App) sendDocumentWithProgress(ctx context.Context, uploadResp *fileops.
 	if err := db.Save(document).Error; err != nil {
 		return nil, Errors.HandleDBWriteError(err)
 	}
-
-	// Poll server for R2 upload progress
-	tracker.SetStatus("uploading to cloud storage")
-	go client.PollServerProgress(ctx, document.UploadID, tracker)
 
 	return document, nil
 }

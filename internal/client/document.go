@@ -250,13 +250,21 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 		return nil, err
 	}
 
+	pollCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	// Poll server for R2 upload progress
+	go PollServerProgress(pollCtx, localDocument.UploadID, tracker)
+
 	// Send request
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+
 		// Check if cancelled
 		if ctx.Err() == context.Canceled {
 			return nil, fmt.Errorf("upload cancelled")
 		}
+
+		progress.GetManager().Remove(localDocument.UploadID)
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
 	defer resp.Body.Close()

@@ -9,6 +9,8 @@ import (
 	"time"
 	"unipilot/internal/secrets"
 	"unipilot/internal/services/fileops/progress"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // PollServerProgress polls the server for R2 upload progress
@@ -19,7 +21,7 @@ func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.
 	defer ticker.Stop()
 
 	tracker.SetStatus("uploading to cloud storage")
-
+	log.Printf("Starting Upload ID: %s", uploadID)
 	for {
 		select {
 		case <-ctx.Done():
@@ -28,27 +30,45 @@ func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.
 
 		case <-ticker.C:
 			url := fmt.Sprintf("%s/documents/progress/%s", api_url, uploadID)
-			resp, err := http.Get(url)
+			req, err := http.NewRequest("GET", url, nil)
+			if err != nil {
+				tracker.SetError(err)
+			}
+			if err := SetAuthHeaderRequest(req); err != nil {
+				tracker.SetError(err)
+			}
+			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
 				// Continue polling on error
-				continue
+				tracker.SetError(err)
 			}
 
 			var progressData progress.TrackerSnapshot
-			json.NewDecoder(resp.Body).Decode(&progressData)
+			if err := json.NewDecoder(resp.Body).Decode(&progressData); err != nil {
+				tracker.SetError(err)
+			}
 			resp.Body.Close()
 
+			log.Printf("Upload progress: %d, status: %s", progressData.Current, progressData.Status)
 			switch progressData.Status {
 			case "completed":
-				tracker.Complete()
+				runtime.EventsEmit(ctx, "upload:complete", map[string]interface{}{
+					"upload_id": uploadID,
+				})
 				return
 			case "error":
+				runtime.EventsEmit(ctx, "upload:error", map[string]interface{}{
+					"upload_id": uploadID,
+					"error":     "server upload error",
+				})
 				tracker.SetError(fmt.Errorf("server upload error"))
 				return
-			}
+			default:
+				progressData.Percentage = 20 + progressData.Percentage*0.8 // 80% of the total progress
+				log.Printf("Upload current: %f, progress: %f, status: %s", progressData.Percentage, 20+progressData.Percentage*0.8, progressData.Status)
+				runtime.EventsEmit(ctx, "upload:progress", progressData)
 
-			tracker.Update(progressData.Current)
-			log.Printf("Upload progress: %d", progressData.Current)
+			}
 
 		case <-time.After(60 * time.Second):
 			tracker.SetError(fmt.Errorf("server upload timeout"))

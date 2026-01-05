@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { memo, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -13,7 +13,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react"
-import { models } from "@/wailsjs/go/models"
+import { models, progress } from "@/wailsjs/go/models"
 import {
   useOpenDocument,
   useSaveDocumentAs,
@@ -24,33 +24,40 @@ import {
 import { toast } from "sonner"
 import { GlassCard } from "../ui/glass-card"
 import { EventsOn } from "@/wailsjs/runtime/runtime"
+import { Progress } from "../ui/progress"
+
 
 interface DocumentItemProps {
   document: models.LocalDocument
 
 }
 
-export function DocumentItem({ document: doc }: DocumentItemProps) {
+function BaseDocumentItem({ document: doc }: DocumentItemProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [isUploading, setIsUploading] = useState(true)
+  const [isUploading, setIsUploading] = useState(doc.ID === 0)
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
 
 
   useEffect(() => {
-    EventsOn("upload:progress", (progress: number) => {
-      setProgress(progress)
-      console.log("Upload progress:", progress)
+    if (!isUploading) return
+    EventsOn("upload:progress", (progressData: progress.TrackerSnapshot) => {
+      if (progressData.percentage > progress) {
+        setProgress(progressData.percentage)
+      }
+      console.log("Upload progress:", progressData)
     })
     EventsOn("upload:status", (status: string) => {
       setStatus(status)
-      console.log("Upload status:", status)
     })
     EventsOn("upload:complete", () => {
-      setIsUploading(false)
-      console.log("Upload complete")
-      toast.success("Document uploaded successfully")
+      setProgress(100)
+      setTimeout(() => {
+        setIsUploading(false)
+        toast.success("Document uploaded successfully")
+      }, 300)
+
     })
     EventsOn("upload:error", (error: string) => {
       setError(error)
@@ -122,9 +129,6 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
     try {
       await downloadDocument.mutateAsync(doc,
         {
-          onSuccess: () => {
-            toast.success("Document downloaded successfully")
-          },
           onError: (error) => {
             toast.error("Failed to download document: " + error)
           }
@@ -133,10 +137,6 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
       console.error("Failed to download document:", error)
     }
   }
-
-  useEffect(() => {
-    setIsUploading(doc.ID === 0)
-  }, [doc])
 
   const isLoading = openDocument.isPending || saveDocumentAs.isPending ||
     deleteDocument.isPending || uploadVersion.isPending
@@ -185,10 +185,8 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
           )}
 
           {isUploading && (
-            <div className="flex flex-wrap gap-2 items-center">
-              <Badge variant="outline" className="text-[10px] border-white/10 bg-white/5 text-gray-400 px-1.5 py-0 h-5">
-                Uploading...
-              </Badge>
+            <div className="flex flex-1 w-full">
+              <Progress value={progress} className="h-1.5 bg-white/10 w-full" />
             </div>
           )}
         </div>
@@ -261,4 +259,8 @@ export function DocumentItem({ document: doc }: DocumentItemProps) {
       </AlertDialog >
     </>
   )
-} 
+}
+
+export const DocumentItem = memo(BaseDocumentItem, (prevProps, nextProps) => {
+  return prevProps.document.ID === nextProps.document.ID
+})

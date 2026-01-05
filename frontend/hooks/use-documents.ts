@@ -112,7 +112,7 @@ export function useUploadDocument() {
       filePath: string
     }) => {
       // Generate a unique upload ID
-      const uploadId = uuidv4().toString()
+      const uploadId: string = crypto.randomUUID()
       return await UploadDocument(assignmentId, remoteAssignmentId, documentType, filePath, uploadId)
     },
 
