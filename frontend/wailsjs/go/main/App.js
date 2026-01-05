@@ -194,6 +194,10 @@ export function OpenDocument(arg1) {
   return window['go']['main']['App']['OpenDocument'](arg1);
 }
 
+export function PickFile() {
+  return window['go']['main']['App']['PickFile']();
+}
+
 export function RebuildNotificationDaemon() {
   return window['go']['main']['App']['RebuildNotificationDaemon']();
 }

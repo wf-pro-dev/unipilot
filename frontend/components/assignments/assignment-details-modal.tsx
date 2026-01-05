@@ -16,6 +16,7 @@ import { useAssignments } from "@/hooks/use-assignments"
 import { PriorityTag } from "./tags/priority-tag"
 import { useRouter } from "next/navigation"
 import FileUpload05 from "../file-upload-05"
+import { AnimatePresence, motion } from "framer-motion"
 
 interface AssignmentDetailsModalProps {
   isOpen: boolean
@@ -68,9 +69,9 @@ export function AssignmentDetailsModal({
 
           <div className="flex items-center space-x-2 mb-1">
             <div className={`w-2 h-2 rounded-full ${assignment.Course?.Color}`} />
-            <span className="text-sm text-gray-400 uppercase tracking-wider">{assignment.Course?.Name}</span>
+            <span className="text-caption uppercase tracking-wider">{assignment.Course?.Name}</span>
           </div>
-          <DialogTitle className="text-H3">{assignment.Title}</DialogTitle>
+          <DialogTitle className="text-h3">{assignment.Title}</DialogTitle>
 
         </DialogHeader>
 
@@ -99,62 +100,85 @@ export function AssignmentDetailsModal({
 
 
             {/* Status and Priority */}
-            <TabsContent value="info" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <AnimatePresence mode="wait" >
 
-              {/* Deadline Section */}
-              <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 group">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-2 text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    <Clock className="w-3.5 h-3.5 text-blue-400" />
-                    <span>Deadline</span>
+
+              <TabsContent value="info" key="info" className="space-y-6" asChild>
+                <motion.div
+                  key="info"
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: -20, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+
+                  {/* Deadline Section */}
+                  <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 group">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center space-x-2 text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        <Clock className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Deadline</span>
+                      </div>
+                      <Badge variant="outline" className={`border-white/10 bg-white/5 ${isOverdueStatus ? "text-red-400" : daysUntilDue < 0 ? "text-gray-400" : "text-yellow-400"}`}>
+                        {getDueDescription(deadline, assignment.Status)}
+                      </Badge>
+                    </div>
+                    <p className="font-medium text-white text-lg">{format(deadline, "EEEE, MMMM d, yyyy")}</p>
+                    <p className="text-gray-400 text-sm mt-1">{format(deadline, "h:mm a")}</p>
+
                   </div>
-                  <Badge variant="outline" className={`border-white/10 bg-white/5 ${isOverdueStatus ? "text-red-400" : daysUntilDue < 0 ? "text-gray-400" : "text-yellow-400"}`}>
-                    {getDueDescription(deadline, assignment.Status)}
-                  </Badge>
-                </div>
-                <p className="font-medium text-white text-lg">{format(deadline, "EEEE, MMMM d, yyyy")}</p>
-                <p className="text-gray-400 text-sm mt-1">{format(deadline, "h:mm a")}</p>
 
-              </div>
+                  {/* Tags Grid */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
+                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Status</span>
+                      <StatusTag assignment={assignment} onEdit={onEdit!} variant="outline" />
+                    </div>
 
-              {/* Tags Grid */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
-                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Status</span>
-                  <StatusTag assignment={assignment} onEdit={onEdit!} variant="outline" />
-                </div>
+                    <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
+                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Priority</span>
+                      <PriorityTag assignment={assignment} onEdit={onEdit!} variant="outline" />
+                    </div>
 
-                <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
-                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Priority</span>
-                  <PriorityTag assignment={assignment} onEdit={onEdit!} variant="outline" />
-                </div>
-
-                <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
-                  <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Type</span>
-                  <TypeTag assignment={assignment} onEdit={onEdit!} variant="outline" />
-                </div>
-              </div>
-
-              {/* Description */}
-              {assignment.Todo && (
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2 text-xs font-medium text-gray-400 uppercase tracking-wider">
-                    <FileText className="w-3.5 h-3.5" />
-                    <span>Description & Notes</span>
+                    <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
+                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Type</span>
+                      <TypeTag assignment={assignment} onEdit={onEdit!} variant="outline" />
+                    </div>
                   </div>
-                  <div className="bg-white/5 border border-white/5 p-4 rounded-xl  overflow-y-auto custom-scrollbar max-h-[100px] hover:max-h-[200px] transition-all duration-300 ease-in-out">
-                    <p className="whitespace-pre-wrap leading-relaxed text-sm text-gray-200">{assignment.Todo}</p>
-                  </div>
-                </div>
-              )}
-            </TabsContent>
 
-            <TabsContent value="documents" className="flex flex-col flex-1 animate-in fade-in slide-in-from-bottom-4 duration-300">
-              <FileUpload05
-                assignment={assignment}
-              />
-            </TabsContent>
+                  {/* Description */}
+                  {assignment.Todo && (
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2 text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Description & Notes</span>
+                      </div>
+                      <div className="bg-white/5 border border-white/5 p-4 rounded-xl  overflow-y-auto custom-scrollbar max-h-[100px] hover:max-h-[200px] transition-all duration-300 ease-in-out">
+                        <p className="whitespace-pre-wrap leading-relaxed text-sm text-gray-200">{assignment.Todo}</p>
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              </TabsContent>
 
+
+
+
+              <TabsContent value="documents" key="documents" className="flex flex-col flex-1" asChild>
+                <motion.div
+                  key="documents"
+                  initial={{ x: 20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{ x: 20, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <FileUpload05
+                    assignment={assignment}
+                  />
+                </motion.div>
+              </TabsContent>
+
+            </AnimatePresence>
           </Tabs>
 
           {/* Actions */}

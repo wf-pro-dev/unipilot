@@ -352,6 +352,14 @@ func (a *App) GetFileInfo(filePath string) (*FileInfo, error) {
 	}, nil
 }
 
+func (a *App) PickFile() (string, error) {
+	filePath, err := fileops.PickFile(a.ctx)
+	if err != nil {
+		return "", Errors.Wrap(err, Errors.FSOpenFailed, "Failed to pick file")
+	}
+	return filePath, nil
+}
+
 // UploadDocument opens a file dialog and uploads a document to an assignment
 func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documentType string, filePath string, uploadID string) (*models.LocalDocument, error) {
 

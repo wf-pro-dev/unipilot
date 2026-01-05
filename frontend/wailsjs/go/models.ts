@@ -751,6 +751,7 @@ export namespace models {
 	    HasLocalFile: boolean;
 	    AssignmentID: number;
 	    UploadID: string;
+	    StorageKey: string;
 	    RemoteID: number;
 	    RemoteAssignmentID: number;
 	    Assignment: LocalAssignment;
@@ -780,6 +781,7 @@ export namespace models {
 	        this.HasLocalFile = source["HasLocalFile"];
 	        this.AssignmentID = source["AssignmentID"];
 	        this.UploadID = source["UploadID"];
+	        this.StorageKey = source["StorageKey"];
 	        this.RemoteID = source["RemoteID"];
 	        this.RemoteAssignmentID = source["RemoteAssignmentID"];
 	        this.Assignment = this.convertValues(source["Assignment"], LocalAssignment);

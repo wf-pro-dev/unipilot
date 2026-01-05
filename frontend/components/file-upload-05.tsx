@@ -9,9 +9,10 @@ import { useAssignmentDocumentData, useUploadDocument } from "@/hooks/use-docume
 import { toast } from "sonner";
 import { DocumentItem } from "./documents/document-item";
 import { HorizontalEmptyState } from "./ui/empty-state";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { DocumentUploadDialog } from "./documents/document-upload-dialog";
 import useEmblaCarousel from 'embla-carousel-react'
+import { PickFile } from "@/wailsjs/go/main/App";
 
 interface FileUploadProps {
   assignment: models.LocalAssignment;
@@ -23,7 +24,21 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [uploadType, setUploadType] = useState<"support" | "submission">("support")
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const [isSelectOpen, setIsSelectOpen] = useState(false)
+
+
+  const handlePickFile =  () => {
+
+    PickFile()
+    .then((filePath) => {
+      if (filePath) {
+        handleUpload(filePath)
+      }
+    })
+    .catch((error) => {
+      toast.error("Failed to pick file: " + error)
+    })
+  }
+
   // Use the utility hook to get All document data
   const {
     supportDocuments,
@@ -157,7 +172,7 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
       toast.error("Please drop only one file")
       return
     }
-   
+
     handleUpload(paths[0])
   }, true);
 
@@ -181,10 +196,10 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
 
 
   return (
-    <div className="flex flex-col flex-1 items-center justify-center  w-full ">
+    <div className="flex flex-col flex-1 w-full ">
       <form onSubmit={onSubmit}>
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-foreground">File Upload</h3>
+          <h5 className="text-h5">File Upload</h5>
 
 
           {documentPages?.length > 1 && (
@@ -194,7 +209,7 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
                 type="button"
                 variant="outline"
                 size="icon"
-                className="rounded-full"
+                className="rounded-full w-6 h-6  "
                 onClick={scrollPrev}
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -203,7 +218,7 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
                 type="button"
                 variant="outline"
                 size="icon"
-                className="rounded-full"
+                className="rounded-full w-6 h-6"
                 onClick={scrollNext}
               >
                 <ChevronRight className="w-4 h-4" />
@@ -222,23 +237,22 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
         >
           <div className="sm:flex sm:items-center sm:gap-x-3">
 
-            <div className="pointer-events-none p-2 rounded-xl bg-gradient-to-br from-white/15 to-transparent border border-white/15 shadow-inner">
-              <Upload className="w-3 h-3 text-white" />
-            </div>
+            <div className="[--wails-drop-target:none] text-caption mt-4 flex items-center text-body leading-6 sm:mt-0">
+              <p className="pointer-events-none ">Drag and drop or</p>
 
-            <div className="[--wails-drop-target:none] mt-4 flex items-center text-sm leading-6 text-foreground sm:mt-0">
-              <p className="pointer-events-none">Drag and drop or</p>
               <Button
                 type="button"
                 variant="link"
                 size="sm"
-                className="[--wails-drop-target:none] text-primary-blue-500 hover:text-primary-blue-600 px-2"
-                onClick={() => setUploadDialogOpen(true)}
+                className="[--wails-drop-target:none] text-caption text-white  px-2"
+                onClick={handlePickFile}
               >
                 Choose a file
               </Button>
-              <p className="pointer-events-none pl-1">to upload</p>
+
+              <p className="pointer-events-none">to upload</p>
             </div>
+
           </div>
 
         </GlassCard>

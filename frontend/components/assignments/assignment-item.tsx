@@ -123,7 +123,7 @@ export function AssignmentItem({
     )
   }
 
-  const DefaultssignmentItem = ({ assignment, onEdit, variant, }: AssignmentItemProps<models.LocalAssignment>) => {
+  const DefaultssignmentItem = ({ assignment, onEdit, variant, size }: AssignmentItemProps<models.LocalAssignment>) => {
     return (
       <GlassCard
         variant={variant}
@@ -142,9 +142,19 @@ export function AssignmentItem({
               {/* 2. Main Info: Title & Description */}
 
               <div className="flex items-center justify-between">
-                <h4 className={`text-h4 line-clamp-1 tracking-tight`}>
+                
+                
+                {size === "default" && (
+                  <h5 className={`text-h5 line-clamp-1 tracking-tight`}>
                   {assignment.Title}
-                </h4>
+                </h5>
+
+                )}
+                {size === "sm" && (
+                  <p className={`text-body line-clamp-1 tracking-tight`}>
+                    {assignment.Title}
+                  </p>
+                )}
 
                 <SideActionDropdown isOpen={isOpen} onOpenChange={setIsOpen} />
               </div>
@@ -205,9 +215,9 @@ export function AssignmentItem({
               {/* 2. Main Info: Title & Description */}
 
               <div className="flex items-center justify-between">
-                <h4 className={`text-h4 line-clamp-1 tracking-tight`}>
+                <h5 className={`text-h5 line-clamp-1 tracking-tight`}>
                   {assignment.Title}
-                </h4>
+                </h5>
 
                 <Button variant={variant == "default" ? "default" : "outline"} size="icon" className="rounded-full w-7  h-7" onClick={(e) => {
                   e.stopPropagation()
@@ -259,8 +269,8 @@ export function AssignmentItem({
 
   switch (mode) {
     case "user":
-      return <UserAssignmentItem assignment={assignment as models.Assignment} onEdit={onEdit} onDelete={onDelete} onAssignmentClick={onAssignmentClick} onOpenEdit={onOpenEdit} disabled={disabled} variant={variant} mode={mode} onCopy={onCopy} />
+      return <UserAssignmentItem assignment={assignment as models.Assignment} onEdit={onEdit} onDelete={onDelete} onAssignmentClick={onAssignmentClick} onOpenEdit={onOpenEdit} disabled={disabled} variant={variant} mode={mode} onCopy={onCopy} size={size} />
     default:
-      return <DefaultssignmentItem assignment={assignment as models.LocalAssignment} onEdit={onEdit} onDelete={onDelete} onAssignmentClick={onAssignmentClick} onOpenEdit={onOpenEdit} disabled={disabled} variant={variant} mode={mode} />
+      return <DefaultssignmentItem assignment={assignment as models.LocalAssignment} onEdit={onEdit} onDelete={onDelete} onAssignmentClick={onAssignmentClick} onOpenEdit={onOpenEdit} disabled={disabled} variant={variant} mode={mode} size={size} />
   }
 }

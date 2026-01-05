@@ -13,7 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format, isSameDay } from "date-fns"
 import { BookOpen, CalendarIcon, Flag } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { assignment } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { Textarea } from "../ui/textarea"
 import { useAuthContext } from "../provider/auth-provider"
@@ -43,14 +43,15 @@ const statuses = [
 interface AssignmentEditDialogProps {
   open: boolean
   setOpen: (open: boolean) => void
-  assignment: assignment.LocalAssignment | null
-  onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
+  assignment: models.LocalAssignment | null
+  onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
 }
 
 export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: AssignmentEditDialogProps) {
   if (!assignment) { return null }
 
   const [deadline, setDeadline] = useState<Date>(new Date(assignment.Deadline) || new Date())
+  const [selectedCourse, setSelectedCourse] = useState<models.LocalCourse | undefined>({Code: assignment.CourseCode, ID: assignment.CourseID} as models.LocalCourse)
   const [formData, setFormData] = useState({
     title: assignment.Title || "",
     course_code: assignment.CourseCode || "",
@@ -73,6 +74,7 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
 
 
 
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setOpen(false)
@@ -81,7 +83,7 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
     for (const [key, value] of Object.entries(formData)) {
       if (key === "course") { continue }
 
-      const column = key_to_column[key as keyof typeof key_to_column] as keyof assignment.LocalAssignment
+      const column = key_to_column[key as keyof typeof key_to_column] as keyof models.LocalAssignment
       if (value !== assignment[column]) {
 
         const message = `Changes to ${column} value: ${value} assignment: ${assignment[column]}`
@@ -132,13 +134,10 @@ export function AssignmentEditDialog({ open, setOpen, assignment, onEdit }: Assi
                   Course
                 </Label>
                 <CoursesSelect
-                  value={formData.course_code}
-                  onValueChange={(value) =>
-                    setFormData({
-                      ...formData,
-                      course_code: value,
-                    })
-                  }
+                  value={selectedCourse?.Code || ""}
+                  selectedCourse={selectedCourse}
+                  onCourseChange={(course) => setSelectedCourse(course)}
+                  onValueChange={(value) => setSelectedCourse({ Code: value, ID: assignment.CourseID } as models.LocalCourse)}
                 />
               </div>
 

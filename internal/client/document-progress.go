@@ -49,7 +49,6 @@ func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.
 			}
 			resp.Body.Close()
 
-			log.Printf("Upload progress: %d, status: %s", progressData.Current, progressData.Status)
 			switch progressData.Status {
 			case "completed":
 				runtime.EventsEmit(ctx, "upload:complete", map[string]interface{}{
@@ -64,9 +63,7 @@ func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.
 				tracker.SetError(fmt.Errorf("server upload error"))
 				return
 			default:
-				progressData.Percentage = 20 + progressData.Percentage*0.8 // 80% of the total progress
-				log.Printf("Upload current: %f, progress: %f, status: %s", progressData.Percentage, 20+progressData.Percentage*0.8, progressData.Status)
-				runtime.EventsEmit(ctx, "upload:progress", progressData)
+				progressData.Percentage = 20 + progressData.Percentage*0.8 // 80% of the total progress				runtime.EventsEmit(ctx, "upload:progress", progressData)
 
 			}
 

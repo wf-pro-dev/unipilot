@@ -102,6 +102,8 @@ export function Logout():Promise<void>;
 
 export function OpenDocument(arg1:number):Promise<void>;
 
+export function PickFile():Promise<string>;
+
 export function RebuildNotificationDaemon():Promise<void>;
 
 export function Register(arg1:models.User):Promise<models.User>;

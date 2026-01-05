@@ -16,7 +16,7 @@ import {
 } from "lucide-react"
 import { useUploadDocument } from "@/hooks/use-documents"
 import { toast } from 'sonner'
-import { document } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 
 interface DocumentUploadDialogProps {
   isOpen: boolean
@@ -25,7 +25,7 @@ interface DocumentUploadDialogProps {
   assignmentId: number
   remoteAssignmentId: number
   documentType: "support" | "submission" | "all"
-  onSuccess?: (doc: document.LocalDocument) => void
+  onSuccess?: (doc: models.LocalDocument) => void
 }
 
 export function DocumentUploadDialog({
@@ -40,12 +40,6 @@ export function DocumentUploadDialog({
   const [selectedType, setSelectedType] = useState<"support" | "submission" | "all">(documentType)
   const [filePath, setFilePath] = useState<string>("")
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setFilePath(file.name)
-    }
-  }
 
   const uploadDocument = useUploadDocument()
 
@@ -54,7 +48,8 @@ export function DocumentUploadDialog({
     const result = await uploadDocument.mutateAsync({
       assignmentId,
       remoteAssignmentId,
-      documentType: selectedType
+      documentType: selectedType,
+      filePath
     }, {
       onSuccess: (doc) => {
         toast.success("Document uploaded successfully")
