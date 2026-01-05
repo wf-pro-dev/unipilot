@@ -33,7 +33,7 @@ func (c *Cache) GetProgress(ctx context.Context, uploadID string) (*progress.Tra
 	data, err := c.redis.Get(ctx, key).Bytes()
 	if err != nil {
 		if err == redis.Nil {
-			return nil, errors.Wrap(err, errors.CacheOperationFailed, "Progress not found")
+			return nil, errors.Wrap(err, errors.CacheMiss, "Progress not found in cache")
 		}
 		return nil, errors.Wrap(err, errors.CacheOperationFailed, "Failed to get progress from cache")
 	}
@@ -47,13 +47,14 @@ func (c *Cache) GetProgress(ctx context.Context, uploadID string) (*progress.Tra
 }
 
 // UpdatePercentage updates just the percentage and status
-func (c *Cache) UpdatePercentage(ctx context.Context, uploadID string, percentage float64) error {
+func (c *Cache) UpdatePercentage(ctx context.Context, uploadID string, current int64, percentage float64) error {
 	// Get existing progress
 	progress, err := c.GetProgress(ctx, uploadID)
 	if err != nil {
 		// If not found, create new
 		return errors.Wrap(err, errors.CacheOperationFailed, "Progress not found")
 	} else {
+		progress.Current = current
 		progress.Percentage = percentage
 	}
 
@@ -61,7 +62,7 @@ func (c *Cache) UpdatePercentage(ctx context.Context, uploadID string, percentag
 }
 
 // SetStatus updates only the status
-func (c *Cache) SetStatus(ctx context.Context, uploadID, status, message string) error {
+func (c *Cache) SetStatus(ctx context.Context, uploadID, status string) error {
 	progress, err := c.GetProgress(ctx, uploadID)
 	if err != nil {
 		// If not found, create new with minimal data

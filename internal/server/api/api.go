@@ -26,7 +26,11 @@ func StartServer() error {
 	server.InitLogger()
 
 	// Initialize Fiber app
-	app := fiber.New()
+	app := fiber.New(
+		fiber.Config{
+			BodyLimit: 55 * 1024 * 1024, // 55 MB
+		},
+	)
 
 	db, err := storage.GetRemoteDB()
 	if err != nil {

@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -222,6 +223,8 @@ func ValidateFileSize(doc *Document, db *gorm.DB) error {
 		return errors.HandleDBReadError(err)
 	}
 
+	log.Printf("Assignment total size: %d, document size: %d", assignmentTotal, doc.FileSize)
+
 	if assignmentTotal+doc.FileSize > MaxAssignmentSize {
 		return errors.NewAppError(errors.ValidationInvalid, "Assignment storage would exceed 200MB limit", nil)
 	}
@@ -235,6 +238,8 @@ func ValidateFileSize(doc *Document, db *gorm.DB) error {
 	if err != nil {
 		return errors.HandleDBReadError(err)
 	}
+
+	log.Printf("User total size: %d, document size: %d", userTotal, doc.FileSize)
 
 	if userTotal+doc.FileSize > MaxUserQuota {
 		return errors.NewAppError(errors.ValidationInvalid, "User storage would exceed 2GB quota", nil)
