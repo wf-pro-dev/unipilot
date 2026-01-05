@@ -223,27 +223,27 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 func CreateNoteStreamHandler(c *fiber.Ctx) error {
 	c.Locals("message", "Note streaming created successfully")
 
-	// Step 3: Define and parse note creation request structure
+	// Step 1: Define and parse note creation request structure
 	var input models.LocalNote
 	if err := c.BodyParser(&input); err != nil {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
-	// Step 4: Validate all required fields for note creation
+	// Step 2: Validate all required fields for note creation
 	// Validate all required fields
 	if input.CourseCode == "" || input.Title == "" || input.Subject == "" {
 		err := fmt.Errorf("missing required fields: course code: %s, title: %s, subject: %s", input.CourseCode, input.Title, input.Subject)
 		return errors.WrapServer(err, errors.ReqParamMissing, "Missing required fields", fiber.StatusBadRequest)
 	}
 
-	// Step 5: Set up SSE headers for streaming response
+	// Step 3: Set up SSE headers for streaming response
 	c.Set("Content-Type", "text/event-stream")
 	c.Set("Cache-Control", "no-cache")
 	c.Set("Connection", "keep-alive")
 	c.Set("Access-Control-Allow-Origin", "*")
 	c.Set("X-Accel-Buffering", "no")
 
-	// Step 6: Generate AI-powered content using Google Gemini service
+	// Step 4: Generate AI-powered content using Google Gemini service
 	// Generate content and keywords using Gemini
 	geminiRequest := &gemini.GeminiRequest{
 		Title:      input.Title,

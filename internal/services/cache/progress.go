@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"unipilot/internal/errors"
 	"unipilot/internal/services/fileops/progress"
@@ -27,61 +28,48 @@ func (c *Cache) SetProgress(ctx context.Context, uploadID string, snapshot *prog
 }
 
 // Get retrieves progress for an upload
-func (c *Cache) GetProgress(ctx context.Context, uploadID string) (*progress.TrackerSnapshot, error) {
+func (c *Cache) GetProgressChannel(ctx context.Context, uploadID string) (*redis.PubSub, error) {
 	key := FormatKey(KeyProgress, uploadID)
 
-	data, err := c.redis.Get(ctx, key).Bytes()
+	pubsub := c.redis.Subscribe(ctx, key)
+	if pubsub == nil {
+		return nil, errors.Wrap(
+			fmt.Errorf("failed to subscribe to progress channel %s", key),
+			errors.CacheOperationFailed,
+			"Failed to subscribe to progress",
+		)
+	}
+
+	// Wait for confirmation that subscription is created
+	_, err := pubsub.Receive(ctx)
 	if err != nil {
-		if err == redis.Nil {
-			return nil, errors.Wrap(err, errors.CacheMiss, "Progress not found in cache")
-		}
-		return nil, errors.Wrap(err, errors.CacheOperationFailed, "Failed to get progress from cache")
+		pubsub.Close()
+		return nil, errors.Wrap(
+			fmt.Errorf("failed to receive subscription confirmation: %v", err),
+			errors.CacheOperationFailed,
+			"Failed to establish progress subscription",
+		)
 	}
 
-	var progress progress.TrackerSnapshot
-	if err := json.Unmarshal(data, &progress); err != nil {
-		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal progress data")
-	}
-
-	return &progress, nil
+	return pubsub, nil
 }
 
-// UpdatePercentage updates just the percentage and status
-func (c *Cache) UpdatePercentage(ctx context.Context, uploadID string, current int64, percentage float64) error {
-	// Get existing progress
-	progress, err := c.GetProgress(ctx, uploadID)
-	if err != nil {
-		// If not found, create new
-		return errors.Wrap(err, errors.CacheOperationFailed, "Progress not found")
-	} else {
-		progress.Current = current
-		progress.Percentage = percentage
-	}
+func (c *Cache) PublishProgress(ctx context.Context, uploadID string, progress *progress.TrackerSnapshot) error {
 
-	return c.SetProgress(ctx, uploadID, progress)
-}
-
-// SetStatus updates only the status
-func (c *Cache) SetStatus(ctx context.Context, uploadID, status string) error {
-	progress, err := c.GetProgress(ctx, uploadID)
-	if err != nil {
-		// If not found, create new with minimal data
-		return errors.Wrap(err, errors.CacheOperationFailed, "Progress not found")
-	} else {
-		progress.Status = status
-	}
-
-	return c.SetProgress(ctx, uploadID, progress)
-}
-
-// Delete removes progress entry
-func (c *Cache) Delete(ctx context.Context, uploadID string) error {
 	key := FormatKey(KeyProgress, uploadID)
-	return c.redis.Del(ctx, key).Err()
+	data, err := json.Marshal(progress)
+	if err != nil {
+		return errors.Wrap(err, errors.ProcJSONMarshalFailed, "Failed to marshal progress data")
+	}
+	if err := c.redis.Publish(ctx, key, data).Err(); err != nil {
+		return errors.Wrap(err, errors.CacheOperationFailed, "Failed to publish progress")
+	}
+
+	return nil
 }
 
 // Exists checks if progress entry exists
-func (c *Cache) Exists(ctx context.Context, uploadID string) (bool, error) {
+func (c *Cache) ProcessExists(ctx context.Context, uploadID string) (bool, error) {
 	key := FormatKey(KeyProgress, uploadID)
 	exists, err := c.redis.Exists(ctx, key).Result()
 	return exists > 0, err

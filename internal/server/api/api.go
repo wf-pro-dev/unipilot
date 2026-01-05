@@ -84,10 +84,10 @@ func StartServer() error {
 	app.Get("/users/me", server.AuthMiddleware, GetUserHandler)
 	app.Post("/users/me", server.AuthMiddleware, UpdateUserHandler)
 	app.Post("/users/me/profile-picture", server.AuthMiddleware, UpdateProfilePictureHandler)
-
 	app.Post("/users/:id/follow", server.AuthMiddleware, HandleFollow)
 	app.Get("/users/:id/followers", server.AuthMiddleware, HandleGetFollowers)
 	app.Get("/users/:id/following", server.AuthMiddleware, HandleGetFollowing)
+
 	app.Get("/assignments", server.AuthMiddleware, GetAssignmentHandler)
 	app.Post("/assignments", server.AuthMiddleware, CreateAssignmentHandler)
 	app.Put("/assignments/:id", server.AuthMiddleware, UpdateAssignmentHandler)

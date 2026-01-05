@@ -508,6 +508,7 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 			"Error writing file to disk",
 		)
 	}
+	defer os.Remove(filePath)
 
 	uploadID := localDoc.UploadID
 	progressManager := progress.GetManager()
@@ -515,18 +516,15 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 	progressTracker := progressManager.Create(uploadID, localDoc.FileSize)
 	snapshot := progressTracker.Snapshot()
 
-	CacheService.SetProgress(c.Context(), uploadID, &snapshot)
-	progressTracker.OnProgress(func(t *progress.Tracker) {
-		// Calculate progress pe
-		progress := float64(t.Current) / float64(t.Total) * 100
+	CacheService.PublishProgress(c.Context(), uploadID, &snapshot)
 
-		if progress >= 100 || t.Current >= t.Total {
-			CacheService.SetStatus(c.Context(), uploadID, "completed")
-			CacheService.UpdatePercentage(c.Context(), uploadID, t.Current, progress)
-			return
-		}
+	progressTracker.OnProgress(func(t *progress.Tracker) {
+		snapshot := t.Snapshot()
+		// Calculate progress pe
+		progress := float64(snapshot.Current) / float64(snapshot.Total) * 100
+		snapshot.Percentage = progress
 		// Store in cache
-		CacheService.UpdatePercentage(c.Context(), uploadID, t.Current, progress)
+		CacheService.PublishProgress(c.Context(), uploadID, &snapshot)
 	})
 
 	// Upload to aws S3
@@ -538,8 +536,10 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 		)
 	}
 
-	// Clean up local file after S3 upload
-	os.Remove(filePath)
+	// Complete upload
+	progressTracker.Complete()
+	snapshot = progressTracker.Snapshot()
+	CacheService.PublishProgress(c.Context(), uploadID, &snapshot)
 
 	return nil
 }
