@@ -138,22 +138,20 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 	}
 	userID := currentUser.ID
 
+	var input models.Note
 	// Step 3: Define and parse note creation request structure
-	var input models.LocalNote
 	if err := c.BodyParser(&input); err != nil {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
+	input.UserID = userID
 
-	nVal := input.ToRemote()
-	nVal.UserID = userID
-
-	if err := nVal.Validate(); err != nil {
+	if err := input.Validate(); err != nil {
 		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
 	}
 
 	// Step 8: Create note record in database within transaction
 	var newN models.Note
-	if err := db.Preload("Course").Create(&nVal).First(&newN).Error; err != nil {
+	if err := db.Preload("Course").Create(&input).First(&newN).Error; err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error creating note in database", fiber.StatusConflict)
 	}
 

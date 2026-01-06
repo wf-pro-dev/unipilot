@@ -13,8 +13,8 @@ type BaseNote struct {
 	Title    string `gorm:"not null" validate:"required,min=3,max=100"`
 	Subject  string `gorm:"not null" validate:"required,min=3,max=100"`
 	Content  string `gorm:"not null" validate:"max=50000"`
+	ParentID uint   `gorm:"default:null"`
 	Videos   string
-	ParentID uint `gorm:"default:0"`
 
 	CourseID   uint   `gorm:"not null;index" validate:"required,min=1"`
 	CourseCode string `gorm:"index" validate:"required,min=3,max=12"`
@@ -36,8 +36,8 @@ type Note struct {
 type LocalNote struct {
 	gorm.Model
 	BaseNote
-	RemoteID       uint `gorm:"unique"`
-	RemoteCourseID uint `gorm:"default:null" validate:"required,min=1"`
+	RemoteID       uint `gorm:"default:null validate:"omitempty,min=1"`
+	RemoteCourseID uint `gorm:"default:null" validate:"omitempty,min=1"`
 
 	Course LocalCourse `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
 }
@@ -83,16 +83,12 @@ func (n *Note) ToLocal() *LocalNote {
 }
 
 func (n *LocalNote) ToRemote() *Note {
-	baseN := &BaseNote{
-		Title:      n.Title,
-		Subject:    n.Subject,
-		Content:    n.Content,
-		Videos:     n.Videos,
-		CourseCode: n.CourseCode,
-		CourseID:   n.RemoteCourseID,
-	}
+
+	baseN := n.BaseNote
+	baseN.CourseID = n.RemoteCourseID
+
 	return &Note{
-		BaseNote: *baseN,
+		BaseNote: baseN,
 	}
 }
 
