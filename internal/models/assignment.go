@@ -45,7 +45,7 @@ type Assignment struct {
 type LocalAssignment struct {
 	gorm.Model
 	BaseAssignment
-	RemoteID       uint `gorm:"default:null validate:"omitempty,min=1"`
+	RemoteID       uint `gorm:"default:null" validate:"omitempty,min=1"`
 	RemoteCourseID uint `gorm:"default:null" validate:"omitempty,min=1"`
 
 	Course    *LocalCourse    `gorm:"foreignKey:CourseID;references:ID" validate:"-"`

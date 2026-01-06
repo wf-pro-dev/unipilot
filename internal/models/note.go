@@ -36,7 +36,7 @@ type Note struct {
 type LocalNote struct {
 	gorm.Model
 	BaseNote
-	RemoteID       uint `gorm:"default:null validate:"omitempty,min=1"`
+	RemoteID       uint `gorm:"default:null" validate:"omitempty,min=1"`
 	RemoteCourseID uint `gorm:"default:null" validate:"omitempty,min=1"`
 
 	Course LocalCourse `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
