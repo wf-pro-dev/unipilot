@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogError } from "@/wailsjs/runtime/runtime"
-import { note, course } from '@/wailsjs/go/models'
+import { models} from '@/wailsjs/go/models'
 import { assignmentKeys } from './use-assignments'
 
 // Query keys for consistent cache management
@@ -19,7 +19,7 @@ export const noteKeys = {
 export function useNotes() {
   return useQuery({
     queryKey: noteKeys.lists(),
-    queryFn: async (): Promise<note.LocalNote[]> => {
+    queryFn: async (): Promise<models.LocalNote[]> => {
       try {
 
         return await window.go.main.App.GetNotes()
@@ -43,7 +43,7 @@ export function useUpdateNote() {
       column, 
       value 
     }: { 
-      note: note.LocalNote
+      note: models.LocalNote
       column: string
       value: string 
     }) => {
@@ -56,14 +56,14 @@ export function useUpdateNote() {
       await queryClient.cancelQueries({ queryKey: noteKeys.lists() })
       
       // Snapshot the previous value
-      const previousNotes = queryClient.getQueryData<note.LocalNote[]>(noteKeys.lists())
+      const previousNotes = queryClient.getQueryData<models.LocalNote[]>(noteKeys.lists())
       
       // Optimistically update the cache
-      queryClient.setQueryData<note.LocalNote[]>(noteKeys.lists(), (old) => {
+      queryClient.setQueryData<models.LocalNote[]>(noteKeys.lists(), (old) => {
         if (!old) return []
         return old.map(n => 
           n.ID === note.ID 
-            ? { ...n, [column]: value, UpdatedAt: new Date() } as note.LocalNote
+            ? { ...n, [column]: value, UpdatedAt: new Date() } as models.LocalNote
             : n
         )
       })
@@ -91,7 +91,7 @@ export function useCreateNote() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (newNote: note.LocalNote) => {
+    mutationFn: async (newNote: models.LocalNote) => {
       return await window.go.main.App.CreateNote(newNote)
     },
     // Optimistically add the new note
@@ -99,9 +99,9 @@ export function useCreateNote() {
    onMutate: async (newNote) => {
     await queryClient.cancelQueries({ queryKey: noteKeys.lists() })
     
-    const previousNotes = queryClient.getQueryData<note.LocalNote[]>(noteKeys.lists())
+    const previousNotes = queryClient.getQueryData<models.LocalNote[]>(noteKeys.lists())
     
-    queryClient.setQueryData<note.LocalNote[]>(noteKeys.lists(), (old) => {
+    queryClient.setQueryData<models.LocalNote[]>(noteKeys.lists(), (old) => {
       if (!old) return [newNote]
       return [newNote, ...old]
     })
@@ -129,7 +129,7 @@ export function useDeleteNote() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async (noteToDelete: note.LocalNote) => {
+    mutationFn: async (noteToDelete: models.LocalNote) => {
       return await window.go.main.App.DeleteNote(noteToDelete)
     },
     
@@ -137,9 +137,9 @@ export function useDeleteNote() {
     onMutate: async (noteToDelete) => {
       await queryClient.cancelQueries({ queryKey: noteKeys.lists() })
       
-      const previousNotes = queryClient.getQueryData<note.LocalNote[]>(noteKeys.lists())
+      const previousNotes = queryClient.getQueryData<models.LocalNote[]>(noteKeys.lists())
       
-      queryClient.setQueryData<note.LocalNote[]>(noteKeys.lists(), (old) => {
+      queryClient.setQueryData<models.LocalNote[]>(noteKeys.lists(), (old) => {
         if (!old) return []
         return old.filter(n => n.ID !== noteToDelete.ID)
       })
@@ -172,9 +172,9 @@ export function useAcceptNote() {
     onSuccess: async (newNote) => {
       await queryClient.cancelQueries({ queryKey: noteKeys.lists() })
 
-      const previousNotes = queryClient.getQueryData<note.LocalNote[]>(noteKeys.lists())
+      const previousNotes = queryClient.getQueryData<models.LocalNote[]>(noteKeys.lists())
 
-      queryClient.setQueryData<note.LocalNote[]>(noteKeys.lists(), (old) => {
+      queryClient.setQueryData<models.LocalNote[]>(noteKeys.lists(), (old) => {
         if (!old) return [newNote]
         return [newNote, ...old]
       })
@@ -194,9 +194,9 @@ export function useAcceptNote() {
 
 
 
-export function useCourseNotes(course: course.LocalCourse) {
+export function useCourseNotes(course: models.LocalCourse) {
   const { data: notes } = useNotes()
-  const courseNotes = (notes || []).filter(note => note.course_code == course.Code)
+  const courseNotes = (notes || []).filter(note => note.CourseCode == course.Code)
   return courseNotes
 }
 

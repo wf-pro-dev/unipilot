@@ -24,7 +24,6 @@ interface ErrorData {
 
 
 
-
 export function useStreamNote() {
     const [content, setContent] = useState('')
     const [isStreaming, setIsStreaming] = useState(false)
@@ -39,6 +38,7 @@ export function useStreamNote() {
     const startStream = useCallback(async (noteData: models.LocalNote) => {
         // Store noteData in ref for use in completion handler
         noteDataRef.current = noteData
+
         // Reset state
         setContent('')
         setError(null)
@@ -104,15 +104,19 @@ export function useStreamNote() {
                                         return
                                     }
 
+
                                     // Create note locally using accumulated content
-                                    const localNote = {
-                                        remote_id: 0, // Will be set by CreateNote when syncing to server
-                                        course_code: currentNoteData.CourseCode,
-                                        title: currentNoteData.Title,
-                                        subject: currentNoteData.Subject,
-                                        content: accumulatedContentRef.current,
-                                        videos: '',
-                                    } as unknown as models.LocalNote
+                                    const localNote: models.LocalNote = {
+                                        Title: currentNoteData.Title,
+                                        Subject: currentNoteData.Subject,
+                                        CourseCode: currentNoteData.CourseCode,
+                                        CourseID: currentNoteData.CourseID,
+                                        RemoteCourseID: currentNoteData.RemoteCourseID,
+                                        Content: accumulatedContentRef.current,
+                                        Videos: '',
+                                    } as models.LocalNote
+
+                                    console.log("localNote", localNote)
 
                                     CreateNote(localNote, {
                                         onSuccess: () => {
@@ -151,13 +155,13 @@ export function useStreamNote() {
                                         // The server uses fmt.Fprintf with %s which doesn't escape JSON properly
                                         // Try to extract chunk value manually as fallback
                                         console.warn('Failed to parse chunk JSON (server may have unescaped characters):', parseErr)
-                                        
+
                                         // Try to extract chunk value by finding content between "chunk":" and closing quote
                                         // This is a best-effort fallback for malformed JSON
                                         // Use [\s\S] instead of . with s flag for broader compatibility
                                         const chunkPattern = /"chunk"\s*:\s*"([\s\S]*?)"(?:\s*[,}])/
                                         const match = event.data.match(chunkPattern)
-                                        
+
                                         if (match && match[1] !== undefined) {
                                             // Found chunk value, unescape common escape sequences
                                             let chunkValue = match[1]
@@ -166,7 +170,7 @@ export function useStreamNote() {
                                                 .replace(/\\t/g, '\t')
                                                 .replace(/\\"/g, '"')
                                                 .replace(/\\\\/g, '\\')
-                                            
+
                                             accumulatedContentRef.current += chunkValue
                                             setContent(accumulatedContentRef.current)
                                         } else {

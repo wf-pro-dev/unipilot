@@ -12,7 +12,7 @@ import (
 type BaseNote struct {
 	Title    string `gorm:"not null" validate:"required,min=3,max=100"`
 	Subject  string `gorm:"not null" validate:"required,min=3,max=100"`
-	Content  string `gorm:"not null" validate:"max=15000"`
+	Content  string `gorm:"not null" validate:"max=50000"`
 	Videos   string
 	ParentID uint `gorm:"default:0"`
 
@@ -89,6 +89,7 @@ func (n *LocalNote) ToRemote() *Note {
 		Content:    n.Content,
 		Videos:     n.Videos,
 		CourseCode: n.CourseCode,
+		CourseID:   n.RemoteCourseID,
 	}
 	return &Note{
 		BaseNote: *baseN,
