@@ -370,8 +370,8 @@ export namespace models {
 	    Title: string;
 	    Subject: string;
 	    Content: string;
-	    Videos: string;
 	    ParentID: number;
+	    Videos: string;
 	    CourseID: number;
 	    CourseCode: string;
 	    UserID: number;
@@ -393,8 +393,8 @@ export namespace models {
 	        this.Title = source["Title"];
 	        this.Subject = source["Subject"];
 	        this.Content = source["Content"];
-	        this.Videos = source["Videos"];
 	        this.ParentID = source["ParentID"];
+	        this.Videos = source["Videos"];
 	        this.CourseID = source["CourseID"];
 	        this.CourseCode = source["CourseCode"];
 	        this.UserID = source["UserID"];
@@ -818,8 +818,8 @@ export namespace models {
 	    Title: string;
 	    Subject: string;
 	    Content: string;
-	    Videos: string;
 	    ParentID: number;
+	    Videos: string;
 	    CourseID: number;
 	    CourseCode: string;
 	    RemoteID: number;
@@ -839,8 +839,8 @@ export namespace models {
 	        this.Title = source["Title"];
 	        this.Subject = source["Subject"];
 	        this.Content = source["Content"];
-	        this.Videos = source["Videos"];
 	        this.ParentID = source["ParentID"];
+	        this.Videos = source["Videos"];
 	        this.CourseID = source["CourseID"];
 	        this.CourseCode = source["CourseCode"];
 	        this.RemoteID = source["RemoteID"];

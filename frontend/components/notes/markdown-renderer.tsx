@@ -40,6 +40,7 @@ function MermaidDiagram({ children }: { children: string }) {
         theme: 'dark',
         securityLevel: 'loose',
         fontFamily: 'inherit',
+        suppressErrorRendering: true,
       })
 
       const renderDiagram = async () => {
@@ -53,7 +54,8 @@ function MermaidDiagram({ children }: { children: string }) {
         } catch (error) {
           console.error('Mermaid rendering error:', error)
           if (ref.current) {
-            ref.current.innerHTML = `<div class="text-red-500 bg-red-500/10 p-4 rounded border border-red-500/20 text-sm font-mono">${children}</div>`
+            ref.current.innerHTML = `<div class="text-red-500 bg-red-500/10 p-4 rounded border border-red-500/20 text-sm font-mono"> Error rendering diagram </div>`
+            // Remove the component from DOM
           }
         }
       }

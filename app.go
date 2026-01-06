@@ -158,8 +158,6 @@ func (a *App) CreateAssignment(assignmentData *models.LocalAssignment) (*models.
 		RemoteCourseID: assignmentData.RemoteCourseID,
 	}
 
-	log.Println("localAssignment", localAssignment.Status)
-
 	if err := localAssignment.Validate(); err != nil {
 		return nil, err
 	}
@@ -299,9 +297,6 @@ func (a *App) CreateNote(noteData *models.LocalNote) error {
 	if !a.Auth.IsAuthenticated() {
 		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
-
-	log.Printf("noteData: %+v", noteData)
-	log.Printf("noteData.Content: %d", len(noteData.Content))
 
 	if err := noteData.Validate(); err != nil {
 		return err
