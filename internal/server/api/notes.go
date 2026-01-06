@@ -144,27 +144,8 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
-	// Step 4: Validate all required fields for note creation
-	// Validate all required fields
-	if input.CourseCode == "" || input.Title == "" || input.Subject == "" {
-		err := fmt.Errorf("missing required fields: course code: %s, title: %s, subject: %s", input.CourseCode, input.Title, input.Subject)
-		return errors.WrapServer(err, errors.ReqParamMissing, "Missing required fields", fiber.StatusBadRequest)
-	}
-
-	// Step 5: Prepare content and keywords, with AI generation fallback
-	content := input.Content
-
-	// Step 7: Construct note object with validated data and AI-generated content
-	nVal := models.Note{
-		BaseNote: models.BaseNote{
-			CourseCode: input.CourseCode,
-			Title:      input.Title,
-			Subject:    input.Subject,
-			Videos:     input.Videos,
-			Content:    content,
-		},
-		UserID: userID,
-	}
+	nVal := input.ToRemote()
+	nVal.UserID = userID
 
 	if err := nVal.Validate(); err != nil {
 		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
