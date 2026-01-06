@@ -3,32 +3,33 @@ package models
 import (
 	"strconv"
 
+	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
 )
 
 type BaseNote struct {
-	Title    string `gorm:"not null"`
-	Subject  string `gorm:"not null"`
-	Content  string
+	Title    string `gorm:"not null" validate:"required,min=3,max=100"`
+	Subject  string `gorm:"not null" validate:"required,min=3,max=100"`
+	Content  string `gorm:"not null" validate:"min=3,max=5000"`
 	Videos   string
-	ParentID uint `gorm:"default:0"`
+	ParentID uint `gorm:"default:0" validate:"min=1"`
 
-	CourseID   uint   `gorm:"not null;index"`
-	CourseCode string `gorm:"index"`
+	CourseID   uint   `gorm:"not null;index" validate:"required,min=1"`
+	CourseCode string `gorm:"index" validate:"required,min=3,max=12"`
 }
 
 // Note represents the note stored in the remote database
 type Note struct {
 	gorm.Model
 	BaseNote
-	UserID uint `gorm:"not null;index"`
+	UserID uint `gorm:"not null;index" validate:"required,min=1"`
 
-	User     User   `gorm:"foreignKey:UserID;references:ID"`
-	Course   Course `gorm:"foreignKey:CourseID;references:ID"`
-	Parent   *Note  `gorm:"foreignKey:ParentID;references:ID"`
-	Children []Note `gorm:"foreignKey:ParentID"`
+	User     User   `gorm:"foreignKey:UserID;references:ID" validate:"-"`
+	Course   Course `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
+	Parent   *Note  `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
+	Children []Note `gorm:"foreignKey:ParentID" validate:"-"`
 }
 
 // LocalNote represents a note in the local database
@@ -36,9 +37,9 @@ type LocalNote struct {
 	gorm.Model
 	BaseNote
 	RemoteID       uint `gorm:"unique"`
-	RemoteCourseID uint
+	RemoteCourseID uint `gorm:"default:null" validate:"required,min=1"`
 
-	Course LocalCourse `gorm:"foreignKey:CourseID;references:ID"`
+	Course LocalCourse `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
 }
 
 func (n *BaseNote) ToMap() map[string]string {
@@ -93,6 +94,40 @@ func (n *LocalNote) ToRemote() *Note {
 		BaseNote: *baseN,
 	}
 }
+
+// END : CONVERSION FUNCTIONS
+
+// START : VALIDATION FUNCTIONS
+
+func (n *BaseNote) Validate() error {
+	if err := validator.New().Struct(n); err != nil {
+		return errors.Wrap(err, errors.ValidationInvalid, "BaseNote validation failed")
+	}
+	return nil
+}
+
+func (n *Note) Validate() error {
+	if err := n.BaseNote.Validate(); err != nil {
+		return err
+	}
+	if err := validator.New().Struct(n); err != nil {
+		return errors.Wrap(err, errors.ValidationInvalid, "Note validation failed")
+	}
+	return nil
+}
+
+func (n *LocalNote) Validate() error {
+	if err := n.BaseNote.Validate(); err != nil {
+		return err
+	}
+	if err := validator.New().Struct(n); err != nil {
+		return errors.Wrap(err, errors.ValidationInvalid, "LocalNote validation failed")
+	}
+	return nil
+}
+
+// END : VALIDATION FUNCTIONS
+
 func GetNote(id uint, db *gorm.DB) (*Note, error) {
 	var note Note
 	err := db.First(&note, id).Error

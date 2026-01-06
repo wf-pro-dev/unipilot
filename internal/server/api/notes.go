@@ -166,6 +166,10 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 		UserID: userID,
 	}
 
+	if err := nVal.Validate(); err != nil {
+		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
+	}
+
 	// Step 8: Create note record in database within transaction
 	var newN models.Note
 	if err := db.Preload("Course").Create(&nVal).First(&newN).Error; err != nil {
@@ -229,11 +233,8 @@ func CreateNoteStreamHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
-	// Step 2: Validate all required fields for note creation
-	// Validate all required fields
-	if input.CourseCode == "" || input.Title == "" || input.Subject == "" {
-		err := fmt.Errorf("missing required fields: course code: %s, title: %s, subject: %s", input.CourseCode, input.Title, input.Subject)
-		return errors.WrapServer(err, errors.ReqParamMissing, "Missing required fields", fiber.StatusBadRequest)
+	if err := input.Validate(); err != nil {
+		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
 	}
 
 	// Step 3: Set up SSE headers for streaming response
