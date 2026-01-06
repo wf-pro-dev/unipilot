@@ -14,7 +14,7 @@ type BaseNote struct {
 	Subject  string `gorm:"not null" validate:"required,min=3,max=100"`
 	Content  string `gorm:"not null" validate:"min=3,max=5000"`
 	Videos   string
-	ParentID uint `gorm:"default:0" validate:"min=1"`
+	ParentID uint `gorm:"default:0"`
 
 	CourseID   uint   `gorm:"not null;index" validate:"required,min=1"`
 	CourseCode string `gorm:"index" validate:"required,min=3,max=12"`
@@ -99,17 +99,7 @@ func (n *LocalNote) ToRemote() *Note {
 
 // START : VALIDATION FUNCTIONS
 
-func (n *BaseNote) Validate() error {
-	if err := validator.New().Struct(n); err != nil {
-		return errors.Wrap(err, errors.ValidationInvalid, "BaseNote validation failed")
-	}
-	return nil
-}
-
 func (n *Note) Validate() error {
-	if err := n.BaseNote.Validate(); err != nil {
-		return err
-	}
 	if err := validator.New().Struct(n); err != nil {
 		return errors.Wrap(err, errors.ValidationInvalid, "Note validation failed")
 	}
@@ -117,9 +107,7 @@ func (n *Note) Validate() error {
 }
 
 func (n *LocalNote) Validate() error {
-	if err := n.BaseNote.Validate(); err != nil {
-		return err
-	}
+
 	if err := validator.New().Struct(n); err != nil {
 		return errors.Wrap(err, errors.ValidationInvalid, "LocalNote validation failed")
 	}

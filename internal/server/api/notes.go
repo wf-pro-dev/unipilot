@@ -233,7 +233,14 @@ func CreateNoteStreamHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
-	if err := input.Validate(); err != nil {
+	var streamRequiredFields = &models.LocalNote{
+		BaseNote: models.BaseNote{
+			Title:      input.Title,
+			Subject:    input.Subject,
+			CourseCode: input.CourseCode,
+		},
+	}
+	if err := streamRequiredFields.Validate(); err != nil {
 		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
 	}
 
