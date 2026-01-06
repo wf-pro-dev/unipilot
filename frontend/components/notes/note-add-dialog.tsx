@@ -9,11 +9,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Plus } from "lucide-react"
-import { useCourses } from "@/hooks/use-courses"
+
 import { models } from "@/wailsjs/go/models"
 import { CoursesSelect } from "../courses/courses-select"
 import { useStreamNote } from "@/hooks/use-stream-notes"
 import { NoteStreamModal } from "./note-stream-modal"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { Form, useForm } from "react-hook-form"
+import { noteSchema, NoteValues } from "./schema"
 
 const subjects = [
     { value: "Mathematics", label: "Mathematics", color: "text-blue-400 border-blue-400" },
@@ -37,17 +40,15 @@ interface AddNoteDialogProps {
 export function AddNoteDialog({ isOpen, setOpen }: AddNoteDialogProps) {
     
     const [showStreamModal, setShowStreamModal] = useState(false)
+    const [selectedCourse, setSelectedCourse] = useState<models.LocalCourse | undefined>(undefined)
     const [formData, setFormData] = useState({
         title: "",
         subject: "",
         course_code: "",
-    })
+        course_id: 0,
+    } )
     // Store note data separately so it persists after form reset
-    const [streamNoteData, setStreamNoteData] = useState<{
-        title: string
-        subject: string
-        course_code: string
-    } | null>(null)
+    const [streamNoteData, setStreamNoteData] = useState<models.LocalNote | null>(null)
 
     const { 
         content, 
@@ -58,34 +59,18 @@ export function AddNoteDialog({ isOpen, setOpen }: AddNoteDialogProps) {
         reset
     } = useStreamNote()
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        
-        // Validate form
-        if (!formData.title || !formData.subject || !formData.course_code) {
-            return
-        }
+    const form = useForm<NoteValues>({
+        resolver: zodResolver(noteSchema),
+        mode: "onChange",
+        defaultValues: {
+            title: "",
+            subject: "",
+            course_code: "",
+            course_id: 0,
+        },
+    })
 
-        // Store note data for stream modal
-        const noteData = {
-            title: formData.title,
-            subject: formData.subject,
-            course_code: formData.course_code,
-        }
-        console.log("note-add-dialog", noteData)
-        setStreamNoteData(noteData)
-
-        // Close form dialog
-        setOpen(false)
-
-        // Reset streaming state and show stream modal
-        reset()
-        setShowStreamModal(true)
-
-        // Start streaming
-        await startStream(noteData)
-    }
-
+ 
     const handleCloseStreamModal = () => {
         // Stop streaming if still active
         if (isStreaming) {
@@ -98,11 +83,37 @@ export function AddNoteDialog({ isOpen, setOpen }: AddNoteDialogProps) {
         // Clear stream note data
         setStreamNoteData(null)
         // Reset form
-        setFormData({
-            title: "",
-            subject: "",
-            course_code: "",
-        })
+        form.reset()
+        setSelectedCourse(undefined)
+    }
+
+    const onSubmit = async (data: NoteValues) => {
+        console.log("note-add-dialog", data)
+
+        const noteData: models.LocalNote = {
+            Title: data.title,
+            Subject: data.subject,
+            CourseCode: data.course_code,
+            CourseID: data.course_id,
+            RemoteCourseID: data.remote_course_id,
+        } as models.LocalNote
+        setStreamNoteData(noteData)
+        // Close form dialog
+        setOpen(false)
+
+        // Reset streaming state and show stream modal
+        reset()
+        setShowStreamModal(true)
+
+        // Start streaming
+        await startStream(noteData)
+    }
+
+    const handleCourseChange = (course: models.LocalCourse | undefined) => {
+        setSelectedCourse(course)
+        form.setValue("course_id", course?.ID || 0)
+        form.setValue("remote_course_id", course?.RemoteID || 0)
+        form.setValue("course_code", course?.Code || "")
     }
 
     return (
@@ -119,8 +130,8 @@ export function AddNoteDialog({ isOpen, setOpen }: AddNoteDialogProps) {
                         <DialogTitle className="text-h3">Add Note</DialogTitle>
                     </DialogHeader>
                     
-                    <div className="p-6">
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                    <Form {...form} className="p-6">
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="subject" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
@@ -149,10 +160,9 @@ export function AddNoteDialog({ isOpen, setOpen }: AddNoteDialogProps) {
                                     </Label>
                                     <CoursesSelect
                                         value={formData.course_code}
-                                        onValueChange={(value) => setFormData({ 
-                                            ...formData, 
-                                            course_code: value,
-                                        })}
+                                        onCourseChange={handleCourseChange}
+                                        selectedCourse={selectedCourse}
+                                        onValueChange={(value) => handleCourseChange({ Code: value, ID: selectedCourse?.ID } as models.LocalCourse)}
                                     />
                                 </div>
                             </div>
@@ -188,7 +198,7 @@ export function AddNoteDialog({ isOpen, setOpen }: AddNoteDialogProps) {
                                 </Button>
                             </div>
                         </form>
-                    </div>
+                    </Form>
                 </DialogContent>
             </Dialog>
 
@@ -198,9 +208,7 @@ export function AddNoteDialog({ isOpen, setOpen }: AddNoteDialogProps) {
                     isOpen={showStreamModal}
                     onClose={handleCloseStreamModal}
                     onStop={stopStream}
-                    title={streamNoteData.title}
-                    subject={streamNoteData.subject}
-                    courseCode={streamNoteData.course_code}
+                    note={streamNoteData}
                     content={content}
                     isStreaming={isStreaming}
                     error={error}

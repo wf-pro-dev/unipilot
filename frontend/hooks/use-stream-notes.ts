@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { noteKeys } from './use-notes'
 import { GetAuthToken } from '@/wailsjs/go/main/App'
-import { note } from '@/wailsjs/go/models'
+import { models } from '@/wailsjs/go/models'
 import { useCreateNote } from './use-notes'
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://wwwill.xyz/unipilot/api/v1'
@@ -32,15 +32,11 @@ export function useStreamNote() {
 
     const abortControllerRef = useRef<AbortController | null>(null)
     const accumulatedContentRef = useRef('')
-    const noteDataRef = useRef<{ course_code: string, title: string, subject: string } | null>(null)
+    const noteDataRef = useRef<models.LocalNote | null>(null)
     const queryClient = useQueryClient()
     const { mutate: CreateNote } = useCreateNote()
 
-    const startStream = useCallback(async (noteData: {
-        course_code: string
-        title: string
-        subject: string
-    }) => {
+    const startStream = useCallback(async (noteData: models.LocalNote) => {
         // Store noteData in ref for use in completion handler
         noteDataRef.current = noteData
         // Reset state
@@ -111,12 +107,12 @@ export function useStreamNote() {
                                     // Create note locally using accumulated content
                                     const localNote = {
                                         remote_id: 0, // Will be set by CreateNote when syncing to server
-                                        course_code: currentNoteData.course_code,
-                                        title: currentNoteData.title,
-                                        subject: currentNoteData.subject,
+                                        course_code: currentNoteData.CourseCode,
+                                        title: currentNoteData.Title,
+                                        subject: currentNoteData.Subject,
                                         content: accumulatedContentRef.current,
                                         videos: '',
-                                    } as note.LocalNote
+                                    } as unknown as models.LocalNote
 
                                     CreateNote(localNote, {
                                         onSuccess: () => {

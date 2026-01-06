@@ -7,15 +7,14 @@ import { Loader2, X, Sparkles, BookOpen } from "lucide-react"
 import { useCourses } from "@/hooks/use-courses"
 import { StyledMarkdownRenderer } from "./markdown-renderer"
 import { useEffect, useRef } from "react"
+import { models } from "@/wailsjs/go/models"
 
 interface NoteStreamModalProps {
   isOpen: boolean
   onClose: () => void
   onStop?: () => void
   // Streaming state from useStreamNote
-  title: string
-  subject: string
-  courseCode: string
+  note: models.LocalNote
   content: string
   isStreaming: boolean
   error: string | null
@@ -25,15 +24,14 @@ export function NoteStreamModal({
   isOpen,
   onClose,
   onStop,
-  title,
-  subject,
-  courseCode,
+  note,
   content,
   isStreaming,
   error
 }: NoteStreamModalProps) {
   const { data: courses } = useCourses()
-  const course = courses?.find(c => c.Code === courseCode)
+  const { CourseCode, Subject, Title } = note
+  const course = courses?.find(c => c.Code === CourseCode)
   const contentEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom as content streams
@@ -52,7 +50,7 @@ export function NoteStreamModal({
               <div className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-blue-400" />
                 <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  {subject}
+                  {Subject}
                 </span>
                 {isStreaming && (
                   <Badge variant="secondary" className="bg-blue-500/10 text-blue-400 border-blue-500/20">
@@ -62,7 +60,7 @@ export function NoteStreamModal({
                 )}
               </div>
               <DialogTitle className="text-xl font-semibold text-white">
-                {title}
+                {Title}
               </DialogTitle>
               {course && (
                 <div className="flex items-center gap-2 mt-2">
