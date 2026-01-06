@@ -8,15 +8,20 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus } from "lucide-react"
+import { BookOpen, Loader2, Plus } from "lucide-react"
 
 import { models } from "@/wailsjs/go/models"
 import { CoursesSelect } from "../courses/courses-select"
 import { useStreamNote } from "@/hooks/use-stream-notes"
 import { NoteStreamModal } from "./note-stream-modal"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Form, useForm } from "react-hook-form"
+import { useForm } from "react-hook-form"
+import { Form } from "@/components/ui/form"
 import { noteSchema, NoteValues } from "./schema"
+import { FormControl, FormItem, FormLabel, FormField } from "../ui/form"
+import { FormErrorMessage } from "../auth/form-error-message"
+import { GlassCard } from "../ui/glass-card"
+import { toast } from "sonner"
 
 const subjects = [
     { value: "Mathematics", label: "Mathematics", color: "text-blue-400 border-blue-400" },
@@ -38,23 +43,20 @@ interface AddNoteDialogProps {
 }
 
 export function AddNoteDialog({ isOpen, setOpen }: AddNoteDialogProps) {
-    
+
     const [showStreamModal, setShowStreamModal] = useState(false)
     const [selectedCourse, setSelectedCourse] = useState<models.LocalCourse | undefined>(undefined)
-    const [formData, setFormData] = useState({
-        title: "",
-        subject: "",
-        course_code: "",
-        course_id: 0,
-    } )
+    const [stepAttempted, setStepAttempted] = useState(false)
+    const [isSubmitting, setIsSubmitting] = useState(false)
+
     // Store note data separately so it persists after form reset
     const [streamNoteData, setStreamNoteData] = useState<models.LocalNote | null>(null)
 
-    const { 
-        content, 
-        isStreaming, 
-        error, 
-        startStream, 
+    const {
+        content,
+        isStreaming,
+        error,
+        startStream,
         stopStream,
         reset
     } = useStreamNote()
@@ -64,13 +66,15 @@ export function AddNoteDialog({ isOpen, setOpen }: AddNoteDialogProps) {
         mode: "onChange",
         defaultValues: {
             title: "",
-            subject: "",
+            subject: "Mathematics",
             course_code: "",
             course_id: 0,
+            remote_course_id: 0,
         },
     })
+    console.log("form", form)
 
- 
+
     const handleCloseStreamModal = () => {
         // Stop streaming if still active
         if (isStreaming) {
@@ -89,119 +93,188 @@ export function AddNoteDialog({ isOpen, setOpen }: AddNoteDialogProps) {
 
     const onSubmit = async (data: NoteValues) => {
         console.log("note-add-dialog", data)
+        try {
+            setIsSubmitting(true)
+            const noteData: models.LocalNote = {
+                Title: data.title,
+                Subject: data.subject,
+                CourseCode: data.course_code,
+                CourseID: data.course_id,
+                RemoteCourseID: data.remote_course_id,
+            } as models.LocalNote
+            setStreamNoteData(noteData)
+            // Close form dialog
+            setOpen(false)
 
-        const noteData: models.LocalNote = {
-            Title: data.title,
-            Subject: data.subject,
-            CourseCode: data.course_code,
-            CourseID: data.course_id,
-            RemoteCourseID: data.remote_course_id,
-        } as models.LocalNote
-        setStreamNoteData(noteData)
-        // Close form dialog
-        setOpen(false)
+            // Reset streaming state and show stream modal
+            reset()
+            setShowStreamModal(true)
 
-        // Reset streaming state and show stream modal
-        reset()
-        setShowStreamModal(true)
+            // Start streaming
+            setIsSubmitting(false)
+            await startStream(noteData)
 
-        // Start streaming
-        await startStream(noteData)
+        } catch (error) {
+            toast.error("Failed to add note")
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     const handleCourseChange = (course: models.LocalCourse | undefined) => {
+        if (!course) return
         setSelectedCourse(course)
         form.setValue("course_id", course?.ID || 0)
         form.setValue("remote_course_id", course?.RemoteID || 0)
         form.setValue("course_code", course?.Code || "")
     }
+    const handleErrorResolved = () => {
+        setStepAttempted(false)
+    }
 
     return (
-        <>
-            <Dialog open={isOpen} onOpenChange={setOpen}>
-                <DialogTrigger asChild>
-                    <Button variant="default" className="text-body">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Note
-                    </Button>
-                </DialogTrigger>
-                <DialogContent className="glass border-white/10 text-white max-w-md p-0 overflow-hidden gap-0">
-                    <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
-                        <DialogTitle className="text-h3">Add Note</DialogTitle>
-                    </DialogHeader>
-                    
-                    <Form {...form} className="p-6">
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="subject" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
-                                        Subject
-                                    </Label>
-                                    <Select
-                                        value={formData.subject}
-                                        onValueChange={(value) => setFormData({ ...formData, subject: value })}
-                                    >
-                                        <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10">
-                                            <SelectValue placeholder="Select subject" />
-                                        </SelectTrigger>
-                                        <SelectContent className="glass border-white/10">
-                                            {subjects.map((subject) => (
-                                                <SelectItem key={subject.value} value={subject.value}>
-                                                    <span className="text-sm">{subject.label}</span>
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+        <Dialog open={isOpen} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button variant="default" className="text-body">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Note
+                </Button>
+            </DialogTrigger>
 
-                                <div className="space-y-2">
-                                    <Label htmlFor="course" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
-                                        Course
-                                    </Label>
-                                    <CoursesSelect
-                                        value={formData.course_code}
-                                        onCourseChange={handleCourseChange}
-                                        selectedCourse={selectedCourse}
-                                        onValueChange={(value) => handleCourseChange({ Code: value, ID: selectedCourse?.ID } as models.LocalCourse)}
+            <DialogContent className="glass border-white/10 text-white max-w-md p-0 overflow-hidden gap-0">
+                <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
+                    <DialogTitle className="text-h3">Add Note</DialogTitle>
+                </DialogHeader>
+                <div className="p-6 max-h-[70vh] overflow-y-auto">
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent z-0 rounded-2xl pointer-events-none" />
+
+                    <Form {...form}>
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="relative z-10">
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="subject"
+                                        render={({ field, fieldState }) => (
+                                            <FormItem>
+                                                <FormLabel>
+                                                    Subject
+                                                </FormLabel>
+                                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                    <FormControl>
+
+                                                        <SelectTrigger className="h-11 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:bg-white/10 rounded-xl">
+                                                            <SelectValue placeholder="Select subject" />
+                                                        </SelectTrigger>
+                                                    </FormControl>
+
+                                                    <SelectContent className="bg-transparent border-none">
+                                                        <GlassCard variant="board">
+                                                            {subjects.map((subject) => (
+                                                                <SelectItem key={subject.value} value={subject.value}>
+                                                                    <span className="text-sm">{subject.label}</span>
+                                                                </SelectItem>
+                                                            ))}
+                                                        </GlassCard>
+                                                    </SelectContent>
+                                                </Select>
+                                                <FormErrorMessage
+                                                    fieldState={fieldState}
+                                                    formState={form.formState}
+                                                    config={{ strategy: "onStepAttempt", stepAttempted: stepAttempted }}
+                                                    onErrorResolved={handleErrorResolved}
+                                                />
+                                            </FormItem>
+                                        )}
+                                    />
+
+                                    <FormField
+                                        control={form.control}
+                                        name="course_code"
+                                        render={({ field, fieldState }) => (
+                                            <FormItem>
+                                                <FormLabel className="text-xs font-medium uppercase tracking-wider text-gray-400 group-focus-within:text-white ml-1 transition-colors duration-300">
+                                                    Course
+                                                </FormLabel>
+                                                <CoursesSelect
+                                                    value={field.value}
+                                                    onValueChange={field.onChange}
+                                                    onCourseChange={handleCourseChange}
+                                                    selectedCourse={selectedCourse}
+                                                />
+                                                <FormErrorMessage
+                                                    fieldState={fieldState}
+                                                    formState={form.formState}
+                                                    config={{ strategy: "onStepAttempt", stepAttempted: stepAttempted }}
+                                                    onErrorResolved={handleErrorResolved}
+                                                />
+                                            </FormItem>
+                                        )}
                                     />
                                 </div>
-                            </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="title" className="text-gray-400 text-xs font-medium uppercase tracking-wider">
-                                    Note Title
-                                </Label>
-                                <Input
-                                    id="title"
-                                    value={formData.title}
-                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                    placeholder="Lecture 5: Introduction to React"
-                                    className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all h-10"
-                                    required
+                                <FormField
+                                    control={form.control}
+                                    name="title"
+                                    render={({ field, fieldState }) => (
+                                        <FormItem>
+                                            <FormLabel className="text-xs font-medium uppercase tracking-wider text-gray-400 group-focus-within:text-white ml-1 transition-colors duration-300">
+                                                Title
+                                            </FormLabel>
+                                            <div className="relative">
+                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-white transition-colors duration-300">
+                                                    <BookOpen className="h-4 w-4" />
+                                                </div>
+                                                <FormControl>
+                                                    <Input
+                                                        placeholder="e.g. Calculus Midterm, History Essay..."
+                                                        className="pl-10 h-11 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:bg-white/10 rounded-xl"
+                                                        {...field}
+                                                    />
+                                                </FormControl>
+                                            </div>
+                                            <FormErrorMessage
+                                                fieldState={fieldState}
+                                                formState={form.formState}
+                                                config={{ strategy: "onStepAttempt", stepAttempted: stepAttempted }}
+                                                onErrorResolved={handleErrorResolved}
+                                            />
+                                        </FormItem>
+                                    )}
                                 />
-                            </div>
 
-                            <div className="flex justify-end space-x-3 pt-4 border-t border-white/5 mt-6">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setOpen(false)}
-                                    className="border-white/10 bg-transparent hover:bg-white/5 text-gray-300 hover:text-white"
-                                >
-                                    Cancel
-                                </Button>
-                                <Button 
-                                    type="submit"
-                                    className="bg-green-600 hover:bg-green-500 text-white px-6 shadow-[0_0_15px_rgba(22,163,74,0.2)]"
-                                >
-                                    Generate Note
-                                </Button>
+                                <div className="flex justify-end space-x-3 pt-4 border-t border-white/5 mt-6">
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setOpen(false)}
+                                        className="border-white/10 bg-transparent hover:bg-white/5 text-gray-300 hover:text-white"
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        className="bg-green-600 hover:bg-green-500 text-white px-6 shadow-[0_0_15px_rgba(22,163,74,0.2)]"
+                                    >
+                                        {isSubmitting ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            "Generate Note"
+                                        )}
+
+                                    </Button>
+                                </div>
+
+
                             </div>
                         </form>
                     </Form>
-                </DialogContent>
-            </Dialog>
 
+                </div>
+
+
+
+            </DialogContent>
             {/* Stream Modal - stays open after streaming completes */}
             {showStreamModal && streamNoteData && (
                 <NoteStreamModal
@@ -214,6 +287,7 @@ export function AddNoteDialog({ isOpen, setOpen }: AddNoteDialogProps) {
                     error={error}
                 />
             )}
-        </>
+
+        </Dialog>
     )
 }

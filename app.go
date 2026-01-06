@@ -300,6 +300,10 @@ func (a *App) CreateNote(noteData *models.LocalNote) error {
 		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 
+	if err := noteData.Validate(); err != nil {
+		return err
+	}
+
 	db := a.DB.GetDB()
 
 	db.Transaction(func(tx *gorm.DB) error {
