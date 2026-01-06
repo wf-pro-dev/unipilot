@@ -12,7 +12,7 @@ import (
 type BaseNote struct {
 	Title    string `gorm:"not null" validate:"required,min=3,max=100"`
 	Subject  string `gorm:"not null" validate:"required,min=3,max=100"`
-	Content  string `gorm:"not null" validate:"min=3,max=5000"`
+	Content  string `gorm:"not null" validate:"max=10000"`
 	Videos   string
 	ParentID uint `gorm:"default:0"`
 

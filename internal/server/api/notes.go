@@ -238,7 +238,10 @@ func CreateNoteStreamHandler(c *fiber.Ctx) error {
 			Title:      input.Title,
 			Subject:    input.Subject,
 			CourseCode: input.CourseCode,
+			CourseID:   input.CourseID,
+			Content:    "",
 		},
+		RemoteCourseID: input.RemoteCourseID,
 	}
 	if err := streamRequiredFields.Validate(); err != nil {
 		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
