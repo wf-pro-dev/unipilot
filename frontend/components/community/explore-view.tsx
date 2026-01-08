@@ -40,6 +40,8 @@ export function ExploreView({ users }: ExploreViewProps) {
     return user.ID != currentUser?.ID && matchesSearch && matchesUniversity
   })
 
+  
+
   const hasActiveFilters = searchTerm !== "" || selectedUniversity !== "All Universities"
 
   const clearFilters = () => {
@@ -52,7 +54,7 @@ export function ExploreView({ users }: ExploreViewProps) {
   }
 
   // if there is only one user (current user), show a message that there are no users to explore
-  if ((users?.length || 0) <= 1) {
+  if (users?.length === 0) {
     return (
       <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
         <EmptyState
@@ -68,8 +70,8 @@ export function ExploreView({ users }: ExploreViewProps) {
   return (
     <div className="flex flex-col flex-1 space-y-6">
       {/* Search and Filters */}
-      <GlassCard variant="board">
-        <CardContent className="p-5">
+      <GlassCard variant="board" className="flex-grow-0 flex-row">
+        <CardContent className="flex-1 p-5">
           <div className="space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
               
@@ -143,7 +145,7 @@ export function ExploreView({ users }: ExploreViewProps) {
           </div>
         ) : (
           // Users Grid
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredUsers.map((user) => (
               <UserItem
                 key={user.ID}

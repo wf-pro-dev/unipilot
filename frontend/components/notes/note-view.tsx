@@ -88,12 +88,13 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, setAddOp
 
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 space-y-6">
       {/* Search and Filters */}
 
-      <GlassCard variant="board">
-        <CardContent className="p-5">
-            <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
+      <GlassCard variant="board" className="flex-grow-0 flex-row">
+        <CardContent className="p-5 flex-1">
+            <div className="flex flex-1  lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
+              
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input

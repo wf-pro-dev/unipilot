@@ -58,8 +58,6 @@ type BaseDocument struct {
 	HasLocalFile bool         `gorm:"default:false" validate:"boolean"`
 
 	AssignmentID uint `gorm:"not null;index" validate:"required,min=1"`
-
-	UploadID string `gorm:"-"` // For tracking upload progress
 }
 
 // Document represents a file attached to an assignment
@@ -83,8 +81,9 @@ type LocalDocument struct {
 	gorm.Model
 	BaseDocument
 
-	RemoteID           uint `gorm:"default:null" validate:"omitempty,min=1"`
-	RemoteAssignmentID uint `gorm:"default:null" validate:"omitempty,min=1"`
+	RemoteID           uint   `gorm:"unique;default:null" validate:"omitempty,min=1"`
+	RemoteAssignmentID uint   `gorm:"default:null" validate:"omitempty,min=1"`
+	UploadID           string `gorm:"unique;default:null" validate:"omitempty,min=1"` // For tracking upload progress
 
 	// Local relationships
 	Assignment LocalAssignment `gorm:"foreignKey:AssignmentID;references:ID" validate:"-"`
@@ -107,12 +106,17 @@ func (d *BaseDocument) ToMap() map[string]string {
 		"parent_doc_id":  strconv.Itoa(int(*d.ParentDocID)),
 		"is_original":    strconv.FormatBool(d.IsOriginal),
 		"has_local_file": strconv.FormatBool(d.HasLocalFile),
-		"upload_id":      d.UploadID,
 		"assignment_id":  strconv.Itoa(int(d.AssignmentID)),
 	}
 }
 
 func (d *Document) ToLocal() *LocalDocument {
+	if d.ID == 0 {
+		return &LocalDocument{
+			BaseDocument:       d.BaseDocument,
+			RemoteAssignmentID: d.AssignmentID,
+		}
+	}
 	return &LocalDocument{
 		BaseDocument:       d.BaseDocument,
 		RemoteID:           d.ID,

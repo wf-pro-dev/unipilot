@@ -105,10 +105,10 @@ func WriteDocument(document *models.LocalDocument, fileContent io.Reader, db *go
 
 	// Update HasLocalFile to true after successful write
 	document.HasLocalFile = true
-	if err := db.Save(&document).Error; err != nil {
+	if err := db.Model(&document).Update("has_local_file", true).Error; err != nil {
 		return &FileUploadResponse{
 			Success: false,
-			Message: "Failed to update HasLocalFile",
+			Message: "Failed to update document",
 		}, errors.Wrap(err, errors.DBQueryFailed, "Failed to update HasLocalFile")
 	}
 

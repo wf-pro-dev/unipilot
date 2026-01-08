@@ -4,16 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 	"unipilot/internal/client"
 	"unipilot/internal/errors"
-	Errors "unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/secrets"
-	dbservice "unipilot/internal/services/database"
-	syncservice "unipilot/internal/services/sync"
+	"unipilot/internal/services/database"
 	"unipilot/internal/services/utils"
 	"unipilot/internal/sse"
 )
@@ -29,7 +26,7 @@ import (
 // Returns:
 //   - *models.User: Authenticated user object with profile information
 //   - error: Error if authentication fails, token saving fails, or post-login operations fail
-func (a *Auth) Login(username, password string) (*models.User, error) {
+func Login(username, password string) (*database.Database, *Auth, error) {
 	// Step 1: Create HTTP client with cookie jar for session management
 	// Cookie jar stores authentication cookies automatically
 	httpClient := http.Client{
@@ -45,7 +42,7 @@ func (a *Auth) Login(username, password string) (*models.User, error) {
 	// Step 3: Send authentication request to API
 	resp, err := httpClient.Post(fmt.Sprintf("%s/auth/login", api_url), "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, errors.Wrap(err, errors.NetworkConnectionFailed, "HTTP POST failed")
+		return nil, nil, errors.Wrap(err, errors.NetworkConnectionFailed, "HTTP POST failed")
 	}
 	defer resp.Body.Close()
 
@@ -53,9 +50,9 @@ func (a *Auth) Login(username, password string) (*models.User, error) {
 	if resp.StatusCode != http.StatusOK {
 		var serverError *errors.ServerError
 		if err := json.NewDecoder(resp.Body).Decode(&serverError); err != nil {
-			return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse login response")
+			return nil, nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse login response")
 		}
-		return nil, serverError
+		return nil, nil, serverError
 	}
 
 	// Step 5: Parse API response to extract user data and tokens
@@ -65,7 +62,7 @@ func (a *Auth) Login(username, password string) (*models.User, error) {
 		RefreshToken string                 `json:"refresh_token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse login response")
+		return nil, nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse login response")
 	}
 
 	// Step 6: Convert response map to User struct
@@ -89,38 +86,20 @@ func (a *Auth) Login(username, password string) (*models.User, error) {
 
 	// Step 7: Persist user credentials to local storage for future sessions
 	if err := utils.SetCredentials(&response_user); err != nil {
-		return nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to set credentials")
+		return nil, nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to set credentials")
 	}
 
 	// Step 8: Save JWT access token for authenticated API requests
 	if err := client.SaveToken(response.Token); err != nil {
-		return nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to save token")
+		return nil, nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to save token")
 	}
 
 	// Step 9: Save refresh token for token renewal without re-authentication
 	if err := client.SaveRefreshToken(response.RefreshToken); err != nil {
-		return nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to save refresh token")
+		return nil, nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to save refresh token")
 	}
 
-	// Step 10: Create authenticated HTTP client with saved tokens
-	httpUserClient, err := client.NewAuthClient()
-	if err != nil {
-		return nil, errors.Wrap(err, errors.ClientRequestFailed, "Could not create authenticated HTTP client")
-	}
-
-	a.Client = httpUserClient
-
-	// Step 11: Initialize SSE connection for real-time notifications
-	// Initialize early to ensure it's never nil for subsequent operations
-	a.SSE = sse.NewSSE()
-
-	// Step 12: Perform post-login data migration (courses and assignments)
-	// Errors are non-fatal - login succeeds even if migration fails
-	if err := PostLogin(); err != nil {
-		return &response_user, err
-	}
-
-	return &response_user, nil
+	return PostLogin(&response_user)
 }
 
 // PostLogin performs post-authentication data migration tasks.
@@ -129,31 +108,23 @@ func (a *Auth) Login(username, password string) (*models.User, error) {
 //
 // Returns:
 //   - error: Last error encountered (if any), but login succeeds regardless
-func PostLogin() error {
+func PostLogin(user *models.User) (*database.Database, *Auth, error) {
 
-	if err := dbservice.EnsureClientDBInitialized(); err != nil {
-		log.Println(Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to ensure client database is initialized").Error())
-	}
-
-	localDB, err := utils.GetUserDB()
+	httpClient, err := client.NewAuthClient()
 	if err != nil {
-		log.Println(Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to get user database").Error())
+		return nil, nil, errors.Wrap(err, errors.ClientRequestFailed, "Failed to create authenticated HTTP client")
 	}
 
-	// Step 3: Migrate courses from remote server to local database
-	// Non-fatal operation - allows offline access to courses
-	migrator := syncservice.NewMigrator(localDB)
-	if err := migrator.MigrateCourses(); err != nil {
-		log.Println("Failed to migrate courses", err)
-		// Don't rollback, continue with the transaction
+	a := &Auth{
+		User:   user,
+		SSE:    sse.NewSSE(),
+		Client: httpClient,
 	}
 
-	// Step 4: Migrate assignments from remote server to local database
-	// Non-fatal operation - allows offline access to assignments
-	if err := migrator.MigrateAssignments(); err != nil {
-		log.Println("Failed to migrate assignments", err)
-		// Don't rollback, continue with the transaction
+	database, err := database.NewDatabase(a.User)
+	if err != nil {
+		return nil, nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to initialize database")
 	}
 
-	return nil
+	return database, a, nil
 }

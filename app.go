@@ -20,13 +20,13 @@ import (
 
 	"unipilot/internal/auth"
 	"unipilot/internal/client"
-	"unipilot/internal/database"
+
 	Errors "unipilot/internal/errors"
 	"unipilot/internal/events"
 	"unipilot/internal/models"
 	"unipilot/internal/network"
 	"unipilot/internal/services/daemon"
-	dbservice "unipilot/internal/services/database"
+	"unipilot/internal/services/database"
 	"unipilot/internal/services/fileops"
 	"unipilot/internal/services/fileops/progress"
 	syncservice "unipilot/internal/services/sync"
@@ -44,11 +44,6 @@ type App struct {
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	// Ensure client database is initialized if user is connected
-	// This creates the database file if it doesn't exist (works offline)
-	if err := dbservice.EnsureClientDBInitialized(); err != nil {
-		log.Println(Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to ensure client database is initialized").Error())
-	}
 
 	authService := auth.NewAuth()
 
@@ -84,32 +79,24 @@ func NewApp() *App {
 func (a *App) Startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// Initialize daemon manager only if user is authenticated
-	// Service will be installed on login, not on startup
-	if a.Auth.User != nil && a.Auth.User.ID > 0 {
-		daemon, err := daemon.NewManager(a.Auth.User.ID, a.ctx)
-		if err != nil {
-			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to initialize daemon manager").Error())
-		} else {
-			a.Daemon = daemon
-			// Note: Service installation happens on Login(), not here
-			// This ensures the service is user-specific and installed only when logged in
-		}
-	}
-
 	// Check if user is already authenticated and initialize HTTP client if needed
 	if a.Auth.IsAuthenticated() {
-		// Ensure database is initialized and trigger server-to-client sync if needed
-		if a.DB != nil {
-			// Trigger server-to-client sync to download latest data from server
-			go func() {
-				if err := dbservice.EnsureClientDBAndSyncWithExisting(a.DB.GetDB()); err != nil {
-					log.Println(Errors.Wrap(err, Errors.SyncFailed, "Failed to sync from server to client").Error())
-				}
-			}()
+
+		// Service will be installed on login, not on startup
+		daemon, err := daemon.NewManager(a.Auth.User.ID, a.ctx)
+		if err != nil {
+			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Daemon manager initialization failed").Error())
+		} else {
+			a.Daemon = daemon
 		}
 
+		// Ensure database is initialized and trigger server-to-client sync if needed
 		if network.IsOnline() {
+
+			if err := database.TriggerServerToClientSync(a.DB.GetDB()); err != nil {
+				log.Println(Errors.Wrap(err, Errors.SyncFailed, "Server-to-client sync failed").Error())
+			}
+
 			// Start background sync manager for client-to-server sync
 			syncManager := syncservice.NewManager(a.DB.GetDB())
 			syncManager.StartBackgroundSync()
@@ -117,7 +104,7 @@ func (a *App) Startup(ctx context.Context) {
 			// Process any pending syncs on startup
 			go func() {
 				if err := syncManager.ProcessPendingSyncs(); err != nil {
-					log.Println(Errors.Wrap(err, Errors.DBQueryFailed, "Failed to process pending syncs").Error())
+					log.Println(Errors.Wrap(err, Errors.DBQueryFailed, "Pending syncs processing failed").Error())
 				}
 			}()
 		}
@@ -554,19 +541,21 @@ func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse)
 	// Register progress callback to emit events to frontend
 	tracker.OnProgress(func(t *progress.Tracker) {
 		snapshot := t.Snapshot()
-		snapshot.Percentage = t.Percentage() * 0.2 // 20% of the total progress
-		runtime.EventsEmit(a.ctx, "upload:progress", snapshot)
 
 		if snapshot.Error != nil {
-			runtime.EventsEmit(a.ctx, "upload:error", map[string]interface{}{
+			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:error:%s", document.UploadID), map[string]interface{}{
 				"upload_id": document.UploadID,
 				"error":     snapshot.Error.Error(),
 			})
+		} else {
+			snapshot.Percentage = snapshot.Percentage * 0.2
+			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:progress:%s", document.UploadID), snapshot)
 		}
+
 	})
 
 	// Emit started event
-	runtime.EventsEmit(a.ctx, "upload:started", map[string]string{
+	runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:started:%s", document.UploadID), map[string]string{
 		"upload_id": document.UploadID,
 		"file_name": document.FileName,
 	})
@@ -1294,20 +1283,16 @@ func (a *App) DeleteNotification(notification *models.LocalNotification) error {
 // Register handles user registration
 func (a *App) Register(userData *models.User) (*models.User, error) {
 
-	user, err := a.Auth.Register(userData)
+	dbService, authService, err := a.Auth.Register(userData)
 	if err != nil {
 		fmt.Println("Register error: ", err)
 		return nil, err
 	}
 
-	// Set the user to the auth struct
-	a.Auth.User = user
-	dbService, err := database.NewDatabase(user)
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to initialize database"))
-	}
+	a.Auth = authService
 	a.DB = dbService
 	a.Events = events.NewEvents(a.DB.GetDB())
+	user := authService.User
 
 	// Initialize daemon manager for the newly registered user
 	if user != nil && user.ID > 0 {
@@ -1347,20 +1332,17 @@ func (a *App) Register(userData *models.User) (*models.User, error) {
 
 // Login handles user authentication
 func (a *App) Login(username, password string) (*models.User, error) {
-	user, err := a.Auth.Login(username, password)
+	dbService, authService, err := auth.Login(username, password)
 	if err != nil {
 		return nil, err
 	}
-
-	// Set the user to the auth struct
-	a.Auth.User = user
-
-	dbService, err := database.NewDatabase(user)
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", Errors.Wrap(err, Errors.DBConnectionFailed, "Failed to initialize database"))
-	}
+	// Set the auth and db services
+	a.Auth = authService
 	a.DB = dbService
 	a.Events = events.NewEvents(a.DB.GetDB())
+
+	// Get the user from the auth service
+	user := authService.User
 
 	// Initialize daemon manager for the logged-in user
 	if user != nil && user.ID > 0 {
@@ -1403,24 +1385,24 @@ func (a *App) Login(username, password string) (*models.User, error) {
 func (a *App) Logout() error {
 	// Stop and uninstall daemon service before logout
 	// This ensures the service is removed so another user can install their own
-	if a.Daemon != nil {
-		// Stop the daemon first
-		if err := a.Daemon.StopDaemon(); err != nil {
-			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to stop notification daemon").Error())
-		} else {
-			log.Println("Notification daemon stopped successfully")
-		}
+	// if a.Daemon != nil {
+	// 	// Stop the daemon first
+	// 	if err := a.Daemon.StopDaemon(); err != nil {
+	// 		log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to stop notification daemon").Error())
+	// 	} else {
+	// 		log.Println("Notification daemon stopped successfully")
+	// 	}
 
-		// Uninstall the daemon service
-		if err := a.Daemon.UninstallDaemon(); err != nil {
-			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to uninstall notification daemon").Error())
-		} else {
-			log.Println("Notification daemon uninstalled successfully")
-		}
+	// 	// Uninstall the daemon service
+	// 	if err := a.Daemon.UninstallDaemon(); err != nil {
+	// 		log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to uninstall notification daemon").Error())
+	// 	} else {
+	// 		log.Println("Notification daemon uninstalled successfully")
+	// 	}
 
-		// Clear daemon manager reference
-		a.Daemon = nil
-	}
+	// 	// Clear daemon manager reference
+	// 	a.Daemon = nil
+	// }
 
 	if err := a.Auth.Logout(); err != nil {
 		return err
@@ -1876,8 +1858,8 @@ func (a *App) RebuildNotificationDaemon() error {
 }
 
 // LinkCourse links a course to a list of users
-func (a *App) RequestLinkCourse(c *models.LocalCourse, usersID []uint) error {
-	return client.RequestLinkCourse(c, usersID)
+func (a *App) CourseShare(c *models.LocalCourse, usersID []uint) error {
+	return client.CourseShare(c, usersID)
 }
 
 func (a *App) AcceptLink(courseData string) error {

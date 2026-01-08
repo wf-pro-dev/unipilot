@@ -145,11 +145,11 @@ export function Dashboard() {
                 <div className="lg:col-span-2 flex flex-col flex-1 gap-6">
 
                     {/* Next Class Card */}
-                    <div className="flex flex-1">
+                    <div className={cn("flex", course ? "flex-shrink-0" : "flex-1")}>
                         <GlassCard
                             variant={course ? "outline" : "board"}
                             onClick={() => course && router.push(`/courses?view=schedule?course=${course.Code}`)}
-                            className={cn("relative group",getCourseGradientClasses(course?.Color, course && isOn).bg,getCourseGradientClasses(course?.Color, course && isOn).hover)}
+                            className={cn("relative group", getCourseGradientClasses(course?.Color, course && isOn).bg, getCourseGradientClasses(course?.Color, course && isOn).hover)}
                         >
 
                             <CardHeader className="flex flex-row items-center justify-between pb-4 z-10 relative">
@@ -250,7 +250,7 @@ export function Dashboard() {
                                             onDelete={(assignment) => handleDelete(assignment as models.LocalAssignment)}
                                             onOpenEdit={(assignment) => handleOpenEdit(assignment as models.LocalAssignment)}
                                             size="sm"
-                                       
+
                                         />
                                     ))}
                                 </div>
@@ -301,16 +301,18 @@ export function Dashboard() {
                                         <GlassCard
                                             variant="board"
                                             onClick={() => router.push('/notes')}
-                                            className="border-white/5 bg-white/5 hover:bg-white/10 p-4 h-full"
+                                            className="border-white/5 bg-white/5 hover:bg-white/10 p-4 h-full flex flex-col justify-between"
                                         >
                                             <div className="flex items-start justify-between mb-3">
                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/5 ${note.Course.Color ? `text-${note.Course.Color.replace('bg-', '').replace('-500', '-400')}` : 'text-gray-400'}`}>
                                                     <FileText className="w-4 h-4" />
                                                 </div>
-                                                <Badge variant="outline" className="border-white/10 text-gray-400 text-[10px]">{note.course_code}</Badge>
+                                                <Badge variant="outline" className="border-white/10 text-gray-400 text-[10px]">{note.CourseCode}</Badge>
                                             </div>
-                                            <h4 className="font-medium text-white line-clamp-2 mb-2">{note.title}</h4>
-                                            <p className="text-xs text-gray-400 line-clamp-2">{note.subject}</p>
+                                            <div>
+                                                <h4 className="font-medium text-white line-clamp-2 mb-2">{note.Title}</h4>
+                                                <p className="text-xs text-gray-400 line-clamp-2">{note.Subject}</p>
+                                            </div>
                                         </GlassCard>
                                     </div>
                                 ))

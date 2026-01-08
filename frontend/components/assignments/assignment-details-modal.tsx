@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Calendar, Edit, Trash2, FileText, ExternalLink, Info, Bot, Clock, Link as LinkIcon, CopyPlus } from "lucide-react"
 import { format } from "date-fns"
-import { models as goModels } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
 import { BrowserOpenURL } from "@/wailsjs/runtime/runtime"
 import { StatusTag } from "@/components/assignments/tags/status-tag"
@@ -18,46 +18,45 @@ import { useRouter } from "next/navigation"
 import FileUpload05 from "../file-upload-05"
 import { AnimatePresence, motion } from "framer-motion"
 
-interface AssignmentDetailsModalProps {
+interface AssignmentDetailsModalProps<T extends models.LocalAssignment | models.Assignment> {
   isOpen: boolean
   onClose: () => void
-  assignment_id: number | undefined
-  assignmentProp?: goModels.LocalAssignment | null
-  onOpenEdit?: (assignment: goModels.LocalAssignment) => void
-  onEdit?: (assignment: goModels.LocalAssignment, column: string, value: string) => void
-  onDelete?: (assignment: goModels.LocalAssignment) => void
-  onCopy?: (assignment: goModels.LocalAssignment) => void
-  isLoading?: boolean
+  assignment: T
+  onOpenEdit?: (assignment: models.LocalAssignment) => void
+  onEdit?: (assignment: models.LocalAssignment, column: string, value: string) => void
+  onDelete?: (assignment: models.LocalAssignment) => void
+  onCopy?: (assignment: models.Assignment) => void
+  isRemote?: boolean
 }
 
 export function AssignmentDetailsModal({
   isOpen,
   onClose,
-  assignment_id,
-  assignmentProp,
+  assignment,
   onOpenEdit,
   onEdit,
   onDelete,
   onCopy,
-}: AssignmentDetailsModalProps) {
+  isRemote = false,
+}: AssignmentDetailsModalProps<models.LocalAssignment | models.Assignment>) {
 
-  if (!assignment_id) return null
+  if (!assignment) return null
+
+  const { Title, Deadline, Status, Priority, Type, Todo, Documents, Course, Link } = assignment
 
   const router = useRouter()
 
   const [activeView, setActiveView] = useState("info")
 
-  const { data: assignments } = useAssignments()
-  const assignment = assignmentProp || assignments?.find((a) => a.ID === assignment_id)
-  if (!assignment) return null
-
   // Parse deadline with timezone awareness
-  const deadline = parseDeadline(assignment.Deadline)
+  const deadline = parseDeadline(Deadline)
 
-  const isOverdueStatus = isOverdue(deadline, assignment.Status)
+  const isOverdueStatus = isOverdue(deadline, Status)
+
   const daysUntilDue = calculateDaysDifference(deadline)
+  
   const handleOpenLink = () => {
-    BrowserOpenURL(assignment.Link)
+    BrowserOpenURL(Link)
   }
 
 
@@ -68,10 +67,10 @@ export function AssignmentDetailsModal({
         <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
 
           <div className="flex items-center space-x-2 mb-1">
-            <div className={`w-2 h-2 rounded-full ${assignment.Course?.Color}`} />
-            <span className="text-caption uppercase tracking-wider">{assignment.Course?.Name}</span>
+            <div className={`w-2 h-2 rounded-full ${Course?.Color}`} />
+            <span className="text-caption uppercase tracking-wider">{Course?.Name}</span>
           </div>
-          <DialogTitle className="text-h3">{assignment.Title}</DialogTitle>
+          <DialogTitle className="text-h3">{Title}</DialogTitle>
 
         </DialogHeader>
 
@@ -120,10 +119,10 @@ export function AssignmentDetailsModal({
                         <span>Deadline</span>
                       </div>
                       <Badge variant="outline" className={`border-white/10 bg-white/5 ${isOverdueStatus ? "text-red-400" : daysUntilDue < 0 ? "text-gray-400" : "text-yellow-400"}`}>
-                        {getDueDescription(deadline, assignment.Status)}
+                        {getDueDescription(deadline, Status)}
                       </Badge>
                     </div>
-                    <p className="font-medium text-white text-lg">{format(deadline, "EEEE, MMMM d, yyyy")}</p>
+                    <p className="font-medium text-white text-lg">{format(deadline, "EEEE MMMM d, yyyy")}</p>
                     <p className="text-gray-400 text-sm mt-1">{format(deadline, "h:mm a")}</p>
 
                   </div>
@@ -131,18 +130,37 @@ export function AssignmentDetailsModal({
                   {/* Tags Grid */}
                   <div className="grid grid-cols-3 gap-3">
                     <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
-                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Status</span>
-                      <StatusTag assignment={assignment} onEdit={onEdit!} variant="outline" />
+                      <span className="text-xs font-medium uppercase tracking-wider">Status</span>
+                      {!isRemote ? (
+                        <StatusTag assignment={assignment as models.LocalAssignment} onEdit={onEdit!} variant="outline" />
+                      ) : (
+                        < Badge variant="outline" className={`text-caption font-normal`}>
+                          {Status}
+                        </Badge>
+                      )}
+
                     </div>
 
                     <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
-                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Priority</span>
-                      <PriorityTag assignment={assignment} onEdit={onEdit!} variant="outline" />
+                      <span className="text-xs font-medium uppercase tracking-wider">Priority</span>
+                      {!isRemote ? (
+                        <PriorityTag assignment={assignment as models.LocalAssignment} onEdit={onEdit!} variant="outline" />
+                      ) : (
+                        < Badge variant="outline" className={`text-caption font-normal`}>
+                          {Priority}
+                        </Badge>
+                      )}
                     </div>
 
                     <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
-                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">Type</span>
-                      <TypeTag assignment={assignment} onEdit={onEdit!} variant="outline" />
+                      <span className="text-xs font-medium uppercase tracking-wider">Type</span>
+                      {!isRemote ? (
+                        <TypeTag assignment={assignment as models.LocalAssignment} onEdit={onEdit!} variant="outline" />
+                      ) : (
+                        < Badge variant="outline" className={`text-caption font-normal`}>
+                          {Type}
+                        </Badge>
+                      )}
                     </div>
                   </div>
 
@@ -154,7 +172,7 @@ export function AssignmentDetailsModal({
                         <span>Description & Notes</span>
                       </div>
                       <div className="bg-white/5 border border-white/5 p-4 rounded-xl  overflow-y-auto custom-scrollbar max-h-[100px] hover:max-h-[200px] transition-all duration-300 ease-in-out">
-                        <p className="whitespace-pre-wrap leading-relaxed text-sm text-gray-200">{assignment.Todo}</p>
+                        <p className="whitespace-pre-wrap leading-relaxed text-sm text-gray-200">{Todo}</p>
                       </div>
                     </div>
                   )}
@@ -173,7 +191,7 @@ export function AssignmentDetailsModal({
                   transition={{ duration: 0.2 }}
                 >
                   <FileUpload05
-                    assignment={assignment}
+                    assignment={assignment as models.LocalAssignment}
                   />
                 </motion.div>
               </TabsContent>
@@ -185,7 +203,7 @@ export function AssignmentDetailsModal({
 
           <div className="grid grid-cols-4 gap-3 mt-6">
 
-            {!assignmentProp && (
+            {!isRemote && (
 
               <Button
                 variant="outline"
@@ -197,23 +215,25 @@ export function AssignmentDetailsModal({
                 <span>AI Help</span>
               </Button>
 
+
             )}
 
 
-            {onOpenEdit && (
+              {!isRemote && (
               <Button
                 variant="outline"
                 size="sm"
                 className="rounded-full"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onOpenEdit(assignment)
+                  onOpenEdit?.(assignment as models.LocalAssignment)
                 }}
               >
                 <Edit className="w-4 h-4" />
                 <span>Edit</span>
               </Button>
             )}
+
             <Button
               variant="outline"
               size="sm"
@@ -224,17 +244,17 @@ export function AssignmentDetailsModal({
               }}
             >
               <ExternalLink className="w-4 h-4" />
-              <span>Open Link</span>
+              <span>Link</span>
             </Button>
 
-            {onCopy && (
+            {isRemote && (
               <Button
                 variant="primary"
                 size="sm"
                 className=" rounded-full"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onCopy?.(assignment)
+                  onCopy?.(assignment as models.Assignment)
                 }}
               >
 
@@ -242,14 +262,14 @@ export function AssignmentDetailsModal({
                 <span>Copy</span>
               </Button>
             )}
-            {onDelete && (
+            {!isRemote && (
               <Button
                 variant="danger"
                 size="sm"
                 className="rounded-full"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onDelete(assignment)
+                  onDelete?.(assignment as models.LocalAssignment)
                 }}
               >
                 <Trash2 className="w-4 h-4" />
@@ -260,6 +280,6 @@ export function AssignmentDetailsModal({
         </div>
 
       </DialogContent>
-    </Dialog>
+    </Dialog >
   )
 }

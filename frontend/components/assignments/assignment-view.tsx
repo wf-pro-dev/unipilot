@@ -67,9 +67,8 @@ export function AssignmentView({
             assignment={assignment}
             onEdit={onEdit}
             onDelete={onDelete}
-            onAssignmentClick={onAssignmentClick}
-            disabled={isLoading}
             onOpenEdit={onOpenEdit}
+            disabled={isLoading}
             variant="outline"
           />
         ))}

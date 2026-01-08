@@ -14,6 +14,8 @@ export function AcceptLink(arg1:string):Promise<void>;
 
 export function AcceptNote(arg1:string):Promise<void>;
 
+export function CourseShare(arg1:models.LocalCourse,arg2:Array<number>):Promise<void>;
+
 export function CreateAssignment(arg1:models.LocalAssignment):Promise<models.LocalAssignment>;
 
 export function CreateCourse(arg1:models.LocalCourse):Promise<void>;
@@ -105,8 +107,6 @@ export function PickFile():Promise<string>;
 export function RebuildNotificationDaemon():Promise<void>;
 
 export function Register(arg1:models.User):Promise<models.User>;
-
-export function RequestLinkCourse(arg1:models.LocalCourse,arg2:Array<number>):Promise<void>;
 
 export function SaveDocumentAs(arg1:number):Promise<void>;
 

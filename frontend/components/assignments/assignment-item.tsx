@@ -9,33 +9,36 @@ import { BrowserOpenURL } from "@/wailsjs/runtime/runtime"
 import { StatusTag } from "./tags/status-tag"
 import { TypeTag } from "./tags/type-tag"
 import { PriorityTag } from "./tags/priority-tag"
-import { Bot, Clock, CopyPlus, Edit, Link, MoreHorizontal } from "lucide-react"
+import { Bot, Clock, CopyPlus, Edit, Link, MoreHorizontal, Trash2 } from "lucide-react"
 import { Button } from "../ui/button"
 import { useRouter } from "next/navigation"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { Avatar, AvatarImage, AvatarFallback } from "@radix-ui/react-avatar"
+import { AssignmentDetailsModal } from "./assignment-details-modal"
 
 interface AssignmentItemProps<T extends models.LocalAssignment | models.Assignment> {
   assignment: T
-  onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
-  onAssignmentClick?: (assignment: T) => void
-  onDelete: (assignment: T) => void
-  onOpenEdit: (assignment: T) => void
+  onEdit?: (assignment: models.LocalAssignment, column: string, value: string) => void
+  onDelete?: (assignment: models.LocalAssignment) => void
+  onOpenEdit?: (assignment: models.LocalAssignment) => void
   size?: "default" | "sm"
   disabled?: boolean
   variant?: GlassCardVariants
   mode?: "default" | "user"
-  onCopy?: (assignment: T) => void
+  onCopy?: (assignment: models.Assignment) => void
 }
 
+interface SideActionsDropDownProps {
+  isOpen: boolean
+  setIsOpen: (isOpen: boolean) => void
+}
 
 
 export function AssignmentItem({
   assignment,
   onEdit,
   onDelete,
-  onAssignmentClick,
   onOpenEdit,
   size = "default",
   disabled = false,
@@ -43,21 +46,17 @@ export function AssignmentItem({
   mode = "default",
   onCopy,
 }: AssignmentItemProps<models.LocalAssignment | models.Assignment>) {
-  const [checked, setChecked] = useState(assignment.Status === "Done")
+
+
   const router = useRouter()
   // Parse deadline with timezone awareness
-  const deadline = parseDeadline(assignment.Deadline)
-  const [isOpen, setIsOpen] = useState(false)
+  const { Deadline, Status } = assignment
+  const deadline = parseDeadline(Deadline)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [isActionsOpen, setIsActionsOpen] = useState(false)
 
   const handleCardClick = () => {
-    if (onAssignmentClick && !disabled) {
-      onAssignmentClick(assignment)
-    }
-  }
-
-  const handleEditOpen = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation()
-    onOpenEdit(assignment)
+    setIsDetailsOpen(true)
   }
 
   const handleOpenLink = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -65,10 +64,6 @@ export function AssignmentItem({
     BrowserOpenURL(assignment.Link)
   }
 
-  const handleOpenAIHelp = (e: React.MouseEvent<HTMLDivElement>) => {
-    e.stopPropagation()
-    router.push(`/chat?assignment=${assignment.ID}`)
-  }
 
   const statusColors = {
     "Not started": "bg-gray-500",
@@ -76,54 +71,81 @@ export function AssignmentItem({
     "Done": "bg-green-500",
   }
 
-  const SideActions = [
-    {
-      label: "AI Help",
-      icon: Bot,
-      onClick: handleOpenAIHelp
-    },
-    {
-      label: "Open Link",
-      icon: Link,
-      onClick: handleOpenLink
-    },
 
-    {
-      label: "Edit",
-      icon: Edit,
-      onClick: handleEditOpen
-    }
-
-  ]
-
-
-  interface SideActionsDropDownProps {
-    isOpen: boolean
-    onOpenChange: (isOpen: boolean) => void
-  }
-
-  const SideActionDropdown = ({ isOpen, onOpenChange }: SideActionsDropDownProps) => {
-
-    return (
-      <DropdownMenu open={isOpen} onOpenChange={onOpenChange}>
-        <DropdownMenuTrigger asChild>
-          <Button variant={variant == "default" ? "default" : "outline"} size="icon" className="rounded-full w-7 h-7">
-            <MoreHorizontal className="w-3.5 h-3.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="glass border-gray-600">
-          {SideActions.map((action) => (
-            <DropdownMenuItem key={action.icon.name} onClick={(e) => action.onClick(e)}>
-              <action.icon className="w-3.5 h-3.5" />
-              {action.label}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    )
-  }
 
   const DefaultssignmentItem = ({ assignment, onEdit, variant, size }: AssignmentItemProps<models.LocalAssignment>) => {
+
+    if (!assignment || !onOpenEdit || !onDelete || !onEdit) return null
+
+    const handleEditOpen = (e: React.MouseEvent<HTMLDivElement>) => {
+      e.stopPropagation()
+      onOpenEdit(assignment)
+    }
+
+
+    const handleOpenAIHelp = (e: React.MouseEvent<HTMLDivElement>) => {
+      e.stopPropagation()
+      router.push(`/chat?assignment=${assignment.ID}`)
+    }
+
+    const handleDelete = (e: React.MouseEvent<HTMLDivElement>) => {
+      e.stopPropagation()
+      onDelete(assignment)
+    }
+
+
+    const SideActions = [
+      {
+        label: "AI Help",
+        icon: Bot,
+        onClick: handleOpenAIHelp
+      },
+      {
+        label: "Open Link",
+        icon: Link,
+        onClick: handleOpenLink
+      },
+
+      {
+        label: "Edit",
+        icon: Edit,
+        onClick: handleEditOpen
+      },
+      {
+        label: "Delete",
+        icon: Trash2,
+        onClick: handleDelete
+      }
+    ]
+
+
+
+    const SideActionDropdown = ({ isOpen, setIsOpen }: SideActionsDropDownProps) => {
+
+      return (
+        <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button variant={variant == "default" ? "default" : "outline"} size="icon" className="rounded-full w-7 h-7">
+              <MoreHorizontal className="w-3.5 h-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="glass border-gray-600">
+            {SideActions.map((action) => (
+              <DropdownMenuItem key={action.icon.name} onClick={(e) => action.onClick(e)}>
+                <action.icon className="w-3.5 h-3.5" />
+                {action.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    }
+
+    const handleActionOpenChange = (e: React.MouseEvent<HTMLDivElement>, isOpen: boolean) => {
+      e.stopPropagation()
+      setIsDetailsOpen(isOpen)
+    }
+
     return (
       <GlassCard
         variant={variant}
@@ -140,14 +162,13 @@ export function AssignmentItem({
             <div className="flex-1 flex flex-col gap-2">
 
               {/* 2. Main Info: Title & Description */}
-
               <div className="flex items-center justify-between">
-                
-                
+
+
                 {size === "default" && (
                   <h5 className={`text-h5 line-clamp-1 tracking-tight`}>
-                  {assignment.Title}
-                </h5>
+                    {assignment.Title}
+                  </h5>
 
                 )}
                 {size === "sm" && (
@@ -156,14 +177,14 @@ export function AssignmentItem({
                   </p>
                 )}
 
-                <SideActionDropdown isOpen={isOpen} onOpenChange={setIsOpen} />
+                <SideActionDropdown isOpen={isActionsOpen} setIsOpen={setIsActionsOpen} />
               </div>
 
 
               <div className="flex flex-1 items-center justify-between">
                 <p className={`text-caption flex items-center gap-1 line-clamp-1 leading-relaxed`}  >
                   <Clock className="w-3.5 h-3.5" />
-                  {getDueDescription(deadline, assignment.Status)}
+                  {getDueDescription(deadline, Status)}
                 </p>
 
                 <p className="text-caption flex items-center gap-1">
@@ -190,6 +211,15 @@ export function AssignmentItem({
             <PriorityTag assignment={assignment} onEdit={onEdit} variant={variant} />
           </CardFooter>
         )}
+
+        <AssignmentDetailsModal
+          isOpen={isDetailsOpen}
+          onClose={() => setIsDetailsOpen(false)}
+          assignment={assignment}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onOpenEdit={onOpenEdit}
+        />
       </GlassCard >
     )
   }
@@ -262,6 +292,13 @@ export function AssignmentItem({
           </CardFooter>
         )}
 
+        <AssignmentDetailsModal
+          isOpen={isDetailsOpen}
+          onClose={() => setIsDetailsOpen(false)}
+          assignment={assignment}
+          onCopy={onCopy}
+        />
+
       </GlassCard >
     )
   }
@@ -269,8 +306,8 @@ export function AssignmentItem({
 
   switch (mode) {
     case "user":
-      return <UserAssignmentItem assignment={assignment as models.Assignment} onEdit={onEdit} onDelete={onDelete} onAssignmentClick={onAssignmentClick} onOpenEdit={onOpenEdit} disabled={disabled} variant={variant} mode={mode} onCopy={onCopy} size={size} />
+      return <UserAssignmentItem assignment={assignment as models.Assignment} disabled={disabled} variant={variant} mode={mode} onCopy={onCopy} size={size} />
     default:
-      return <DefaultssignmentItem assignment={assignment as models.LocalAssignment} onEdit={onEdit} onDelete={onDelete} onAssignmentClick={onAssignmentClick} onOpenEdit={onOpenEdit} disabled={disabled} variant={variant} mode={mode} size={size} />
+      return <DefaultssignmentItem assignment={assignment as models.LocalAssignment} onEdit={onEdit} onDelete={onDelete} onOpenEdit={onOpenEdit} disabled={disabled} variant={variant} mode={mode} size={size} />
   }
 }

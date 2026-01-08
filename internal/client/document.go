@@ -260,15 +260,16 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 	connTracker.SetStatus("Connecting to server")
 	connTracker.OnProgress(func(t *progress.Tracker) {
 		snapshot := t.Snapshot()
-		snapshot.Percentage = 20 + t.Percentage()*0.4 // 40% of the total progress
-
-		runtime.EventsEmit(ctx, "upload:progress", snapshot)
+		// 40% of the total progress
 
 		if snapshot.Error != nil {
-			runtime.EventsEmit(ctx, "upload:error", map[string]interface{}{
+			runtime.EventsEmit(ctx, fmt.Sprintf("upload:error:%s", localDocument.UploadID), map[string]interface{}{
 				"upload_id": localDocument.UploadID,
 				"error":     snapshot.Error.Error(),
 			})
+		} else {
+			snapshot.Percentage = 20 + t.Percentage()*0.4
+			runtime.EventsEmit(ctx, fmt.Sprintf("upload:progress:%s", localDocument.UploadID), snapshot)
 		}
 
 	})

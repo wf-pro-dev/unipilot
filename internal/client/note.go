@@ -12,9 +12,8 @@ import (
 func GetNotes() ([]models.Note, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Get(fmt.Sprintf("%s/notes", api_url))
-
-	if err := SetAuthHeader(agent); err != nil {
+	agent, err := GetAuthAgent(fiber.Get(fmt.Sprintf("%s/notes", api_url)))
+	if err != nil {
 		return nil, err
 	}
 
@@ -37,10 +36,8 @@ func GetNotes() ([]models.Note, error) {
 func CreateNote(n *models.Note) (uint, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Post(fmt.Sprintf("%s/notes", api_url))
-	agent.JSON(n)
-
-	if err := SetAuthHeader(agent); err != nil {
+	agent, err := GetAuthAgent(fiber.Post(fmt.Sprintf("%s/notes", api_url)).JSON(n))
+	if err != nil {
 		return 0, err
 	}
 
@@ -72,10 +69,8 @@ func UpdateNote(id, column, value string) error {
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Put(fmt.Sprintf("%s/notes/%s", api_url, id))
-	agent.JSON(updateData)
-
-	if err := SetAuthHeader(agent); err != nil {
+	agent, err := GetAuthAgent(fiber.Put(fmt.Sprintf("%s/notes/%s", api_url, id)).JSON(updateData))
+	if err != nil {
 		return err
 	}
 
@@ -94,9 +89,8 @@ func UpdateNote(id, column, value string) error {
 func DeleteNote(id string) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Delete(fmt.Sprintf("%s/notes/%s", api_url, id))
-
-	if err := SetAuthHeader(agent); err != nil {
+	agent, err := GetAuthAgent(fiber.Delete(fmt.Sprintf("%s/notes/%s", api_url, id)))
+	if err != nil {
 		return err
 	}
 

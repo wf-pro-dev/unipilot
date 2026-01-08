@@ -18,6 +18,10 @@ export function AcceptNote(arg1) {
   return window['go']['main']['App']['AcceptNote'](arg1);
 }
 
+export function CourseShare(arg1, arg2) {
+  return window['go']['main']['App']['CourseShare'](arg1, arg2);
+}
+
 export function CreateAssignment(arg1) {
   return window['go']['main']['App']['CreateAssignment'](arg1);
 }
@@ -200,10 +204,6 @@ export function RebuildNotificationDaemon() {
 
 export function Register(arg1) {
   return window['go']['main']['App']['Register'](arg1);
-}
-
-export function RequestLinkCourse(arg1, arg2) {
-  return window['go']['main']['App']['RequestLinkCourse'](arg1, arg2);
 }
 
 export function SaveDocumentAs(arg1) {

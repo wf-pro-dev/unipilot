@@ -104,20 +104,21 @@ export function useUploadDocument() {
       assignmentId,
       remoteAssignmentId,
       documentType,
-      filePath
+      filePath,
+      uploadId
     }: {
       assignmentId: number
       remoteAssignmentId: number
       documentType: string
       filePath: string
+      uploadId: string
     }) => {
       // Generate a unique upload ID
-      const uploadId: string = crypto.randomUUID()
       return await UploadDocument(assignmentId, remoteAssignmentId, documentType, filePath, uploadId)
     },
 
     // Optimistically update the cache
-    onMutate: async ({ assignmentId, remoteAssignmentId, documentType, filePath }) => {
+    onMutate: async ({ assignmentId, remoteAssignmentId, documentType, filePath, uploadId }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: documentKeys.list(assignmentId) })
       await queryClient.cancelQueries({ queryKey: documentKeys.support(assignmentId) })
@@ -125,7 +126,11 @@ export function useUploadDocument() {
 
       const previousDocuments = queryClient.getQueryData<models.LocalDocument[]>(documentKeys.list(assignmentId))
 
+
       const fileInfo = await GetFileInfo(filePath)
+      
+      console.log("FileInfo", fileInfo)
+
       var newDocument = new models.LocalDocument({
         ID: 0,
         AssignmentID: assignmentId,
@@ -134,6 +139,7 @@ export function useUploadDocument() {
         FilePath: filePath,
         FileName: fileInfo.FileName,
         FileSize: fileInfo.FileSize,
+        UploadID: uploadId,
       })
 
       queryClient.setQueryData<models.LocalDocument[]>(documentKeys.list(assignmentId), (old) => {
@@ -150,15 +156,21 @@ export function useUploadDocument() {
         (old) => old ? [newDocument, ...old] : [newDocument]
       )
 
+      
+
       return { previousDocuments }
 
       // Note: We don't do optimistic updates for uploads since we need the actual file data
+    },
+    onSuccess: (data) => {
+      toast.success(data?.FileName + " uploaded successfully")
     },
     onError: (err, variables, context) => {
       if (context?.previousDocuments) {
         queryClient.setQueryData(documentKeys.list(variables.assignmentId), context.previousDocuments)
       }
       LogError("Failed to upload document: " + err)
+      toast.error("Failed to upload document")
     },
     // Always refetch to ensure consistency
     onSettled: (data, error, { assignmentId }) => {
@@ -166,8 +178,10 @@ export function useUploadDocument() {
       queryClient.invalidateQueries({ queryKey: documentKeys.support(assignmentId) })
       queryClient.invalidateQueries({ queryKey: documentKeys.submissions(assignmentId) })
     },
-  })
-}
+    retry: false,
+  },
+
+)}
 
 // Hook for uploading new document versions
 export function useUploadDocumentVersion() {
@@ -204,6 +218,7 @@ export function useUploadDocumentVersion() {
 
         // Invalidate storage info
         queryClient.invalidateQueries({ queryKey: documentKeys.storage() })
+
       }
     },
 

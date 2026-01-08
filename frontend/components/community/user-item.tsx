@@ -3,20 +3,18 @@ import { GlassCard } from "@/components/ui/glass-card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { User as UserIcon, Calendar, MessageCircle, UserPlus, UserMinus } from "lucide-react"
+import { MessageCircle, UserPlus, UserMinus } from "lucide-react"
 import { useFollow, useFollowers, useFollowing } from "@/hooks/use-follows"
-import { LogInfo } from "@/wailsjs/runtime/runtime"
-import { format } from "date-fns"
 import { useUsers } from "@/hooks/use-users"
 import { useAuthContext } from "../provider/auth-provider"
 import { Skeleton } from "../ui/skeleton"
 import { toast } from "sonner"
 
-import { user as User } from "@/wailsjs/go/models"
+import { models} from "@/wailsjs/go/models"
 
 interface UserItemProps {
   userID: number
-  user?: User.User
+  user?: models.User
 }
 
 export function UserItem({ userID, user: userProp }: UserItemProps) {
@@ -60,7 +58,7 @@ export function UserItem({ userID, user: userProp }: UserItemProps) {
   return (
     <GlassCard
       key={userID}
-      variant="board"
+      variant="outline"
       className="cursor-pointer group"
     >
       <CardContent className="p-5">

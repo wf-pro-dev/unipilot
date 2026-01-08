@@ -5,18 +5,11 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"gorm.io/gorm"
-
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/services/fileops"
 	"unipilot/internal/services/utils"
 )
-
-// GetDB returns the database connection
-func (h *Database) GetDB() *gorm.DB {
-	return h.db
-}
 
 // GetUser retrieves a user by ID
 func (h *Database) GetUser(id uint) (*models.User, error) {
@@ -156,7 +149,7 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 	// Create LocalDocument record
 	localDoc := models.LocalDocument{
 		BaseDocument: models.BaseDocument{
-			UploadID:     uploadReq.UploadID,
+
 			AssignmentID: uploadReq.AssignmentID,
 			Type:         uploadReq.Type,
 			FileName:     uploadReq.FileName,
@@ -165,6 +158,7 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 			Version:      1,
 			HasLocalFile: hasLocalFile, // Will be set to true after successful file write
 		},
+		UploadID:           uploadReq.UploadID,
 		RemoteAssignmentID: uploadReq.RemoteAssignmentID,
 	}
 

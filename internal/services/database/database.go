@@ -3,7 +3,6 @@ package database
 import (
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
-	dbservice "unipilot/internal/services/database"
 
 	"gorm.io/gorm"
 )
@@ -20,7 +19,7 @@ func NewDatabase(user *models.User) (*Database, error) {
 		user: user,
 	}
 
-	db, err := dbservice.InitializeClient(user.ID, nil)
+	db, err := InitializeClient(user.ID, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to initialize client database")
 	}
@@ -30,6 +29,6 @@ func NewDatabase(user *models.User) (*Database, error) {
 	return database, nil
 }
 
-func (h *Database) SetDB(db *gorm.DB) {
-	h.db = db
-}
+func (h *Database) SetDB(db *gorm.DB) { h.db = db }
+
+func (h *Database) GetDB() *gorm.DB { return h.db }

@@ -53,12 +53,12 @@ func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.
 
 			switch progressData.Status {
 			case "completed":
-				runtime.EventsEmit(ctx, "upload:complete", map[string]interface{}{
+				runtime.EventsEmit(ctx, fmt.Sprintf("upload:complete:%s", uploadID), map[string]interface{}{
 					"upload_id": uploadID,
 				})
 				return
 			case "error":
-				runtime.EventsEmit(ctx, "upload:error", map[string]interface{}{
+				runtime.EventsEmit(ctx, fmt.Sprintf("upload:error:%s", uploadID), map[string]interface{}{
 					"upload_id": uploadID,
 					"error":     "server upload error",
 				})
@@ -66,7 +66,7 @@ func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.
 				return
 			default:
 				progressData.Percentage = 60 + progressData.Percentage*0.4 // 40% of the total progress
-				runtime.EventsEmit(ctx, "upload:progress", progressData)
+				runtime.EventsEmit(ctx, fmt.Sprintf("upload:progress:%s", uploadID), progressData)
 
 			}
 
@@ -156,13 +156,12 @@ func GetProgress(ctx context.Context, uploadID string) error {
 					log.Println("Connected to SSE stream")
 				case "error":
 					log.Println("Server error:", data)
-					runtime.EventsEmit(ctx, "upload:error", map[string]interface{}{
+					runtime.EventsEmit(ctx, fmt.Sprintf("upload:error:%s", uploadID), map[string]interface{}{
 						"upload_id": uploadID,
 						"error":     data,
 					})
 					return fmt.Errorf("server error: %s", data)
 				default:
-					log.Println("Default event:", eventType)
 					// Parse progress data
 					var progressData progress.TrackerSnapshot
 					if err := json.Unmarshal([]byte(data), &progressData); err != nil {
@@ -170,22 +169,27 @@ func GetProgress(ctx context.Context, uploadID string) error {
 						return errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal progress data")
 					}
 
-					// Adjust percentage if needed
-					progressData.Percentage = 60 + progressData.Percentage*0.4
-
-					log.Println("Progress data:", progressData)
-					// Emit progress
-					runtime.EventsEmit(ctx, "upload:progress", progressData)
-
 					// Check for completion
 					if progressData.Status == "completed" {
-						log.Println("Server upload completed")
+						runtime.EventsEmit(ctx, fmt.Sprintf("upload:complete:%s", uploadID), map[string]interface{}{
+							"upload_id": uploadID,
+						})
 						return nil
 					}
 					if progressData.Status == "error" {
 						log.Println("Server upload error:", progressData.Error)
 						return fmt.Errorf("server upload error: %s", progressData.Error)
 					}
+
+					if progressData.Status != "stopped" {
+						// Adjust percentage if needed
+						progressData.Percentage = 60 + progressData.Percentage*0.4
+						// Emit progress
+						runtime.EventsEmit(ctx, fmt.Sprintf("upload:progress:%s", uploadID), progressData)
+					}
+
+					log.Println("Progress data:", progressData.Percentage, progressData.Status)
+
 				}
 
 				// Reset for next event

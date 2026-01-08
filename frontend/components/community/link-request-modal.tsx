@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useState } from "react";
 import { user } from "@/wailsjs/go/models"
 import { Check, Users, X} from "lucide-react";
-import { useRequestLinkCourse } from "@/hooks/use-courses";
+import { useCourseShare } from "@/hooks/use-courses";
 import { LogInfo } from "@/wailsjs/runtime/runtime";
 import { course } from "@/wailsjs/go/models";
 
@@ -20,7 +20,7 @@ export function LinkRequestModal({ isOpen, onClose, courseID }: LinkRequestModal
     const { followers } = useAuthContext()
     const [selectedFollowers, setSelectedFollowers] = useState<number[]>([])
 
-    const { mutate: requestLinkCourse } = useRequestLinkCourse()
+    const { mutate: requestLinkCourse } = useCourseShare()
 
     const handleShare = (follower: user.User) => {
         if (selectedFollowers.includes(follower.ID)) {

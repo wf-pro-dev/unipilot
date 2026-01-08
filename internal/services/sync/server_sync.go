@@ -64,7 +64,7 @@ func (m *Migrator) MigrateAssignments() error {
 
 	if err := m.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "remote_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"updated_at", "todo", "type", "status", "deadline", "link", "priority", "parent_id"}),
+		DoUpdates: clause.AssignmentColumns([]string{"updated_at", "title", "type", "status", "todo", "deadline", "link", "course_id", "course_code", "priority", "parent_id"}),
 	}).Create(&localAssignments).Error; err != nil {
 		return errors.HandleDBCreateError(err)
 	}
@@ -91,7 +91,7 @@ func (m *Migrator) MigrateDocuments() error {
 
 	if err := m.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "remote_id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"updated_at", "storage_key", "version", "parent_id", "parent_doc_id", "is_original", "has_local_file"}),
+		DoUpdates: clause.AssignmentColumns([]string{"updated_at", "type", "file_name", "file_path", "file_size", "storage_key", "version", "parent_id", "parent_doc_id", "is_original", "has_local_file", "assignment_id"}),
 	}).Create(&localDocuments).Error; err != nil {
 		return errors.HandleDBCreateError(err)
 	}
@@ -118,7 +118,7 @@ func (m *Migrator) MigrateNotes() error {
 
 	if err := m.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "remote_id"}},
-		UpdateAll: true,
+		DoUpdates: clause.AssignmentColumns([]string{"updated_at", "title", "subject", "content", "videos", "parent_id", "course_id", "course_code"}),
 	}).Create(&localNotes).Error; err != nil {
 		return errors.HandleDBCreateError(err)
 	}

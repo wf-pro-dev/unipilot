@@ -101,7 +101,6 @@ func (eh *EventHandler) StopEventHandler() error {
 	}
 
 	// Note: We don't stop the SSE client here since it's managed by the main app
-	// We just stop our event processing
 
 	eh.isRunning = false
 	log.Printf("[EventHandler] Event handler stopped successfully")

@@ -14,9 +14,8 @@ import (
 func GetAssignments() ([]models.Assignment, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Get(fmt.Sprintf("%s/assignments", api_url))
-
-	if err := SetAuthHeader(agent); err != nil {
+	agent, err := GetAuthAgent(fiber.Get(fmt.Sprintf("%s/assignments", api_url)))
+	if err != nil {
 		return nil, err
 	}
 
@@ -42,10 +41,8 @@ func GetAssignments() ([]models.Assignment, error) {
 func CreateAssignment(a *models.Assignment) (uint, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Post(fmt.Sprintf("%s/assignments", api_url))
-	agent.JSON(a)
-
-	if err := SetAuthHeader(agent); err != nil {
+	agent, err := GetAuthAgent(fiber.Post(fmt.Sprintf("%s/assignments", api_url)).JSON(a))
+	if err != nil {
 		return 0, err
 	}
 
@@ -80,10 +77,8 @@ func UpdateAssignment(id, column, value string) error {
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Put(fmt.Sprintf("%s/assignments/%s", api_url, id))
-	agent.JSON(updateData)
-
-	if err := SetAuthHeader(agent); err != nil {
+	agent, err := GetAuthAgent(fiber.Put(fmt.Sprintf("%s/assignments/%s", api_url, id)).JSON(updateData))
+	if err != nil {
 		return err
 	}
 
@@ -102,9 +97,8 @@ func UpdateAssignment(id, column, value string) error {
 func DeleteAssignment(id string) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Delete(fmt.Sprintf("%s/assignments/%s", api_url, id))
-
-	if err := SetAuthHeader(agent); err != nil {
+	agent, err := GetAuthAgent(fiber.Delete(fmt.Sprintf("%s/assignments/%s", api_url, id)))
+	if err != nil {
 		return err
 	}
 

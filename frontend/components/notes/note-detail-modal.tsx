@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { Video, FileText} from "lucide-react"
+import { Video, FileText } from "lucide-react"
 import { models } from "@/wailsjs/go/models"
 import { NoteVideo } from "./note-video"
 import { useMemo, useState, useRef } from "react"
@@ -33,11 +33,11 @@ export function NoteDetailModal({
   const [activeView, setActiveView] = useState("note")
   const { data: courses } = useCourses()
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  
+
   const scrollRef = useRef<HTMLDivElement>(null)
   // Using useScroll for cleaner Framer Motion integration
   // We need to ensure the scrollRef is attached to the scrolling container
-  const { scrollY } = useScroll({ 
+  const { scrollY } = useScroll({
     container: scrollRef
   })
 
@@ -50,11 +50,11 @@ export function NoteDetailModal({
   )
   const headerBackdrop = useTransform(scrollY, [0, 50], ["blur(0px)", "blur(12px)"])
   const headerBorderOpacity = useTransform(scrollY, [0, 50], [0, 0.1])
-  
+
   const metadataOpacity = useTransform(scrollY, [0, 100], [1, 0])
   const metadataHeight = useTransform(scrollY, [0, 100], ["auto", "0px"])
   const metadataMargin = useTransform(scrollY, [0, 100], ["16px", "0px"])
-  
+
   const titleSize = useTransform(scrollY, [0, 150], ["1.5rem", "1.25rem"]) // 2xl to xl
 
   // Tabs Animations
@@ -64,7 +64,7 @@ export function NoteDetailModal({
   const tabsRadius = useTransform(scrollY, [0, 100], [12, 0])
   const tabsBackdrop = useTransform(scrollY, [0, 50], ["blur(0px)", "blur(8px)"])
   const tabsBackground = useTransform(scrollY, [0, 50], ["rgba(0,0,0,0.05)", "rgba(0,0,0,0.4)"])
-  
+
   const { data: notes } = useNotes()
   const note = notes?.find(n => n.ID === noteID)
 
@@ -76,7 +76,7 @@ export function NoteDetailModal({
       onClose()
     }
   }
-  
+
   const videos = useMemo(() => {
     if (!note?.Videos) return []
     try {
@@ -170,112 +170,111 @@ export function NoteDetailModal({
                 {note.Title}
               </motion.h2>
 
-              {/* Course & Date Info - Collapsible */}
-              <motion.div 
-                  style={{ 
-                      opacity: metadataOpacity,
-                      height: metadataHeight,
-                      marginTop: metadataMargin
-                  }}
-                  className="overflow-hidden"
-              >
-                  <div className="flex items-center gap-4 text-xs text-gray-400">
-                    {course && (
-                        <div className="flex items-center gap-1.5">
-                            <span className="font-medium text-gray-300">{course.Code}</span>
-                            <span className="w-1 h-1 rounded-full bg-gray-600" />
-                            <span>{course.Name}</span>
-                        </div>
-                    )}
-                    {note.UpdatedAt && note.UpdatedAt !== note.CreatedAt && (
-                        <div className="flex items-center gap-1.5 ml-auto">
-                            <span>Updated {new Date(note.UpdatedAt).toLocaleDateString()}</span>
-                        </div>
-                    )}
+            {/* Course & Date Info - Collapsible */}
+            <motion.div
+              style={{
+                opacity: metadataOpacity,
+                height: metadataHeight,
+                marginTop: metadataMargin
+              }}
+              className="overflow-hidden"
+            >
+              <div className="flex items-center gap-4 text-xs text-gray-400">
+                {course && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-medium text-gray-300">{course.Code}</span>
+                    <span className="w-1 h-1 rounded-full bg-gray-600" />
+                    <span>{course.Name}</span>
                   </div>
-              </motion.div>
-            </div>
-          </motion.div>
-
-          <div 
-            className="flex-1 overflow-y-auto scroll-smooth"
-            ref={scrollRef}
-            onScroll={(e) => scrollY.set(e.currentTarget.scrollTop)}
-          >
-             <Tabs defaultValue="note" value={activeView} onValueChange={setActiveView} className="w-full flex flex-col min-h-full">
-                
-                {/* Sticky Tabs List Container */}
-                <motion.div 
-                    className="sticky top-0 z-20" 
-                    style={{ 
-                        padding: tabsContainerPadding,
-                        backdropFilter: tabsBackdrop,
-                        backgroundColor: tabsBackground
-                    }}
-                >
-                    <motion.div style={{ borderRadius: tabsRadius }} className="overflow-hidden">
-                        <TabsList className="flex flex-row bg-white/5 p-1 w-full border border-white/5 h-auto">
-                            <TabsTrigger 
-                              value="note" 
-                              className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
-                            >
-                              <FileText className="w-4 h-4" />
-                              <span className="text-sm font-medium">Note Content</span>
-                            </TabsTrigger>
-                            <TabsTrigger 
-                              value="videos" 
-                              className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
-                            >
-                              <Video className="w-4 h-4" />
-                              <span className="text-sm font-medium">Videos ({videos.length})</span>
-                            </TabsTrigger>
-                        </TabsList>
-                    </motion.div>
-                </motion.div>
-
-                {/* Content */}
-                <div className="p-6 pt-4 flex-1">
-                  <TabsContent value="note" className="animate-in fade-in slide-in-from-bottom-4 duration-300 focus-visible:ring-0 focus-visible:outline-none mt-0">
-                    <div className="space-y-4">
-                      {/* Check if we have HTML content from the server */}
-                      {note.Content ? (
-                        <StyledMarkdownRenderer
-                          content={note.Content}
-                          className="bg-white/5 rounded-xl p-6 border border-white/5 min-h-[300px]"
-                        />
-                      ) : (
-                        <div className="text-gray-400 text-center py-12 border border-dashed border-white/10 rounded-xl bg-white/5">
-                          <FileText className="h-8 w-8 mx-auto mb-3 opacity-50" />
-                          <p>No content available</p>
-                        </div>
-                      )}
-                    </div>
-                  </TabsContent>
-
-                  <TabsContent value="videos" className="animate-in fade-in slide-in-from-bottom-4 duration-300 focus-visible:ring-0 focus-visible:outline-none mt-0">
-                    <NoteVideo
-                      videos={videos}
-                      note={note}
-                      onRemoveVideo={handleRemoveVideo}
-                      setIsAddDialogOpen={setIsAddDialogOpen}
-                    />
-                  </TabsContent>
-
-                  {/* Actions */}
-                  <div className="flex justify-end space-x-3 pt-6 mt-6 border-t border-white/5">
-                    <Button
-                      variant="destructive"
-                      onClick={handleDelete}
-                      className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 shadow-none"
-                    >
-                      Delete Note
-                    </Button>
+                )}
+                {note.UpdatedAt && note.UpdatedAt !== note.CreatedAt && (
+                  <div className="flex items-center gap-1.5 ml-auto">
+                    <span>Updated {new Date(note.UpdatedAt).toLocaleDateString()}</span>
                   </div>
-                </div>
-             </Tabs>
+                )}
+              </div>
+            </motion.div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </motion.div>
+
+        <div
+          className="flex-1 overflow-y-auto scroll-smooth"
+          ref={scrollRef}
+          onScroll={(e) => scrollY.set(e.currentTarget.scrollTop)}
+        >
+          <Tabs defaultValue="note" value={activeView} onValueChange={setActiveView} className="w-full flex flex-col min-h-full">
+
+            {/* Sticky Tabs List Container */}
+            <motion.div
+              className="sticky top-0 z-20"
+              style={{
+                padding: tabsContainerPadding,
+                backdropFilter: tabsBackdrop,
+                backgroundColor: tabsBackground
+              }}
+            >
+              <motion.div style={{ borderRadius: tabsRadius }} className="overflow-hidden">
+                <TabsList className="flex flex-row bg-white/5 p-1 w-full border border-white/5 h-auto">
+                  <TabsTrigger
+                    value="note"
+                    className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span className="text-sm font-medium">Note Content</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="videos"
+                    className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
+                  >
+                    <Video className="w-4 h-4" />
+                    <span className="text-sm font-medium">Videos ({videos.length})</span>
+                  </TabsTrigger>
+                </TabsList>
+              </motion.div>
+            </motion.div>
+
+            {/* Content */}
+            <div className="p-6 pt-4 flex-1">
+              <TabsContent value="note" className="animate-in fade-in slide-in-from-bottom-4 duration-300 focus-visible:ring-0 focus-visible:outline-none mt-0">
+                <div className="space-y-4">
+                  {/* Check if we have HTML content from the server */}
+                  {note.Content ? (
+                    <StyledMarkdownRenderer
+                      content={note.Content}
+                      className="bg-white/5 rounded-xl p-6 border border-white/5 min-h-[300px]"
+                    />
+                  ) : (
+                    <div className="text-gray-400 text-center py-12 border border-dashed border-white/10 rounded-xl bg-white/5">
+                      <FileText className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                      <p>No content available</p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="videos" className="animate-in fade-in slide-in-from-bottom-4 duration-300 focus-visible:ring-0 focus-visible:outline-none mt-0">
+                <NoteVideo
+                  videos={videos}
+                  note={note}
+                  onRemoveVideo={handleRemoveVideo}
+                  setIsAddDialogOpen={setIsAddDialogOpen}
+                />
+              </TabsContent>
+
+              {/* Actions */}
+              <div className="flex justify-end space-x-3 pt-6 mt-6 border-t border-white/5">
+                <Button
+                  variant="destructive"
+                  onClick={handleDelete}
+                  className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 shadow-none"
+                >
+                  Delete Note
+                </Button>
+              </div>
+            </div>
+          </Tabs>
+        </div>
+      </DialogContent>
       {/* Add Videos Dialog */}
       <AddVideosDialog
         isOpen={isAddDialogOpen}
@@ -283,6 +282,8 @@ export function NoteDetailModal({
         note={note}
         onAddVideo={handleAddVideo}
       />
-    </div>
+    </Dialog>
+
+
   )
 }

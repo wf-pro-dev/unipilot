@@ -5,7 +5,7 @@ import { models } from "@/wailsjs/go/models"
 import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { assignmentKeys } from './use-assignments'
 import { documentKeys } from './use-documents'
-import { GetCourses, CreateCourse, UpdateCourse, DeleteCourse, RequestLinkCourse, GetCoursesLinked } from '@/wailsjs/go/main/App'
+import { GetCourses, CreateCourse, UpdateCourse, DeleteCourse, CourseShare, GetCoursesLinked } from '@/wailsjs/go/main/App'
 
 
 // Query keys for consistent cache management
@@ -192,10 +192,10 @@ export function useDeleteCourse() {
 }
 
 // Hook for requesting to link a course to a list of users
-export function useRequestLinkCourse() {
+export function useCourseShare() {
   return useMutation({
     mutationFn: async ({ c, usersID }: { c: models.LocalCourse, usersID: number[] }) => {
-      return await RequestLinkCourse(c, usersID)
+      return await CourseShare(c, usersID)
     }
   })
 }

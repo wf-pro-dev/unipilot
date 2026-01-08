@@ -25,21 +25,18 @@ export default function NotesPage() {
 
   const courseFilter = searchParams.get("course") || "all"
 
-  console.log("route", pathname)
-  console.log("filter (page)", { courseFilter })
-
-  const handleAddNote = async (note: models.LocalNote) => {
-    const message = "note " + note.Title + " added"
-    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-    createNote.mutate(note, {
-      onSuccess: () => {
-        toast.success("Note added successfully")
-      },
-      onError: () => {
-        toast.error("Note addition failed")
-      }
-    })
-  }
+  // const handleAddNote = async (note: models.LocalNote) => {
+  //   const message = "note " + note.Title + " added"
+  //   LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
+  //   createNote.mutate(note, {
+  //     onSuccess: () => {
+  //       toast.success("Note added successfully")
+  //     },
+  //     onError: () => {
+  //       toast.error("Note addition failed")
+  //     }
+  //   })
+  // }
 
   const handleNoteClick = (noteID: number) => {
     setSelectedNoteID(noteID)

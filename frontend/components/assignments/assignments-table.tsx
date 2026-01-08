@@ -189,7 +189,7 @@ export function AssignmentsTable({
         </div>
 
       ) : (
-        <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAssignments.map((assignment) => (
             <AssignmentItem
               key={assignment.ID}
@@ -197,7 +197,6 @@ export function AssignmentsTable({
               onEdit={onEdit}
               onDelete={(assignment) => onDelete(assignment as models.LocalAssignment)}
               onOpenEdit={(assignment) => onOpenEdit(assignment as models.LocalAssignment)}
-              onAssignmentClick={(assignment) => onAssignmentClick(assignment as models.LocalAssignment)}
               disabled={isLoading}
               variant="outline"
             />

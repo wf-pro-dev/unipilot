@@ -260,7 +260,6 @@ export namespace models {
 	    IsOriginal: boolean;
 	    HasLocalFile: boolean;
 	    AssignmentID: number;
-	    UploadID: string;
 	    StorageKey: string;
 	    UserID: number;
 	    User?: User;
@@ -290,7 +289,6 @@ export namespace models {
 	        this.IsOriginal = source["IsOriginal"];
 	        this.HasLocalFile = source["HasLocalFile"];
 	        this.AssignmentID = source["AssignmentID"];
-	        this.UploadID = source["UploadID"];
 	        this.StorageKey = source["StorageKey"];
 	        this.UserID = source["UserID"];
 	        this.User = this.convertValues(source["User"], User);
@@ -752,9 +750,9 @@ export namespace models {
 	    IsOriginal: boolean;
 	    HasLocalFile: boolean;
 	    AssignmentID: number;
-	    UploadID: string;
 	    RemoteID: number;
 	    RemoteAssignmentID: number;
+	    UploadID: string;
 	    Assignment: LocalAssignment;
 	    Parent?: LocalDocument;
 	    ParentDoc?: LocalDocument;
@@ -781,9 +779,9 @@ export namespace models {
 	        this.IsOriginal = source["IsOriginal"];
 	        this.HasLocalFile = source["HasLocalFile"];
 	        this.AssignmentID = source["AssignmentID"];
-	        this.UploadID = source["UploadID"];
 	        this.RemoteID = source["RemoteID"];
 	        this.RemoteAssignmentID = source["RemoteAssignmentID"];
+	        this.UploadID = source["UploadID"];
 	        this.Assignment = this.convertValues(source["Assignment"], LocalAssignment);
 	        this.Parent = this.convertValues(source["Parent"], LocalDocument);
 	        this.ParentDoc = this.convertValues(source["ParentDoc"], LocalDocument);

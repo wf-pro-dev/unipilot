@@ -21,6 +21,7 @@ export const authKeys = {
   user: ['auth', 'user'] as const,
   followers: ['auth', 'followers'] as const,
   following: ['auth', 'following'] as const,
+  coursesInvitations: ['auth', 'coursesInvitations'] as const,
   token: ['auth', 'token'] as const,
 }
 
@@ -221,5 +222,16 @@ export function useGetAvatarUrl() {
     // refetch when the Avatar path changes
     refetchOnMount: true,
     refetchOnWindowFocus: false,
+  })
+}
+
+export function useGetCourseInvitations() {
+  return useQuery({
+    queryKey: authKeys.coursesInvitations,
+    queryFn: async (): Promise<course.CourseInvitation[]> => {
+      return await window.go.main.App.GetCourseInvitations()
+    },
+    staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
+    gcTime: 15 * 60 * 1000,   // Keep in cache for 15 minutes
   })
 }

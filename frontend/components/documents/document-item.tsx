@@ -29,37 +29,38 @@ import { Progress } from "../ui/progress"
 
 interface DocumentItemProps {
   document: models.LocalDocument
+  isUploading: boolean
 
 }
 
-function BaseDocumentItem({ document: doc }: DocumentItemProps) {
+function BaseDocumentItem({ document: doc, isUploading }: DocumentItemProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [isUploading, setIsUploading] = useState(doc.ID === 0)
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
 
-
   useEffect(() => {
     if (!isUploading) return
-    EventsOn("upload:progress", (progressData: progress.TrackerSnapshot) => {
+    var KeyProgress = "upload:progress:" + doc.UploadID
+    var KeyStatus = "upload:status:" + doc.UploadID
+    var KeyComplete = "upload:complete:" + doc.UploadID
+    var KeyError = "upload:error:" + doc.UploadID
+
+
+    EventsOn(KeyProgress, (progressData: progress.TrackerSnapshot) => {
       if (progressData.percentage > progress) {
         setProgress(progressData.percentage)
       }
-      console.log("Upload progress:", progressData.percentage)
     })
-    EventsOn("upload:status", (status: string) => {
+
+    EventsOn(KeyStatus, (status: string) => {
       setStatus(status)
     })
-    EventsOn("upload:complete", () => {
-      setProgress(100)
-      setTimeout(() => {
-        setIsUploading(false)
-        toast.success("Document uploaded successfully")
-      }, 300)
 
+    EventsOn(KeyComplete, () => {
+      setProgress(100)
     })
-    EventsOn("upload:error", (error: string) => {
+    EventsOn(KeyError, (error: string) => {
       setError(error)
     })
   }, [])
@@ -262,5 +263,5 @@ function BaseDocumentItem({ document: doc }: DocumentItemProps) {
 }
 
 export const DocumentItem = memo(BaseDocumentItem, (prevProps, nextProps) => {
-  return prevProps.document.ID === nextProps.document.ID
+  return prevProps.isUploading === nextProps.isUploading
 })

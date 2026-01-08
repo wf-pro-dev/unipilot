@@ -346,15 +346,7 @@ export default function AssignmentsPage() {
           </TabsContent>
         </Tabs>
 
-        <AssignmentDetailsModal
-          isOpen={!!selectedAssignmentID}
-          onClose={() => setSelectedAssignmentID(null)}
-          assignment_id={selectedAssignmentID!}  
-          onOpenEdit={setSelectedAssignmentEdit}
-          onEdit={handleEditAssignment}
-          onDelete={handleDeleteAssignment}
-          isLoading={updateMutation.isPending}
-        />
+       
         <DayAssignmentsModal
           isOpen={!!selectedDate}
           onClose={() => setSelectedDate(null)}

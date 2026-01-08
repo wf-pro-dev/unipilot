@@ -43,7 +43,7 @@ function BaseTypeTag({ assignment, onEdit, variant = "default", className = "" }
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("text-caption text-white font-normal", className)}>
+                <Button variant={variant == "default" ? "primary" : "outline"} size="tag" className={cn("text-caption font-normal", className)}>
                     {type}
                 </Button> 
             </DropdownMenuTrigger>

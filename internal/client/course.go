@@ -123,14 +123,14 @@ func DeleteCourse(id string) error {
 	return nil
 }
 
-func RequestLinkCourse(c *models.LocalCourse, usersID []uint) error {
+func CourseShare(c *models.LocalCourse, usersID []uint) error {
 
 	linkData := map[string]interface{}{
 		"users_id": usersID,
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Post(fmt.Sprintf("%s/courses/%d/link-request", api_url, c.RemoteID))
+	agent := fiber.Post(fmt.Sprintf("%s/courses/%d/share", api_url, c.RemoteID))
 	agent.JSON(linkData)
 
 	if err := SetAuthHeader(agent); err != nil {

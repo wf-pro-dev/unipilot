@@ -6,21 +6,23 @@ import rehypeKatex from 'rehype-katex'
 import rehypeHighlight from 'rehype-highlight'
 import mermaid from 'mermaid'
 import { cn } from '@/lib/utils'
-import { 
-  Copy, 
-  Check, 
-  Terminal, 
-  Info, 
-  AlertTriangle, 
-  AlertCircle, 
-  CheckCircle2, 
-  Zap, 
+import { createPortal } from 'react-dom'
+import {
+  Copy,
+  Check,
+  Terminal,
+  Info,
+  AlertTriangle,
+  AlertCircle,
+  CheckCircle2,
+  Zap,
   FileText
 } from 'lucide-react'
 
 // Import CSS for KaTeX and code highlighting
 import 'katex/dist/katex.min.css'
-import 'highlight.js/styles/github-dark.css' // Prefer dark theme for code blocks usually
+import 'highlight.js/styles/github-dark.css'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 
 interface MarkdownRendererProps {
   content: string
@@ -32,6 +34,7 @@ interface MarkdownRendererProps {
 function MermaidDiagram({ children }: { children: string }) {
   const ref = useRef<HTMLDivElement>(null)
   const [isRendered, setIsRendered] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
     if (ref.current && children && !isRendered) {
@@ -50,12 +53,18 @@ function MermaidDiagram({ children }: { children: string }) {
           if (ref.current) {
             ref.current.innerHTML = svg
             setIsRendered(true)
+
+            // Make the diagram clickable
+            const svgElement = ref.current.querySelector('svg')
+            if (svgElement) {
+              svgElement.style.cursor = 'pointer'
+              svgElement.addEventListener('click', () => setIsModalOpen(true))
+            }
           }
         } catch (error) {
           console.error('Mermaid rendering error:', error)
           if (ref.current) {
             ref.current.innerHTML = `<div class="text-red-500 bg-red-500/10 p-4 rounded border border-red-500/20 text-sm font-mono"> Error rendering diagram </div>`
-            // Remove the component from DOM
           }
         }
       }
@@ -65,9 +74,22 @@ function MermaidDiagram({ children }: { children: string }) {
   }, [children, isRendered])
 
   return (
-    <div className="my-6 flex justify-center bg-white/5 p-4 rounded-lg overflow-x-auto">
-      <div ref={ref} className="mermaid-diagram" />
-    </div>
+    <>
+      <div ref={ref} className="mermaid-container cursor-pointer flex justify-center" />
+
+      {/* Portal the modal to document.body to escape parent constraints */}
+      {typeof document !== 'undefined' && createPortal(
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-auto">
+            <div
+              className="p-4"
+              dangerouslySetInnerHTML={{ __html: ref.current?.innerHTML || '' }}
+            />
+          </DialogContent>
+        </Dialog>,
+        document.body
+      )}
+    </>
   )
 }
 
@@ -84,16 +106,15 @@ function CodeBlock({ className, children, inline, ...props }: any) {
   }
 
   // Check for inline code or "fake" blocks (single line, no language specified)
-  // This prevents short snippets like `catch` from breaking the flow when rendered as blocks
   const isInline = inline || (!match && !content.includes('\n') && content.length < 80)
 
   if (isInline) {
     return (
-      <code 
+      <code
         className={cn(
-          "bg-muted/30 px-1.5 py-0.5 rounded-md text-[0.9em] font-mono text-foreground font-medium", 
+          "bg-muted/30 px-1.5 py-0.5 rounded-md text-[0.9em] font-mono text-foreground font-medium",
           className
-        )} 
+        )}
         {...props}
       >
         {children}
@@ -139,26 +160,6 @@ function CodeBlock({ className, children, inline, ...props }: any) {
 
 // --- Alert/Callout Component ---
 function Blockquote({ children, ...props }: React.ComponentPropsWithoutRef<'blockquote'>) {
-  // ReactMarkdown passes children as an array. We need to check the first child's text content.
-  // This is a bit hacky because children structure can vary.
-  // We'll do a best effort detection of the alert syntax: > [!NOTE]
-  
-  // Convert children to string to check for alerts (simplification)
-  // In a real scenario, we'd need to inspect the ReactElement tree more carefully,
-  // but often the first child is a <p> containing the text.
-  
-  let type: 'note' | 'tip' | 'important' | 'warning' | 'caution' | 'quote' = 'quote'
-  let content = children
-
-  // Helper to extract text from React children to check for alert type
-  // This is complex with ReactNode, so we might handle it by checking if the first paragraph starts with the marker.
-  // For simplicity in this renderer without deeper tree parsing, we'll style standard blockquotes nicely
-  // and rely on the user to use them for emphasis. 
-  
-  // However, we can try to detect the pattern if it's a simple string or standard structure.
-  // NOTE: implementing robust alert detection in react-markdown components is tricky without a plugin like remark-github-blockquote-alert.
-  // We will style the blockquote generally to look good, and add support for "Quote" style.
-
   return (
     <blockquote className="my-6 pl-6 border-l-4 border-primary/30 italic text-muted-foreground bg-muted/10 py-2 rounded-r-lg" {...props}>
       {children}
@@ -177,7 +178,7 @@ export function MarkdownRenderer({
 
   const components: Components = {
     h1: ({ children, id }) => (
-      <h1 id={id} className={cn("font-bold tracking-tight text-foreground border-b border-border pb-2 first:mt-0", 
+      <h1 id={id} className={cn("font-bold tracking-tight text-foreground border-b border-border pb-2 first:mt-0",
         variant === 'compact' ? "text-xl mt-4 mb-2" : "text-3xl mt-10 mb-6"
       )}>
         {children}
@@ -214,8 +215,8 @@ export function MarkdownRenderer({
     a: ({ href, children }) => {
       const isExternal = href?.startsWith('http')
       return (
-        <a 
-          href={href} 
+        <a
+          href={href}
           target={isExternal ? "_blank" : undefined}
           rel={isExternal ? "noopener noreferrer" : undefined}
           className="font-medium text-primary hover:underline underline-offset-4 transition-colors"
@@ -239,7 +240,7 @@ export function MarkdownRenderer({
     ),
     blockquote: Blockquote,
     code: CodeBlock,
-    pre: ({ children }) => <>{children}</>, // Handled by code component
+    pre: ({ children }) => <>{children}</>,
     hr: () => <hr className="my-8 border-border" />,
     table: ({ children }) => (
       <div className="my-6 w-full overflow-y-auto rounded-lg border border-border">
@@ -272,9 +273,9 @@ export function MarkdownRenderer({
       <div className="my-8">
         <div className="relative rounded-lg overflow-hidden border border-border shadow-sm bg-muted/20">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img 
-            src={src} 
-            alt={alt} 
+          <img
+            src={src}
+            alt={alt}
             className="w-full h-auto object-cover"
             loading="lazy"
           />
@@ -286,7 +287,6 @@ export function MarkdownRenderer({
         )}
       </div>
     ),
-    // Math components are handled by remark-math/rehype-katex but wrapped in spans/divs
   }
 
   return (
@@ -311,9 +311,9 @@ export function StyledMarkdownRenderer(props: Omit<MarkdownRendererProps, 'varia
 
 export function InlineMarkdownRenderer(props: Omit<MarkdownRendererProps, 'variant'>) {
   return (
-    <MarkdownRenderer 
-      {...props} 
-      variant="compact" 
+    <MarkdownRenderer
+      {...props}
+      variant="compact"
       className={cn("text-sm", props.className)}
     />
   )

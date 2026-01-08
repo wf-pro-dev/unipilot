@@ -14,6 +14,7 @@ import (
 
 	Errors "unipilot/internal/errors"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -131,29 +132,24 @@ func LoadRefreshToken() (string, error) {
 
 func RefreshToken(refreshToken string) (string, string, error) {
 	api_url := secrets.CONSTANTS["API_URL"]
-	// Set Authorization header
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/auth/refresh-token", api_url), nil)
-	if err != nil {
-		return "", "", Errors.Wrap(err, Errors.ReqBodyInvalid, "Failed to create request")
-	}
+	agent := fiber.Post(fmt.Sprintf("%s/auth/refresh-token", api_url))
 
-	req.Header.Set("Authorization", "Bearer "+refreshToken)
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", "", Errors.Wrap(err, Errors.NetworkConnectionFailed, "Failed to refresh token")
-	}
-	defer resp.Body.Close()
+	agent.Set("Authorization", "Bearer "+refreshToken)
 
-	if resp.StatusCode != http.StatusOK {
-		return "", "", Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to refresh token")
+	statusCode, body, errs := agent.Bytes()
+
+	if len(errs) > 0 {
+		return "", "", errs[0]
+	}
+	if statusCode != http.StatusOK {
+		return "", "", Errors.Wrap(fmt.Errorf("failed to refresh token"), Errors.ClientRequestFailed, "Failed to refresh token")
 	}
 	var response struct {
 		Message      string `json:"message"`
 		Token        string `json:"token"`
 		RefreshToken string `json:"refresh_token"`
 	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	if err := json.Unmarshal(body, &response); err != nil {
 		return "", "", Errors.Wrap(err, Errors.ProcJSONUnmarshalFailed, "Failed to decode response")
 	}
 

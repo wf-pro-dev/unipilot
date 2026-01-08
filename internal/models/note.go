@@ -36,7 +36,7 @@ type Note struct {
 type LocalNote struct {
 	gorm.Model
 	BaseNote
-	RemoteID       uint `gorm:"default:null" validate:"omitempty,min=1"`
+	RemoteID       uint `gorm:"unique;default:null" validate:"omitempty,min=1"`
 	RemoteCourseID uint `gorm:"default:null" validate:"omitempty,min=1"`
 
 	Course LocalCourse `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
@@ -68,15 +68,9 @@ func (n *LocalNote) ToMap() map[string]string {
 }
 
 func (n *Note) ToLocal() *LocalNote {
-	baseN := &BaseNote{
-		Title:      n.Title,
-		Subject:    n.Subject,
-		Content:    n.Content,
-		Videos:     n.Videos,
-		CourseCode: n.CourseCode,
-	}
+
 	return &LocalNote{
-		BaseNote:       *baseN,
+		BaseNote:       n.BaseNote,
 		RemoteID:       n.ID,
 		RemoteCourseID: n.CourseID,
 	}

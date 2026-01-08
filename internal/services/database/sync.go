@@ -34,30 +34,3 @@ func TriggerServerToClientSync(db *gorm.DB) error {
 	log.Println("[ClientDB] ✅ Server-to-client sync completed successfully")
 	return nil
 }
-
-// EnsureClientDBAndSync ensures the client database is initialized and triggers sync if needed
-// This is a convenience function that combines database initialization and sync
-// It should be called when a user logs in to ensure their database is ready and synced
-func EnsureClientDBAndSync(userID uint) (*gorm.DB, error) {
-	// First, ensure the database is initialized
-	db, err := EnsureClientDBInitializedWithUser(userID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Then, trigger server-to-client sync if online
-	// Errors are logged but don't fail the initialization
-	if syncErr := TriggerServerToClientSync(db); syncErr != nil {
-		log.Printf("[ClientDB] ⚠️  Database initialized but sync failed: %v", syncErr)
-		// Continue anyway - database is initialized and ready
-	}
-
-	return db, nil
-}
-
-// EnsureClientDBAndSyncWithExisting ensures sync happens on an existing database connection
-// This is useful when the database is already initialized but sync is needed
-func EnsureClientDBAndSyncWithExisting(db *gorm.DB) error {
-	// Trigger server-to-client sync if online
-	return TriggerServerToClientSync(db)
-}

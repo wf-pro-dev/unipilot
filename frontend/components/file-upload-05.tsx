@@ -24,19 +24,20 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [uploadType, setUploadType] = useState<"support" | "submission">("support")
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [activeUploads, setActiveUploads] = useState<Set<string>>(new Set());
 
 
-  const handlePickFile =  () => {
+  const handlePickFile = () => {
 
     PickFile()
-    .then((filePath) => {
-      if (filePath) {
-        handleUpload(filePath)
-      }
-    })
-    .catch((error) => {
-      toast.error("Failed to pick file: " + error)
-    })
+      .then((filePath) => {
+        if (filePath) {
+          handleUpload(filePath)
+        }
+      })
+      .catch((error) => {
+        toast.error("Failed to pick file: " + error)
+      })
   }
 
   // Use the utility hook to get All document data
@@ -74,7 +75,6 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
   for (let i = 0; i < filteredDocs.length; i += documentsPerPage) {
     documentPages.push(filteredDocs.slice(i, i + documentsPerPage))
   }
-
 
 
   // Embla Carousel setup
@@ -132,20 +132,30 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
 
   const handleUpload = async (filePath: string) => {
 
-    const result = await uploadDocument.mutateAsync({
-      assignmentId: assignment.ID,
-      remoteAssignmentId: assignment.RemoteID,
-      documentType: uploadType,
-      filePath: filePath
-    }, {
-      onSuccess: (doc) => {
-        toast.success("Document uploaded successfully")
-      },
-      onError: () => {
-        toast.error("Failed to upload document")
-      }
-    })
+    const uploadId = crypto.randomUUID()
+    setActiveUploads(prev => new Set(prev).add(uploadId))
+
+    try {
+      const result = await uploadDocument.mutateAsync({
+        assignmentId: assignment.ID,
+        remoteAssignmentId: assignment.RemoteID,
+        documentType: uploadType,
+        filePath: filePath,
+        uploadId: uploadId
+      })
+    } finally { 
+      setActiveUploads(prev => {
+        const next = new Set(prev);
+        next.delete(uploadId);
+        return next;
+      })
+    }
+
   }
+
+  useEffect(() => {
+    console.log("Active uploads:", activeUploads)
+  }, [activeUploads])
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -237,8 +247,8 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
         >
           <div className="sm:flex sm:items-center sm:gap-x-3">
 
-            <div className="[--wails-drop-target:none] text-body text-text-caption mt-4 flex items-center  leading-6 sm:mt-0">
-              <p className="pointer-events-none ">Drag and drop or</p>
+            <div className="[--wails-drop-target:none] text-body mt-4 flex items-center  leading-6 sm:mt-0">
+              <p className="pointer-events-none text-gray-400 ">Drag and drop or</p>
 
               <Button
                 type="button"
@@ -250,7 +260,7 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
                 Choose a file
               </Button>
 
-              <p className="pointer-events-none">to upload</p>
+              <p className="pointer-events-none text-gray-400 ">to upload</p>
             </div>
 
           </div>
@@ -263,30 +273,22 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
 
         <div className="relative mt-6 flex flex-col flex-1 gap-4">
 
-          {documentPages?.length === 0 ? (
-            <GlassCard variant="board" className="p-4">
-              <HorizontalEmptyState
-                icon={Upload}
-                title="No documents uploaded yet"
-                description="Upload a document to get started"
-              />
-            </GlassCard>
-          ) : (
-            <div className="overflow-hidden" ref={emblaRef}>
-              <div className="flex w-full gap-4">
-                {documentPages?.map((page, pageIndex) => (
+          {documentPages?.length > 0 && (
+             <div className="overflow-hidden" ref={emblaRef}>
+             <div className="flex w-full gap-4">
+               {documentPages?.map((page, pageIndex) => (
 
-                  <div className="flex-none w-full min-w-0 px-1" key={pageIndex}>
+                 <div className="flex-none w-full min-w-0 px-1" key={pageIndex}>
 
-                    {page.map((document) => (
-                      <DocumentItem key={document.ID} document={document} />
-                    ))}
+                   {page.map((document) => (
+                     <DocumentItem key={document.ID || document.UploadID} document={document} isUploading={activeUploads.has(document.UploadID)} />
+                   ))}
 
-                  </div>
+                 </div>
 
-                ))}
-              </div>
-            </div>
+               ))}
+             </div>
+           </div>
           )}
         </div>
 
