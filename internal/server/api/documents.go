@@ -20,7 +20,7 @@ import (
 
 	"unipilot/internal/models"
 	"unipilot/internal/server"
-	"unipilot/internal/server/sse/grpc/notifications"
+	"unipilot/internal/server/sse/grpc/messages"
 	cloudstorage "unipilot/internal/services/cloud_storage"
 	"unipilot/internal/services/fileops"
 	"unipilot/internal/services/fileops/progress"
@@ -237,64 +237,29 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	// Get linked users for notification distribution
-	ctx := context.Background()
-	users_course, err := CacheService.GetCourseUsers(ctx, doc.Assignment.Course.ID, userID)
-	if err != nil || len(users_course) == 0 {
-		// Cache miss or empty - fallback to DB and sync cache
-		users_course, err = models.GetCourseUsers(doc.Assignment.Course.ID, db)
+	var clusterRootID uint = doc.Assignment.ClusterRoot()
+	if GrpcClient != nil && clusterRootID != 0 {
+		users_course, err := CacheService.GetClusterUsers(context.Background(), clusterRootID, db)
 		if err != nil {
-			return errors.WrapServer(
-				err,
-				errors.DBQueryFailed,
-				"Error getting linked users",
-				fiber.StatusInternalServerError,
-			)
+			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError)
 		}
-	}
 
-	// Step 11: Prepare document data for notifications
-	// Marshal document
-	doc.User = &currentUser // Link the creator data with the document
-	dJson, err := json.Marshal(doc)
-	if err != nil {
-		return errors.WrapServer(
-			err,
-			errors.ProcJSONMarshalFailed,
-			"Error marshalling document",
-			fiber.StatusInternalServerError,
-		)
-	}
+		for _, sendeeID := range users_course {
 
-	// Step 12: Send real-time notifications to linked assignment users (only for new uploads)
-	if GrpcClient != nil && doc.IsRoot() {
-		// Send notification to linked assignments
-		for _, user_course := range users_course {
-			if user_course == userID {
-				continue
-			}
-			server.LogDebug(context.Background(), "Sending notification to linked assignment", "assignment_id", doc.AssignmentID, "user_id", user_course)
-			_, err := (*GrpcClient).SendNotification(context.Background(),
-				&notifications.Notification{
-					UserId:   uint32(user_course),
-					SenderId: uint32(userID),
-					Entity:   string(models.EntityDocument),
-					EntityId: uint32(doc.AssignmentID),
-					Type:     string(models.NotificationDocumentUpdate),
-					Title:    doc.Assignment.Title,
-					Message:  fmt.Sprintf("%s shared a new document on %s", currentUser.Username, doc.FileName),
-					Action:   "document",
-					Data:     string(dJson),
+			_, err := (*GrpcClient).SendMessage(context.Background(),
+				&messages.Message{
+					ReceiverId: uint32(sendeeID),
+					SenderId:   uint32(userID),
+					Title:      doc.Assignment.Title,
+					Message:    fmt.Sprintf("%s shared a new document for %s", currentUser.Username, doc.Assignment.CourseCode),
+					Data:       []byte(""),
+					Type:       string(models.MessageNoContent),
 				},
 			)
 			if err != nil {
-				return errors.WrapServer(
-					err,
-					errors.GRPCFailed,
-					"Failed to send notification",
-					fiber.StatusInternalServerError,
-				)
+				server.LogWarn(context.Background(), errors.WrapServer(err, errors.GRPCFailed, "Failed to send notification", fiber.StatusInternalServerError))
 			}
+
 		}
 	}
 
@@ -514,6 +479,7 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 	progressManager := progress.GetManager()
 
 	progressTracker := progressManager.Create(uploadID, localDoc.FileSize)
+	progressTracker.SetStatus("Uploading file to cloud storage")
 	snapshot := progressTracker.Snapshot()
 
 	CacheService.PublishProgress(c.Context(), uploadID, &snapshot)

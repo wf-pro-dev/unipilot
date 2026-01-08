@@ -534,3 +534,26 @@ func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity
 	// Step 5: Return success (delivery failures are not considered errors)
 	return nil
 }
+
+func (s *SSEServer) SendMessage(senderID, receiverID uint, title, message string, data []byte, messageType models.MessageType) error {
+
+	// Step 1: Construct structured message with all provided metadata
+	messageData := models.Message{
+		SenderID:   senderID,
+		ReceiverID: receiverID,
+		Title:      title,
+		Message:    message,
+		Data:       data,
+		Type:       messageType,
+	}
+
+	// Step 2: Serialize message to JSON for SSE transmission
+	jsonData, err := json.Marshal(messageData)
+	if err != nil {
+		return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Failed to marshal message", fiber.StatusInternalServerError)
+	}
+
+	// Step 3: Attempt delivery to user's SSE connection (graceful failure if disconnected)
+	s.SendToUser(receiverID, jsonData)
+	return nil
+}

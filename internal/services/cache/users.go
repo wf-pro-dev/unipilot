@@ -7,6 +7,9 @@ import (
 
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
+
+	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
 )
 
 // Users provides caching operations for users resource.
@@ -38,4 +41,46 @@ func (c *Cache) DeleteUsers(ctx context.Context, userID uint) error {
 // SetExpirationUsers sets TTL for the entire users hash.
 func (c *Cache) SetExpirationUsers(ctx context.Context) error {
 	return c.redis.Expire(ctx, KeyUsers, TTLUsers).Err()
+}
+
+func (c *Cache) GetUserClusterIDs(ctx context.Context, userID uint, db *gorm.DB) ([]uint, error) {
+
+	cacheKey := FormatKey(KeyUserClusters, strconv.Itoa(int(userID)))
+
+	// 1. Try to get from Redis
+	result, err := c.redis.SMembers(ctx, cacheKey).Result()
+	if err != nil && err != redis.Nil {
+		return nil, errors.Wrap(err, errors.CacheOperationFailed, "failed to get anchors from redis")
+	}
+
+	// 2. If Cache Hit: Parse and return
+	if len(result) > 0 {
+		return parseUintSlice(result), nil
+	}
+
+	// 3. If Cache Miss: Fallback to Database
+	clusterIDs, err := models.GetUserClusterIDs(userID, db)
+	if err != nil {
+		return nil, err
+	}
+
+	// 4. If we found anchors, warm the cache asynchronously
+	if len(clusterIDs) > 0 {
+		go func() {
+			// Convert to interface slice for SAdd
+			interfaces := make([]interface{}, len(clusterIDs))
+			for i, v := range clusterIDs {
+				interfaces[i] = v
+			}
+			c.redis.SAdd(context.Background(), cacheKey, interfaces...)
+			c.redis.Expire(context.Background(), cacheKey, TTLUserCoursesLinked)
+		}()
+	}
+
+	return clusterIDs, nil
+}
+
+func (c *Cache) AddUserCluster(ctx context.Context, userID uint, clusterID uint) error {
+	cacheKey := FormatKey(KeyUserClusters, strconv.Itoa(int(userID)))
+	return c.redis.SAdd(ctx, cacheKey, clusterID).Err()
 }

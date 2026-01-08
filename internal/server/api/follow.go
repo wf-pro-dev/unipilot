@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -11,6 +12,7 @@ import (
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/server"
+	"unipilot/internal/server/sse/grpc/messages"
 )
 
 // FollowRequest represents a follow/unfollow request payload.
@@ -228,6 +230,11 @@ func HandleFollow(c *fiber.Ctx) error {
 			Message: "Followed successfully",
 		}
 
+		currentUserJSON, err := json.Marshal(currentUser)
+		if err != nil {
+			return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Error marshalling current user to json", fiber.StatusInternalServerError)
+		}
+
 		// Calculate shared courses for enhanced social context in notifications
 		var sharedCoursesCount int64
 		if err := db.Model(&models.Course{}).
@@ -236,19 +243,21 @@ func HandleFollow(c *fiber.Ctx) error {
 			return errors.WrapServer(err, errors.DBQueryFailed, "Error counting shared courses", fiber.StatusInternalServerError)
 		}
 
-		/*if sseServer != nil {
-			sseServer.SendNotification(
-				followedID,
-				userID,
-				models.EntityFollow,
-				followedID,
-				models.NotificationFollow,
-				currentUser.Username,
-				fmt.Sprintf("%s followed you. You share %d courses with this user", currentUser.Username ,sharedCoursesCount),
-				"create",
-				"",
+		if GrpcClient != nil {
+			_, err = (*GrpcClient).SendMessage(context.Background(),
+				&messages.Message{
+					ReceiverId: uint32(followedID),
+					SenderId:   uint32(userID),
+					Title:      "New follower",
+					Message:    fmt.Sprintf("%s followed you", currentUser.Username),
+					Data:       currentUserJSON,
+					Type:       string(models.MessageNoContent),
+				},
 			)
-		}*/
+			if err != nil {
+				server.LogWarn(context.Background(), errors.WrapServer(err, errors.GRPCFailed, "Failed to send notification", fiber.StatusInternalServerError))
+			}
+		}
 	}
 
 	// Step 9: Send successful response with follow operation result

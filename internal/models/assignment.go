@@ -295,13 +295,35 @@ func GetLAssignments(db *gorm.DB) ([]LocalAssignment, error) {
 	return assignments, nil
 }
 
-func (c *Course) GetAssignmentsByCourse(db *gorm.DB) ([]Assignment, error) {
-	var assignments []Assignment
-	err := db.Where("course_id = ?", c.ID).Find(&assignments).Error
+func GetAssignmentsByIDs(assignmentIDs []uint, db *gorm.DB) ([]*Assignment, error) {
+	var assignments []*Assignment
+	err := db.Where(assignmentIDs).Find(&assignments).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
 	return assignments, nil
+}
+
+func (c *Course) GetCourseAssignments(db *gorm.DB) ([]*Assignment, error) {
+	var assignments []*Assignment
+	err := db.Model(&c).Association("Assignments").Find(&assignments)
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return assignments, nil
+}
+
+func (c *Course) GetCourseAssignmentIDs(db *gorm.DB) ([]uint, error) {
+	var assignmentIDs []uint
+	// Pluck extracts a single column
+	err := db.Model(&Assignment{}).
+		Where("course_id = ?", c.ID).
+		Pluck("id", &assignmentIDs).Error
+
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return assignmentIDs, nil
 }
 
 func (lc *LocalCourse) GetAssignmentsByCourse(db *gorm.DB) ([]LocalAssignment, error) {
@@ -317,7 +339,7 @@ func (lc *LocalCourse) GetAssignmentsByCourse(db *gorm.DB) ([]LocalAssignment, e
 
 // CHECK Operations
 
-func (a *Assignment) IsRoot() bool       { return a.ParentID == 0 }
+func (a *Assignment) ClusterRoot() uint  { return a.Course.ParentID }
 func (la *LocalAssignment) IsRoot() bool { return la.ParentID == 0 }
 
 func GetQdrantCollectionName(assignmentID uint) string {

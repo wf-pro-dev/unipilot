@@ -355,7 +355,7 @@ func AuthMiddleware(c *fiber.Ctx) error {
 			fmt.Errorf("authorization header required"),
 			errors.AuthUnauthorized,
 			"Authorization header required",
-			fiber.StatusUnauthorized,
+			fiber.StatusBadRequest,
 		)
 	}
 
@@ -366,7 +366,7 @@ func AuthMiddleware(c *fiber.Ctx) error {
 			fmt.Errorf("authorization Token invalid"),
 			errors.AuthTokenInvalid,
 			"Authorization Token invalid",
-			fiber.StatusUnauthorized,
+			fiber.StatusBadRequest,
 		)
 	}
 	// Step 3: Retrieve server secret key for token validation

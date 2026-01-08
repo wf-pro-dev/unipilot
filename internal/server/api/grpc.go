@@ -9,11 +9,11 @@ import (
 	"unipilot/internal/errors"
 	"unipilot/internal/secrets"
 	"unipilot/internal/server"
-	"unipilot/internal/server/sse/grpc/notifications"
+	"unipilot/internal/server/sse/grpc/messages"
 )
 
 var conn *grpc.ClientConn
-var GrpcClient *notifications.NotificationsServiceClient
+var GrpcClient *messages.MessageServiceClient
 
 func NewGRPCClient() error {
 
@@ -27,8 +27,8 @@ func NewGRPCClient() error {
 		return errors.Wrap(err, errors.GRPCClientFailed, "failed to create gRPC client")
 	}
 
-	c := notifications.NewNotificationsServiceClient(conn)
-	message, err := c.Heartbeat(context.Background(), &notifications.Message{Body: "heartbeat"})
+	c := messages.NewMessageServiceClient(conn)
+	message, err := c.SendHeartbeat(context.Background(), &messages.Heartbeat{Body: "heartbeat"})
 	if err != nil {
 		return errors.Wrap(err, errors.GRPCUnreachable, "cannot send heartbeat")
 	}

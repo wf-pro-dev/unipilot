@@ -97,8 +97,9 @@ func StartServer() error {
 	app.Post("/courses", server.AuthMiddleware, CreateCourseHandler)
 	app.Put("/courses/:id", server.AuthMiddleware, UpdateCourseHandler)
 	app.Get("/courses/linked", server.AuthMiddleware, GetCoursesLinkedHandler)
-	app.Post("/courses/:id/link-request", server.AuthMiddleware, LinkRequestCourseHandler)
-	app.Post("/courses/:id/link-accept", server.AuthMiddleware, AcceptLinkCourseHandler)
+	app.Post("/courses/:id/share", server.AuthMiddleware, ClusterShareHandler)
+	app.Post("/courses/:id/request", server.AuthMiddleware, ClusterRequestHandler)
+	app.Post("/courses/:id/accept", server.AuthMiddleware, AcceptInvitationHandler)
 	app.Delete("/courses/:id", server.AuthMiddleware, DeleteCourseHandler)
 
 	app.Get("/documents/assignments/:id", server.AuthMiddleware, GetAssignmentDocumentsHandler)

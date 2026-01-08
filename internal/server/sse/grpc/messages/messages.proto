@@ -1,0 +1,26 @@
+syntax = "proto3";
+package notifications;
+
+option go_package = "internal/server/sse/grpc/messages";
+
+message Heartbeat {
+    string body = 1;
+}
+
+message Message {
+    uint32 sender_id = 1;
+    uint32 receiver_id = 2;
+    string title = 3;
+    string message = 4;
+    bytes data = 5;
+    string type = 6;
+}
+
+message Response {
+    bool success = 1;
+}
+
+service MessageService {
+    rpc SendMessage(Message) returns (Response) {}
+    rpc SendHeartbeat(Heartbeat) returns (Heartbeat) {}
+}

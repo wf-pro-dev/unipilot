@@ -9,7 +9,7 @@ import (
 
 	"unipilot/internal/server"
 	serverSSE "unipilot/internal/server/sse"
-	"unipilot/internal/server/sse/grpc/notifications"
+	"unipilot/internal/server/sse/grpc/messages"
 
 	"google.golang.org/grpc"
 )
@@ -61,7 +61,7 @@ func StartGRPCServer(sseServer *serverSSE.SSEServer) {
 	}
 
 	// Step 2: Create notification service instance with SSE server reference
-	s := notifications.Server{
+	s := messages.Server{
 		SSE: sseServer, // SSE server for forwarding notifications
 	}
 
@@ -69,7 +69,7 @@ func StartGRPCServer(sseServer *serverSSE.SSEServer) {
 	grpcServer := grpc.NewServer()
 
 	// Step 4: Register notification service with gRPC server
-	notifications.RegisterNotificationsServiceServer(grpcServer, &s)
+	messages.RegisterMessageServiceServer(grpcServer, &s)
 
 	// Step 5: Log server startup for monitoring and debugging
 	server.LogDebug(ctx, "gRPC server starting", "port", 9000,

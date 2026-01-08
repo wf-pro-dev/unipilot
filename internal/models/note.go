@@ -148,13 +148,34 @@ func GetLNotes(userID uint, db *gorm.DB) ([]LocalNote, error) {
 	return notes, nil
 }
 
-func GetNotesByCourse(courseID uint, db *gorm.DB) ([]Note, error) {
-	var notes []Note
-	err := db.Where("course_id = ?", courseID).Order("created_at DESC").Find(&notes).Error
+func GetNotesByIDs(noteIDs []uint, db *gorm.DB) ([]*Note, error) {
+	var notes []*Note
+	err := db.Where(noteIDs).Find(&notes).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
 	return notes, nil
+}
+
+func (c *Course) GetCourseNotes(db *gorm.DB) ([]Note, error) {
+	var notes []Note
+	err := db.Model(&c).Association("Notes").Find(&notes)
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return notes, nil
+}
+
+func (c *Course) GetCourseNoteIDs(db *gorm.DB) ([]uint, error) {
+	var noteIDs []uint
+	// Pluck extracts a single column
+	err := db.Model(&Note{}).
+		Where("course_id = ?", c.ID).
+		Pluck("id", &noteIDs).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return noteIDs, nil
 }
 
 func (lc *LocalCourse) GetNotesByCourse(db *gorm.DB) ([]LocalNote, error) {
@@ -164,6 +185,10 @@ func (lc *LocalCourse) GetNotesByCourse(db *gorm.DB) ([]LocalNote, error) {
 		return nil, errors.HandleDBReadError(err)
 	}
 	return notes, nil
+}
+
+func (n *Note) ClusterRoot() uint {
+	return n.Course.ParentID
 }
 
 func DeleteNote(id uint, db *gorm.DB) error {

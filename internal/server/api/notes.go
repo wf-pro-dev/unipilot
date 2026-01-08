@@ -14,7 +14,7 @@ import (
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/server"
-	"unipilot/internal/server/sse/grpc/notifications"
+	"unipilot/internal/server/sse/grpc/messages"
 	"unipilot/internal/services/gemini"
 )
 
@@ -149,47 +149,24 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
 	}
 
-	// Step 8: Create note record in database within transaction
-	var newN models.Note
-	if err := db.Preload("Course").Create(&input).First(&newN).Error; err != nil {
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error creating note in database", fiber.StatusConflict)
-	}
-
-	// Serialize note data for future notification payload
-	// nJson, err := json.Marshal(newN)
-	nJson, err := json.Marshal(newN)
-	if err != nil {
-		return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Failed to marshal notification", fiber.StatusInternalServerError)
-	}
-
-	// Get linked users for future notification distribution
-	ctx := context.Background()
-	users_course, err := CacheService.GetCourseUsers(ctx, newN.Course.ID, currentUser.ID)
-	if err != nil || len(users_course) == 0 {
-		// Cache miss or empty - fallback to DB and sync cache
-		users_course, err = models.GetCourseUsers(newN.Course.ID, db)
+	// Step 14: Send SSE notifications to linked users via gRPC (if available)
+	var clusterRootID uint = input.ClusterRoot()
+	if GrpcClient != nil && clusterRootID != 0 {
+		users_course, err := CacheService.GetClusterUsers(context.Background(), clusterRootID, db)
 		if err != nil {
-			if Errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.WrapServer(err, errors.DBRecordNotFound, "Users linked to course not found", fiber.StatusNotFound)
-			}
 			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError)
 		}
-	}
 
-	if GrpcClient != nil {
 		for _, sendeeID := range users_course {
 
-			_, err := (*GrpcClient).SendNotification(context.Background(),
-				&notifications.Notification{
-					UserId:   uint32(sendeeID),
-					SenderId: uint32(currentUser.ID),
-					Entity:   string(models.EntityNote),
-					EntityId: uint32(newN.ID),
-					Type:     string(models.NotificationNoteUpdate),
-					Title:    newN.Title,
-					Message:  fmt.Sprintf("%s shared a new note on %s", currentUser.Username, newN.CourseCode),
-					Action:   "note",
-					Data:     string(nJson),
+			_, err := (*GrpcClient).SendMessage(context.Background(),
+				&messages.Message{
+					ReceiverId: uint32(sendeeID),
+					SenderId:   uint32(userID),
+					Title:      input.Title,
+					Message:    fmt.Sprintf("%s shared a new note on %s", currentUser.Username, input.CourseCode),
+					Data:       []byte(""),
+					Type:       string(models.MessageNoContent),
 				},
 			)
 			if err != nil {
@@ -200,7 +177,9 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 12: Send successful response with created note data
-	return c.JSON(newN)
+	return c.JSON(fiber.Map{
+		"remote_id": input.ID,
+	})
 }
 
 func CreateNoteStreamHandler(c *fiber.Ctx) error {

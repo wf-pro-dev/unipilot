@@ -34,13 +34,13 @@ type User struct {
 	LastSync    *time.Time
 
 	// Follow relationships
-	Courses          []Course            `gorm:"foreignKey:UserID;references:ID"`
-	Assignments      []Assignment        `gorm:"foreignKey:UserID;references:ID"`
-	Notes            []Note              `gorm:"foreignKey:UserID;references:ID"`
-	OwnerRequests    []CourseLinkRequest `gorm:"foreignKey:OwnerID;references:ID"`
-	ReceiverRequests []CourseLinkRequest `gorm:"foreignKey:ReceiverID;references:ID"`
-	Followers        []User              `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowerID;References:ID;joinReferences:FollowedID"`
-	Following        []User              `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowedID;References:ID;joinReferences:FollowerID"`
+	Courses          []*Course           `gorm:"foreignKey:UserID;references:ID"`
+	Assignments      []*Assignment       `gorm:"foreignKey:UserID;references:ID"`
+	Notes            []*Note             `gorm:"foreignKey:UserID;references:ID"`
+	OwnerRequests    []*Courseinvitation `gorm:"foreignKey:OwnerID;references:ID"`
+	ReceiverRequests []*Courseinvitation `gorm:"foreignKey:ReceiverID;references:ID"`
+	Followers        []*User             `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowerID;References:ID;joinReferences:FollowedID"`
+	Following        []*User             `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowedID;References:ID;joinReferences:FollowerID"`
 }
 
 // START; TO MAP FUNCTIONS
@@ -107,11 +107,34 @@ func GetUsersCourseCodes(userIDs []uint, db *gorm.DB) ([]UserCourseCodes, error)
 
 func GetCourseUsers(courseID uint, db *gorm.DB) ([]uint, error) {
 	var userIDs []uint
-	err := db.Model(&Course{}).Where("id = ?", courseID).Select("user_id").Association("Children").Find(&userIDs)
+
+	var parentCourse Course
+	if err := db.Select("user_id").First(&parentCourse, courseID).Error; err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	userIDs = append(userIDs, parentCourse.UserID)
+
+	err := db.Model(&Course{}).
+		Where("parent_id = ?", courseID).
+		Pluck("user_id", &userIDs).Error
+
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
+
 	return userIDs, nil
+}
+
+func GetUserClusterIDs(userID uint, db *gorm.DB) ([]uint, error) {
+	var clusterIDs []uint
+
+	// The CourseID in the invitation is ALWAYS the Root ID by your design
+	err := db.Model(&Courseinvitation{}).
+		Where("(owner_id = ? OR receiver_id = ?) AND status = 'accepted'", userID, userID).
+		Distinct("course_id").
+		Pluck("course_id", &clusterIDs).Error
+
+	return clusterIDs, err
 }
 
 // END; GET FUNCTIONS

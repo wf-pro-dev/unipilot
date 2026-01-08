@@ -4,23 +4,49 @@ import "fmt"
 
 // Cache key patterns following model hierarchy: resource1:resource2:...:id
 const (
-	// Course -> Users mapping (CRITICAL: write-heavy shared data)
-	KeyCoursesLinkedUsers = "courses_linked:%s:users"
 
 	// Users resource (MEDIUM: read-heavy shared data)
 	KeyUsers = "users"
 
+	KeyUserClusters = "user:%s:clusters"
+
 	// User -> Followers (HIGH: read-heavy social graph)
-	KeyUserFollowers = "user:followers:%s"
+	KeyUserFollowers = "user:%s:followers"
 
 	// User -> Following (HIGH: read-heavy social graph)
-	KeyUserFollowing = "user:following:%s"
-
-	// User -> LinkedCourses (MEDIUM: read-heavy complex query)
-	KeyCoursesLinked = "courses_linked:%s"
+	KeyUserFollowing = "user:%s:following"
 
 	// Progress cache
 	KeyProgress = "progress:%d"
+)
+
+const (
+
+	// Course
+	KeyCourse = "course:%s"
+
+	KeyClusterCourses = "cluster:%d:courses" // Stores Set of Course ID
+
+	KeyClusterUsers = "cluster:%d:users" // Stores Set of User ID
+
+	// Course -> LinkedCourses (MEDIUM: read-heavy complex query)
+	KeyCourseLinks = "course:%s:links"
+
+	// Course -> assignments
+	KeyCourseAssignments = "course:%s:assignments"
+
+	// Course -> notes
+	KeyCourseNotes = "course:%s:notes"
+)
+
+const (
+	// Assignments
+	KeyAssignment = "assignment:%s"
+)
+
+const (
+	// Notes
+	KeyNote = "note:%s"
 )
 
 // FormatKey formats a cache key with the given identifier (string).

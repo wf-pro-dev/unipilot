@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	Errors "errors"
 	"fmt"
 	"strconv"
@@ -11,7 +10,7 @@ import (
 
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
-	"unipilot/internal/server/sse/grpc/notifications"
+	"unipilot/internal/server/sse/grpc/messages"
 
 	"unipilot/internal/server"
 
@@ -165,7 +164,7 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 9: Create assignment record in database within transaction
-	result := db.Preload("User").Preload("Course").Create(&input).First(&input)
+	result := db.Preload("Course").Create(&input).First(&input)
 	if result.Error != nil {
 		if Errors.Is(result.Error, gorm.ErrDuplicatedKey) {
 			return errors.WrapServer(result.Error, errors.DBConstraintViolation, "Assignment already exists", fiber.StatusConflict)
@@ -173,42 +172,24 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(result.Error, errors.DBQueryFailed, "Error creating assignment in database", fiber.StatusInternalServerError)
 	}
 
-	// Serialize assignment data for notification payload
-	aJson, err := json.Marshal(input)
-	if err != nil {
-		return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Error processing assignment data", fiber.StatusInternalServerError)
-	}
-
-	// Get all users sharing this course for notification distribution
-	ctx := context.Background()
-	users_course, err := CacheService.GetCourseUsers(ctx, input.CourseID, userID)
-	if err != nil || len(users_course) == 0 {
-		// Cache miss or empty - fallback to DB and sync cache
-		users_course, err = models.GetCourseUsers(input.CourseID, db)
+	// Step 14: Send SSE notifications to linked users via gRPC (if available)
+	var clusterRootID uint = input.ClusterRoot()
+	if GrpcClient != nil && clusterRootID != 0 {
+		users_course, err := CacheService.GetClusterUsers(context.Background(), clusterRootID, db)
 		if err != nil {
-			if Errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.WrapServer(err, errors.DBRecordNotFound, "Users linked to course not found", fiber.StatusNotFound)
-			}
 			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError)
 		}
 
-	}
-
-	// Step 14: Send SSE notifications to linked users via gRPC (if available)
-	if GrpcClient != nil && input.IsRoot() {
 		for _, sendeeID := range users_course {
 
-			_, err := (*GrpcClient).SendNotification(context.Background(),
-				&notifications.Notification{
-					UserId:   uint32(sendeeID),
-					SenderId: uint32(userID),
-					Entity:   string(models.EntityAssignment),
-					EntityId: uint32(input.Course.ID),
-					Type:     string(models.NotificationAssignmentUpdate),
-					Title:    input.Title,
-					Message:  fmt.Sprintf("%s shared a new assignment on %s", input.User.Username, input.CourseCode),
-					Action:   "assignment",
-					Data:     string(aJson),
+			_, err := (*GrpcClient).SendMessage(context.Background(),
+				&messages.Message{
+					ReceiverId: uint32(sendeeID),
+					SenderId:   uint32(userID),
+					Title:      input.Title,
+					Message:    fmt.Sprintf("%s shared a new assignment on %s", input.User.Username, input.CourseCode),
+					Data:       []byte(""),
+					Type:       string(models.MessageNoContent),
 				},
 			)
 			if err != nil {

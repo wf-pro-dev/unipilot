@@ -43,7 +43,7 @@ export function NoteDetailModal({
 
   // Header Animations
   const headerPadding = useTransform(scrollY, [0, 100], ["24px", "16px"])
-  const headerBackground = useTransform(
+  const headerBackground = useTransform( 
     scrollY, 
     [0, 50], 
     ["rgba(0,0,0,0)", "rgba(0,0,0,0.2)"]
@@ -131,7 +131,7 @@ export function NoteDetailModal({
     <div>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col glass border-white/10 p-0 overflow-hidden gap-0">
-          
+      
           {/* Animated Header */}
           <motion.div 
             className="border-b border-white/5 z-30 flex-shrink-0 relative transition-all duration-300 ease-in-out"

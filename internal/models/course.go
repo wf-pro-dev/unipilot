@@ -37,12 +37,12 @@ type Course struct {
 	// Common fields
 
 	// Relationships
-	Parent   *Course  `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
-	Children []Course `gorm:"foreignKey:ParentID"`
+	Parent   *Course   `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
+	Children []*Course `gorm:"foreignKey:ParentID"`
 
-	User        *User        `gorm:"foreignKey:UserID;references:ID" validate:"-"`
-	Assignments []Assignment `gorm:"foreignKey:CourseID;references:ID"`
-	Notes       []Note       `gorm:"foreignKey:CourseID;references:ID"`
+	User        *User         `gorm:"foreignKey:UserID;references:ID" validate:"-"`
+	Assignments []*Assignment `gorm:"foreignKey:CourseID;references:ID"`
+	Notes       []*Note       `gorm:"foreignKey:CourseID;references:ID"`
 }
 
 // LocalCourse represents a course in the local database
@@ -53,20 +53,8 @@ type LocalCourse struct {
 
 	RemoteID uint `gorm:"unique;default:null"`
 
-	Assignments []LocalAssignment `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
-	Notes       []LocalNote       `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
-}
-
-// Course Link Request
-type CourseLinkRequest struct {
-	ID         uint `gorm:"primaryKey"`
-	OwnerID    uint `gorm:"not null;index"`
-	ReceiverID uint `gorm:"not null;index"`
-	CourseID   uint `gorm:"not null;index"`
-
-	Owner    User   `gorm:"foreignKey:OwnerID;references:ID" validate:"-"`
-	Receiver User   `gorm:"foreignKey:ReceiverID;references:ID" validate:"-"`
-	Course   Course `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
+	Assignments []*LocalAssignment `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
+	Notes       []*LocalNote       `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
 }
 
 func (c *BaseCourse) ToMap() map[string]string {
@@ -136,12 +124,12 @@ func (c *Course) BeforeCreate(tx *gorm.DB) error {
 
 func (c *Course) BeforeDelete(tx *gorm.DB) error {
 
-	assignments, err := c.GetAssignmentsByCourse(tx)
+	assignments, err := c.GetCourseAssignments(tx)
 	if err != nil {
 		return errors.Wrap(err, errors.DBQueryFailed, "Error getting assignments by course")
 	}
 
-	notes, err := GetNotesByCourse(c.ID, tx)
+	notes, err := c.GetCourseNotes(tx)
 	if err != nil {
 		return errors.Wrap(err, errors.DBQueryFailed, "Error getting notes by course")
 	}
@@ -286,6 +274,15 @@ func GetLCourses(db *gorm.DB) ([]LocalCourse, error) {
 	return courses, nil
 }
 
+func GetCoursesByIDs(courseIDs []uint, db *gorm.DB) ([]*Course, error) {
+	var courses []*Course
+	err := db.Where(courseIDs).Find(&courses).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return courses, nil
+}
+
 func GetCoursesLinked(courseID uint, db *gorm.DB) ([]Course, error) {
 	var courses []Course
 	err := db.Where("id = ? AND EXISTS (SELECT 1 FROM courses AS c WHERE c.parent_id = courses.id)", courseID).
@@ -294,6 +291,36 @@ func GetCoursesLinked(courseID uint, db *gorm.DB) ([]Course, error) {
 		return nil, errors.HandleDBReadError(err)
 	}
 	return courses, err
+}
+
+func GetClusterCourses(rootID uint, db *gorm.DB) ([]uint, error) {
+	var courseIDs []uint
+
+	// Find the Root itself and all its Children
+	err := db.Model(&Course{}).
+		Where("id = ? OR parent_id = ?", rootID, rootID).
+		Pluck("id", &courseIDs).Error
+
+	return courseIDs, err
+}
+
+func GetClusterUserIDs(rootID uint, db *gorm.DB) ([]uint, error) {
+	var userIDs []uint
+
+	err := db.Raw(`
+        SELECT DISTINCT user_id FROM (
+            SELECT owner_id AS user_id 
+            FROM courseinvitations 
+            WHERE course_id = ? AND status = ? AND deleted_at IS NULL
+            UNION
+            SELECT receiver_id AS user_id 
+            FROM courseinvitations 
+            WHERE course_id = ? AND status = ? AND deleted_at IS NULL
+        ) AS combined_users
+    `, rootID, InvitationAccepted, rootID, InvitationAccepted).
+		Pluck("user_id", &userIDs).Error
+
+	return userIDs, err
 }
 
 // Other Operations
@@ -371,4 +398,59 @@ func ParseSchedule(schedule string) (*ParsedSchedule, error) {
 		EndTime:     endHour,
 		EndMinute:   endMin,
 	}, nil
+}
+
+type InvitationStatus string
+
+const (
+	InvitationPending  InvitationStatus = "pending"
+	InvitationAccepted InvitationStatus = "accepted"
+	InvitationRejected InvitationStatus = "rejected"
+)
+
+// Course Link Request
+type Courseinvitation struct {
+	gorm.Model
+	OwnerID    uint             `gorm:"not null;index" validate:"required,min=1"`
+	ReceiverID uint             `gorm:"not null;index" validate:"required,min=1"`
+	SenderID   uint             `gorm:"not null;index" validate:"required,min=1"`
+	CourseID   uint             `gorm:"not null;index" validate:"required,min=1"`
+	CourseCode string           `gorm:"not null" validate:"required,min=3,max=12"`
+	Status     InvitationStatus `gorm:"not null;default:pending" validate:"required,oneof=pending accepted rejected"`
+
+	Owner    *User   `gorm:"foreignKey:OwnerID;references:ID" validate:"-"`
+	Receiver *User   `gorm:"foreignKey:ReceiverID;references:ID" validate:"-"`
+	Sender   *User   `gorm:"foreignKey:SenderID;references:ID" validate:"-"`
+	Course   *Course `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
+}
+
+func (ci *Courseinvitation) BeforeCreate(tx *gorm.DB) error {
+	var course Course
+	if err := tx.Select("parent_id").First(&course, ci.CourseID).Error; err != nil {
+		return err
+	}
+
+	if course.ParentID != 0 {
+		return errors.NewAppError(errors.ValidationInvalid,
+			"CourseID must be a parent course, not a child", nil)
+	}
+
+	return nil
+}
+
+func (ci *Courseinvitation) Validate() error {
+	validate := validator.New()
+	if err := validate.Struct(ci); err != nil {
+		return errors.Wrap(err, errors.ValidationInvalid, "Courseinvitation validation failed")
+	}
+	return nil
+}
+
+func GetCourseInvitation(id uint, db *gorm.DB) (*Courseinvitation, error) {
+	invitation := &Courseinvitation{}
+	err := db.First(&invitation, id).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return invitation, nil
 }
