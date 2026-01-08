@@ -37,8 +37,8 @@ type User struct {
 	Courses          []*Course           `gorm:"foreignKey:UserID;references:ID"`
 	Assignments      []*Assignment       `gorm:"foreignKey:UserID;references:ID"`
 	Notes            []*Note             `gorm:"foreignKey:UserID;references:ID"`
-	OwnerRequests    []*Courseinvitation `gorm:"foreignKey:OwnerID;references:ID"`
-	ReceiverRequests []*Courseinvitation `gorm:"foreignKey:ReceiverID;references:ID"`
+	OwnerRequests    []*CourseInvitation `gorm:"foreignKey:OwnerID;references:ID"`
+	ReceiverRequests []*CourseInvitation `gorm:"foreignKey:ReceiverID;references:ID"`
 	Followers        []*User             `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowerID;References:ID;joinReferences:FollowedID"`
 	Following        []*User             `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowedID;References:ID;joinReferences:FollowerID"`
 }
@@ -129,7 +129,7 @@ func GetUserClusterIDs(userID uint, db *gorm.DB) ([]uint, error) {
 	var clusterIDs []uint
 
 	// The CourseID in the invitation is ALWAYS the Root ID by your design
-	err := db.Model(&Courseinvitation{}).
+	err := db.Model(&CourseInvitation{}).
 		Where("(owner_id = ? OR receiver_id = ?) AND status = 'accepted'", userID, userID).
 		Distinct("course_id").
 		Pluck("course_id", &clusterIDs).Error
@@ -330,4 +330,13 @@ func GetFollowing(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
 		return nil, errors.HandleDBReadError(err)
 	}
 	return following, nil
+}
+
+func GetUserCourseInvitations(userID uint, db *gorm.DB) ([]CourseInvitation, error) {
+	var invitations []CourseInvitation
+	err := db.Preload("Course").Where("receiver_id = ? OR owner_id = ?", userID, userID).Find(&invitations).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return invitations, nil
 }

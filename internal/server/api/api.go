@@ -87,6 +87,7 @@ func StartServer() error {
 	app.Post("/users/:id/follow", server.AuthMiddleware, HandleFollow)
 	app.Get("/users/:id/followers", server.AuthMiddleware, HandleGetFollowers)
 	app.Get("/users/:id/following", server.AuthMiddleware, HandleGetFollowing)
+	app.Get("/users/me/invitations", server.AuthMiddleware, GetUserCourseInvitationsHandler)
 
 	app.Get("/assignments", server.AuthMiddleware, GetAssignmentHandler)
 	app.Post("/assignments", server.AuthMiddleware, CreateAssignmentHandler)

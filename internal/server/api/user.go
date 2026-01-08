@@ -225,3 +225,22 @@ func UpdateProfilePictureHandler(c *fiber.Ctx) error {
 		"message": "Profile picture updated successfully",
 	})
 }
+
+func GetUserCourseInvitationsHandler(c *fiber.Ctx) error {
+	c.Locals("message", "User course invitations retrieved successfully")
+
+	currentUser, ok := c.Locals("user").(models.User)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
+	}
+	db, ok := c.Locals("db").(*gorm.DB)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	}
+
+	invitations, err := models.GetUserCourseInvitations(currentUser.ID, db.Where("status = ?", models.InvitationPending))
+	if err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting pending invitations", fiber.StatusInternalServerError)
+	}
+	return c.JSON(invitations)
+}

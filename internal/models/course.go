@@ -310,11 +310,11 @@ func GetClusterUserIDs(rootID uint, db *gorm.DB) ([]uint, error) {
 	err := db.Raw(`
         SELECT DISTINCT user_id FROM (
             SELECT owner_id AS user_id 
-            FROM courseinvitations 
+            FROM CourseInvitations 
             WHERE course_id = ? AND status = ? AND deleted_at IS NULL
             UNION
             SELECT receiver_id AS user_id 
-            FROM courseinvitations 
+            FROM CourseInvitations 
             WHERE course_id = ? AND status = ? AND deleted_at IS NULL
         ) AS combined_users
     `, rootID, InvitationAccepted, rootID, InvitationAccepted).
@@ -409,12 +409,12 @@ const (
 )
 
 // Course Link Request
-type Courseinvitation struct {
+type CourseInvitation struct {
 	gorm.Model
-	OwnerID    uint             `gorm:"not null;index" validate:"required,min=1"`
-	ReceiverID uint             `gorm:"not null;index" validate:"required,min=1"`
+	OwnerID    uint             `gorm:"not null;index;uniqueIndex:idx_invitations" validate:"required,min=1"`
+	ReceiverID uint             `gorm:"not null;index;uniqueIndex:idx_invitations" validate:"required,min=1"`
 	SenderID   uint             `gorm:"not null;index" validate:"required,min=1"`
-	CourseID   uint             `gorm:"not null;index" validate:"required,min=1"`
+	CourseID   uint             `gorm:"not null;index;uniqueIndex:idx_invitations" validate:"required,min=1"`
 	CourseCode string           `gorm:"not null" validate:"required,min=3,max=12"`
 	Status     InvitationStatus `gorm:"not null;default:pending" validate:"required,oneof=pending accepted rejected"`
 
@@ -424,7 +424,7 @@ type Courseinvitation struct {
 	Course   *Course `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
 }
 
-func (ci *Courseinvitation) BeforeCreate(tx *gorm.DB) error {
+func (ci *CourseInvitation) BeforeCreate(tx *gorm.DB) error {
 	var course Course
 	if err := tx.Select("parent_id").First(&course, ci.CourseID).Error; err != nil {
 		return err
@@ -435,22 +435,38 @@ func (ci *Courseinvitation) BeforeCreate(tx *gorm.DB) error {
 			"CourseID must be a parent course, not a child", nil)
 	}
 
+	if exists, err := InvitationExists(ci.OwnerID, ci.ReceiverID, ci.CourseID, tx); err != nil {
+		return err
+	} else if exists {
+		return errors.NewAppError(errors.ValidationInvalid,
+			"Invitation already exists", nil)
+	}
+
 	return nil
 }
 
-func (ci *Courseinvitation) Validate() error {
+func (ci *CourseInvitation) Validate() error {
 	validate := validator.New()
 	if err := validate.Struct(ci); err != nil {
-		return errors.Wrap(err, errors.ValidationInvalid, "Courseinvitation validation failed")
+		return errors.Wrap(err, errors.ValidationInvalid, "CourseInvitation validation failed")
 	}
 	return nil
 }
 
-func GetCourseInvitation(id uint, db *gorm.DB) (*Courseinvitation, error) {
-	invitation := &Courseinvitation{}
+func GetCourseInvitation(id uint, db *gorm.DB) (*CourseInvitation, error) {
+	invitation := &CourseInvitation{}
 	err := db.First(&invitation, id).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
 	return invitation, nil
+}
+
+func InvitationExists(ownerID, receiverID, courseID uint, db *gorm.DB) (bool, error) {
+	var exists bool
+	err := db.Model(&CourseInvitation{}).
+		Where("owner_id = ? AND receiver_id = ? AND course_id = ?", ownerID, receiverID, courseID).
+		First(&CourseInvitation{}).
+		Error
+	return exists, err
 }

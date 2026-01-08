@@ -269,14 +269,14 @@ func ClusterShareHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	course, err := models.GetCourse(courseID, db)
+	course, err := models.GetCourse(courseID, db.Preload("Assignments", "parent_id is NULL").Preload("Notes", "parent_id is NULL"))
 	if err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting course", fiber.StatusInternalServerError)
 	}
 
 	for _, userID := range linkRequestData.UsersID {
 
-		newInvitation := models.Courseinvitation{
+		newInvitation := models.CourseInvitation{
 			OwnerID:    currentUser.ID,
 			ReceiverID: userID,
 			SenderID:   currentUser.ID,
@@ -327,7 +327,7 @@ func ClusterRequestHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting course", fiber.StatusInternalServerError)
 	}
 
-	newInvitation := models.Courseinvitation{
+	newInvitation := models.CourseInvitation{
 		OwnerID:    cluster.UserID,
 		ReceiverID: currentUser.ID,
 		SenderID:   currentUser.ID,
@@ -397,7 +397,7 @@ func AcceptInvitationHandler(c *fiber.Ctx) error {
 
 	// Set invitation status to accepted
 	invitation.Status = models.InvitationAccepted
-	if err := db.Model(&models.Courseinvitation{}).Where("id = ?", invitationID).Update("status", models.InvitationAccepted).Error; err != nil {
+	if err := db.Model(&models.CourseInvitation{}).Where("id = ?", invitationID).Update("status", models.InvitationAccepted).Error; err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error updating invitation", fiber.StatusInternalServerError)
 	}
 

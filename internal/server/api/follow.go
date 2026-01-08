@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -230,11 +229,6 @@ func HandleFollow(c *fiber.Ctx) error {
 			Message: "Followed successfully",
 		}
 
-		currentUserJSON, err := json.Marshal(currentUser)
-		if err != nil {
-			return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Error marshalling current user to json", fiber.StatusInternalServerError)
-		}
-
 		// Calculate shared courses for enhanced social context in notifications
 		var sharedCoursesCount int64
 		if err := db.Model(&models.Course{}).
@@ -250,7 +244,7 @@ func HandleFollow(c *fiber.Ctx) error {
 					SenderId:   uint32(userID),
 					Title:      "New follower",
 					Message:    fmt.Sprintf("%s followed you", currentUser.Username),
-					Data:       currentUserJSON,
+					Data:       []byte(""),
 					Type:       string(models.MessageNoContent),
 				},
 			)
