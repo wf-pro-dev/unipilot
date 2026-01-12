@@ -101,6 +101,7 @@ func StartServer() error {
 	app.Post("/courses/:id/share", server.AuthMiddleware, ClusterShareHandler)
 	app.Post("/courses/:id/request", server.AuthMiddleware, ClusterRequestHandler)
 	app.Post("/courses/:id/accept", server.AuthMiddleware, AcceptInvitationHandler)
+	app.Post("/courses/:id/decline", server.AuthMiddleware, DeclineInvitationHandler)
 	app.Delete("/courses/:id", server.AuthMiddleware, DeleteCourseHandler)
 
 	app.Get("/documents/assignments/:id", server.AuthMiddleware, GetAssignmentDocumentsHandler)

@@ -120,12 +120,16 @@ func GetUsersHandler(c *fiber.Ctx) error {
 		if users[i].CoursesCode == nil {
 			users[i].CoursesCode = []string{} // Ensure non-nil slice
 		}
-		usersWithCourses = append(usersWithCourses, users[i])
 
 		// Cache individual user in Redis for future requests (non-blocking)
-		if err := CacheService.SetUsers(ctx, usersWithCourses[i].ID, &usersWithCourses[i]); err != nil {
+		if err := CacheService.SetUsers(ctx, users[i].ID, &users[i]); err != nil {
 			return errors.WrapServer(err, errors.CacheOperationFailed, "Failed to cache user in Redis", fiber.StatusInternalServerError)
 		}
+
+		if users[i].ID == currentUser.ID {
+			continue
+		}
+		usersWithCourses = append(usersWithCourses, users[i])
 
 	}
 

@@ -321,6 +321,22 @@ func ClusterShareHandler(c *fiber.Ctx) error {
 		if err := db.Create(&newInvitation).Error; err != nil {
 			return errors.WrapServer(err, errors.DBQueryFailed, "Error creating invitation", fiber.StatusInternalServerError)
 		}
+
+		if GrpcClient != nil {
+			_, err = (*GrpcClient).SendMessage(context.Background(),
+				&messages.Message{
+					ReceiverId: uint32(userID),
+					SenderId:   uint32(currentUser.ID),
+					Title:      fmt.Sprintf("New Course Invitation: %s", course.Code),
+					Message:    fmt.Sprintf("%s invited you to join their course", currentUser.Username),
+					Data:       []byte(""),
+					Type:       string(models.MessageNoContent),
+				},
+			)
+			if err != nil {
+				server.LogWarn(context.Background(), errors.WrapServer(err, errors.GRPCFailed, "Failed to send notification", fiber.StatusInternalServerError))
+			}
+		}
 	}
 
 	// Warm course cache async
@@ -379,23 +395,7 @@ func ClusterRequestHandler(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-// AcceptLinkCourseHandler accepts a course link request and returns all assignments
-// with their associated documents for synchronization. Notifies the original course
-// owner that the link was accepted.
-//
-// Parameters:
-//   - w: HTTP response writer
-//   - r: HTTP request (must contain authenticated user context from AuthMiddleware)
-//
-// Request Body:
-//   - models.Course object containing course metadata (user_id, code, etc.)
-//
-// Response:
-//   - 200 OK: JSON object with "assignments" array containing assignments with embedded documents
-//   - 400 Bad Request: If request body is invalid or database queries fail
-//
-// Side Effects:
-//   - Sends SSE notification to original course owner via gRPC
+// AcceptInvitationHandler accepts a course invitation
 func AcceptInvitationHandler(c *fiber.Ctx) error {
 	c.Locals("message", "Course invitation accepted")
 	// Step 1: Extract context values set by middleware (start_time, request_id, user, db)
@@ -491,6 +491,36 @@ func AcceptInvitationHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 5: Return the enriched assignments to the client
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func DeclineInvitationHandler(c *fiber.Ctx) error {
+	c.Locals("message", "Course invitation declined")
+
+	db, ok := c.Locals("db").(*gorm.DB)
+	if !ok {
+		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	}
+
+	idStr := c.Params("id")
+	if idStr == "" {
+		return errors.WrapServer(fmt.Errorf("invitation ID required"), errors.ReqParamMissing, "Invitation ID required", fiber.StatusBadRequest)
+	}
+	int_id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting invitation ID to int", fiber.StatusBadRequest)
+	}
+	invitationID := uint(int_id)
+
+	invitation, err := models.GetCourseInvitation(invitationID, db.Preload("Course"))
+	if err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting invitation", fiber.StatusInternalServerError)
+	}
+
+	if err := db.Delete(&invitation).Error; err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error updating invitation", fiber.StatusInternalServerError)
+	}
+
 	return c.SendStatus(fiber.StatusNoContent)
 }
 

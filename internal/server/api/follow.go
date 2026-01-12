@@ -242,7 +242,7 @@ func HandleFollow(c *fiber.Ctx) error {
 				&messages.Message{
 					ReceiverId: uint32(followedID),
 					SenderId:   uint32(userID),
-					Title:      "New follower",
+					Title:      "New Follower",
 					Message:    fmt.Sprintf("%s followed you", currentUser.Username),
 					Data:       []byte(""),
 					Type:       string(models.MessageNoContent),

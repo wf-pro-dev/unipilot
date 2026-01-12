@@ -405,18 +405,17 @@ type InvitationStatus string
 const (
 	InvitationPending  InvitationStatus = "pending"
 	InvitationAccepted InvitationStatus = "accepted"
-	InvitationRejected InvitationStatus = "rejected"
 )
 
 // Course Link Request
 type CourseInvitation struct {
 	gorm.Model
-	OwnerID    uint             `gorm:"not null;index;uniqueIndex:idx_invitations" validate:"required,min=1"`
-	ReceiverID uint             `gorm:"not null;index;uniqueIndex:idx_invitations" validate:"required,min=1"`
-	SenderID   uint             `gorm:"not null;index" validate:"required,min=1"`
-	CourseID   uint             `gorm:"not null;index;uniqueIndex:idx_invitations" validate:"required,min=1"`
+	OwnerID    uint             `gorm:"not null;index" validate:"required,min=1"`
+	ReceiverID uint             `gorm:"not null;index;uniqueIndex:idx_invitations,where:deleted_at IS NULL" validate:"required,min=1"`
+	SenderID   uint             `gorm:"not null;index;uniqueIndex:idx_invitations,where:deleted_at IS NULL" validate:"required,min=1"`
+	CourseID   uint             `gorm:"not null;index;uniqueIndex:idx_invitations,where:deleted_at IS NULL" validate:"required,min=1"`
 	CourseCode string           `gorm:"not null" validate:"required,min=3,max=12"`
-	Status     InvitationStatus `gorm:"not null;default:pending" validate:"required,oneof=pending accepted rejected"`
+	Status     InvitationStatus `gorm:"not null;default:pending" validate:"required,oneof=pending accepted"`
 
 	Owner    *User   `gorm:"foreignKey:OwnerID;references:ID" validate:"-"`
 	Receiver *User   `gorm:"foreignKey:ReceiverID;references:ID" validate:"-"`
@@ -437,7 +436,7 @@ func (ci *CourseInvitation) BeforeCreate(tx *gorm.DB) error {
 
 	if exists := InvitationExists(ci.OwnerID, ci.ReceiverID, ci.CourseID, tx); exists {
 		return errors.NewAppError(errors.ValidationInvalid,
-			"Invitation already exists", nil)
+			"An Invitation is still active", nil)
 	}
 
 	return nil
@@ -461,9 +460,10 @@ func GetCourseInvitation(id uint, db *gorm.DB) (*CourseInvitation, error) {
 }
 
 func InvitationExists(ownerID, receiverID, courseID uint, db *gorm.DB) bool {
+	threshold := time.Now().Add(-48 * time.Hour)
 	var invitation CourseInvitation
 	err := db.Model(&CourseInvitation{}).
-		Where("owner_id = ? AND receiver_id = ? AND course_id = ?", ownerID, receiverID, courseID).
+		Where("owner_id = ? AND receiver_id = ? AND course_id = ? AND deleted_at > ?", ownerID, receiverID, courseID, threshold).
 		First(&invitation).
 		Error
 	return err == nil

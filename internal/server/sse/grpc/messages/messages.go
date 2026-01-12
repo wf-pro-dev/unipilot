@@ -43,7 +43,7 @@ func (s *Server) SendMessage(ctx context.Context, message *Message) (*Response, 
 
 	// Step 3: Log message delivery attempt with structured data for monitoring
 	ctx = context.WithValue(ctx, "component", "grpc")
-	server.LogInfo(ctx, "Message sent", "sender_id", message.SenderId,
+	server.LogInfo(ctx, "Message sent", "sender_id", message.SenderId, "receiver_id", message.ReceiverId,
 		"tags", []string{"notification", "network", "low"},
 	)
 
