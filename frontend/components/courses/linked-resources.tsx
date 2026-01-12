@@ -56,15 +56,7 @@ export function LinkedResources() {
       ...assignment,
       Status: "Not started",
       ParentID: assignment.ID
-    } as models.LocalAssignment, {
-      onSuccess: () => {
-        toast.success("Assignment added successfully")
-        setSelectedAssignment(null)
-      },
-      onError: () => {
-        toast.error("Failed to add assignment")
-      }
-    })
+    } as models.LocalAssignment)  
   }
 
   const filteredUsers = useCallback((code: string) => {

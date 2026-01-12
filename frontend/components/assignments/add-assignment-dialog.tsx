@@ -107,10 +107,8 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
       } as unknown as models.LocalAssignment
 
       onAdd(assignmentData)
-      toast.success("Assignment added successfully")
       handleOpenChange(false)
     } catch (error) {
-      toast.error("Failed to add assignment")
     } finally {
       setIsSubmitting(false)
     }
