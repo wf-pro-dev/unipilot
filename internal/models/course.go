@@ -14,7 +14,7 @@ import (
 )
 
 type BaseCourse struct {
-	Code            string    `gorm:"index:idx_courses_user_code_active,unique,where:deleted_at IS NULL;not null" validate:"required,min=1,max=12"`
+	Code            string    `validate:"required,min=1,max=12"`
 	Name            string    `gorm:"not null" validate:"required,min=3,max=100"`
 	Color           string    `gorm:"default:bg-blue-500" validate:"required"`
 	Location        string    `validate:"required,min=3,max=100"`
@@ -310,11 +310,11 @@ func GetClusterUserIDs(rootID uint, db *gorm.DB) ([]uint, error) {
 	err := db.Raw(`
         SELECT DISTINCT user_id FROM (
             SELECT owner_id AS user_id 
-            FROM CourseInvitations 
+            FROM course_invitations
             WHERE course_id = ? AND status = ? AND deleted_at IS NULL
             UNION
             SELECT receiver_id AS user_id 
-            FROM CourseInvitations 
+            FROM course_invitations
             WHERE course_id = ? AND status = ? AND deleted_at IS NULL
         ) AS combined_users
     `, rootID, InvitationAccepted, rootID, InvitationAccepted).
@@ -435,9 +435,7 @@ func (ci *CourseInvitation) BeforeCreate(tx *gorm.DB) error {
 			"CourseID must be a parent course, not a child", nil)
 	}
 
-	if exists, err := InvitationExists(ci.OwnerID, ci.ReceiverID, ci.CourseID, tx); err != nil {
-		return err
-	} else if exists {
+	if exists := InvitationExists(ci.OwnerID, ci.ReceiverID, ci.CourseID, tx); exists {
 		return errors.NewAppError(errors.ValidationInvalid,
 			"Invitation already exists", nil)
 	}
@@ -462,11 +460,11 @@ func GetCourseInvitation(id uint, db *gorm.DB) (*CourseInvitation, error) {
 	return invitation, nil
 }
 
-func InvitationExists(ownerID, receiverID, courseID uint, db *gorm.DB) (bool, error) {
-	var exists bool
+func InvitationExists(ownerID, receiverID, courseID uint, db *gorm.DB) bool {
+	var invitation CourseInvitation
 	err := db.Model(&CourseInvitation{}).
 		Where("owner_id = ? AND receiver_id = ? AND course_id = ?", ownerID, receiverID, courseID).
-		First(&CourseInvitation{}).
+		First(&invitation).
 		Error
-	return exists, err
+	return err == nil
 }

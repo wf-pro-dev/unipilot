@@ -82,5 +82,20 @@ func (c *Cache) GetUserClusterIDs(ctx context.Context, userID uint, db *gorm.DB)
 
 func (c *Cache) AddUserCluster(ctx context.Context, userID uint, clusterID uint) error {
 	cacheKey := FormatKey(KeyUserClusters, strconv.Itoa(int(userID)))
-	return c.redis.SAdd(ctx, cacheKey, clusterID).Err()
+	c.redis.SAdd(ctx, cacheKey, clusterID).Err()
+	return c.SetExpirationUserClusters(ctx, userID)
+}
+
+func (c *Cache) RemoveUserCluster(ctx context.Context, userID uint, clusterID uint) error {
+	cacheKey := FormatKey(KeyUserClusters, strconv.Itoa(int(userID)))
+	c.redis.SRem(ctx, cacheKey, clusterID).Err()
+	return c.SetExpirationUserClusters(ctx, userID)
+}
+
+func (c *Cache) DeleteUserClusters(ctx context.Context, userID uint) error {
+	return c.redis.Del(ctx, FormatKey(KeyUserClusters, strconv.Itoa(int(userID)))).Err()
+}
+
+func (c *Cache) SetExpirationUserClusters(ctx context.Context, userID uint) error {
+	return c.redis.Expire(ctx, FormatKey(KeyUserClusters, strconv.Itoa(int(userID))), TTLUserCoursesLinked).Err()
 }

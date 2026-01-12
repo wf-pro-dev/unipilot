@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"time"
 
@@ -94,6 +95,7 @@ func RegisterHandler(c *fiber.Ctx) error {
 			Semester:     registrationData.Semester,
 			Year:         registrationData.Year,
 		}
+		log.Println("userJSON", newUser.ToMap())
 		if err := tx.Create(&newUser).Error; err != nil {
 			return errors.HandleDBCreateError(err).ToServerError(fiber.StatusInternalServerError)
 		}
@@ -136,7 +138,6 @@ func RegisterHandler(c *fiber.Ctx) error {
 
 	// Convert user struct to map for safe JSON response (removes sensitive fields)
 	userMap := newUser.ToMap()
-
 	// Option 1: Marshal once, reuse for both
 	userJSON, err := json.Marshal(userMap)
 	if err != nil {

@@ -122,9 +122,10 @@ func (a *Assignment) BeforeDelete(tx *gorm.DB) error {
 		return errors.Wrap(err, errors.DBQueryFailed, "Error getting documents by assignment")
 	}
 
-	// Batch delete documents
-	tx.Delete(documents)
-
+	if len(documents) > 0 {
+		// Batch delete documents
+		tx.Delete(documents)
+	}
 	// Delete the Qdrant collection for the assignment
 
 	collectionName := GetQdrantCollectionName(a.ID)
@@ -340,6 +341,7 @@ func (lc *LocalCourse) GetAssignmentsByCourse(db *gorm.DB) ([]LocalAssignment, e
 // CHECK Operations
 
 func (a *Assignment) ClusterRoot() uint  { return a.Course.ParentID }
+func (a *Assignment) IsCopy() bool       { return a.ParentID != 0 }
 func (la *LocalAssignment) IsRoot() bool { return la.ParentID == 0 }
 
 func GetQdrantCollectionName(assignmentID uint) string {

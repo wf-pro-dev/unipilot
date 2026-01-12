@@ -25,9 +25,9 @@ const (
 	// Course
 	KeyCourse = "course:%s"
 
-	KeyClusterCourses = "cluster:%d:courses" // Stores Set of Course ID
+	KeyClusterCourses = "cluster:%s:courses" // Stores Set of Course ID
 
-	KeyClusterUsers = "cluster:%d:users" // Stores Set of User ID
+	KeyClusterUsers = "cluster:%s:users" // Stores Set of User ID
 
 	// Course -> LinkedCourses (MEDIUM: read-heavy complex query)
 	KeyCourseLinks = "course:%s:links"

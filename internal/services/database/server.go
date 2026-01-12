@@ -68,6 +68,11 @@ func InitializeServerDB(config *DatabaseConfig) (*gorm.DB, error) {
 		if err := runAdditionalServerMigrations(db); err != nil {
 			return nil, errors.Wrap(err, errors.DBQueryFailed, "Additional server migrations failed")
 		}
+
+		// Run index migrations
+		if err := MigrationIndexes(db); err != nil {
+			return nil, errors.Wrap(err, errors.DBQueryFailed, "Index migration failed")
+		}
 	}
 
 	log.Println("[ServerDB] ✅ Server database initialized successfully")
@@ -137,5 +142,15 @@ func runAdditionalServerMigrations(db *gorm.DB) error {
 		}
 	}
 
+	return nil
+}
+
+func MigrationIndexes(db *gorm.DB) error {
+	// Migrate indexes if needed
+	err := db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_courses_user_code_active ON courses (user_id, code) WHERE deleted_at IS NULL").Error
+	if err != nil {
+		return fmt.Errorf("index migration failed: %w", err)
+	}
+	log.Println("[ServerDB] ✅ Index migration completed successfully")
 	return nil
 }

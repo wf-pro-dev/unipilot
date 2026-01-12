@@ -175,6 +175,7 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 	// Step 14: Send SSE notifications to linked users via gRPC (if available)
 	var clusterRootID uint = input.ClusterRoot()
 	if GrpcClient != nil && clusterRootID != 0 {
+
 		users_course, err := CacheService.GetClusterUsers(context.Background(), clusterRootID, db)
 		if err != nil {
 			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError)
@@ -187,7 +188,7 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 					ReceiverId: uint32(sendeeID),
 					SenderId:   uint32(userID),
 					Title:      input.Title,
-					Message:    fmt.Sprintf("%s shared a new assignment on %s", input.User.Username, input.CourseCode),
+					Message:    fmt.Sprintf("%s shared a new assignment on %s", currentUser.Username, input.CourseCode),
 					Data:       []byte(""),
 					Type:       string(models.MessageNoContent),
 				},
@@ -277,13 +278,20 @@ func UpdateAssignmentHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 6: Execute raw SQL update with automatic timestamp tracking
-	if err := db.Model(&models.Assignment{}).Where("id = ?", assignmentID).Update(updateData.Column, updateData.Value).Error; err != nil {
+	assignment := models.Assignment{
+		Model: gorm.Model{ID: assignmentID},
+	}
+	if err := db.Model(&assignment).Where("id = ?", assignmentID).Update(updateData.Column, updateData.Value).Error; err != nil {
 
 		if Errors.Is(err, gorm.ErrDuplicatedKey) {
 			return errors.WrapServer(err, errors.DBConstraintViolation, "Assignment already exists", fiber.StatusConflict)
 		}
 
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error updating assignment in database", fiber.StatusInternalServerError)
+	}
+
+	if !assignment.IsCopy() {
+		go CacheService.SetAssignments(context.Background(), []*models.Assignment{&assignment})
 	}
 
 	// Step 8: Assignment update completed (logged by middleware)
@@ -309,7 +317,7 @@ func DeleteAssignmentHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to int", fiber.StatusBadRequest)
 	}
 
-	if err := db.Set("qdrantClient", QdrantClient).Delete(&models.Assignment{Model: gorm.Model{ID: uint(assignmentID)}}).Error; err != nil {
+	if err := db.Debug().Set("qdrantClient", QdrantClient).Delete(&models.Assignment{Model: gorm.Model{ID: uint(assignmentID)}}).Error; err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error deleting assignment from database", fiber.StatusInternalServerError)
 	}
 

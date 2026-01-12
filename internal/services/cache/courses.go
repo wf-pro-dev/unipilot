@@ -72,6 +72,7 @@ func (c *Cache) SetCourses(ctx context.Context, courses []*models.Course) error 
 				pipe.Expire(ctx, notesKey, TTLCourseNotes)
 			}
 		}
+		pipe.Expire(ctx, cacheKey, TTLCourse)
 	}
 
 	// Execute all commands in one round trip
@@ -79,6 +80,7 @@ func (c *Cache) SetCourses(ctx context.Context, courses []*models.Course) error 
 	if err != nil {
 		return errors.Wrap(err, errors.CacheOperationFailed, "Error setting courses in redis")
 	}
+
 	return nil
 }
 
@@ -134,13 +136,19 @@ func (c *Cache) SetClusterCourses(ctx context.Context, rootID uint, courseIDs []
 // AddCourseToCluster adds a single Course ID to a cluster (used on Link Accept)
 func (c *Cache) AddClusterCourse(ctx context.Context, rootID uint, courseID uint) error {
 	cacheKey := FormatKey(KeyClusterCourses, strconv.Itoa(int(rootID)))
-	return c.redis.SAdd(ctx, cacheKey, courseID).Err()
+	c.redis.SAdd(ctx, cacheKey, courseID).Err()
+	return c.SetExpirationClusterCourses(ctx, rootID)
 }
 
 // RemoveCourseFromCluster removes a Course ID (used on Course Delete/Link Break)
 func (c *Cache) RemoveClusterCourse(ctx context.Context, rootID uint, courseID uint) error {
 	cacheKey := FormatKey(KeyClusterCourses, strconv.Itoa(int(rootID)))
-	return c.redis.SRem(ctx, cacheKey, courseID).Err()
+	c.redis.SRem(ctx, cacheKey, courseID).Err()
+	return c.SetExpirationClusterCourses(ctx, rootID)
+}
+
+func (c *Cache) SetExpirationClusterCourses(ctx context.Context, rootID uint) error {
+	return c.redis.Expire(ctx, FormatKey(KeyClusterCourses, strconv.Itoa(int(rootID))), TTLCourseLinks).Err()
 }
 
 func (c *Cache) GetClusterUsers(ctx context.Context, rootID uint, db *gorm.DB) ([]uint, error) {
@@ -181,12 +189,14 @@ func (c *Cache) SetClusterUsers(ctx context.Context, rootID uint, userIDs []uint
 
 func (c *Cache) AddClusterUser(ctx context.Context, rootID uint, userID uint) error {
 	cacheKey := FormatKey(KeyClusterUsers, strconv.Itoa(int(rootID)))
-	return c.redis.SAdd(ctx, cacheKey, userID).Err()
+	c.redis.SAdd(ctx, cacheKey, userID).Err()
+	return c.SetExpirationClusterUsers(ctx, rootID)
 }
 
 func (c *Cache) RemoveClusterUser(ctx context.Context, rootID uint, userID uint) error {
 	cacheKey := FormatKey(KeyClusterUsers, strconv.Itoa(int(rootID)))
-	return c.redis.SRem(ctx, cacheKey, userID).Err()
+	c.redis.SRem(ctx, cacheKey, userID).Err()
+	return c.SetExpirationClusterUsers(ctx, rootID)
 }
 
 func (c *Cache) DeleteClusterUsers(ctx context.Context, rootID uint) error {
@@ -231,6 +241,9 @@ func (cache *Cache) GetCoursesByIDs(ctx context.Context, courseIDs []uint, db *g
 		courseNoteMap       = make(map[uint][]uint)
 	)
 
+	expPipe := cache.redis.Pipeline()
+	expCmds := make([]*redis.BoolCmd, 2*len(courseIDs))
+
 	for i, courseID := range courseIDs {
 		// Try to get course object
 		courseJSON, err := courseCmds[i].Result()
@@ -266,12 +279,21 @@ func (cache *Cache) GetCoursesByIDs(ctx context.Context, courseIDs []uint, db *g
 		courseAssignmentMap[courseID] = assignmentIDs
 		allAssignmentIDs = append(allAssignmentIDs, assignmentIDs...)
 
+		expCmds[i] = expPipe.Expire(ctx, FormatKey(KeyCourseAssignments, strconv.Itoa(int(courseID))), TTLCourseAssignments)
+
 		// Store note IDs
 		noteIDs := parseUintSlice(noteIDStrs)
 		courseNoteMap[courseID] = noteIDs
 		allNoteIDs = append(allNoteIDs, noteIDs...)
 
+		expCmds[i+len(courseIDs)] = expPipe.Expire(ctx, FormatKey(KeyCourseNotes, strconv.Itoa(int(courseID))), TTLCourseNotes)
+
 		courses = append(courses, &course)
+	}
+
+	_, err = expPipe.Exec(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, errors.CacheOperationFailed, "Error setting expiration for courses")
 	}
 
 	// Step 3: Batch fetch assignment objects
@@ -296,7 +318,13 @@ func (cache *Cache) GetCoursesByIDs(ctx context.Context, courseIDs []uint, db *g
 	}
 
 	if len(missingCourseIDs) > 0 {
-		missingCourses, err := models.GetCoursesByIDs(missingCourseIDs, db.Preload("Assignments", "parent_id IS NULL").Preload("Notes", "parent_id IS NULL"))
+		missingCourses, err := models.GetCoursesByIDs(missingCourseIDs,
+			db.
+				Preload("User", func(db *gorm.DB) *gorm.DB {
+					return db.Select("id, username, avatar, email")
+				}).
+				Preload("Assignments", "parent_id IS NULL").
+				Preload("Notes", "parent_id IS NULL"))
 		if err != nil {
 			return nil, errors.Wrap(err, errors.DBQueryFailed, "Error getting courses from database")
 		}

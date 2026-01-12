@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"unipilot/internal/models"
+	"unipilot/internal/server"
 	"unipilot/internal/server/sse/grpc/messages"
 
 	"unipilot/internal/errors"
@@ -136,6 +137,10 @@ func CreateCourseHandler(c *fiber.Ctx) error {
 		)
 	}
 
+	if input.ParentID != 0 {
+		go CacheService.AddClusterCourse(context.Background(), input.ParentID, input.ID)
+	}
+
 	// Step 11: Send successful response with created course data
 	return c.JSON(fiber.Map{
 		"remote_id": input.ID,
@@ -198,6 +203,16 @@ func UpdateCourseHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error updating course in database", fiber.StatusInternalServerError)
 	}
 
+	// If parent ID is changed, add course to cluster cache
+	if updateData.Column == "parent_id" && updateData.Value != "0" {
+		int_value, err := strconv.Atoi(updateData.Value)
+		if err != nil {
+			return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting parent ID to int", fiber.StatusBadRequest)
+		}
+		parentID := uint(int_value)
+		go CacheService.AddClusterCourse(context.Background(), parentID, courseID)
+	}
+
 	// Step 8: Course update completed (logged by middleware)
 	return nil
 }
@@ -229,6 +244,20 @@ func DeleteCourseHandler(c *fiber.Ctx) error {
 	if err := db.Set("qdrantClient", QdrantClient).Delete(&models.Course{}, courseID).Error; err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error deleting course from database", fiber.StatusInternalServerError)
 	}
+	go func() {
+
+		course, err := models.GetCourse(courseID, db)
+		if err != nil {
+			server.LogWarn(context.Background(), errors.WrapServer(err, errors.DBQueryFailed, "Failed deletion course cache operation", fiber.StatusInternalServerError))
+			return
+		}
+
+		// If course in cluster
+		if course.ParentID != 0 {
+			go CacheService.RemoveClusterCourse(context.Background(), course.ParentID, courseID)
+			go CacheService.RemoveClusterUser(context.Background(), course.ParentID, course.UserID)
+		}
+	}()
 
 	return nil
 }
@@ -379,7 +408,7 @@ func AcceptInvitationHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
 	}
 
-	idStr := c.Params("invitation_id")
+	idStr := c.Params("id")
 	if idStr == "" {
 		return errors.WrapServer(fmt.Errorf("invitation ID required"), errors.ReqParamMissing, "Invitation ID required", fiber.StatusBadRequest)
 	}
@@ -405,8 +434,10 @@ func AcceptInvitationHandler(c *fiber.Ctx) error {
 	go func() {
 		// Add course to owner cluster
 		CacheService.AddUserCluster(context.Background(), invitation.OwnerID, invitation.CourseID)
+		CacheService.AddClusterUser(context.Background(), invitation.CourseID, invitation.OwnerID)
 		// Add course to receiver cluster
 		CacheService.AddUserCluster(context.Background(), invitation.ReceiverID, invitation.CourseID)
+		CacheService.AddClusterUser(context.Background(), invitation.CourseID, invitation.ReceiverID)
 		// Add course to cluster cache
 		CacheService.AddClusterCourse(context.Background(), invitation.CourseID, invitation.CourseID)
 		// Get courses from cache

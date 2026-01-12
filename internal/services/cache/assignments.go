@@ -12,6 +12,9 @@ import (
 )
 
 func (c *Cache) SetAssignments(ctx context.Context, assignments []*models.Assignment) error {
+	if len(assignments) == 0 {
+		return nil
+	}
 
 	pipe := c.redis.Pipeline()
 	for _, assignment := range assignments {

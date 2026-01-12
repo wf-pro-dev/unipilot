@@ -26,9 +26,14 @@ func (c *Cache) GetNote(ctx context.Context, noteID uint) (*models.Note, error) 
 
 func (c *Cache) SetNotes(ctx context.Context, notes []*models.Note) error {
 
+	if len(notes) == 0 {
+		return nil
+	}
+
 	pipe := c.redis.Pipeline()
 	for _, note := range notes {
 		cacheKey := FormatKey(KeyNote, strconv.Itoa(int(note.ID)))
+		note.Content = ""
 		noteJSON, err := json.Marshal(note)
 		if err != nil {
 			continue

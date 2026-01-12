@@ -128,7 +128,7 @@ func GetCourseUsers(courseID uint, db *gorm.DB) ([]uint, error) {
 func GetUserClusterIDs(userID uint, db *gorm.DB) ([]uint, error) {
 	var clusterIDs []uint
 
-	// The CourseID in the invitation is ALWAYS the Root ID by your design
+	// The CourseID in the invitation is ALWAYS the Root IDs
 	err := db.Model(&CourseInvitation{}).
 		Where("(owner_id = ? OR receiver_id = ?) AND status = 'accepted'", userID, userID).
 		Distinct("course_id").
