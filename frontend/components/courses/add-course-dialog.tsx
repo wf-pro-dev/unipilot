@@ -11,15 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form"
 import { cn } from "@/lib/utils"
 import { Calendar } from "@/components/ui/calendar"
-import { 
-  CalendarIcon, Plus, BookOpen, MapPin, Clock, 
-  User, Mail, Palette, ArrowRight, ArrowLeft, Check, Loader2 
+import {
+  CalendarIcon, Plus, BookOpen, MapPin, Clock,
+  User, Mail, Palette, ArrowRight, ArrowLeft, Check, Loader2
 } from "lucide-react"
 import { format } from "date-fns"
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 import { models } from "@/wailsjs/go/models"
-import { 
+import {
   CourseValues,
   courseSchema
 } from "./shema"
@@ -135,8 +135,8 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
           Add Course
         </Button>
       </DialogTrigger>
-      <DialogContent className="glass border-white/10 text-white max-w-lg p-0 overflow-hidden gap-0">
-        <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
+      <DialogContent className="glass border-white/10 text-white max-w-md p-0 overflow-hidden gap-0">
+        <DialogHeader className="px-6 pt-8 pb-4 border-b border-white/5 bg-white/5">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-h3">Add New Course</DialogTitle>
             <div className="flex gap-1.5">
@@ -151,8 +151,10 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
             {step === 3 && "Instructor details"}
           </p>
         </DialogHeader>
-        
+
         <div className="p-6 max-h-[70vh] overflow-y-auto">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent z-0 rounded-2xl pointer-events-none" />
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)}>
               <AnimatePresence mode="wait">

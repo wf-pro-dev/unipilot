@@ -5,6 +5,8 @@ import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { addDays, startOfWeek, endOfWeek, isWithinInterval, isAfter, isSameDay } from 'date-fns'
 import { models } from '@/wailsjs/go/models'
 import { useMemo } from 'react'
+import { toast } from 'sonner'
+import { CreateAssignment } from '@/wailsjs/go/main/App'
 
 // Query keys for consistent cache management
 export const assignmentKeys = {
@@ -37,30 +39,30 @@ export function useAssignments() {
 
 export function useUpdateAssignment() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async ({ assignment, column, value }: { assignment: models.LocalAssignment, column: string, value: string }) => {
       return await window.go.main.App.UpdateAssignment(assignment, column, value)
     },
-    
+
     // Optimistic update for instant UI feedback
     onMutate: async ({ assignment, column, value }) => {
       await queryClient.cancelQueries({ queryKey: assignmentKeys.lists() })
-      
+
       const previousAssignments = queryClient.getQueryData<models.LocalAssignment[]>(assignmentKeys.lists())
-      
+
       queryClient.setQueryData<models.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
         if (!old) return []
-        return old.map(a => 
-          a.ID === assignment.ID 
+        return old.map(a =>
+          a.ID === assignment.ID
             ? { ...a, [column]: value, UpdatedAt: new Date() } as models.LocalAssignment
             : a
         )
       })
-      
+
       return { previousAssignments }
     },
-    
+
     onError: (err, variables, context) => {
       if (context?.previousAssignments) {
         queryClient.setQueryData(assignmentKeys.lists(), context.previousAssignments)
@@ -72,7 +74,7 @@ export function useUpdateAssignment() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: assignmentKeys.lists() })
     },
-    
+
 
   })
 }
@@ -83,7 +85,7 @@ export function useCreateAssignment() {
 
   return useMutation({
     mutationFn: async (newAssignment: models.LocalAssignment) => {
-      return await window.go.main.App.CreateAssignment(newAssignment)
+      return await CreateAssignment(newAssignment)
     },
 
     // Optimistically add the new assignment
@@ -99,12 +101,15 @@ export function useCreateAssignment() {
 
       return { previousAssignments }
     },
-
+    onSuccess: (data) => {
+      toast.success(data?.Title + " added")
+    },
     onError: (err, variables, context) => {
       if (context?.previousAssignments) {
         queryClient.setQueryData(assignmentKeys.lists(), context.previousAssignments)
       }
       LogError("Failed to create assignment: " + err)
+      toast.error("Failed to add assignment")
     },
 
     onSettled: () => {
@@ -295,7 +300,7 @@ export function useAcceptAssignment() {
     },
 
     onSettled: () => {
-      
+
       queryClient.invalidateQueries({ queryKey: assignmentKeys.lists() })
     },
   })

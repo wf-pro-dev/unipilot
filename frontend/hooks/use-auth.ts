@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogError } from "@/wailsjs/runtime/runtime"
-import { user } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { 
   GetCurrentUser, 
   Login, 
@@ -11,7 +11,8 @@ import {
   Logout, 
   UpdateUser, 
   GetAuthToken,
-  GetFileAsDataURL
+  GetFileAsDataURL,
+  GetUserCourseInvitations
 } from "@/wailsjs/go/main/App"
 import { useAuthContext } from '@/components/provider/auth-provider'
 import { courseKeys } from './use-courses'
@@ -29,7 +30,7 @@ export const authKeys = {
 export function useCurrentUser() {
   return useQuery({
     queryKey: authKeys.user,
-    queryFn: async (): Promise<user.User | null> => {
+    queryFn: async (): Promise<models.User | null> => {
       try {
         return await GetCurrentUser()
       } catch (error) {
@@ -110,7 +111,7 @@ export function useRegister() {
         Language: language, 
         Semester: semester, 
         Year: year 
-      } as user.User)
+      } as models.User)
     },
     onSuccess: (user) => {
       queryClient.setQueryData(authKeys.user, user)
@@ -151,7 +152,7 @@ export function useUpdateUser() {
     },
     onMutate: async ({ column, key, value, }: { column: string; key: string; value: string }) => {
       await queryClient.cancelQueries({ queryKey: authKeys.user })
-      const previousUser = queryClient.getQueryData<user.User>(authKeys.user)
+      const previousUser = queryClient.getQueryData<models.User>(authKeys.user)
       queryClient.setQueryData(authKeys.user, { ...previousUser, [key]: value })
       return { previousUser }
     },
@@ -175,14 +176,14 @@ export function useUploadProfilePicture() {
       return await UploadProfilePicture()
     },
     onSuccess: (data) => {
-      const previousUser = queryClient.getQueryData<user.User>(authKeys.user)
+      const previousUser = queryClient.getQueryData<models.User>(authKeys.user)
       queryClient.setQueryData(authKeys.user, { ...previousUser, Avatar: data })
       // Invalidate avatar queries to refetch with new path
       queryClient.invalidateQueries({ queryKey: ['avatar'] })
     },
     onError: (error) => {
       LogError("Failed to upload profile picture: " + error)
-      const previousUser = queryClient.getQueryData<user.User>(authKeys.user)
+      const previousUser = queryClient.getQueryData<models.User>(authKeys.user)
       queryClient.setQueryData(authKeys.user, previousUser)
     },
   })
@@ -228,8 +229,10 @@ export function useGetAvatarUrl() {
 export function useGetCourseInvitations() {
   return useQuery({
     queryKey: authKeys.coursesInvitations,
-    queryFn: async (): Promise<course.CourseInvitation[]> => {
-      return await window.go.main.App.GetCourseInvitations()
+    queryFn: async (): Promise<models.CourseInvitation[]> => {
+      const invitations = await GetUserCourseInvitations()
+      console.log("useGetCourseInvitations", invitations)
+      return invitations
     },
     staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
     gcTime: 15 * 60 * 1000,   // Keep in cache for 15 minutes

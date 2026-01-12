@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"unipilot/internal/errors"
@@ -45,6 +46,7 @@ func SetCredentials(user *models.User) error {
 		return errors.Wrap(err, errors.ProcJSONMarshalFailed, "Failed to marshal credential file")
 	}
 
+	fmt.Println("Writing credentials to file: ", credentialsFile)
 	err = os.WriteFile(credentialsFile, data, 0600)
 	if err != nil {
 		return errors.Wrap(err, errors.FSWriteFailed, "Failed to write credential file")

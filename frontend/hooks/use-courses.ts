@@ -5,8 +5,8 @@ import { models } from "@/wailsjs/go/models"
 import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { assignmentKeys } from './use-assignments'
 import { documentKeys } from './use-documents'
-import { GetCourses, CreateCourse, UpdateCourse, DeleteCourse, CourseShare, GetCoursesLinked } from '@/wailsjs/go/main/App'
-
+import { GetCourses, CreateCourse, UpdateCourse, DeleteCourse, CourseShare, GetCoursesLinked, AcceptCourseInvitation } from '@/wailsjs/go/main/App'
+import { authKeys } from './use-auth'
 
 // Query keys for consistent cache management
 export const courseKeys = {
@@ -200,22 +200,46 @@ export function useCourseShare() {
   })
 }
 
-// Hook for accepting a link request
-export function useAcceptLink() {
+export function useAcceptCourseInvitation() {
   const queryClient = useQueryClient()
+  const createCourse = useCreateCourse()
+  const updateCourse = useUpdateCourse()
   return useMutation({
-    mutationFn: async ({ courseData }: { courseData: string }) => {
-      return await window.go.main.App.AcceptLink(courseData)
+    
+    mutationFn: async ({ invitation }: { invitation: models.CourseInvitation }) => {
+     
+      return await AcceptCourseInvitation(invitation)
     },
+    onMutate: async ({ invitation }) => {
 
-    onMutate: async () => {
-      // Force refetch for courses, assignments, and documents
+
+
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
-      await queryClient.cancelQueries({ queryKey: assignmentKeys.lists() })
-      await queryClient.cancelQueries({ queryKey: documentKeys.lists() })
-        
-    }
+      const previousCourses = queryClient.getQueryData<models.LocalCourse[]>(courseKeys.lists())
 
+      const targetiD = invitation.Course?.ParentID || invitation.Course?.ID || 0
+
+      var existingCourse = previousCourses?.find(c => c.Code === invitation.CourseCode)
+      if (existingCourse) {
+         await updateCourse.mutate({ course: existingCourse, column: "parent_id", value: targetiD.toString() })
+      } else {
+        const newCourse = models.LocalCourse.createFrom(invitation.Course)
+        newCourse.ParentID = targetiD
+        console.log("newCourse", newCourse)
+        await createCourse.mutate(newCourse)
+      }
+     
+      await queryClient.cancelQueries({ queryKey: authKeys.coursesInvitations })
+      const previousInvitations = queryClient.getQueryData<models.CourseInvitation[]>(authKeys.coursesInvitations)
+      queryClient.setQueryData<models.CourseInvitation[]>(authKeys.coursesInvitations, (old) => {
+        if (!old) return []
+        return old.filter(i => i.ID !== invitation.ID)
+      })
+
+      await queryClient.invalidateQueries({ queryKey: courseKeys.linked() })
+
+      return { previousCourses, previousInvitations }
+    }
   })
 }
 

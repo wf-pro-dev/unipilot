@@ -74,7 +74,7 @@ func SaveRefreshToken(token string) error {
 
 	refreshTokenFile, err := getRefreshTokenFilePath()
 	if err != nil {
-		return err
+		return Errors.Wrap(err, Errors.FSFileNotFound, "Failed to get refresh token file")
 	}
 
 	data, err := json.MarshalIndent(refreshTokenData, "", "  ")
@@ -82,7 +82,12 @@ func SaveRefreshToken(token string) error {
 		return Errors.Wrap(err, Errors.ProcJSONMarshalFailed, "Failed to marshal refresh token")
 	}
 
-	return os.WriteFile(refreshTokenFile, data, 0600) // Secure file permissions
+	err = os.WriteFile(refreshTokenFile, data, 0600)
+	if err != nil {
+		return Errors.Wrap(err, Errors.FSWriteFailed, "Failed to write refresh token file")
+	}
+
+	return nil // Secure file permissions
 }
 
 // LoadToken loads the JWT token from file
@@ -194,11 +199,11 @@ func getTokenFilePath() (string, error) {
 	if err != nil {
 
 		if os.IsNotExist(err) {
-			credentialsFile, credRrr := utils.GetCredentialFile()
-			if credRrr != nil {
-				return "", Errors.Wrap(credRrr, Errors.FSFileNotFound, "Credential file not found")
+			_, err := os.Create(tokenFilePath)
+			if err != nil {
+				return "", Errors.Wrap(err, Errors.FSCreateFailed, "Failed to create token file")
 			}
-			os.Remove(credentialsFile)
+
 			return tokenFilePath, nil // Token file not found
 		}
 
@@ -212,9 +217,19 @@ func getRefreshTokenFilePath() (string, error) {
 	if err != nil {
 		return "", Errors.Wrap(err, Errors.FSDirFailed, "Error getting user directory")
 	}
-	_, err = os.Stat(filepath.Join(fileDir, "refresh_token.json"))
+	refreshTokenFilePath := filepath.Join(fileDir, "refresh_token.json")
+	_, err = os.Stat(refreshTokenFilePath)
 	if err != nil {
+
+		if os.IsNotExist(err) {
+			_, err := os.Create(refreshTokenFilePath)
+			if err != nil {
+				return "", Errors.Wrap(err, Errors.FSCreateFailed, "Failed to create refresh token file")
+			}
+			return refreshTokenFilePath, nil // Token file not found
+		}
+
 		return "", Errors.Wrap(err, Errors.FSFileNotFound, "Refresh token file not found")
 	}
-	return filepath.Join(fileDir, "refresh_token.json"), nil
+	return refreshTokenFilePath, nil
 }

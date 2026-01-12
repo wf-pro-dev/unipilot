@@ -23,8 +23,8 @@ export namespace client {
 	    Courses: models.Course[];
 	    Assignments: models.Assignment[];
 	    Notes: models.Note[];
-	    OwnerRequests: models.CourseLinkRequest[];
-	    ReceiverRequests: models.CourseLinkRequest[];
+	    OwnerRequests: models.CourseInvitation[];
+	    ReceiverRequests: models.CourseInvitation[];
 	    Followers: models.User[];
 	    Following: models.User[];
 	    CoursesCode: string[];
@@ -54,8 +54,8 @@ export namespace client {
 	        this.Courses = this.convertValues(source["Courses"], models.Course);
 	        this.Assignments = this.convertValues(source["Assignments"], models.Assignment);
 	        this.Notes = this.convertValues(source["Notes"], models.Note);
-	        this.OwnerRequests = this.convertValues(source["OwnerRequests"], models.CourseLinkRequest);
-	        this.ReceiverRequests = this.convertValues(source["ReceiverRequests"], models.CourseLinkRequest);
+	        this.OwnerRequests = this.convertValues(source["OwnerRequests"], models.CourseInvitation);
+	        this.ReceiverRequests = this.convertValues(source["ReceiverRequests"], models.CourseInvitation);
 	        this.Followers = this.convertValues(source["Followers"], models.User);
 	        this.Following = this.convertValues(source["Following"], models.User);
 	        this.CoursesCode = source["CoursesCode"];
@@ -316,27 +316,43 @@ export namespace models {
 		    return a;
 		}
 	}
-	export class CourseLinkRequest {
+	export class CourseInvitation {
 	    ID: number;
+	    // Go type: time
+	    CreatedAt: any;
+	    // Go type: time
+	    UpdatedAt: any;
+	    DeletedAt: gorm.DeletedAt;
 	    OwnerID: number;
 	    ReceiverID: number;
+	    SenderID: number;
 	    CourseID: number;
-	    Owner: User;
-	    Receiver: User;
-	    Course: Course;
+	    CourseCode: string;
+	    Status: string;
+	    Owner?: User;
+	    Receiver?: User;
+	    Sender?: User;
+	    Course?: Course;
 	
 	    static createFrom(source: any = {}) {
-	        return new CourseLinkRequest(source);
+	        return new CourseInvitation(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.ID = source["ID"];
+	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
+	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
+	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
 	        this.OwnerID = source["OwnerID"];
 	        this.ReceiverID = source["ReceiverID"];
+	        this.SenderID = source["SenderID"];
 	        this.CourseID = source["CourseID"];
+	        this.CourseCode = source["CourseCode"];
+	        this.Status = source["Status"];
 	        this.Owner = this.convertValues(source["Owner"], User);
 	        this.Receiver = this.convertValues(source["Receiver"], User);
+	        this.Sender = this.convertValues(source["Sender"], User);
 	        this.Course = this.convertValues(source["Course"], Course);
 	    }
 	
@@ -519,8 +535,8 @@ export namespace models {
 	    Courses: Course[];
 	    Assignments: Assignment[];
 	    Notes: Note[];
-	    OwnerRequests: CourseLinkRequest[];
-	    ReceiverRequests: CourseLinkRequest[];
+	    OwnerRequests: CourseInvitation[];
+	    ReceiverRequests: CourseInvitation[];
 	    Followers: User[];
 	    Following: User[];
 	
@@ -549,8 +565,8 @@ export namespace models {
 	        this.Courses = this.convertValues(source["Courses"], Course);
 	        this.Assignments = this.convertValues(source["Assignments"], Assignment);
 	        this.Notes = this.convertValues(source["Notes"], Note);
-	        this.OwnerRequests = this.convertValues(source["OwnerRequests"], CourseLinkRequest);
-	        this.ReceiverRequests = this.convertValues(source["ReceiverRequests"], CourseLinkRequest);
+	        this.OwnerRequests = this.convertValues(source["OwnerRequests"], CourseInvitation);
+	        this.ReceiverRequests = this.convertValues(source["ReceiverRequests"], CourseInvitation);
 	        this.Followers = this.convertValues(source["Followers"], User);
 	        this.Following = this.convertValues(source["Following"], User);
 	    }

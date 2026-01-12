@@ -6,12 +6,12 @@ export function AcceptAssignment(arg1) {
   return window['go']['main']['App']['AcceptAssignment'](arg1);
 }
 
-export function AcceptDocument(arg1) {
-  return window['go']['main']['App']['AcceptDocument'](arg1);
+export function AcceptCourseInvitation(arg1) {
+  return window['go']['main']['App']['AcceptCourseInvitation'](arg1);
 }
 
-export function AcceptLink(arg1) {
-  return window['go']['main']['App']['AcceptLink'](arg1);
+export function AcceptDocument(arg1) {
+  return window['go']['main']['App']['AcceptDocument'](arg1);
 }
 
 export function AcceptNote(arg1) {
@@ -164,6 +164,10 @@ export function GetUploadProgress(arg1) {
 
 export function GetUser(arg1) {
   return window['go']['main']['App']['GetUser'](arg1);
+}
+
+export function GetUserCourseInvitations() {
+  return window['go']['main']['App']['GetUserCourseInvitations']();
 }
 
 export function GetUserStorageInfo() {

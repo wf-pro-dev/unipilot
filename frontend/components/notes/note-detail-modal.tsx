@@ -128,7 +128,7 @@ export function NoteDetailModal({
 
   // Parse keywords if they're stored as JSON string
   return (
-    <div>
+
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col glass border-white/10 p-0 overflow-hidden gap-0">
       

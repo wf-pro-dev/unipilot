@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -93,9 +92,9 @@ func (a *App) Startup(ctx context.Context) {
 		// Ensure database is initialized and trigger server-to-client sync if needed
 		if network.IsOnline() {
 
-			if err := database.TriggerServerToClientSync(a.DB.GetDB()); err != nil {
-				log.Println(Errors.Wrap(err, Errors.SyncFailed, "Server-to-client sync failed").Error())
-			}
+			// if err := database.TriggerServerToClientSync(a.DB.GetDB()); err != nil {
+			// 	log.Println(Errors.Wrap(err, Errors.SyncFailed, "Server-to-client sync failed").Error())
+			// }
 
 			// Start background sync manager for client-to-server sync
 			syncManager := syncservice.NewManager(a.DB.GetDB())
@@ -226,47 +225,57 @@ func (a *App) CreateCourse(courseData *models.LocalCourse) error {
 		},
 	}
 
+	if courseData.ParentID != 0 {
+		localCourse.ParentID = courseData.ParentID
+	}
+
 	if err := localCourse.Validate(); err != nil {
 		return err
 	}
 
-	// Create the course within the transaction
-	if err := db.Create(localCourse).Error; err != nil {
-		return Errors.HandleDBWriteError(err)
-	}
+	db.Transaction(func(tx *gorm.DB) error {
 
-	// Convert LocalCourse to Course (Base model) for server API
-	remoteCourse := localCourse.ToRemote()
-
-	isOnline := network.IsOnline()
-	var remoteID uint
-	var clientErr error
-	if isOnline {
-		remoteID, clientErr = client.CreateCourse(remoteCourse)
-	} else {
-		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
-	}
-
-	if clientErr != nil {
-		syncManager := syncservice.NewManager(db)
-		if syncErr := syncManager.CreateSyncLog(
-			models.EntityCourse,
-			localCourse.ID,
-			"create",
-			"",
-			"",
-			clientErr,
-		); syncErr != nil {
-			return Errors.Wrap(syncErr, Errors.ClientRequestFailed, "Failed to create sync log")
+		// Create the course within the transaction
+		if err := tx.Create(localCourse).Error; err != nil {
+			return Errors.HandleDBWriteError(err)
 		}
+
+		// Convert LocalCourse to Course (Base model) for server API
+		remoteCourse := localCourse.ToRemote()
+
+		isOnline := network.IsOnline()
+		var remoteID uint
+		var clientErr error
+		if isOnline {
+			remoteID, clientErr = client.CreateCourse(remoteCourse)
+			log.Printf("Course created successfully: %s", remoteCourse.Code)
+		} else {
+			clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
+		}
+
+		if clientErr != nil {
+			syncManager := syncservice.NewManager(tx)
+			if syncErr := syncManager.CreateSyncLog(
+				models.EntityCourse,
+				localCourse.ID,
+				"create",
+				"",
+				"",
+				clientErr,
+			); syncErr != nil {
+				return Errors.Wrap(syncErr, Errors.ClientRequestFailed, "Failed to create sync log")
+			}
+			return nil
+		}
+
+		localCourse.RemoteID = remoteID
+
+		if err := tx.Model(localCourse).Update("remote_id", remoteID).Error; err != nil {
+			return Errors.HandleDBWriteError(err)
+		}
+
 		return nil
-	}
-
-	localCourse.RemoteID = remoteID
-
-	if err := db.Save(localCourse).Error; err != nil {
-		return Errors.HandleDBWriteError(err)
-	}
+	})
 
 	return nil
 }
@@ -794,42 +803,47 @@ func (a *App) UpdateCourse(course *models.LocalCourse, column, value string) err
 
 	db := a.DB.GetDB()
 
-	if err := a.DB.UpdateCourse(course, column, value); err != nil {
-		return err
-	}
+	db.Transaction(func(tx *gorm.DB) error {
 
-	course_id_int := int(course.RemoteID)
+		if err := tx.Model(course).Update(column, value).Error; err != nil {
+			return Errors.HandleDBWriteError(err)
+		}
 
-	course_id := strconv.Itoa(course_id_int)
+		course_id_int := int(course.RemoteID)
 
-	isOnline := network.IsOnline()
-	var clientErr error
-	if isOnline {
-		clientErr = client.UpdateCourse(course_id, column, value)
-	}
+		course_id := strconv.Itoa(course_id_int)
 
-	if clientErr != nil && isOnline {
-		sm := syncservice.NewManager(db)
-		syncLog, err := sm.GetSyncLog(models.EntityCourse, course.ID, "update", column)
-		if err != nil {
-			if syncErr := sm.CreateSyncLog(
-				models.EntityCourse,
-				course.ID,
-				"update",
-				column,
-				value,
-				clientErr,
-			); syncErr != nil {
-				return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
+		isOnline := network.IsOnline()
+		var clientErr error
+		if isOnline {
+			clientErr = client.UpdateCourse(course_id, column, value)
+		}
+
+		if clientErr != nil && isOnline {
+			sm := syncservice.NewManager(tx)
+			syncLog, err := sm.GetSyncLog(models.EntityCourse, course.ID, "update", column)
+			if err != nil {
+				if syncErr := sm.CreateSyncLog(
+					models.EntityCourse,
+					course.ID,
+					"update",
+					column,
+					value,
+					clientErr,
+				); syncErr != nil {
+					return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
+				}
+				return nil
+			}
+			syncLog.Value = value
+			if err := tx.Save(&syncLog).Error; err != nil {
+				return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to save sync log")
 			}
 			return nil
 		}
-		syncLog.Value = value
-		if err := db.Save(&syncLog).Error; err != nil {
-			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to save sync log")
-		}
+
 		return nil
-	}
+	})
 
 	return nil
 }
@@ -1515,6 +1529,24 @@ func (a *App) GetCourses() ([]models.LocalCourse, error) {
 	return a.DB.GetCourses()
 }
 
+func (a *App) GetUserCourseInvitations() ([]models.CourseInvitation, error) {
+	invitations, err := client.GetUserCourseInvitations()
+	if err != nil {
+		return nil, err
+	}
+	return invitations, nil
+}
+
+func (a *App) AcceptCourseInvitation(invitation *models.CourseInvitation) error {
+
+	err := client.AcceptCourseInvitation(invitation)
+	if err != nil {
+		log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to accept course invitation").Error())
+	}
+
+	return nil
+}
+
 // GetCoursesLinked returns all courses linked for the current user
 func (a *App) GetCoursesLinked() ([]models.Course, error) {
 	if a.DB == nil {
@@ -1860,71 +1892,6 @@ func (a *App) RebuildNotificationDaemon() error {
 // LinkCourse links a course to a list of users
 func (a *App) CourseShare(c *models.LocalCourse, usersID []uint) error {
 	return client.CourseShare(c, usersID)
-}
-
-func (a *App) AcceptLink(courseData string) error {
-
-	// Unmarshal the course data (Base model from server)
-	var c models.Course
-	if err := json.Unmarshal([]byte(courseData), &c); err != nil {
-		return err
-	}
-
-	// Convert Base Course to LocalCourse for local operations
-	localC := c.ToLocal()
-
-	//Determine if the course already exists
-	var existingCourse models.LocalCourse
-	err := a.DB.GetDB().Where("code = ?", localC.Code).First(&existingCourse).Error
-	if err != nil {
-		// If the course doesn't exist, create it
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			a.CreateCourse(localC)
-		}
-		return err
-	}
-	// Update the course with the new link ID
-	//a.UpdateCourse(&existingCourse, "link_id", c.LinkID.String())
-
-	assignments, err := client.AcceptLinkCourse(&c)
-	if err != nil {
-		return err
-	}
-
-	// Create the assignments
-	for _, remoteAssignment := range assignments {
-
-		// Convert Base Assignment to LocalAssignment
-		localAssignment := remoteAssignment.ToLocal()
-
-		// Set status for new assignment
-		localAssignment.Status = "Not started"
-
-		var newAssignment *models.LocalAssignment
-		if newAssignment, err = a.CreateAssignment(localAssignment); err != nil {
-			return err
-		}
-
-		for _, document := range remoteAssignment.Documents {
-			// Convert Base Document to LocalDocument
-			localDoc := document.ToLocal()
-			uploadReq := fileops.FileUploadRequest{
-				AssignmentID:       newAssignment.ID, // Update to new assignment ID
-				RemoteAssignmentID: newAssignment.RemoteID,
-				UserID:             a.Auth.User.ID, // Update to new user ID
-				Type:               localDoc.Type,
-				FileName:           localDoc.FileName,
-				FileSize:           localDoc.FileSize,
-				StorageKey:         localDoc.StorageKey,
-			}
-			_, err := a.CreateDocument(uploadReq, false)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 func (a *App) AcceptAssignment(assignmentData string) error {

@@ -3,7 +3,6 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 
@@ -154,36 +153,26 @@ type AcceptLinkCourseResponse struct {
 	Assignments []models.Assignment `json:"assignments"`
 }
 
-func AcceptLinkCourse(c *models.Course) ([]models.Assignment, error) {
+func AcceptCourseInvitation(invitation *models.CourseInvitation) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Post(fmt.Sprintf("%s/courses/link-accept", api_url))
-	agent.JSON(c)
+	agent := fiber.Post(fmt.Sprintf("%s/courses/%d/accept", api_url, invitation.ID))
 
 	if err := SetAuthHeader(agent); err != nil {
-		return nil, err
+		return err
 	}
 
 	statusCode, body, errs := agent.Bytes()
 	if len(errs) > 0 {
-		return nil, errs[0]
+		return errs[0]
 	}
-
-	fmt.Println("Response status code:", statusCode)
 
 	if statusCode != 200 {
 		serverError := errors.ParseServerError(body, statusCode)
-		return nil, serverError
+		return serverError
 	}
 
-	var response []models.Assignment
-	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
-	}
-
-	log.Printf("Assignments: %+v", len(response))
-
-	return response, nil
+	return nil
 }
 
 func GetCoursesLinked() ([]models.Course, error) {

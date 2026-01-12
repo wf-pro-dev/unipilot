@@ -1,6 +1,7 @@
 "use client"
 
 import { CardContent, CardFooter } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { GlassCard, GlassCardVariants } from "@/components/ui/glass-card"
 import { models } from "@/wailsjs/go/models"
 import { parseDeadline, getDueDescription } from "@/lib/date-utils"
@@ -26,6 +27,7 @@ interface AssignmentItemProps<T extends models.LocalAssignment | models.Assignme
   disabled?: boolean
   variant?: GlassCardVariants
   mode?: "default" | "user"
+  user?: models.User
   onCopy?: (assignment: models.Assignment) => void
 }
 
@@ -37,13 +39,14 @@ interface SideActionsDropDownProps {
 
 export function AssignmentItem({
   assignment,
-  onEdit,
-  onDelete,
-  onOpenEdit,
+  user,
   size = "default",
   disabled = false,
   variant = "default",
   mode = "default",
+  onEdit,
+  onDelete,
+  onOpenEdit,
   onCopy,
 }: AssignmentItemProps<models.LocalAssignment | models.Assignment>) {
 
@@ -224,9 +227,8 @@ export function AssignmentItem({
     )
   }
 
-  const UserAssignmentItem = ({ assignment, variant, onCopy
-
-  }: AssignmentItemProps<models.Assignment>) => {
+  const UserAssignmentItem = ({ assignment, variant, size, onCopy, user }: AssignmentItemProps<models.Assignment>) => {
+    console.log("user", user)
     return (
       <GlassCard
         variant={variant}
@@ -281,18 +283,21 @@ export function AssignmentItem({
 
         {size === "default" && (
 
-          <CardFooter className="flex gap-2">
-            <Avatar className="h-5 w-5 border border-white/10">
-              <AvatarImage src={assignment.User?.Avatar || "/placeholder-user.jpg"} />
-              <AvatarFallback className="text-[10px]">IN</AvatarFallback>
-            </Avatar>
-            <span className="text-xs text--white ">
-              {assignment.User?.Username || assignment.User?.Email}
-            </span>
+          <CardFooter className="flex-row-reverse p-4 pt-0 gap-2">
+            <Badge variant="outline" className="gap-2">
+              <span className="text-caption text-text-body">
+                {user?.Username || user?.Email}
+              </span>
+              <Avatar className="h-5 w-5 rounded-full overflow-hidden border border-white/10">
+                <AvatarImage src={user?.Avatar || "/placeholder-user.jpg"} />
+                <AvatarFallback className="text-[10px]">IN</AvatarFallback>
+              </Avatar>
+            </Badge>
           </CardFooter>
         )}
 
         <AssignmentDetailsModal
+          isRemote
           isOpen={isDetailsOpen}
           onClose={() => setIsDetailsOpen(false)}
           assignment={assignment}
@@ -306,7 +311,7 @@ export function AssignmentItem({
 
   switch (mode) {
     case "user":
-      return <UserAssignmentItem assignment={assignment as models.Assignment} disabled={disabled} variant={variant} mode={mode} onCopy={onCopy} size={size} />
+      return <UserAssignmentItem assignment={assignment as models.Assignment} disabled={disabled} variant={variant} mode={mode} onCopy={onCopy} size={size} user={user} />
     default:
       return <DefaultssignmentItem assignment={assignment as models.LocalAssignment} onEdit={onEdit} onDelete={onDelete} onOpenEdit={onOpenEdit} disabled={disabled} variant={variant} mode={mode} size={size} />
   }

@@ -150,7 +150,7 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
         </Button>
       </DialogTrigger>
       <DialogContent className="glass border-white/10 text-white max-w-md p-0 overflow-hidden gap-0">
-        <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
+        <DialogHeader className="px-6 pt-8 pb-4 border-b border-white/5 bg-white/5">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-h3">Add New Assignment</DialogTitle>
             <div className="flex gap-1.5">

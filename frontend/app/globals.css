@@ -277,31 +277,31 @@
 @layer utilities {
   
   .text-h1 {
-    @apply text-[30px] leading-[38px] font-bold text-text-title tracking-tight;
+    @apply text-[30px] leading-[38px] font-bold tracking-tight;
   }
   
   .text-h2 {
-    @apply text-[24px] leading-[32px] font-semibold text-text-title tracking-tight;
+    @apply text-[24px] leading-[32px] font-semibold  tracking-tight;
   }
   
   .text-h3 {
-    @apply text-[20px] leading-[28px] font-semibold text-text-body tracking-tight;
+    @apply text-[20px] leading-[28px] font-semibold  tracking-tight;
   }
   
   .text-h4 {
-    @apply text-[18px] leading-[26px] font-medium text-text-body tracking-tight;
+    @apply text-[18px] leading-[26px] font-medium  tracking-tight;
   }
 
   .text-h5 {
-    @apply text-[16px] leading-[24px] font-medium text-text-body tracking-tight;
+    @apply text-[16px] leading-[24px] font-medium  tracking-tight;
   }
   
   .text-body {
-    @apply text-[14px] leading-[24px] text-text-body font-normal;
+    @apply text-[14px] leading-[24px] font-normal;
   }
   
   .text-caption {
-    @apply text-[12px] leading-[20px] font-normal text-text-caption;
+    @apply text-[12px] leading-[20px] font-normal;
   }
 }
 

@@ -35,7 +35,7 @@ func GetUser() (*models.User, error) {
 	}
 
 	var response struct {
-		Message string    `json:"message"`
+		Message string      `json:"message"`
 		User    models.User `json:"user"`
 	}
 
@@ -146,4 +146,30 @@ func UpdateProfilePicture(path string) error {
 	}
 
 	return nil
+}
+
+func GetUserCourseInvitations() ([]models.CourseInvitation, error) {
+
+	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Get(fmt.Sprintf("%s/users/me/invitations", api_url))
+
+	if err := SetAuthHeader(agent); err != nil {
+		return nil, err
+	}
+
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return nil, errs[0]
+	}
+
+	if statusCode != 200 {
+		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
+	}
+
+	var response []models.CourseInvitation
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, err
+	}
+
+	return response, nil
 }

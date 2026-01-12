@@ -4,27 +4,33 @@ import { GlassCard } from "../ui/glass-card"
 import { Progress } from "../ui/progress"
 import { Badge } from "../ui/badge"
 import { Users, Clock, Edit, MoreVertical, Trash2 } from "lucide-react"
-import { course } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { useAssignments } from "@/hooks/use-assignments"
 import { LogPrint } from "@/wailsjs/runtime/runtime"
 import { CourseEditDialog } from "./course-edit-dialog"
 import { Button } from "../ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu"
 
-interface CourseItemProps {
-    course: course.LocalCourse
-    onCourseClick?: (course: course.LocalCourse) => void
-    onEdit: (course: course.LocalCourse, column: string, value: string) => void
-    onDelete: (course: course.LocalCourse) => void
+interface CourseItemProps<T extends models.LocalCourse | models.Course> {
+    course: T
+    onCourseClick?: (course:T) => void
+    onEdit?: (course: models.LocalCourse, column: string, value: string) => void
+    onDelete?: (course: models.LocalCourse) => void
     disabled?: boolean
+    size?: "default" | "sm"
+    onAccept?: () => void
+    onDecline?: () => void
 }
 
 function CourseItem({ course,
     onCourseClick,
     onEdit,
     onDelete,
-    disabled = false
-}: CourseItemProps) {
+    disabled = false,
+    size = "default",
+    onAccept,
+    onDecline
+}: CourseItemProps<models.LocalCourse | models.Course>) {
 
     const { data: assignments } = useAssignments()
 
@@ -35,7 +41,6 @@ function CourseItem({ course,
     const [open, setOpen] = useState(false)
 
     const handleCardClick = () => {
-        LogPrint("handleCardClick")
         if (onCourseClick && !disabled) {
             onCourseClick(course)
         }
@@ -52,7 +57,7 @@ function CourseItem({ course,
         if (!color || !isOn) {
             return {
                 bg: "bg-white/5",
-                hover: "hover:bg-white/10 hover:border-white/10"
+                hover: "group-hover/item:bg-white/10 group-hover/item:border-white/10"
             }
         }
 
@@ -60,27 +65,27 @@ function CourseItem({ course,
         const colorMap: Record<string, { bg: string; hover: string }> = {
             "bg-blue-500": {
                 bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-blue-500/20 before:via-blue-500/5 before:to-transparent before:transition-opacity before:duration-500",
-                hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-blue-500/40 after:via-blue-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+                hover: "group-hover/item:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-blue-500/40 after:via-blue-500/15 after:to-transparent after:opacity-0 group-hover/item:after:opacity-100 after:transition-opacity after:duration-500",
             },
             "bg-green-500": {
                 bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-green-500/20 before:via-green-500/5 before:to-transparent before:transition-opacity before:duration-500",
-                hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-green-500/40 after:via-green-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+                hover: "group-hover/item:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-green-500/40 after:via-green-500/15 after:to-transparent after:opacity-0 group-hover/item:after:opacity-100 after:transition-opacity after:duration-500",
             },
             "bg-purple-500": {
                 bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-purple-500/20 before:via-purple-500/5 before:to-transparent before:transition-opacity before:duration-500",
-                hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-purple-500/40 after:via-purple-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+                hover: "group-hover/item:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-purple-500/40 after:via-purple-500/15 after:to-transparent after:opacity-0 group-hover/item:after:opacity-100 after:transition-opacity after:duration-500",
             },
             "bg-red-500": {
                 bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-red-500/20 before:via-red-500/5 before:to-transparent before:transition-opacity before:duration-500",
-                hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-red-500/40 after:via-red-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+                hover: "group-hover/item:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-red-500/40 after:via-red-500/15 after:to-transparent after:opacity-0 group-hover/item:after:opacity-100 after:transition-opacity after:duration-500",
             },
             "bg-orange-500": {
                 bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-orange-500/20 before:via-orange-500/5 before:to-transparent before:transition-opacity before:duration-500",
-                hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-orange-500/40 after:via-orange-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+                hover: "group-hover/item:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-orange-500/40 after:via-orange-500/15 after:to-transparent after:opacity-0 group-hover/item:after:opacity-100 after:transition-opacity after:duration-500",
             },
             "bg-pink-500": {
                 bg: "before:absolute before:inset-0 before:bg-gradient-to-br before:from-pink-500/20 before:via-pink-500/5 before:to-transparent before:transition-opacity before:duration-500",
-                hover: "hover:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-pink-500/40 after:via-pink-500/15 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity after:duration-500",
+                hover: "group-hover/item:before:opacity-0 after:absolute after:inset-0 after:bg-gradient-to-br after:from-pink-500/40 after:via-pink-500/15 after:to-transparent after:opacity-0 group-hover/item:after:opacity-100 after:transition-opacity after:duration-500",
             }
         }
 
@@ -88,6 +93,39 @@ function CourseItem({ course,
             bg: "bg-white/5",
             hover: "hover:bg-white/10 hover:border-white/10"
         }
+    }
+
+    if (size === "sm") {
+        return (
+            <div key={course.ID} onClick={handleCardClick} className="flex justify-between items-start border border-white/5  shadow-lg shadow-black/60 rounded-xl py-3 px-4 overflow-hidden relative group/item">
+
+                <div className={`absolute inset-0 z-0 ${getCourseGradientClasses(course.Color, true).bg} ${getCourseGradientClasses(course.Color, true).hover} transition-colors duration-300`} />
+
+
+                <div className={`flex flex-col flex-1 gap-2 z-10`}>
+
+                    <h3 className="text-base font-bold text-white line-clamp-1 tracking-tight">{course.Code}</h3>
+
+
+                    <p className="text-xs text-gray-400 line-clamp-1 mt-0.5 font-medium">{course.Name}</p>
+
+                </div>
+
+                <div className="flex flex-col items-center justify-between z-10">
+                    {onAccept && (
+                        <Button onClick={onAccept} variant="ghost" size="sm" className="flex-1 text-gray-400 bg-gray-500/10 border-gray-500/20 hover:bg-gray-500/20 hover:text-gray-300 hover:border-gray-500/30 transition-all h-9 text-xs font-medium">
+                            Accept
+                        </Button>
+                    )}
+                    {onDecline && (
+                        <Button onClick={onDecline} variant="ghost" size="sm" className="flex-1 text-gray-400 bg-gray-500/10 border-gray-500/20 hover:bg-gray-500/20 hover:text-gray-300 hover:border-gray-500/30 transition-all h-9 text-xs font-medium">
+                            Decline
+                        </Button>
+                    )}
+                </div>
+
+            </div>
+        )
     }
 
     return (
@@ -100,11 +138,12 @@ function CourseItem({ course,
                 key={course.ID}
             >
                 <CardContent className="p-5">
+
                     <div className="flex justify-between items-start mb-5 ">
                         <div className={`flex items-center border border-white/5  shadow-lg shadow-black/60 rounded-xl p-3 overflow-hidden  space-x-4 w-full  relative `}>
 
                             <div className={`absolute inset-0 z-0 ${getCourseGradientClasses(course.Color, true).bg} ${getCourseGradientClasses(course.Color, true).hover} transition-colors duration-300`} />
-                            
+
                             <div className="flex flex-col w-full min-w-0">
                                 <div className="flex items-center justify-between gap-2">
                                     <h3 className="text-base font-bold text-white line-clamp-1 tracking-tight">{course.Code}</h3>

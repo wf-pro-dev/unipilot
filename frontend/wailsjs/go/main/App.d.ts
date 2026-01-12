@@ -8,9 +8,9 @@ import {client} from '../models';
 
 export function AcceptAssignment(arg1:string):Promise<void>;
 
-export function AcceptDocument(arg1:string):Promise<void>;
+export function AcceptCourseInvitation(arg1:models.CourseInvitation):Promise<void>;
 
-export function AcceptLink(arg1:string):Promise<void>;
+export function AcceptDocument(arg1:string):Promise<void>;
 
 export function AcceptNote(arg1:string):Promise<void>;
 
@@ -87,6 +87,8 @@ export function GetSupportDocuments(arg1:number):Promise<Array<models.LocalDocum
 export function GetUploadProgress(arg1:string):Promise<progress.TrackerSnapshot>;
 
 export function GetUser(arg1:number):Promise<models.User>;
+
+export function GetUserCourseInvitations():Promise<Array<models.CourseInvitation>>;
 
 export function GetUserStorageInfo():Promise<models.DocumentStorage>;
 
