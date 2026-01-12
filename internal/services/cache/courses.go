@@ -369,7 +369,9 @@ func (c *Cache) SetExpirationCourse(ctx context.Context, courseID uint) error {
 }
 
 func (c *Cache) AddCourseAssignment(ctx context.Context, courseID uint, assignmentID uint) error {
-	return c.redis.SAdd(ctx, FormatKey(KeyCourseAssignments, strconv.Itoa(int(courseID))), strconv.Itoa(int(assignmentID))).Err()
+	cacheKey := FormatKey(KeyCourseAssignments, strconv.Itoa(int(courseID)))
+	c.redis.SAdd(ctx, cacheKey, assignmentID).Err()
+	return c.SetExpirationCourseAssignments(ctx, courseID)
 }
 
 func (c *Cache) RemoveCourseAssignment(ctx context.Context, courseID uint, assignmentID uint) error {

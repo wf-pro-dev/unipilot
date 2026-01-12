@@ -283,6 +283,21 @@ func GetCoursesByIDs(courseIDs []uint, db *gorm.DB) ([]*Course, error) {
 	return courses, nil
 }
 
+func (c *Course) IsInCluster(db *gorm.DB) bool {
+	// If the course is a parent, it is in a cluster
+	if c.ParentID != 0 {
+		return true
+	}
+	// Check if the course is a parent of a cluster
+	var courses []Course
+	err := db.Model(&Course{}).Where("parent_id = ?", c.ID).Find(&courses).Error
+	if err != nil {
+		return false
+	}
+
+	return len(courses) > 0
+}
+
 func GetCoursesLinked(courseID uint, db *gorm.DB) ([]Course, error) {
 	var courses []Course
 	err := db.Where("id = ? AND EXISTS (SELECT 1 FROM courses AS c WHERE c.parent_id = courses.id)", courseID).

@@ -173,32 +173,43 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 14: Send SSE notifications to linked users via gRPC (if available)
-	var clusterRootID uint = input.ClusterRoot()
-	if GrpcClient != nil && clusterRootID != 0 {
 
-		users_course, err := CacheService.GetClusterUsers(context.Background(), clusterRootID, db)
-		if err != nil {
-			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError)
-		}
+	go func() {
+		if GrpcClient != nil && input.Course.IsInCluster(db) && !input.IsCopy() {
 
-		for _, sendeeID := range users_course {
-
-			_, err := (*GrpcClient).SendMessage(context.Background(),
-				&messages.Message{
-					ReceiverId: uint32(sendeeID),
-					SenderId:   uint32(userID),
-					Title:      input.Title,
-					Message:    fmt.Sprintf("%s shared a new assignment on %s", currentUser.Username, input.CourseCode),
-					Data:       []byte(""),
-					Type:       string(models.MessageNoContent),
-				},
-			)
+			clusterRootID := input.ClusterRoot()
+			users_course, err := CacheService.GetClusterUsers(context.Background(), clusterRootID, db)
 			if err != nil {
-				server.LogWarn(context.Background(), errors.WrapServer(err, errors.GRPCFailed, "Failed to send notification", fiber.StatusInternalServerError))
+				server.LogWarn(context.Background(), errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError))
+				return
 			}
 
+			for _, sendeeID := range users_course {
+				if sendeeID == userID {
+					continue
+				}
+
+				_, err := (*GrpcClient).SendMessage(context.Background(),
+					&messages.Message{
+						ReceiverId: uint32(sendeeID),
+						SenderId:   uint32(userID),
+						Title:      input.Title,
+						Message:    fmt.Sprintf("%s shared a new assignment on %s", currentUser.Username, input.CourseCode),
+						Data:       []byte(""),
+						Type:       string(models.MessageNoContent),
+					},
+				)
+				if err != nil {
+					server.LogWarn(context.Background(), errors.WrapServer(err, errors.GRPCFailed, "Failed to send notification", fiber.StatusInternalServerError))
+				}
+
+			}
+
+			CacheService.AddCourseAssignment(context.Background(), clusterRootID, input.ID)
+			CacheService.SetAssignments(context.Background(), []*models.Assignment{&input})
 		}
-	}
+
+	}()
 
 	// Step 15: Send successful response with created assignment data
 	return c.JSON(fiber.Map{
@@ -290,9 +301,11 @@ func UpdateAssignmentHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error updating assignment in database", fiber.StatusInternalServerError)
 	}
 
-	if !assignment.IsCopy() {
-		go CacheService.SetAssignments(context.Background(), []*models.Assignment{&assignment})
-	}
+	go func() {
+		if assignment.Course.IsInCluster(db) && !assignment.IsCopy() {
+			CacheService.SetAssignments(context.Background(), []*models.Assignment{&assignment})
+		}
+	}()
 
 	// Step 8: Assignment update completed (logged by middleware)
 	return nil

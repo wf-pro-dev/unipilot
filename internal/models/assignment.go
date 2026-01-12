@@ -340,7 +340,12 @@ func (lc *LocalCourse) GetAssignmentsByCourse(db *gorm.DB) ([]LocalAssignment, e
 
 // CHECK Operations
 
-func (a *Assignment) ClusterRoot() uint  { return a.Course.ParentID }
+func (a *Assignment) ClusterRoot() uint {
+	if a.Course.ParentID != 0 {
+		return a.Course.ParentID
+	}
+	return a.Course.ID
+}
 func (a *Assignment) IsCopy() bool       { return a.ParentID != 0 }
 func (la *LocalAssignment) IsRoot() bool { return la.ParentID == 0 }
 
