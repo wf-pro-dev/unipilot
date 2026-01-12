@@ -263,13 +263,11 @@ func (s *Scheduler) createAssignmentNotification(courseCode string, assignments 
 	message := s.formatMessage(len(assignments))
 
 	// Create notification in database
-	notification := models.LocalNotification{
-		Type:      models.NotificationAssignment,
-		Title:     title,
-		Message:   message,
-		SenderID:  s.user.ID,
-		Read:      false,
-		ExpiresAt: &time.Time{},
+	notification := models.Message{
+		Type:     models.MessageAssignment,
+		Title:    title,
+		Message:  message,
+		SenderID: s.user.ID,
 	}
 
 	if err := s.db.Create(&notification).Error; err != nil {
@@ -395,28 +393,6 @@ func duringClass(t time.Time, courseEntry CourseEntry) bool {
 func (s *Scheduler) createCourseNotification(courseEntry CourseEntry) {
 	title := fmt.Sprintf("%s - %s", courseEntry.course.Code, courseEntry.course.Name)
 	message := fmt.Sprintf("You have a class at %v in 30 minutes", courseEntry.startTime.Format("15:04"))
-
-	// Create notification in database
-	notification := models.LocalNotification{
-		Type:      models.NotificationCourse,
-		Title:     title,
-		Message:   message,
-		SenderID:  s.user.ID,
-		Read:      false,
-		ExpiresAt: &courseEntry.endTime,
-	}
-
-	// Check if notification already exists (avoid duplicates)
-	if err := s.db.Where("title = ? AND message = ? AND sender_id = ? AND expires_at > ?",
-		title, message, s.user.ID, time.Now()).First(&notification).Error; err == nil {
-		log.Printf("[Scheduler] Notification already exists: %s", title)
-		return
-	}
-
-	if err := s.db.Create(&notification).Error; err != nil {
-		log.Printf("[Scheduler] Error saving notification: %v", err)
-		return
-	}
 
 	// Send system notification
 	if err := beeep.Notify(title, message, ""); err != nil {

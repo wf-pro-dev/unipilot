@@ -10,7 +10,7 @@ import { useCallback, useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCurrentUser, useGetCourseInvitations } from "@/hooks/use-auth"
 import { CourseItem } from "@/components/courses/course-item"
-import { useAcceptCourseInvitation, useCoursesLinked } from "@/hooks/use-courses"
+import { useAcceptCourseInvitation, useCoursesLinked, useDeclineCourseInvitation } from "@/hooks/use-courses"
 import { EmptyState, HorizontalEmptyState } from "@/components/ui/empty-state"
 import { GlassCard } from "@/components/ui/glass-card"
 import { toast } from "sonner"
@@ -47,6 +47,7 @@ export default function CommunityPage() {
   const { data: currentUser } = useCurrentUser()
   const { data: assignments } = useAssignments()
   const AcceptCourseInvitation = useAcceptCourseInvitation()
+  const DeclineCourseInvitation = useDeclineCourseInvitation()
   const createMutation = useCreateAssignment()
 
   const [selectedCourse, setSelectedCourse] = useState<models.Course | undefined>(undefined)
@@ -65,16 +66,12 @@ export default function CommunityPage() {
 
 
   const handleAcceptCourseInvitation = (invitation: models.CourseInvitation) => {
-    AcceptCourseInvitation.mutate({ invitation }, {
-      onSuccess: () => {
-        toast.success("Course invitation accepted")
-      },
-      onError: (error: any) => {
-        console.error(error)
-        toast.error("Failed to accept course invitation")
-      }
-    })
+    AcceptCourseInvitation.mutate({ invitation })
   }
+
+  const handleDeclineCourseInvitation = (invitation: models.CourseInvitation) => {
+    DeclineCourseInvitation.mutate(invitation)
+  } 
 
   /**
   * Handles assignment creation with optimistic UI updates.
@@ -247,13 +244,13 @@ export default function CommunityPage() {
                         <div key={invitation.ID}>
                           <div>
                             <CourseItem
-                              course={invitation.Course}
+                              course={invitation.Course!}
                               onEdit={() => { }}
                               onDelete={() => { }}
                               onCourseClick={() => setSelectedCourse(invitation.Course)}
                               size="sm"
                               onAccept={() => handleAcceptCourseInvitation(invitation)}
-                              onDecline={() => { }}
+                              onDecline={() => handleDeclineCourseInvitation(invitation)}
                             />
                           </div>
                         </div>

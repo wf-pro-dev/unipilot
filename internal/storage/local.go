@@ -17,7 +17,6 @@ func InitializeSchema(db *gorm.DB) error {
 		&models.LocalSync{},
 		&models.LocalDocument{},
 		&models.LocalNote{},
-		&models.LocalNotification{},
 		&models.LocalAiMessage{},
 	)
 

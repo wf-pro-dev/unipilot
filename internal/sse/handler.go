@@ -12,27 +12,23 @@ import (
 	"sync"
 	"time"
 	"unipilot/internal/errors"
+	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 )
 
 type SSE struct {
-	events     chan Event
+	events     chan models.Message
 	errors     chan error
 	mu         sync.Mutex
 	ctx        context.Context
 	cancelFunc context.CancelFunc
 }
 
-type Event struct {
-	Type string
-	Data json.RawMessage
-}
-
 func NewSSE() *SSE {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &SSE{
-		events:     make(chan Event, 1), // Buffered channel
-		errors:     make(chan error, 1), // Buffered channel
+		events:     make(chan models.Message, 1), // Buffered channel
+		errors:     make(chan error, 1),          // Buffered channel
 		ctx:        ctx,
 		cancelFunc: cancel,
 	}
@@ -124,14 +120,18 @@ func (c *SSE) establishAndStream(httpClient *http.Client) error {
 		if bytes.HasPrefix(line, []byte("data:")) {
 			data := bytes.TrimSpace(bytes.TrimPrefix(line, []byte("data:")))
 			if len(data) > 0 {
-				c.events <- Event{Data: data}
+				var message models.Message
+				if err := json.Unmarshal(data, &message); err != nil {
+					return errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal message")
+				}
+				c.events <- message
 			}
 		}
 	}
 }
 
 // Events returns the read-only channel for receiving events.
-func (c *SSE) Events() <-chan Event {
+func (c *SSE) Events() <-chan models.Message {
 	return c.events
 }
 

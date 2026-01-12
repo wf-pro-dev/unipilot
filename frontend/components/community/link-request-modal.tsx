@@ -3,11 +3,10 @@ import { Button } from "../ui/button";
 import { useAuthContext } from "../provider/auth-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useState } from "react";
-import { user } from "@/wailsjs/go/models"
 import { Check, Users, X} from "lucide-react";
 import { useCourseShare } from "@/hooks/use-courses";
 import { LogInfo } from "@/wailsjs/runtime/runtime";
-import { course } from "@/wailsjs/go/models";
+import { models } from "@/wailsjs/go/models";
 
 interface LinkRequestModalProps {
     isOpen: boolean
@@ -22,7 +21,7 @@ export function LinkRequestModal({ isOpen, onClose, courseID }: LinkRequestModal
 
     const { mutate: requestLinkCourse } = useCourseShare()
 
-    const handleShare = (follower: user.User) => {
+    const handleShare = (follower: models.User) => {
         if (selectedFollowers.includes(follower.ID)) {
             setSelectedFollowers(selectedFollowers.filter((f) => f !== follower.ID))
         } else {
@@ -33,7 +32,7 @@ export function LinkRequestModal({ isOpen, onClose, courseID }: LinkRequestModal
     const handleRequestLinkCourse = () => {
         LogInfo("Requesting to link course " + courseID + " to " + selectedFollowers.length + " followers")
         
-        var targetCourse = courses?.find((c) => c.ID === courseID) as course.LocalCourse
+        var targetCourse = courses?.find((c) => c.ID === courseID) as models.LocalCourse
         if (!targetCourse) {
             return
         }

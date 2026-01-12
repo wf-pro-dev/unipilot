@@ -2,8 +2,7 @@ import { BookOpen, Check, Tag, User, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "../ui/card";
 import { Dialog, DialogContent } from "../ui/dialog";
-import { Badge } from "../ui/badge";
-import { note } from "@/wailsjs/go/models";
+
 
 
 interface NoteAcceptModalProps {

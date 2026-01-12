@@ -167,7 +167,27 @@ func AcceptCourseInvitation(invitation *models.CourseInvitation) error {
 		return errs[0]
 	}
 
-	if statusCode != 200 {
+	if statusCode != fiber.StatusNoContent {
+		serverError := errors.ParseServerError(body, statusCode)
+		return serverError
+	}
+
+	return nil
+}
+
+func DeclineCourseInvitation(invitation *models.CourseInvitation) error {
+	api_url := secrets.CONSTANTS["API_URL"]
+	agent := fiber.Post(fmt.Sprintf("%s/courses/%d/decline", api_url, invitation.ID))
+
+	if err := SetAuthHeader(agent); err != nil {
+		return err
+	}
+
+	statusCode, body, errs := agent.Bytes()
+	if len(errs) > 0 {
+		return errs[0]
+	}
+	if statusCode != fiber.StatusNoContent {
 		serverError := errors.ParseServerError(body, statusCode)
 		return serverError
 	}

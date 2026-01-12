@@ -21,7 +21,6 @@ import (
 	"unipilot/internal/client"
 
 	Errors "unipilot/internal/errors"
-	"unipilot/internal/events"
 	"unipilot/internal/models"
 	"unipilot/internal/network"
 	"unipilot/internal/services/daemon"
@@ -37,7 +36,6 @@ type App struct {
 	ctx    context.Context
 	Auth   *auth.Auth
 	DB     *database.Database
-	Events *events.Events
 	Daemon *daemon.Manager
 }
 
@@ -61,15 +59,9 @@ func NewApp() *App {
 
 	}
 
-	var eventsService *events.Events
-	if dbService != nil {
-		eventsService = events.NewEvents(dbService.GetDB())
-	}
-
 	return &App{
-		Auth:   authService,
-		DB:     dbService,
-		Events: eventsService,
+		Auth: authService,
+		DB:   dbService,
 	}
 }
 
@@ -1283,13 +1275,6 @@ func (a *App) DeleteNote(note *models.LocalNote) error {
 	return nil
 }
 
-func (a *App) DeleteNotification(notification *models.LocalNotification) error {
-	if a.DB == nil {
-		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
-	}
-	return a.DB.DeleteNotification(notification)
-}
-
 // ========================================
 // OTHER OPERATIONS
 // ========================================
@@ -1305,7 +1290,6 @@ func (a *App) Register(userData *models.User) (*models.User, error) {
 
 	a.Auth = authService
 	a.DB = dbService
-	a.Events = events.NewEvents(a.DB.GetDB())
 	user := authService.User
 
 	// Initialize daemon manager for the newly registered user
@@ -1353,7 +1337,6 @@ func (a *App) Login(username, password string) (*models.User, error) {
 	// Set the auth and db services
 	a.Auth = authService
 	a.DB = dbService
-	a.Events = events.NewEvents(a.DB.GetDB())
 
 	// Get the user from the auth service
 	user := authService.User
@@ -1434,14 +1417,8 @@ func (a *App) Logout() error {
 		a.DB = dbService
 	}
 
-	var eventsService *events.Events
-	if dbService != nil {
-		eventsService = events.NewEvents(dbService.GetDB())
-	}
-
 	a.Auth = authService
 	a.DB = dbService
-	a.Events = eventsService
 
 	return nil
 }
@@ -1537,16 +1514,6 @@ func (a *App) GetUserCourseInvitations() ([]models.CourseInvitation, error) {
 	return invitations, nil
 }
 
-func (a *App) AcceptCourseInvitation(invitation *models.CourseInvitation) error {
-
-	err := client.AcceptCourseInvitation(invitation)
-	if err != nil {
-		log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to accept course invitation").Error())
-	}
-
-	return nil
-}
-
 // GetCoursesLinked returns all courses linked for the current user
 func (a *App) GetCoursesLinked() ([]models.Course, error) {
 	if a.DB == nil {
@@ -1565,14 +1532,6 @@ func (a *App) GetNotes() ([]models.LocalNote, error) {
 		return []models.LocalNote{}, nil
 	}
 	return a.DB.GetNotes()
-}
-
-// GetNotifications returns all notifications for the current user
-func (a *App) GetNotifications() ([]models.LocalNotification, error) {
-	if a.DB == nil {
-		return []models.LocalNotification{}, nil
-	}
-	return a.DB.GetNotifications()
 }
 
 // GetSupportDocuments retrieves only support documents for an assignment
@@ -1891,7 +1850,26 @@ func (a *App) RebuildNotificationDaemon() error {
 
 // LinkCourse links a course to a list of users
 func (a *App) CourseShare(c *models.LocalCourse, usersID []uint) error {
-	return client.CourseShare(c, usersID)
+	if err := client.CourseShare(c, usersID); err != nil {
+		return err
+	}
+	return nil
+}
+func (a *App) AcceptCourseInvitation(invitation *models.CourseInvitation) error {
+
+	err := client.AcceptCourseInvitation(invitation)
+	if err != nil {
+		log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to accept course invitation").Error())
+	}
+
+	return nil
+}
+
+func (a *App) DeclineCourseInvitation(invitation *models.CourseInvitation) error {
+	if err := client.DeclineCourseInvitation(invitation); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (a *App) AcceptAssignment(assignmentData string) error {

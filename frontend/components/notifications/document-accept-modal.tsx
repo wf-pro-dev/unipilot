@@ -2,10 +2,8 @@ import { Calendar, Check, FileText, User, X } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardHeader, CardContent, CardFooter } from "../ui/card";
 import { Dialog, DialogContent } from "../ui/dialog";
-import { document } from "@/wailsjs/go/models";
+import { models } from "@/wailsjs/go/models";
 import { useAuthContext } from "../provider/auth-provider";
-import { assignment as Assignment } from "@/wailsjs/go/models";
-
 
 interface DocumentAcceptModalProps {
     isOpen: boolean
@@ -28,8 +26,8 @@ export function DocumentAcceptModal({
     const { assignments } = useAuthContext()
 
     const fulldDocumentData = JSON.parse(documentData)
-    const document = JSON.parse(documentData) as document.LocalDocument
-    const assignment = assignments?.find((assign: Assignment.LocalAssignment) => assign.ParentID === fulldDocumentData.AssignmentID)
+    const document = JSON.parse(documentData) as models.LocalDocument
+    const assignment = assignments?.find((assign: models.LocalAssignment) => assign.ParentID === fulldDocumentData.AssignmentID)
 
     const formatFileSize = (bytes: number): string => {
         if (bytes === 0) return "0 B"

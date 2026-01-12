@@ -24,7 +24,6 @@ func NewClientMigrator() *ClientMigrator {
 		&models.LocalSync{},
 		&models.LocalDocument{},
 		&models.LocalNote{},
-		&models.LocalNotification{},
 		&models.LocalAiMessage{},
 	}
 
@@ -60,7 +59,6 @@ func InitializeClient(userID uint, config *DatabaseConfig) (*gorm.DB, error) {
 		migrator := NewClientMigrator()
 		// Verify all tables exist
 		for _, model := range migrator.GetModels() {
-			log.Printf("[ClientDB] Checking table for model %T", model)
 			if !CheckTableExists(db, model) {
 				log.Printf("[ClientDB] Warning: Table for model %T does not exist, running migration...", model)
 				if err := migrator.Migrate(db); err != nil {

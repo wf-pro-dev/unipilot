@@ -5,8 +5,9 @@ import { models } from "@/wailsjs/go/models"
 import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { assignmentKeys } from './use-assignments'
 import { documentKeys } from './use-documents'
-import { GetCourses, CreateCourse, UpdateCourse, DeleteCourse, CourseShare, GetCoursesLinked, AcceptCourseInvitation } from '@/wailsjs/go/main/App'
+import { GetCourses, CreateCourse, UpdateCourse, DeleteCourse, CourseShare, GetCoursesLinked, AcceptCourseInvitation, DeclineCourseInvitation } from '@/wailsjs/go/main/App'
 import { authKeys } from './use-auth'
+import { toast } from 'sonner'
 
 // Query keys for consistent cache management
 export const courseKeys = {
@@ -196,7 +197,14 @@ export function useCourseShare() {
   return useMutation({
     mutationFn: async ({ c, usersID }: { c: models.LocalCourse, usersID: number[] }) => {
       return await CourseShare(c, usersID)
-    }
+    },
+    onSuccess: () => {
+      toast.success("Course shared successfully")
+    },
+    onError: (err) => {
+      LogError("Failed to share course: " + err)
+      toast.error("Failed to share course")
+    },
   })
 }
 
@@ -211,7 +219,6 @@ export function useAcceptCourseInvitation() {
       return await AcceptCourseInvitation(invitation)
     },
     onMutate: async ({ invitation }) => {
-
 
 
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
@@ -239,7 +246,54 @@ export function useAcceptCourseInvitation() {
       await queryClient.invalidateQueries({ queryKey: courseKeys.linked() })
 
       return { previousCourses, previousInvitations }
-    }
+    },
+    onSuccess: () => {
+      toast.success("Course invitation accepted successfully")
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousCourses) {
+        queryClient.setQueryData(courseKeys.lists(), context.previousCourses)
+      }
+      if (context?.previousInvitations) {
+        queryClient.setQueryData(authKeys.coursesInvitations, context.previousInvitations)
+      }
+      LogError("Failed to accept course invitation: " + err)
+      toast.error("Failed to accept course invitation")
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: courseKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: authKeys.coursesInvitations })
+      queryClient.invalidateQueries({ queryKey: courseKeys.linked() })
+    },
+  })
+}
+
+export function useDeclineCourseInvitation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (invitation: models.CourseInvitation) => {
+      return await DeclineCourseInvitation(invitation)
+    },
+    onMutate: async (invitation) => {
+      await queryClient.cancelQueries({ queryKey: authKeys.coursesInvitations })
+      const previousInvitations = queryClient.getQueryData<models.CourseInvitation[]>(authKeys.coursesInvitations)
+      queryClient.setQueryData<models.CourseInvitation[]>(authKeys.coursesInvitations, (old) => {
+        if (!old) return []
+        return old.filter(i => i.ID !== invitation.ID)
+      })
+      return { previousInvitations }
+    },
+    onSuccess: () => {
+      toast.success("Course invitation declined successfully")
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousInvitations) {
+        queryClient.setQueryData(authKeys.coursesInvitations, context.previousInvitations)
+      }
+      LogError("Failed to decline course invitation: " + err)
+      toast.error("Failed to decline course invitation")
+    },
+  
   })
 }
 

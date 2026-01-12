@@ -122,28 +122,6 @@ func (h *Database) DeleteNote(note *models.LocalNote) error {
 	return nil
 }
 
-// GetNotifications returns all notifications for the current user
-func (h *Database) GetNotifications() ([]models.LocalNotification, error) {
-	var LocalNotification []models.LocalNotification
-	err := h.db.
-		Where("type != ?", models.NotificationAssignment).
-		Where("type != ?", models.NotificationCourse).
-		Find(&LocalNotification).
-		Order("created_at DESC").Error
-	if err != nil {
-		return nil, errors.HandleDBReadError(err)
-	}
-	return LocalNotification, nil
-}
-
-func (h *Database) DeleteNotification(notification *models.LocalNotification) error {
-	err := h.db.Delete(notification).Error
-	if err != nil {
-		return errors.HandleDBWriteError(err)
-	}
-	return nil
-}
-
 func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUploadRequest, hasLocalFile bool) (*fileops.FileUploadResponse, error) {
 
 	// Create LocalDocument record

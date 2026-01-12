@@ -37,7 +37,7 @@ export function ExploreView({ users }: ExploreViewProps) {
 
     const matchesUniversity = selectedUniversity === "All Universities" || user.University === selectedUniversity
 
-    return user.ID != currentUser?.ID && matchesSearch && matchesUniversity
+    return matchesSearch && matchesUniversity
   })
 
   

@@ -24,6 +24,8 @@ export function CreateDocument(arg1:fileops.FileUploadRequest,arg2:boolean):Prom
 
 export function CreateNote(arg1:models.LocalNote):Promise<void>;
 
+export function DeclineCourseInvitation(arg1:models.CourseInvitation):Promise<void>;
+
 export function DeleteAssignment(arg1:models.LocalAssignment):Promise<void>;
 
 export function DeleteCourse(arg1:models.LocalCourse):Promise<void>;
@@ -33,8 +35,6 @@ export function DeleteDocument(arg1:number):Promise<void>;
 export function DeleteDocumentRAG(arg1:number,arg2:number):Promise<void>;
 
 export function DeleteNote(arg1:models.LocalNote):Promise<void>;
-
-export function DeleteNotification(arg1:models.LocalNotification):Promise<void>;
 
 export function DownloadDocument(arg1:models.LocalDocument):Promise<void>;
 
@@ -75,8 +75,6 @@ export function GetNetworkStatus():Promise<Record<string, any>>;
 export function GetNotes():Promise<Array<models.LocalNote>>;
 
 export function GetNotificationDaemonStatus():Promise<Record<string, any>>;
-
-export function GetNotifications():Promise<Array<models.LocalNotification>>;
 
 export function GetRemoteUsers():Promise<Array<client.RemoteUser>>;
 

@@ -467,74 +467,7 @@ func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
 	return nil
 }
 
-// SendNotification creates and sends a structured notification to a specific models.
-// Constructs a LocalNotification with all provided metadata, serializes it to JSON,
-// and delivers it through the user's SSE connection if they are connected.
-//
-// Parameters:
-//   - userID: Target user to receive the notification (uint, required)
-//   - senderID: User who triggered the notification (uint, required)
-//   - entity: Type of entity - assignment, document, course, etc. (models.Entity, required)
-//   - entityID: Unique identifier for the entity (uint, required)
-//   - nType: Notification type - create, update, delete, etc. (models.NotificationType, required)
-//   - title: Human-readable notification title (string, required)
-//   - message: Detailed notification message (string, required)
-//   - action: Action type for client-side handling (string, required)
-//   - data: JSON-encoded payload with additional context (string, optional)
-//
-// Returns:
-//   - error: JSON marshalling error, nil if successful
-//
-// Notification Structure:
-//   - SenderID: User who triggered the notification
-//   - Entity: Entity type (assignment, document, course, etc.)
-//   - EntityID: Specific entity identifier
-//   - Type: Notification type (create, update, delete, etc.)
-//   - Action: Client action type for UI handling
-//   - Title: Human-readable notification title
-//   - Message: Detailed notification message
-//   - Data: JSON payload with additional context
-//
-// Delivery Behavior:
-//   - Sends to user's SSE connection if connected
-//   - Graceful failure for disconnected users (not an error)
-//   - Non-blocking delivery prevents server hanging
-//
-// Error Handling:
-//   - Returns error only for JSON marshalling failures
-//   - Delivery failures logged but don't return errors
-//   - Disconnected users handled gracefully
-//
-// Side Effects:
-//   - Logs marshalling errors for debugging
-//   - Attempts message delivery via SendToUser
-func (s *SSEServer) SendNotification(userID, senderID uint, entity models.Entity, entityID uint, nType models.NotificationType, title, message, action, data string) error {
-	// Step 1: Construct structured notification with all provided metadata
-	notification := models.LocalNotification{
-		SenderID: senderID, // User who triggered the notification
-		Entity:   entity,   // Entity type (assignment, document, etc.)
-		EntityID: entityID, // Specific entity identifier
-		Type:     nType,    // Notification type (create, update, etc.)
-		Action:   action,   // Client action type for UI handling
-		Title:    title,    // Human-readable notification title
-		Message:  message,  // Detailed notification message
-		Data:     data,     // JSON payload with additional context
-	}
-
-	// Step 2: Serialize notification to JSON for SSE transmission
-	jsonData, err := json.Marshal(notification)
-	if err != nil {
-		// Step 3: Log marshalling errors for debugging
-		return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Failed to marshal notification", fiber.StatusInternalServerError)
-	}
-
-	// Step 4: Attempt delivery to user's SSE connection (graceful failure if disconnected)
-	s.SendToUser(userID, jsonData)
-
-	// Step 5: Return success (delivery failures are not considered errors)
-	return nil
-}
-
+// SendMessage sends a message to a specific user.
 func (s *SSEServer) SendMessage(senderID, receiverID uint, title, message string, data []byte, messageType models.MessageType) error {
 
 	// Step 1: Construct structured message with all provided metadata

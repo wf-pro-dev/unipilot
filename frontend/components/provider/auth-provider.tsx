@@ -3,26 +3,22 @@
 import { createContext, useContext, ReactNode, useEffect } from "react"
 import { useCurrentUser, useGetAuthToken } from "@/hooks/use-auth"
 import AuthPage from "../auth/page"
-import { assignment, course, note, user, notifications } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { useFollowers, useFollowing } from "@/hooks/use-follows"
 import { useUsers } from "@/hooks/use-users"
 import { useCourses } from "@/hooks/use-courses"
 import { useAssignments } from "@/hooks/use-assignments"
 import { useNotes } from "@/hooks/use-notes"
-import { useNotifications } from "@/hooks/use-notifications"
-import { LogInfo } from "@/wailsjs/runtime/runtime"
-
 
 interface AuthContextType {
-  user: user.User | undefined
+  user: models.User | undefined
   token: string | undefined
-  followers: user.User[] | undefined
-  following: user.User[] | undefined
-  users: user.User[] | undefined
-  courses: course.LocalCourse[] | undefined
-  assignments: assignment.LocalAssignment[] | undefined
-  notes: note.LocalNote[] | undefined
-  notifications: notifications.LocalNotification[] | undefined
+  followers: models.User[] | undefined
+  following: models.User[] | undefined
+  users: models.User[] | undefined
+  courses: models.LocalCourse[] | undefined
+  assignments: models.LocalAssignment[] | undefined
+  notes: models.LocalNote[] | undefined
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -48,7 +44,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const { data: courses, refetch: refetchCourses } = useCourses()
   const { data: assignments, refetch: refetchAssignments } = useAssignments()
   const { data: notes, refetch: refetchNotes } = useNotes()
-  const { data: notifications, refetch: refetchNotifications } = useNotifications() 
   useEffect(() => {
     if (user) {
         refetchToken()
@@ -58,7 +53,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
         refetchCourses()
         refetchAssignments()
         refetchNotes()
-        refetchNotifications()
     }
   }, [user])
   
@@ -71,7 +65,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, followers, following, users, courses, assignments, notes, notifications }}>
+    <AuthContext.Provider value={{ user, token, followers, following, users, courses, assignments, notes }}>
       {children}
     </AuthContext.Provider>
   )

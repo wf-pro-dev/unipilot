@@ -38,6 +38,10 @@ export function CreateNote(arg1) {
   return window['go']['main']['App']['CreateNote'](arg1);
 }
 
+export function DeclineCourseInvitation(arg1) {
+  return window['go']['main']['App']['DeclineCourseInvitation'](arg1);
+}
+
 export function DeleteAssignment(arg1) {
   return window['go']['main']['App']['DeleteAssignment'](arg1);
 }
@@ -56,10 +60,6 @@ export function DeleteDocumentRAG(arg1, arg2) {
 
 export function DeleteNote(arg1) {
   return window['go']['main']['App']['DeleteNote'](arg1);
-}
-
-export function DeleteNotification(arg1) {
-  return window['go']['main']['App']['DeleteNotification'](arg1);
 }
 
 export function DownloadDocument(arg1) {
@@ -140,10 +140,6 @@ export function GetNotes() {
 
 export function GetNotificationDaemonStatus() {
   return window['go']['main']['App']['GetNotificationDaemonStatus']();
-}
-
-export function GetNotifications() {
-  return window['go']['main']['App']['GetNotifications']();
 }
 
 export function GetRemoteUsers() {
