@@ -101,14 +101,7 @@ export default function NotesPage() {
 
 
         {/* Note Detail Modal */}
-        <NoteDetailModal
-          key={selectedNoteID} // Force re-render when note changes
-          noteID={selectedNoteID}
-          isOpen={isDetailModalOpen}
-          onClose={handleCloseDetailModal}
-          onEdit={handleEditNote}
-          onDelete={handleDeleteNote}
-        />
+       
       </div>
     </div>
   )

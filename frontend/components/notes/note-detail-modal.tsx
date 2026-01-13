@@ -14,21 +14,21 @@ import { toast } from "sonner"
 import { StyledMarkdownRenderer } from "./markdown-renderer"
 import { motion, useScroll, useTransform } from "framer-motion"
 
-interface NoteDetailModalProps {
-  noteID: number | null
+interface NoteDetailModalProps<T extends models.LocalNote | models.Note> {
+  note: T
   isOpen: boolean
   onClose: () => void
-  onEdit: (note: models.LocalNote, column: string, value: string) => void
-  onDelete: (note: models.LocalNote) => void
+  onEdit?: (note: T, column: string, value: string) => void
+  onDelete?: (note: T) => void
 }
 
 export function NoteDetailModal({
-  noteID,
+  note,
   isOpen,
   onClose,
   onEdit,
   onDelete
-}: NoteDetailModalProps) {
+}: NoteDetailModalProps<models.LocalNote | models.Note>) {
 
   const [activeView, setActiveView] = useState("note")
   const { data: courses } = useCourses()
@@ -65,14 +65,9 @@ export function NoteDetailModal({
   const tabsBackdrop = useTransform(scrollY, [0, 50], ["blur(0px)", "blur(8px)"])
   const tabsBackground = useTransform(scrollY, [0, 50], ["rgba(0,0,0,0.05)", "rgba(0,0,0,0.4)"])
 
-  const { data: notes } = useNotes()
-  const note = notes?.find(n => n.ID === noteID)
-
-  const course = courses?.find(c => c.Code === note?.CourseCode)
-
   const handleDelete = () => {
-    if (confirm("Are you sure you want to delete this note?")) {
-      onDelete(note!)
+    if (onDelete) {
+      onDelete(note)
       onClose()
     }
   }
@@ -108,7 +103,7 @@ export function NoteDetailModal({
       // Use the current videos state instead of parsing from note
       if (!videos.includes(videoId)) {
         const newVideos = [...videos, videoId]
-        onEdit(note, "videos", JSON.stringify(newVideos))
+        onEdit?.(note, "videos", JSON.stringify(newVideos))
         toast.success("Video added successfully")
       } else {
         toast.error("This video is already in the list")
@@ -120,11 +115,9 @@ export function NoteDetailModal({
 
   const handleRemoveVideo = (note: models.LocalNote, videoId: string) => {
     const newVideos = videos.filter((id: string) => id !== videoId)
-    onEdit(note, "videos", JSON.stringify(newVideos))
+    onEdit?.(note, "videos", JSON.stringify(newVideos))
     toast.success("Video removed successfully")
   }
-
-  if (!note) return null
 
   // Parse keywords if they're stored as JSON string
   return (
@@ -152,7 +145,7 @@ export function NoteDetailModal({
                  }}
                >
                  <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-white/5 border border-white/5 w-fit">
-                    {course && <div className={`w-1.5 h-1.5 rounded-full ${course?.Color} shadow-[0_0_8px] shadow-${course?.Color}/80 ml-0.5`} />}
+                    {note.Course && <div className={`w-1.5 h-1.5 rounded-full ${note.Course?.Color} shadow-[0_0_8px] shadow-${note.Course?.Color}/80 ml-0.5`} />}
                     <span className="text-[10px] font-medium pr-1 opacity-80 uppercase tracking-wider text-gray-300">{note.Subject || "General"}</span>
                  </div>
                  
@@ -180,11 +173,11 @@ export function NoteDetailModal({
               className="overflow-hidden"
             >
               <div className="flex items-center gap-4 text-xs text-gray-400">
-                {course && (
+                {note.Course && (
                   <div className="flex items-center gap-1.5">
-                    <span className="font-medium text-gray-300">{course.Code}</span>
+                    <span className="font-medium text-gray-300">{note.Course.Code}</span>
                     <span className="w-1 h-1 rounded-full bg-gray-600" />
-                    <span>{course.Name}</span>
+                    <span>{note.Course.Name}</span>
                   </div>
                 )}
                 {note.UpdatedAt && note.UpdatedAt !== note.CreatedAt && (

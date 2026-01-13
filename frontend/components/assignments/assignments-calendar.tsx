@@ -5,27 +5,23 @@ import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { GlassCard } from "@/components/ui/glass-card"
 import { Button } from "@/components/ui/button"
 import { Calendar, ChevronLeft, ChevronRight, Loader2, Plus } from "lucide-react"
-import { format } from "date-fns"
-import { assignment, models } from "@/wailsjs/go/models"
+import { format, isSameDay } from "date-fns"
+import { models } from "@/wailsjs/go/models"
 import { parseDeadline } from "@/lib/date-utils"
 import { CalendarContainer } from "./calendar-container"
 import { DndProvider } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
 
 interface AssignmentsCalendarProps {
-  assignments: assignment.LocalAssignment[]
-  onAddAssignment: () => void
-  onMoveAssignment: (assignment: assignment.LocalAssignment, date: Date) => void
+  assignments: models.LocalAssignment[]
   isLoading?: boolean
-  onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
-  onAssignmentClick: (assignment: assignment.LocalAssignment) => void
+  onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
+  onAssignmentClick: (assignment: models.LocalAssignment) => void
   onDateClick: (date: Date) => void
 }
 
 export function AssignmentsCalendar({
   assignments,
-  onAddAssignment,
-  onMoveAssignment,
   onEdit,
   onAssignmentClick,
   onDateClick,
@@ -33,7 +29,7 @@ export function AssignmentsCalendar({
 }: AssignmentsCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   // Local state to manage assignments for optimistic updates
-  const [localAssignments, setLocalAssignments] = useState<assignment.LocalAssignment[]>(assignments)
+  const [localAssignments, setLocalAssignments] = useState<models.LocalAssignment[]>(assignments)
   // Track pending optimistic updates: map of assignment ID to new deadline string
   const pendingUpdatesRef = useRef<Map<number, string>>(new Map())
   // Track if we should skip the next sync (to prevent overwriting optimistic updates)
@@ -62,15 +58,15 @@ export function AssignmentsCalendar({
           // Compare dates by day (not time) since we only care about the date
           const propDeadline = a.Deadline ? parseDeadline(a.Deadline) : null
           const pendingDeadlineDate = parseDeadline(pendingDeadline)
-          
+
           if (propDeadline && format(propDeadline, "yyyy-MM-dd") === format(pendingDeadlineDate, "yyyy-MM-dd")) {
             // Prop matches our optimistic update, remove from pending
             pendingUpdatesRef.current.delete(a.ID)
             return a
           }
-          
+
           // Prop doesn't match yet, keep our optimistic update
-          return { ...a, Deadline: pendingDeadline } as assignment.LocalAssignment
+          return { ...a, Deadline: pendingDeadline } as models.LocalAssignment
         }
         return a
       })
@@ -78,29 +74,34 @@ export function AssignmentsCalendar({
     })
   }, [assignments])
 
+
   // Wrapper for onMoveAssignment that optimistically updates local state
-  const handleMoveAssignment = (assignment: assignment.LocalAssignment, date: Date) => {
+  const handleMoveAssignment = (assignment: models.LocalAssignment, date: Date) => {
     // Optimistically update the assignment's deadline in local state
     const newDeadline = format(date, "yyyy-MM-dd HH:mm:ssxxx")
-    
+
     // Track this as a pending update
     pendingUpdatesRef.current.set(assignment.ID, newDeadline)
-    
+
     // Skip the next sync to prevent overwriting our optimistic update
     skipNextSyncRef.current = true
-    
+
     // Optimistically update local state immediately
-    setLocalAssignments(prev => 
-      prev.map(a => 
-        a.ID === assignment.ID 
-          ? { ...a, Deadline: newDeadline } as assignment.LocalAssignment
+    setLocalAssignments(prev =>
+      prev.map(a =>
+        a.ID === assignment.ID
+          ? { ...a, Deadline: newDeadline } as models.LocalAssignment
           : a
       )
     )
-    
-    // Call the original onMoveAssignment handler
-    onMoveAssignment(assignment, date)
+
+    // Call the original onMoveAssignme
+    if (!isSameDay(assignment.Deadline, date)) {
+      onEdit(assignment, "deadline", newDeadline)
+    }
+
   }
+
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear()
@@ -195,7 +196,7 @@ export function AssignmentsCalendar({
                   )}
                 </CardTitle>
               </div>
-              
+
               <div className="flex items-center bg-white/5 rounded-lg border border-white/5 p-1">
                 <Button
                   variant="ghost"

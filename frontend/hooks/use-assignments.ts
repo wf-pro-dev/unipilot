@@ -6,7 +6,7 @@ import { addDays, startOfWeek, endOfWeek, isWithinInterval, isAfter, isSameDay }
 import { models } from '@/wailsjs/go/models'
 import { useMemo } from 'react'
 import { toast } from 'sonner'
-import { CreateAssignment } from '@/wailsjs/go/main/App'
+import { CreateAssignment, UpdateAssignment } from '@/wailsjs/go/main/App'
 
 // Query keys for consistent cache management
 export const assignmentKeys = {
@@ -42,7 +42,7 @@ export function useUpdateAssignment() {
 
   return useMutation({
     mutationFn: async ({ assignment, column, value }: { assignment: models.LocalAssignment, column: string, value: string }) => {
-      return await window.go.main.App.UpdateAssignment(assignment, column, value)
+      return await UpdateAssignment(assignment, column, value)
     },
 
     // Optimistic update for instant UI feedback
@@ -62,6 +62,9 @@ export function useUpdateAssignment() {
 
       return { previousAssignments }
     },
+    onSuccess: () => {
+      toast.success(`Assignment updated successfully`)
+    },
 
     onError: (err, variables, context) => {
       if (context?.previousAssignments) {
@@ -69,6 +72,7 @@ export function useUpdateAssignment() {
       }
       LogError("Failed to update assignment: " + err)
       // Invalidate on error to ensure we have correct server state
+      toast.error("Assignment update failed")
     },
 
     onSettled: () => {

@@ -185,7 +185,7 @@ export function AssignmentItem({
 
 
               <div className="flex flex-1 items-center justify-between">
-                <p className={`text-caption flex items-center gap-1 line-clamp-1 leading-relaxed`}  >
+                <p className={`text-caption text-text-caption flex items-center gap-1 line-clamp-1 leading-relaxed`}  >
                   <Clock className="w-3.5 h-3.5" />
                   {getDueDescription(deadline, Status)}
                 </p>
@@ -228,7 +228,7 @@ export function AssignmentItem({
   }
 
   const UserAssignmentItem = ({ assignment, variant, size, onCopy, user }: AssignmentItemProps<models.Assignment>) => {
-    console.log("user", user)
+
     return (
       <GlassCard
         variant={variant}
@@ -263,7 +263,7 @@ export function AssignmentItem({
 
 
               <div className="flex flex-1 items-center justify-between">
-                <p className={`text-caption flex items-center gap-1 line-clamp-1 leading-relaxed`}  >
+                <p className={`text-caption text-text-caption flex items-center gap-1 line-clamp-1 leading-relaxed`}  >
                   <Clock className="w-3.5 h-3.5" />
                   {getDueDescription(deadline, assignment.Status)}
                 </p>

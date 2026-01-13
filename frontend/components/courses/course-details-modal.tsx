@@ -1,19 +1,16 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
 import {
   BookOpen,
   Users,
   Calendar,
-  GraduationCap,
   MapPin,
   Edit,
-  Trash2,
-  Plus,
+  Trash2,  
   TrendingUp,
   FileText,
   Mail,
@@ -26,10 +23,9 @@ import {
   ChevronRight,
 } from "lucide-react"
 import Link from "next/link"
-import { course as Course } from "@/wailsjs/go/models"
+import { models} from "@/wailsjs/go/models"
 import { useAssignments, useUpdateAssignment } from "@/hooks/use-assignments"
 import { formatDeadline } from "@/lib/date-utils"
-import { assignment } from "@/wailsjs/go/models"
 import { StatusTag } from "@/components/assignments/tags/status-tag"
 import { CourseEditDialog } from "./course-edit-dialog"
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -38,22 +34,19 @@ import { format } from "date-fns"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
 import { useCourseNotes, useDeleteNote } from "@/hooks/use-notes"
 import { NoteItem } from "../notes/note-item"
-import { NoteDetailModal } from "@/components/notes/note-detail-modal"
 import { useUpdateNote } from "@/hooks/use-notes"
-import { note } from "@/wailsjs/go/models"
 import { toast } from "sonner"
 import { Input } from "../ui/input"
 import { useRouter } from "next/navigation"
 import useEmblaCarousel from "embla-carousel-react"
-import { LinkRequestModal } from "@/components/community/link-request-modal"
 
 interface CourseDetailsModalProps {
   isOpen: boolean
   onClose: () => void
   courseId: number | null
-  courses: Course.LocalCourse[]
-  onEdit: (course: Course.LocalCourse, column: string, value: string) => void
-  onDelete: (course: Course.LocalCourse) => void
+  courses: models.LocalCourse[]
+  onEdit: (course: models.LocalCourse, column: string, value: string) => void
+  onDelete: (course: models.LocalCourse) => void
   onLinkRequest: () => void
   onViewLinks: () => void
 }
@@ -63,8 +56,6 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
   if (!course) return null
   const router = useRouter()
   const [activeView, setActiveView] = useState("info")
-  const [selectedNoteID, setSelectedNoteID] = useState<number | null>(null)
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
 
 
@@ -77,13 +68,13 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
 
   const [selectedIndex, setSelectedIndex] = useState(0)
 
-  var course_assignments = (assignments || []).filter((assignment: assignment.LocalAssignment) => assignment.Course?.Code === course.Code) || []
-  var completed_assignments_count = course_assignments.filter((assignment: assignment.LocalAssignment) => assignment.Status === "Done").length
+  var course_assignments = (assignments || []).filter((assignment: models.LocalAssignment) => assignment.CourseCode === course.Code) || []
+  var completed_assignments_count = course_assignments.filter((assignment: models.LocalAssignment) => assignment.Status === "Done").length
   var completionPercentage = (completed_assignments_count / course_assignments.length) * 100
   var isCompleted = completionPercentage === 100
   const [open, setOpen] = useState(false)
 
-  const handleEditAssignment = async (assignment: assignment.LocalAssignment, column: string, value: string) => {
+  const handleEditAssignment = async (assignment: models.LocalAssignment, column: string, value: string) => {
     console.log("Editing assignment:", assignment)
     const message = "assignment " + assignment.ID + " " + column + " changed to " + value
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
@@ -107,10 +98,10 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
 
 
 
-  const handleDeleteNote = async (note: note.LocalNote) => {
-    const message = "note " + note.title + " deleted"
+    const handleDeleteNote = async (note: models.LocalNote | models.Note) => {
+    const message = "note " + note.Title + " deleted"
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-    deleteNote.mutate(note, {
+    deleteNote.mutate(note as models.LocalNote, {
       onSuccess: () => {
         toast.success("Note deleted successfully")
       },
@@ -120,8 +111,8 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
     })
   }
 
-  const handleEditNote = async (note: note.LocalNote, column: string, value: string) => {
-    const message = "note " + note.title + " " + column + " changed to " + value
+  const handleEditNote = async (note: models.LocalNote, column: string, value: string) => {
+    const message = "note " + note.Title + " " + column + " changed to " + value
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     updateNote.mutate({ note, column, value }, {
       onError: () => {
@@ -130,15 +121,10 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
     })
   }
 
-  const handleCloseDetailModal = () => {
-    setIsDetailModalOpen(false)
-    setSelectedNoteID(null)
-  }
-
   const filteredNotes = useMemo(() => {
     return notes.filter((note) => {
       const matchesSearch =
-        note.title.toLowerCase().includes(searchTerm.toLowerCase())
+        note.Title.toLowerCase().includes(searchTerm.toLowerCase())
       return matchesSearch
     })
   }, [notes, searchTerm])
@@ -404,7 +390,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                         <div className="flex -ml-4 py-2">
                           {filteredNotes.map((note) => (
                             <div className="flex-none w-full min-w-0 pl-4" key={note.ID}>
-                              <NoteItem note={note} onNoteClick={setSelectedNoteID} onEdit={handleEditNote} onDelete={handleDeleteNote} />
+                              <NoteItem note={note} onDelete={handleDeleteNote} mode="default" />
                             </div>
                           ))}
                         </div>
@@ -500,14 +486,6 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
         setOpen={setOpen}
         course={course}
         onEdit={onEdit}
-      />
-      <NoteDetailModal
-        key={selectedNoteID}
-        noteID={selectedNoteID}
-        isOpen={!!selectedNoteID}
-        onClose={handleCloseDetailModal}
-        onEdit={handleEditNote}
-        onDelete={handleDeleteNote}
       />
 
     </div>

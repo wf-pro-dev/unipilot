@@ -119,34 +119,14 @@ export default function AssignmentsPage() {
    * @returns {Promise<void>}
    */
   const handleEditAssignment = async (assignment: models.LocalAssignment, column: string, value: string) => {
-    const message = "[Frontend] assignment " + assignment.ID + " remote_id " + assignment.RemoteID + " " + column + " changed to " + value
-    LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
 
-    // Use the optimistic update mutation
     updateMutation.mutate({
       assignment,
       column,
       value
-    }, {
-      onSuccess: () => {
-        toast.success("Assignment updated successfully")
-      },
-      onError: () => {
-        toast.error("Assignment update failed")
-      }
     })
   }
 
-  /**
-   * Toggles assignment completion status between "Done" and "Not started".
-   * 
-   * @param {assignment.LocalAssignment} assignment - The assignment to toggle
-   * @returns {Promise<void>}
-   */
-  const handleToggleComplete = async (assignment: models.LocalAssignment) => {
-    const newStatus = assignment.Status === "Done" ? "Not started" : "Done"
-    handleEditAssignment(assignment, "status", newStatus)
-  }
 
   /**
    * Handles assignment deletion with optimistic UI updates.
@@ -183,32 +163,9 @@ export default function AssignmentsPage() {
   const handleAddAssignment = async (assignment: models.LocalAssignment) => {
     const message = "[Frontend] assignment " + assignment.Title + " added"
     LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
-    createMutation.mutate(assignment, {
-      onSuccess: () => {
-        toast.success("Assignment added successfully")
-      },
-      onError: () => {
-        toast.error("Assignment addition failed")
-      }
-    })
+    createMutation.mutate(assignment)
   }
 
-  /**
-   * Handles moving an assignment to a new deadline date.
-   * 
-   * Updates the assignment's deadline if the new date differs from the current one.
-   * Used primarily in the calendar view for drag-and-drop operations.
-   * 
-   * @param {assignment.LocalAssignment} assignment - The assignment to move
-   * @param {Date} date - The new deadline date
-   * @returns {Promise<void>}
-   */
-  const handleMoveAssignment = async (assignment: models.LocalAssignment, date: Date) => {
-    const newDeadline = format(date, "yyyy-MM-dd HH:mm:ssxxx")
-    if (!isSameDay(assignment.Deadline, date)) {
-      handleEditAssignment(assignment, "deadline", newDeadline)
-    }
-  }
 
   /**
    * Handles tab change and synchronizes the active view with URL query parameters.
@@ -324,9 +281,7 @@ export default function AssignmentsPage() {
           <TabsContent value="calendar" className="flex flex-col data-[state=active]:flex-1 m-0">
             <AssignmentsCalendar
               assignments={assignments || []}
-              onAddAssignment={() => { }}
               onEdit={handleEditAssignment}
-              onMoveAssignment={handleMoveAssignment}
               onAssignmentClick={handleAssignmentClick}
               onDateClick={setSelectedDate}
               isLoading={isLoading}
@@ -352,11 +307,9 @@ export default function AssignmentsPage() {
           onClose={() => setSelectedDate(null)}
           date={selectedDate}
           assignments={assignments || []}
-          onToggleComplete={handleToggleComplete}
           onAddAssignment={() => { }}
           onEdit={handleEditAssignment}
           onDelete={handleDeleteAssignment}
-          onAssignmentClick={handleAssignmentClick}
           onOpenEdit={setSelectedAssignmentEdit}
           isLoading={updateMutation.isPending}
         />

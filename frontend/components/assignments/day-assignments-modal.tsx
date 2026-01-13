@@ -4,20 +4,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { Calendar, BookOpen, CheckCircle2, Plus } from "lucide-react"
 import { format, isSameDay } from "date-fns"
-import { assignment } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { AssignmentItem } from "./assignment-item"
 
 interface DayAssignmentsModalProps {
   isOpen: boolean
   onClose: () => void
   date: Date | null
-  assignments: assignment.LocalAssignment[]
-  onToggleComplete: (assignment: assignment.LocalAssignment) => void
+  assignments: models.LocalAssignment[]
   onAddAssignment: () => void
-  onEdit: (assignment: assignment.LocalAssignment, column: string, value: string) => void
-  onDelete: (assignment: assignment.LocalAssignment) => void
-  onAssignmentClick: (assignment: assignment.LocalAssignment) => void
-  onOpenEdit: (assignment: assignment.LocalAssignment) => void
+  onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
+  onDelete: (assignment: models.LocalAssignment) => void
+  onOpenEdit: (assignment: models.LocalAssignment) => void
   isLoading: boolean
 }
 
@@ -26,11 +24,9 @@ export function DayAssignmentsModal({
   onClose,
   date,
   assignments,
-  onToggleComplete,
   onAddAssignment,
   onEdit,
   onDelete,
-  onAssignmentClick,
   onOpenEdit,
   isLoading,
   }: DayAssignmentsModalProps) {
@@ -104,7 +100,6 @@ export function DayAssignmentsModal({
                   variant="outline"
                   onEdit={onEdit}
                   onDelete={onDelete}
-                  onAssignmentClick={onAssignmentClick}
                   onOpenEdit={onOpenEdit}
                   disabled={isLoading}
                 />

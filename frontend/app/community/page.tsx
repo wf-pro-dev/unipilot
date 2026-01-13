@@ -18,6 +18,16 @@ import { models } from "@/wailsjs/go/models"
 import { useMemo } from "react"
 import { AssignmentItem } from "@/components/assignments/assignment-item"
 import { useCreateAssignment, useAssignments } from "@/hooks/use-assignments"
+import { useCreateNote, useNotes } from "@/hooks/use-notes"
+import { NoteItem } from "@/components/notes/note-item"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+
+interface Cluster {
+  course: models.Course
+  assignments: models.Assignment[]
+  notes: models.Note[]
+  users: models.User[]
+}
 
 /**
  * Community page component for user discovery and social connections.
@@ -46,11 +56,13 @@ export default function CommunityPage() {
   const { data: coursesLinked } = useCoursesLinked()
   const { data: currentUser } = useCurrentUser()
   const { data: assignments } = useAssignments()
+  const { data: notes } = useNotes()
   const AcceptCourseInvitation = useAcceptCourseInvitation()
   const DeclineCourseInvitation = useDeclineCourseInvitation()
   const createMutation = useCreateAssignment()
+  const createNoteMutation = useCreateNote()
 
-  const [selectedCourse, setSelectedCourse] = useState<models.Course | undefined>(undefined)
+  const [selectedCluster, setSelectedCluster] = useState<Cluster | undefined>(undefined)
 
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -71,7 +83,7 @@ export default function CommunityPage() {
 
   const handleDeclineCourseInvitation = (invitation: models.CourseInvitation) => {
     DeclineCourseInvitation.mutate(invitation)
-  } 
+  }
 
   /**
   * Handles assignment creation with optimistic UI updates.
@@ -96,9 +108,17 @@ export default function CommunityPage() {
 
   }
 
-  const courses = useMemo(() => {
-    return coursesLinked?.filter((course) => course.UserID != currentUser?.ID)
-  }, [coursesLinked, currentUser])
+  const handleCopyNote = async (note: models.Note) => {
+    const message = "[Frontend] note " + note.Title + " added"
+    var correspondingCourse = userCourses?.find((c) => c.Code == note.CourseCode)
+    var newNote = models.LocalNote.createFrom(note)
+    createNoteMutation.mutate({
+      ...newNote,
+      ParentID: newNote.ID,
+      CourseID: correspondingCourse?.ID,
+      RemoteCourseID: correspondingCourse?.RemoteID,
+    } as models.LocalNote)
+  }
 
 
   /**
@@ -115,22 +135,82 @@ export default function CommunityPage() {
     router.push(`/community?${params.toString()}`)
   }
 
+
+  const courses = useMemo(() => {
+
+    var clusters: Map<string, Cluster> = new Map<string, Cluster>()
+
+    // Create assignment and note lists for each course code
+    coursesLinked?.forEach((course) => {
+
+      if (course.UserID != currentUser?.ID) {
+
+        var assignments = course.Assignments.map((assignment) => {
+          return {
+            ...assignment,
+            Course: course,
+            User: course.User!
+          } as models.Assignment
+        })
+
+        var notes = course.Notes.map((note) => {
+          return {
+            ...note,
+            Course: course,
+            User: course.User!
+          } as models.Note
+        })
+
+        var cluster: Cluster | undefined = clusters.get(course.Code)
+        if (!cluster) {
+          cluster = {
+            course: course,
+            assignments: [],
+            notes: [],
+            users: []
+          }
+        }
+        cluster = {
+          ...cluster,
+          assignments: cluster.assignments.concat(assignments),
+          notes: cluster.notes.concat(notes),
+          users: [...cluster.users, course.User!]
+        }
+        clusters.set(course.Code, cluster)
+      }
+
+    })
+
+    return Array.from(clusters.values())
+  }, [coursesLinked])
+
+  console.log("courses", courses)
+
+
   useEffect(() => {
     if (courses?.[0]) {
-      setSelectedCourse(courses?.[0])
+      setSelectedCluster(courses?.[0])
     }
   }, [courses])
 
-  const handleCourseClick = (course: models.LocalCourse | models.Course) => {
-    setSelectedCourse(course as models.Course)
+  const handleCourseClick = (course: Cluster) => {
+    setSelectedCluster(course)
   }
 
 
   const filteredAssignments = useMemo(() => {
-    return selectedCourse?.Assignments?.filter((assignment) =>
+    return selectedCluster?.assignments?.filter((assignment) =>
       !assignments?.some((a: models.LocalAssignment) => a.ParentID === assignment.ID)
     )
-  }, [assignments, selectedCourse])
+  }, [assignments, selectedCluster])
+
+  const filteredNotes = useMemo(() => {
+    return selectedCluster?.notes?.filter((note) =>
+      !notes?.some((n: models.LocalNote) => n.ParentID === note.ID)
+    )
+  }, [notes, selectedCluster])
+
+
 
   return (
     <div className="flex flex-col flex-1">
@@ -195,43 +275,85 @@ export default function CommunityPage() {
           </TabsContent>
 
           <TabsContent value="social" className="flex flex-col data-[state=active]:flex-1 m-0">
-            <div className="flex flex-1 gap-6">
 
-              <div className="flex flex-col flex-1 gap-4">
-                <h3 className="flex items-end gap-2 text-h3">
-                  {selectedCourse?.Name}
-                  <p className="text-body text-text-caption align-baseline">{selectedCourse?.Code}</p>
-                </h3>
-                {filteredAssignments && filteredAssignments.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filteredAssignments?.map((a) => {
-                      const assignment = {
-                        ...a,
-                        Course: selectedCourse
-                      } as models.Assignment
-                      return (
-                        <AssignmentItem
-                          key={assignment.ID}
-                          assignment={assignment}
-                          variant="outline"
-                          mode="user"
-                          onCopy={handleCopyAssignment}
-                          user={selectedCourse?.User}
-                        />
-                      )
-                    })}
+            <div className="flex flex-1 gap-6">
+              {!selectedCluster?.assignments?.length && !selectedCluster?.notes?.length && (
+                <GlassCard variant="board" className="flex-1 items-center justify-center">
+                  <EmptyState
+                    icon={FileText}
+                    title="No resources found"
+                    description="Create a new assignment or note to get started"
+                  />
+                </GlassCard>
+              )}
+              {selectedCluster && ( selectedCluster?.assignments.length > 0 || selectedCluster?.notes.length > 0 ) && (
+                <div className="flex flex-col flex-1 gap-6">
+                  <div className="flex flex-col gap-2">
+
+                    <h3 className="flex items-end gap-2 text-h3">
+                      {selectedCluster?.course.Name}
+                      <p className="text-h5 text-text-caption align-baseline">{selectedCluster?.course.Code}</p>
+
+                    </h3>
+                    {selectedCluster && selectedCluster?.users.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center">
+                          {selectedCluster?.users.map((user: models.User) => {
+                            return (
+                              <div  className="last:mr-0 mr-[-5px]">
+                                <Avatar className="h-5 w-5 rounded-full overflow-hidden border border-white/10">
+                                  <AvatarImage src={user?.Avatar || "/placeholder-user.jpg"} />
+                                  <AvatarFallback className="text-[10px]">
+                                    {user?.Username?.split(" ").map((n: string) => n[0]).join("")}
+                                  </AvatarFallback>
+                                </Avatar>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        <p className="text-body text-text-caption align-baseline">{selectedCluster?.users.length} users join this course</p>
+                      </div>
+                    )}
+
                   </div>
-                )}
-                {filteredAssignments && filteredAssignments.length === 0 && (
-                  <GlassCard variant="board" className="flex-1 items-center justify-center">
-                    <EmptyState
-                      icon={FileText}
-                      title="No assignments found"
-                      description="Create a new assignment to get started"
-                    />
-                  </GlassCard>
-                )}
-              </div>
+
+
+                  {selectedCluster?.assignments?.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredAssignments?.map((a) => {
+                        return (
+                          <AssignmentItem
+                            assignment={a}
+                            variant="outline"
+                            mode="user"
+                            onCopy={handleCopyAssignment}
+                            user={a.User}
+                          />
+                        )
+                      })}
+
+
+                    </div>
+                  )}
+
+
+                  {selectedCluster?.notes?.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {filteredNotes?.map((n) => {
+                        return (
+                          <NoteItem
+                            note={n}
+                            onCopy={handleCopyNote}
+                            mode="user"
+                            user={n.User}
+                          />
+                        )
+                      })}
+                    </div>
+                  )}
+
+                </div>
+              )}
 
               <div className="flex flex-col gap-4">
 
@@ -247,7 +369,6 @@ export default function CommunityPage() {
                               course={invitation.Course!}
                               onEdit={() => { }}
                               onDelete={() => { }}
-                              onCourseClick={() => setSelectedCourse(invitation.Course)}
                               size="sm"
                               onAccept={() => handleAcceptCourseInvitation(invitation)}
                               onDecline={() => handleDeclineCourseInvitation(invitation)}
@@ -265,26 +386,20 @@ export default function CommunityPage() {
                     variant="board"
                     className="p-4 flex-1"
                   >
-                    {coursesLinked && coursesLinked.length > 0 ? (
+                    {courses && courses.length > 0 ? (
 
                       <div className="flex flex-col flex-1 gap-4">
                         {courses?.map((course) => (
 
                           <CourseItem
-                            key={course.ID}
-                            course={course}
-                            onCourseClick={handleCourseClick}
-                            onEdit={() => { }}
-                            onDelete={() => { }}
+                            key={course.course.Code}
+                            course={course.course}
+                            onCourseClick={() => handleCourseClick(course)}
                             size="sm"
                           />
-                        ))
-                        }
+                        ))}
                       </div>
-
                     ) : (
-
-
                       <EmptyState
                         icon={BookOpenIcon}
                         title="No courses linked"
