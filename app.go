@@ -1382,24 +1382,24 @@ func (a *App) Login(username, password string) (*models.User, error) {
 func (a *App) Logout() error {
 	// Stop and uninstall daemon service before logout
 	// This ensures the service is removed so another user can install their own
-	// if a.Daemon != nil {
-	// 	// Stop the daemon first
-	// 	if err := a.Daemon.StopDaemon(); err != nil {
-	// 		log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to stop notification daemon").Error())
-	// 	} else {
-	// 		log.Println("Notification daemon stopped successfully")
-	// 	}
+	if a.Daemon != nil {
+		// Stop the daemon first
+		if err := a.Daemon.StopDaemon(); err != nil {
+			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to stop notification daemon").Error())
+		} else {
+			log.Println("Notification daemon stopped successfully")
+		}
 
-	// 	// Uninstall the daemon service
-	// 	if err := a.Daemon.UninstallDaemon(); err != nil {
-	// 		log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to uninstall notification daemon").Error())
-	// 	} else {
-	// 		log.Println("Notification daemon uninstalled successfully")
-	// 	}
+		// Uninstall the daemon service
+		if err := a.Daemon.UninstallDaemon(); err != nil {
+			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to uninstall notification daemon").Error())
+		} else {
+			log.Println("Notification daemon uninstalled successfully")
+		}
 
-	// 	// Clear daemon manager reference
-	// 	a.Daemon = nil
-	// }
+		// Clear daemon manager reference
+		a.Daemon = nil
+	}
 
 	if err := a.Auth.Logout(); err != nil {
 		return err

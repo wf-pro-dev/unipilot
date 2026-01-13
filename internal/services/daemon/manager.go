@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,7 +30,7 @@ type Manager struct {
 // This is required by service.New() but will never actually be called
 // because we set Executable in the config, which causes the service
 // to run the daemon binary directly. The actual program implementation
-// is in internal/daemon/notifications-daemon.go
+// is in internal/services/notifications/daemon.go
 type dummyProgram struct{}
 
 func (p *dummyProgram) Start(s service.Service) error { return nil }
@@ -68,7 +69,7 @@ func NewManager(userID uint, ctx context.Context) (*Manager, error) {
 
 	// Configure service with logging
 	svcConfig := &service.Config{
-		Name:        fmt.Sprintf("com.unipilot.models.%d", userID),
+		Name:        fmt.Sprintf("com.unipilot.notifications.%d", userID),
 		DisplayName: fmt.Sprintf("UniPilot Notification Service for User %d", userID),
 		Description: fmt.Sprintf("Background notification service for UniPilot for user %d", userID),
 		Arguments: []string{
@@ -158,7 +159,7 @@ func getProjectDirectory() (string, error) {
 // BuildDaemon builds the notification daemon binary
 func (m *Manager) BuildDaemon() error {
 	// Check if daemon source exists
-	daemonSource := filepath.Join(m.projectDir, "internal", "daemon", "notifications-daemon.go")
+	daemonSource := filepath.Join(m.projectDir, "scripts", "notifications", "main.go")
 	if _, err := os.Stat(daemonSource); os.IsNotExist(err) {
 		return errors.NewAppError(errors.DaemonSourceNotFound, "Daemon source file not found", err)
 	}
@@ -214,13 +215,17 @@ func (m *Manager) InstallDaemon() error {
 func (m *Manager) UninstallDaemon() error {
 	// Stop the service first
 	if err := m.svc.Stop(); err != nil {
-		// Log but don't fail if service is not running
-		// This is expected if service was already stopped
+		log.Printf("Warning: Failed to stop notification daemon: %v", err)
 	}
 
 	// Uninstall using service library
 	if err := m.svc.Uninstall(); err != nil {
 		return errors.Wrap(err, errors.DaemonUninstallFailed, "Failed to uninstall service")
+	}
+
+	// Clean up
+	if err := m.CleanUp(); err != nil {
+		return errors.Wrap(err, errors.DaemonUninstallFailed, "Failed to clean up")
 	}
 
 	return nil
@@ -304,6 +309,24 @@ func (m *Manager) createDirectories() error {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create directory")
 		}
+	}
+
+	return nil
+}
+
+func (m *Manager) CleanUp() error {
+
+	// remove the daemon binary
+	if err := os.Remove(m.daemonPath); err != nil && !os.IsNotExist(err) {
+		return errors.Wrap(err, errors.DaemonBuildFailed, "Failed to remove existing binary")
+	}
+
+	// remove log files
+	if err := os.Remove(m.logPath); err != nil && !os.IsNotExist(err) {
+		return errors.Wrap(err, errors.DaemonBuildFailed, "Failed to remove log file")
+	}
+	if err := os.Remove(m.errorLogPath); err != nil && !os.IsNotExist(err) {
+		return errors.Wrap(err, errors.DaemonBuildFailed, "Failed to remove error log file")
 	}
 
 	return nil

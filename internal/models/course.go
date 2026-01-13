@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -283,21 +284,6 @@ func GetCoursesByIDs(courseIDs []uint, db *gorm.DB) ([]*Course, error) {
 	return courses, nil
 }
 
-func (c *Course) IsInCluster(db *gorm.DB) bool {
-	// If the course is a parent, it is in a cluster
-	if c.ParentID != 0 {
-		return true
-	}
-	// Check if the course is a parent of a cluster
-	var courses []Course
-	err := db.Model(&Course{}).Where("parent_id = ?", c.ID).Find(&courses).Error
-	if err != nil {
-		return false
-	}
-
-	return len(courses) > 0
-}
-
 func GetCoursesLinked(courseID uint, db *gorm.DB) ([]Course, error) {
 	var courses []Course
 	err := db.Where("id = ? AND EXISTS (SELECT 1 FROM courses AS c WHERE c.parent_id = courses.id)", courseID).
@@ -336,6 +322,21 @@ func GetClusterUserIDs(rootID uint, db *gorm.DB) ([]uint, error) {
 		Pluck("user_id", &userIDs).Error
 
 	return userIDs, err
+}
+
+func (c *Course) IsInCluster(db *gorm.DB) bool {
+	// If the course is a parent, it is in a cluster
+	if c.ParentID != 0 {
+		return true
+	}
+	// Check if the course is a parent of a cluster
+	var courses []Course
+	err := db.Model(&Course{}).Where("parent_id = ?", c.ID).Find(&courses).Error
+	if err != nil {
+		return false
+	}
+
+	return len(courses) > 0
 }
 
 // Other Operations
@@ -413,6 +414,35 @@ func ParseSchedule(schedule string) (*ParsedSchedule, error) {
 		EndTime:     endHour,
 		EndMinute:   endMin,
 	}, nil
+}
+
+func isToday(schedule *ParsedSchedule) bool {
+	now := time.Now()
+	dayIndex := now.Weekday()
+	return slices.Contains(schedule.Days, int(dayIndex))
+}
+
+func GetActiveCourses(db *gorm.DB) ([]LocalCourse, error) {
+
+	var courses []LocalCourse
+	var activeCourses []LocalCourse
+	err := db.
+		Where("start_date <= ? AND end_date >= ?", time.Now(), time.Now()).
+		Find(&courses).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+
+	for _, course := range courses {
+		schedule, err := ParseSchedule(course.Schedule)
+		if err != nil {
+			return nil, errors.Wrap(err, errors.InternalError, "Failed to parse schedule")
+		}
+		if isToday(schedule) {
+			activeCourses = append(activeCourses, course)
+		}
+	}
+	return activeCourses, nil
 }
 
 type InvitationStatus string

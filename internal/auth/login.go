@@ -83,7 +83,6 @@ func Login(username, password string) (*database.Database, *Auth, error) {
 
 	// Convert float64 ID to uint (JSON numbers are float64)
 	response_user.ID = uint(response.User["id"].(float64))
-
 	// Step 7: Persist user credentials to local storage for future sessions
 	if err := utils.SetCredentials(&response_user); err != nil {
 		return nil, nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to set credentials")

@@ -22,33 +22,23 @@ type EventHandler struct {
 	cancel    context.CancelFunc
 	isRunning bool
 	mu        sync.RWMutex
-	userID    uint
 }
 
 // NewEventHandler creates a new event handler
-func NewEventHandler(userID uint) (*EventHandler, error) {
+func NewEventHandler() (*EventHandler, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	db, err := utils.GetUserDBWithID(userID)
+	db, err := utils.GetUserDB()
 	if err != nil {
 		cancel()
 		return nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to get user database")
 	}
 	return &EventHandler{
-		userID:    userID,
 		db:        db,
 		ctx:       ctx,
 		cancel:    cancel,
 		isRunning: false,
 	}, nil
-}
-
-// InitializeForDaemon sets up the event handler to run as a daemon
-func (eh *EventHandler) InitializeForDaemon(userID uint) error {
-	// Set the user ID for this daemon instance
-	eh.userID = userID
-
-	return nil
 }
 
 // StartEventHandler initializes and starts listening to SSE events using existing SSE connection
@@ -126,11 +116,8 @@ func (eh *EventHandler) processEvents() {
 // routeEvent routes SSE events to appropriate handlers
 func (eh *EventHandler) routeEvent(message models.Message) {
 
-	log.Printf("[EventHandler] Notification: %+v", message)
-
 	if err := beeep.Notify(message.Title, message.Message, ""); err != nil {
 		log.Printf("[EventHandler] Error sending system notification: %v", err)
 	}
 
-	return
 }

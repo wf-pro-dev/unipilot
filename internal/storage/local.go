@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"log"
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
 
@@ -9,7 +8,6 @@ import (
 )
 
 func InitializeSchema(db *gorm.DB) error {
-	log.Println("Initializing schema")
 	// Run migrations
 	err := db.AutoMigrate(
 		&models.LocalCourse{},
