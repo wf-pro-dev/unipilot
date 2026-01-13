@@ -292,7 +292,7 @@ func UpdateAssignmentHandler(c *fiber.Ctx) error {
 	assignment := models.Assignment{
 		Model: gorm.Model{ID: assignmentID},
 	}
-	if err := db.Model(&assignment).Where("id = ?", assignmentID).Update(updateData.Column, updateData.Value).Error; err != nil {
+	if err := db.Preload("Course").Model(&assignment).Where("id = ?", assignmentID).Update(updateData.Column, updateData.Value).First(&assignment).Error; err != nil {
 
 		if Errors.Is(err, gorm.ErrDuplicatedKey) {
 			return errors.WrapServer(err, errors.DBConstraintViolation, "Assignment already exists", fiber.StatusConflict)

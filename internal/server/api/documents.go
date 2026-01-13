@@ -237,31 +237,34 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	var clusterRootID uint = doc.Assignment.ClusterRoot()
-	if GrpcClient != nil && clusterRootID != 0 {
-		users_course, err := CacheService.GetClusterUsers(context.Background(), clusterRootID, db)
-		if err != nil {
-			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError)
-		}
-
-		for _, sendeeID := range users_course {
-
-			_, err := (*GrpcClient).SendMessage(context.Background(),
-				&messages.Message{
-					ReceiverId: uint32(sendeeID),
-					SenderId:   uint32(userID),
-					Title:      doc.Assignment.Title,
-					Message:    fmt.Sprintf("%s shared a new document for %s", currentUser.Username, doc.Assignment.CourseCode),
-					Data:       []byte(""),
-					Type:       string(models.MessageNoContent),
-				},
-			)
+	go func() {
+		if GrpcClient != nil && doc.Assignment.Course.IsInCluster(db) && !doc.Assignment.IsCopy() {
+			var clusterRootID uint = doc.Assignment.ClusterRoot()
+			users_course, err := CacheService.GetClusterUsers(context.Background(), clusterRootID, db)
 			if err != nil {
-				server.LogWarn(context.Background(), errors.WrapServer(err, errors.GRPCFailed, "Failed to send notification", fiber.StatusInternalServerError))
+				server.LogWarn(context.Background(), errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError))
+				return
 			}
 
+			for _, sendeeID := range users_course {
+
+				_, err := (*GrpcClient).SendMessage(context.Background(),
+					&messages.Message{
+						ReceiverId: uint32(sendeeID),
+						SenderId:   uint32(userID),
+						Title:      doc.Assignment.Title,
+						Message:    fmt.Sprintf("%s shared a new document for %s", currentUser.Username, doc.Assignment.CourseCode),
+						Data:       []byte(""),
+						Type:       string(models.MessageNoContent),
+					},
+				)
+				if err != nil {
+					server.LogWarn(context.Background(), errors.WrapServer(err, errors.GRPCFailed, "Failed to send notification", fiber.StatusInternalServerError))
+				}
+
+			}
 		}
-	}
+	}()
 
 	// Step 13: Send successful response with document metadata
 	return c.JSON(fiber.Map{

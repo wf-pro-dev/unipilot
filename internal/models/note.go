@@ -115,6 +115,7 @@ func GetNote(id uint, db *gorm.DB) (*Note, error) {
 	}
 	return &note, nil
 }
+
 func GetLNote(id uint, db *gorm.DB) (*LocalNote, error) {
 	var note LocalNote
 	err := db.First(&note, id).Error
@@ -151,6 +152,15 @@ func GetNotesByIDs(noteIDs []uint, db *gorm.DB) ([]*Note, error) {
 	return notes, nil
 }
 
+func GetNoteContent(noteID uint, db *gorm.DB) (string, error) {
+	var content string
+	err := db.Select("content").First(&content, noteID).Error
+	if err != nil {
+		return "", errors.HandleDBReadError(err)
+	}
+	return content, nil
+}
+
 func (c *Course) GetCourseNotes(db *gorm.DB) ([]Note, error) {
 	var notes []Note
 	err := db.Model(&c).Association("Notes").Find(&notes)
@@ -182,7 +192,10 @@ func (lc *LocalCourse) GetNotesByCourse(db *gorm.DB) ([]LocalNote, error) {
 }
 
 func (n *Note) ClusterRoot() uint {
-	return n.Course.ParentID
+	if n.Course.ParentID != 0 {
+		return n.Course.ParentID
+	}
+	return n.Course.ID
 }
 
 func DeleteNote(id uint, db *gorm.DB) error {
@@ -192,3 +205,5 @@ func DeleteNote(id uint, db *gorm.DB) error {
 	}
 	return nil
 }
+
+func (n *Note) IsCopy() bool { return n.ParentID != 0 }

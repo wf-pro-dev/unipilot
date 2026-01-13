@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func (c *Cache) GetNote(ctx context.Context, noteID uint) (*models.Note, error) {
+func (c *Cache) GetNote(ctx context.Context, noteID uint, db *gorm.DB) (*models.Note, error) {
 	cacheKey := FormatKey(KeyNote, strconv.Itoa(int(noteID)))
 	noteJSON, err := c.redis.Get(ctx, cacheKey).Result()
 	if err != nil {
@@ -20,6 +20,13 @@ func (c *Cache) GetNote(ctx context.Context, noteID uint) (*models.Note, error) 
 	var note models.Note
 	if err := json.Unmarshal([]byte(noteJSON), &note); err != nil {
 		return nil, errors.Wrap(err, errors.CacheOperationFailed, "Error unmarshalling note from redis")
+	}
+	if note.Content == "" {
+		content, err := models.GetNoteContent(noteID, db)
+		if err != nil {
+			return nil, errors.Wrap(err, errors.DBQueryFailed, "Error getting note from database")
+		}
+		note.Content = content
 	}
 	return &note, nil
 }
@@ -74,6 +81,14 @@ func (c *Cache) GetNotesByIDs(ctx context.Context, noteIDs []uint, db *gorm.DB) 
 		if err := json.Unmarshal([]byte(result.(string)), &note); err != nil {
 			missingIDs = append(missingIDs, noteIDs[i])
 			continue
+		}
+		if note.Content == "" {
+			content, err := models.GetNoteContent(note.ID, db)
+			if err != nil {
+				missingIDs = append(missingIDs, note.ID)
+				continue
+			}
+			note.Content = content
 		}
 		notes = append(notes, &note)
 	}

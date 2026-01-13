@@ -19,12 +19,6 @@ func (c *Cache) SetCourses(ctx context.Context, courses []*models.Course) error 
 	pipe := c.redis.Pipeline()
 
 	for _, course := range courses {
-		cacheKey := FormatKey(KeyCourse, strconv.Itoa(int(course.ID)))
-		courseJSON, err := json.Marshal(course)
-		if err != nil {
-			continue
-		}
-		pipe.Set(ctx, cacheKey, courseJSON, TTLCourse)
 
 		if course.Assignments != nil {
 			originalAssignmentIDs := make([]interface{}, 0)
@@ -55,6 +49,7 @@ func (c *Cache) SetCourses(ctx context.Context, courses []*models.Course) error 
 
 			for _, note := range course.Notes {
 				if note.ParentID == 0 {
+					note.Content = ""
 					noteKey := FormatKey(KeyNote, strconv.Itoa(int(note.ID)))
 					noteJSON, err := json.Marshal(&note)
 					if err != nil {
@@ -72,6 +67,18 @@ func (c *Cache) SetCourses(ctx context.Context, courses []*models.Course) error 
 				pipe.Expire(ctx, notesKey, TTLCourseNotes)
 			}
 		}
+
+		// Clean dependencies
+		course.Assignments = nil
+		course.Notes = nil
+
+		cacheKey := FormatKey(KeyCourse, strconv.Itoa(int(course.ID)))
+		courseJSON, err := json.Marshal(course)
+		if err != nil {
+			continue
+		}
+		pipe.Set(ctx, cacheKey, courseJSON, TTLCourse)
+
 		pipe.Expire(ctx, cacheKey, TTLCourse)
 	}
 

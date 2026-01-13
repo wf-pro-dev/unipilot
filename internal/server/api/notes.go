@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	Errors "errors"
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -149,32 +150,48 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
 	}
 
-	// Step 14: Send SSE notifications to linked users via gRPC (if available)
-	var clusterRootID uint = input.ClusterRoot()
-	if GrpcClient != nil && clusterRootID != 0 {
-		users_course, err := CacheService.GetClusterUsers(context.Background(), clusterRootID, db)
-		if err != nil {
-			return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError)
+	result := db.Preload("Course").Create(&input).First(&input)
+	if result.Error != nil {
+		if Errors.Is(result.Error, gorm.ErrDuplicatedKey) {
+			return errors.WrapServer(result.Error, errors.DBConstraintViolation, "Note already exists", fiber.StatusConflict)
 		}
+		return errors.WrapServer(result.Error, errors.DBQueryFailed, "Note creating assignment in database", fiber.StatusInternalServerError)
+	}
 
-		for _, sendeeID := range users_course {
+	// Step 14: Send SSE notifications to linked users via gRPC (if available)
+	go func() {
+		clusterRootID := input.ClusterRoot()
+		log.Println("clusterRootID", clusterRootID, input.Course.IsInCluster(db), input.IsCopy())
 
-			_, err := (*GrpcClient).SendMessage(context.Background(),
-				&messages.Message{
-					ReceiverId: uint32(sendeeID),
-					SenderId:   uint32(userID),
-					Title:      input.Title,
-					Message:    fmt.Sprintf("%s shared a new note on %s", currentUser.Username, input.CourseCode),
-					Data:       []byte(""),
-					Type:       string(models.MessageNoContent),
-				},
-			)
+		if GrpcClient != nil && input.Course.IsInCluster(db) && !input.IsCopy() {
+			users_course, err := CacheService.GetClusterUsers(context.Background(), clusterRootID, db)
+
 			if err != nil {
-				server.LogWarn(context.Background(), errors.WrapServer(err, errors.GRPCFailed, "Failed to send notification", fiber.StatusInternalServerError))
+				server.LogWarn(context.Background(), errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError))
+				return
 			}
 
+			for _, sendeeID := range users_course {
+				if sendeeID == userID {
+					continue
+				}
+				_, err := (*GrpcClient).SendMessage(context.Background(),
+					&messages.Message{
+						ReceiverId: uint32(sendeeID),
+						SenderId:   uint32(userID),
+						Title:      input.Title,
+						Message:    fmt.Sprintf("%s shared a new note on %s", currentUser.Username, input.CourseCode),
+						Data:       []byte(""),
+						Type:       string(models.MessageNoContent),
+					},
+				)
+				if err != nil {
+					server.LogWarn(context.Background(), errors.WrapServer(err, errors.GRPCFailed, "Failed to send notification", fiber.StatusInternalServerError))
+				}
+
+			}
 		}
-	}
+	}()
 
 	// Step 12: Send successful response with created note data
 	return c.JSON(fiber.Map{
