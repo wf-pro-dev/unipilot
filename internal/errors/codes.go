@@ -56,6 +56,14 @@ const (
 	QdrantClientFailed ErrorCode = "net-0301" // Qdrant client failed
 	QdrantUnreachable  ErrorCode = "net-0302" // Qdrant unreachable
 	QdrantCloseFailed  ErrorCode = "net-0303" // Qdrant close failed
+
+	// Network - SSE specific
+	SSEStartFailed     ErrorCode = "net-0400" // SSE start failed
+	SSEClientFailed    ErrorCode = "net-0401" // SSE client failed
+	SSEUnreachable     ErrorCode = "net-0402" // SSE unreachable
+	SSECloseFailed     ErrorCode = "net-0403" // SSE close failed
+	SSEWriteFailed     ErrorCode = "net-0404" // SSE write failed
+	SSEUnexpectedClose ErrorCode = "net-0405" // SSE unexpected close
 	// ============================================
 	// CACHE ERRORS (cache-xxxx)
 	// ============================================
@@ -135,12 +143,6 @@ const (
 	QdrantDeleteCollectionError ErrorCode = "qdrant-0008" // Qdrant delete collection error
 	QdrantDeletePointError      ErrorCode = "qdrant-0009" // Qdrant delete point error
 	QdrantDeletePointsError     ErrorCode = "qdrant-0010" // Qdrant delete points error
-
-	// ============================================
-	// API/SERVER ERRORS (api-xxxx)
-	// ============================================
-	APIServerStartFailed ErrorCode = "api-0001" // server start failed
-	APIUnhealthy         ErrorCode = "api-0002" // health check failed
 
 	// ============================================
 	// INTERNAL ERRORS (internal-xxxx)

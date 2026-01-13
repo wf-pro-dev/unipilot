@@ -15,7 +15,7 @@ func main() {
 			log.Fatalf("Failed to start api: %v", err)
 		} else {
 			// Wrap unknown errors with error system
-			wrappedErr := errors.Wrap(err, errors.APIServerStartFailed, "Failed to start API server")
+			wrappedErr := errors.Wrap(err, errors.APIStartFailed, "Failed to start API server")
 			log.Fatalf("Failed to start api: %v", wrappedErr)
 		}
 	}

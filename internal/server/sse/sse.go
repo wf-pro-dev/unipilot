@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -121,13 +120,13 @@ func StartSSEServer() *SSEServer {
 	app.Get("/unipilot/sse/v1/count", sseServer.CountHandler)
 
 	// Step 4: Register authenticated SSE endpoint with JWT middleware
-	app.Get("/unipilot/sse/v1", server.AuthMiddleware, sseServer.SSEHandler)
+	app.Get("/unipilot/sse/v1", server.LoggerMiddleware, server.ErrorHandlerMiddleware, server.AuthMiddleware, sseServer.SSEHandler)
 
 	// Step 6: Start Fiber server in background goroutine to avoid blocking
 	go func() {
 		if err := app.Listen(":3002"); err != nil {
 			// Fatal error if server cannot start (port conflict, permissions, etc.)
-			log.Fatalf("SSE server error: %v", err)
+			server.LogError(context.Background(), errors.WrapServer(err, errors.SSEStartFailed, "Failed to start SSE server", fiber.StatusInternalServerError))
 		}
 	}()
 
@@ -223,10 +222,6 @@ func (s *SSEServer) RemoveClient(userID uint) {
 
 		// Step 4: Remove client from active connections map
 		delete(s.clients, userID)
-		ctx := context.WithValue(context.Background(), "component", "sse")
-		server.LogDebug(ctx, "SSE client removed", "user_id", userID,
-			"tags", []string{"notification", "network", "low"},
-		)
 	}
 }
 
@@ -383,12 +378,14 @@ func (s *SSEServer) CountHandler(c *fiber.Ctx) error {
 //   - Starts heartbeat ticker for connection maintenance
 //   - Automatic cleanup on connection termination
 func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
+	c.Locals("message", "SSE connection established")
 	// Step 1: Extract authenticated user ID from Fiber locals
 	userID, ok := c.Locals("user_id").(uint)
 	if !ok {
 		// User context missing - authentication middleware failed
 		return c.Status(fiber.StatusUnauthorized).SendString("Unauthorized")
 	}
+	var err error
 
 	// Step 2: Set Server-Sent Events protocol headers
 	c.Set("Content-Type", "text/event-stream") // SSE MIME type
@@ -425,19 +422,14 @@ func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
 			case msg, ok := <-client.Messages: // Check 'ok' to detect closed channel
 				if !ok {
 					// Channel closed - client was removed/replaced
-					ctx := context.WithValue(context.Background(), "component", "sse")
-					server.LogDebug(ctx, "SSE client channel closed",
-						"tags", []string{"notification", "network", "low"},
-					)
+					err = errors.WrapServer(err, errors.SSEUnexpectedClose, "Client disconnected", fiber.StatusInternalServerError)
 					return
 				}
 				// Step 9: Send notification message to client
 				fmt.Fprintf(w, "data: %s\n\n", msg)
 				if err := w.Flush(); err != nil {
-					ctx := context.WithValue(context.Background(), "component", "sse")
-					server.LogDebug(ctx, "SSE client disconnected (write error)",
-						"tags", []string{"notification", "network", "low"},
-					)
+
+					err = errors.WrapServer(err, errors.SSEWriteFailed, "Failed to write to SSE client", fiber.StatusInternalServerError)
 					return
 				}
 
@@ -446,23 +438,20 @@ func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
 				client.LastActive = time.Now()
 				fmt.Fprintf(w, ": heartbeat\n\n")
 				if err := w.Flush(); err != nil {
-					ctx := context.WithValue(context.Background(), "component", "sse")
-					server.LogDebug(ctx, "SSE client disconnected (heartbeat error)",
-						"tags", []string{"notification", "network", "low"},
-					)
+					err = errors.WrapServer(err, errors.SSEWriteFailed, "Failed to write to SSE client", fiber.StatusInternalServerError)
 					return
 				}
 
 			case <-ctxDone:
 				// Step 11: Handle client disconnection (browser close, network error, etc.)
-				ctx := context.WithValue(context.Background(), "component", "sse")
-				server.LogDebug(ctx, "SSE client disconnected",
-					"tags", []string{"notification", "network", "low"},
-				)
+				err = errors.WrapServer(err, errors.SSEClientFailed, "Client disconnected", fiber.StatusInternalServerError)
 				return
 			}
 		}
 	})
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
