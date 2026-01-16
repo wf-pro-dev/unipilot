@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	Errors "errors"
 	"fmt"
-	"log"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -161,7 +160,6 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 	// Step 14: Send SSE notifications to linked users via gRPC (if available)
 	go func() {
 		clusterRootID := input.ClusterRoot()
-		log.Println("clusterRootID", clusterRootID, input.Course.IsInCluster(db), input.IsCopy())
 
 		if GrpcClient != nil && input.Course.IsInCluster(db) && !input.IsCopy() {
 			users_course, err := CacheService.GetClusterUsers(context.Background(), clusterRootID, db)
@@ -190,6 +188,9 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 				}
 
 			}
+
+			CacheService.AddCourseNote(context.Background(), clusterRootID, input.ID)
+			CacheService.SetNotes(context.Background(), []*models.Note{&input})
 		}
 	}()
 
@@ -349,7 +350,10 @@ func UpdateNoteHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(fmt.Errorf("column and value are required"), errors.ReqParamMissing, "Column and value are required", fiber.StatusBadRequest)
 	}
 
-	if err := db.Model(&models.Note{}).Where("id = ?", noteID).Update(updateData.Column, updateData.Value).Error; err != nil {
+	note := models.Note{
+		Model: gorm.Model{ID: noteID},
+	}
+	if err := db.Preload("Course").Model(&note).Where("id = ?", noteID).Update(updateData.Column, updateData.Value).First(&note).Error; err != nil {
 
 		if Errors.Is(err, gorm.ErrDuplicatedKey) {
 			return errors.WrapServer(err, errors.DBConstraintViolation, "Note already exists", fiber.StatusConflict)
@@ -357,6 +361,12 @@ func UpdateNoteHandler(c *fiber.Ctx) error {
 
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error updating note in database", fiber.StatusInternalServerError)
 	}
+
+	go func() {
+		if note.Course.IsInCluster(db) && !note.IsCopy() {
+			CacheService.SetNotes(context.Background(), []*models.Note{&note})
+		}
+	}()
 
 	// Step 8: Note update completed (logged by middleware)
 	return nil
@@ -379,10 +389,23 @@ func DeleteNoteHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting note ID to int", fiber.StatusBadRequest)
 	}
 
+	note, err := models.GetNote(uint(noteID), db)
+	if err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting note from database", fiber.StatusInternalServerError)
+	}
+
 	// Step 2: Delete note from database
-	if err := models.DeleteNote(uint(noteID), db); err != nil {
+	if err := db.Delete(&note).Error; err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error deleting note from database", fiber.StatusInternalServerError)
 	}
+
+	go func() {
+		if note.Course.IsInCluster(db) && !note.IsCopy() {
+			clusterRootID := note.ClusterRoot()
+			CacheService.RemoveCourseNote(context.Background(), clusterRootID, uint(noteID))
+			CacheService.DeleteNote(context.Background(), uint(noteID))
+		}
+	}()
 
 	return nil
 }

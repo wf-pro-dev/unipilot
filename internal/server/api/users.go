@@ -139,5 +139,5 @@ func GetUsersHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 8: Send successful response with enriched user data
-	return c.JSON(users)
+	return c.JSON(usersWithCourses)
 }

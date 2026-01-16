@@ -126,6 +126,7 @@ func (a *Assignment) BeforeDelete(tx *gorm.DB) error {
 		// Batch delete documents
 		tx.Delete(documents)
 	}
+
 	// Delete the Qdrant collection for the assignment
 
 	collectionName := GetQdrantCollectionName(a.ID)

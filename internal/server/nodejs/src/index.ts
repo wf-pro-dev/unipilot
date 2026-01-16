@@ -194,16 +194,6 @@ If chunks don't help, use your model knowledge (SOURCE 3) to provide an answer.
  * - Clear instruction for actionable academic advice
  * 
  * @param {Object} assignment - Assignment object containing context information
- * @param {string} assignment.Title - Assignment title
- * @param {Object} assignment.Course - Course information object
- * @param {string} assignment.Course.Name - Course name
- * @param {string} assignment.Course.Code - Course code
- * @param {Object} assignment.Type - Assignment type information
- * @param {string} assignment.Type.Name - Type name (essay, project, etc.)
- * @param {string} assignment.Priority - Assignment priority level
- * @param {string} assignment.Deadline - Assignment due date
- * @param {string} assignment.Todo - Assignment todo/description
- * @param {string} assignment.Status - Current assignment status
  * @returns {string} Formatted system prompt for AI context injection
  */
 function buildSystemPrompt(assignment: Assignment) {

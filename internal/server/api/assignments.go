@@ -330,9 +330,21 @@ func DeleteAssignmentHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to int", fiber.StatusBadRequest)
 	}
 
-	if err := db.Debug().Set("qdrantClient", QdrantClient).Delete(&models.Assignment{Model: gorm.Model{ID: uint(assignmentID)}}).Error; err != nil {
+	assignment, err := models.GetAssignment(uint(assignmentID), db.Preload("Course"))
+	if err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting assignment from database", fiber.StatusInternalServerError)
+	}
+	if err := db.Set("qdrantClient", QdrantClient).Delete(&assignment).Error; err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error deleting assignment from database", fiber.StatusInternalServerError)
 	}
+
+	go func() {
+		if assignment.Course.IsInCluster(db) && !assignment.IsCopy() {
+			clusterRootID := assignment.ClusterRoot()
+			CacheService.RemoveCourseAssignment(context.Background(), clusterRootID, uint(assignmentID))
+			CacheService.DeleteAssignment(context.Background(), uint(assignmentID))
+		}
+	}()
 
 	return nil
 }
