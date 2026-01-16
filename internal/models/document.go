@@ -298,6 +298,15 @@ type DocumentStorage struct {
 	User User `gorm:"foreignKey:UserID;references:ID"`
 }
 
+type LocalAssignmentStorage struct {
+	AssignmentID     uint
+	TotalCount       int
+	DocumentCount    int
+	TotalSize        int64
+	Size             int64
+	LastCalculatedAt time.Time
+}
+
 type TempFileRag struct {
 	FilePath     string    `json:"file_path"`
 	FileName     string    `json:"file_name"`
@@ -534,6 +543,50 @@ func GetUserStorageInfo(userID uint, db *gorm.DB) (*DocumentStorage, error) {
 	}
 
 	return &storageInfo, nil
+}
+
+func GetLocalStorageInfo(db *gorm.DB) (*DocumentStorage, error) {
+	var totalSize int64
+	var documentCount int64
+
+	err := db.Model(&LocalDocument{}).
+		Select("COALESCE(SUM(file_size), 0), COUNT(*)").
+		Row().Scan(&totalSize, &documentCount)
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return &DocumentStorage{
+		TotalSize:        totalSize,
+		DocumentCount:    int(documentCount),
+		LastCalculatedAt: time.Now(),
+	}, nil
+}
+
+func GetLocalAssignmentStorage(assignmentID uint, db *gorm.DB) (*LocalAssignmentStorage, error) {
+	var size int64
+	var documentCount int64
+
+	totalStorage, err := GetLocalStorageInfo(db)
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+
+	err = db.Model(&LocalDocument{}).
+		Where("assignment_id = ?", assignmentID).
+		Select("COALESCE(SUM(file_size), 0), COUNT(*)").
+		Row().Scan(&size, &documentCount)
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+
+	return &LocalAssignmentStorage{
+		AssignmentID:     assignmentID,
+		TotalCount:       totalStorage.DocumentCount,
+		DocumentCount:    int(documentCount),
+		TotalSize:        totalStorage.TotalSize,
+		Size:             size,
+		LastCalculatedAt: time.Now(),
+	}, nil
 }
 
 // UpdateStorageInfo recalculates and updates user storage statistics

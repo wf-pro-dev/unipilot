@@ -16,7 +16,8 @@ import {
   DownloadDocument,
   UploadDocumentRAG,
   DeleteDocumentRAG,
-  GetAssignmentDocumentIDsRAG
+  GetAssignmentDocumentIDsRAG,
+  GetAssignmentStorageInfo
 } from "@/wailsjs/go/main/App"
 import { toast } from 'sonner'
 import { uuidv4 } from 'zod/v4'
@@ -31,6 +32,7 @@ export const documentKeys = {
   submissions: (assignmentId: number) => [...documentKeys.all, 'submissions', assignmentId] as const,
   rag: (assignmentId: number) => [...documentKeys.all, 'rag', assignmentId] as const,
   storage: () => [...documentKeys.all, 'storage'] as const,
+  assignmentStorage: (assignmentID: number) => [...documentKeys.all, 'assignmentStorage', assignmentID] as const,
 }
 
 
@@ -86,6 +88,15 @@ export function useUserStorageInfo() {
     },
     staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
     gcTime: 15 * 60 * 1000,   // Keep in cache for 15 minutes
+  })
+}
+
+export function useAssignmentStorageInfo(assignmentID: number) {
+  return useQuery({
+    queryKey: documentKeys.assignmentStorage(assignmentID),
+    queryFn: async (): Promise<models.LocalAssignmentStorage> => {
+      return await GetAssignmentStorageInfo(assignmentID)
+    },
   })
 }
 
@@ -177,6 +188,7 @@ export function useUploadDocument() {
       queryClient.invalidateQueries({ queryKey: documentKeys.list(assignmentId) })
       queryClient.invalidateQueries({ queryKey: documentKeys.support(assignmentId) })
       queryClient.invalidateQueries({ queryKey: documentKeys.submissions(assignmentId) })
+      queryClient.invalidateQueries({ queryKey: documentKeys.assignmentStorage(assignmentId) })
     },
     retry: false,
   },
@@ -284,11 +296,11 @@ export function useDeleteDocument() {
       })
 
       const previousData: Array<[unknown, models.LocalDocument[] | undefined]> = []
-
+      var deletedDocument: models.LocalDocument | undefined;
       allQueries.forEach(([queryKey, data]) => {
         if (data && Array.isArray(data)) {
-          const hasDocument = data.some(doc => doc.ID === documentId)
-          if (hasDocument) {
+          deletedDocument = data.find(doc => doc.ID === documentId)
+          if (deletedDocument) {
             previousData.push([queryKey, data])
             queryClient.setQueryData<models.LocalDocument[]>(queryKey, (old) => {
               if (!old) return []
@@ -298,7 +310,7 @@ export function useDeleteDocument() {
         }
       })
 
-      return { previousData }
+      return { previousData, deletedDocument }
     },
 
     // If the mutation fails, rollback
@@ -318,8 +330,11 @@ export function useDeleteDocument() {
     },
 
     // Always refetch after error or success to ensure consistency
-    onSettled: () => {
+    onSettled: (data, error, variables, context) => {
       queryClient.invalidateQueries({ queryKey: documentKeys.all })
+      if (context?.deletedDocument) {
+        queryClient.invalidateQueries({ queryKey: documentKeys.assignmentStorage(context.deletedDocument.AssignmentID) })
+      }
 
     },
   })

@@ -78,9 +78,9 @@ export function AssignmentDetailsModal({
         <div className="p-6">
           <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent z-0 rounded-2xl pointer-events-none" />
 
-          <Tabs value={activeView} onValueChange={setActiveView} className="w-full space-y-6">
+          <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
 
-            <TabsList className="flex flex-row bg-white/5 p-1 rounded-xl w-full border border-white/5">
+            <TabsList className="flex flex-row bg-white/5 p-1 rounded-xl w-full border border-white/5 mb-6">
               <TabsTrigger
                 value="info"
                 className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"

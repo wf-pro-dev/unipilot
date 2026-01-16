@@ -1688,14 +1688,22 @@ func (a *App) GetUserStorageInfo() (*models.DocumentStorage, error) {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
-	if !a.Auth.IsAuthenticated() {
-		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
+	// Calculate storage info on-demand
+	storageInfo, err := models.GetLocalStorageInfo(a.DB.GetDB())
+	if err != nil {
+		return nil, Errors.Wrap(err, Errors.DBQueryFailed, "Failed to get storage info")
 	}
 
-	userID := a.Auth.User.ID
+	return storageInfo, nil
+}
 
-	// Calculate storage info on-demand
-	storageInfo, err := models.GetUserStorageInfo(userID, a.DB.GetDB())
+func (a *App) GetAssignmentStorageInfo(assignmentID uint) (*models.LocalAssignmentStorage, error) {
+
+	if a.DB == nil {
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
+	}
+
+	storageInfo, err := models.GetLocalAssignmentStorage(assignmentID, a.DB.GetDB())
 	if err != nil {
 		return nil, Errors.Wrap(err, Errors.DBQueryFailed, "Failed to get storage info")
 	}

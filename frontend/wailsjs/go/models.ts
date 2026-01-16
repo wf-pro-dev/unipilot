@@ -1017,6 +1017,47 @@ export namespace models {
 		    return a;
 		}
 	}
+	export class LocalAssignmentStorage {
+	    AssignmentID: number;
+	    TotalCount: number;
+	    DocumentCount: number;
+	    TotalSize: number;
+	    Size: number;
+	    // Go type: time
+	    LastCalculatedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalAssignmentStorage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.AssignmentID = source["AssignmentID"];
+	        this.TotalCount = source["TotalCount"];
+	        this.DocumentCount = source["DocumentCount"];
+	        this.TotalSize = source["TotalSize"];
+	        this.Size = source["Size"];
+	        this.LastCalculatedAt = this.convertValues(source["LastCalculatedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	
 	
 	

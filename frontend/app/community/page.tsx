@@ -145,21 +145,27 @@ export default function CommunityPage() {
 
       if (course.UserID != currentUser?.ID) {
 
-        var assignments = course.Assignments.map((assignment) => {
-          return {
-            ...assignment,
-            Course: course,
-            User: course.User!
-          } as models.Assignment
-        })
+        var assignments: models.Assignment[] = []
+        if (course.Assignments) {
+          assignments = course.Assignments.map((assignment) => {
+            return {
+              ...assignment,
+              Course: course,
+              User: course.User!
+            } as models.Assignment
+          })
+        }
 
-        var notes = course.Notes.map((note) => {
-          return {
-            ...note,
-            Course: course,
-            User: course.User!
-          } as models.Note
-        })
+        var notes: models.Note[] = []
+        if (course.Notes) {
+          notes = course.Notes.map((note) => {
+            return {
+              ...note,
+              Course: course,
+              User: course.User!
+            } as models.Note
+          })
+        }
 
         var cluster: Cluster | undefined = clusters.get(course.Code)
         if (!cluster) {
@@ -286,7 +292,7 @@ export default function CommunityPage() {
                   />
                 </GlassCard>
               )}
-              {selectedCluster && ( selectedCluster?.assignments.length > 0 || selectedCluster?.notes.length > 0 ) && (
+              {selectedCluster && (selectedCluster?.assignments.length > 0 || selectedCluster?.notes.length > 0) && (
                 <div className="flex flex-col flex-1 gap-6">
                   <div className="flex flex-col gap-2">
 
@@ -300,7 +306,7 @@ export default function CommunityPage() {
                         <div className="flex items-center">
                           {selectedCluster?.users.map((user: models.User) => {
                             return (
-                              <div  className="last:mr-0 mr-[-5px]">
+                              <div className="last:mr-0 mr-[-5px]">
                                 <Avatar className="h-5 w-5 rounded-full overflow-hidden border border-white/10">
                                   <AvatarImage src={user?.Avatar || "/placeholder-user.jpg"} />
                                   <AvatarFallback className="text-[10px]">

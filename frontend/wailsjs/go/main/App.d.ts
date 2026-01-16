@@ -44,6 +44,8 @@ export function GetActiveUploads():Promise<Array<progress.TrackerSnapshot>>;
 
 export function GetAssignmentDocumentIDsRAG(arg1:number):Promise<Array<number>>;
 
+export function GetAssignmentStorageInfo(arg1:number):Promise<models.LocalAssignmentStorage>;
+
 export function GetAssignments():Promise<Array<models.LocalAssignment>>;
 
 export function GetAuthToken():Promise<string>;

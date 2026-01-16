@@ -16,6 +16,11 @@ import {
 } from "@/wailsjs/go/main/App"
 import { useAuthContext } from '@/components/provider/auth-provider'
 import { courseKeys } from './use-courses'
+import { userKeys } from './use-users'
+import { assignmentKeys } from './use-assignments'
+import { documentKeys } from './use-documents'
+import { noteKeys } from './use-notes'
+
 
 // Query keys for auth
 export const authKeys = {
@@ -30,12 +35,14 @@ export const authKeys = {
 export function useCurrentUser() {
   return useQuery({
     queryKey: authKeys.user,
-    queryFn: async (): Promise<models.User | null> => {
+    queryFn: async () => {
       try {
-        return await GetCurrentUser()
+        const user = await GetCurrentUser()
+        console.log("cache", authKeys.user)
+        console.log("useCurrentUser", user)
+        return user
       } catch (error) {
         LogError("Failed to check authentication: " + error)
-        return null
       }
     },
     retry: false, // Don't retry if authentication fails ! IMPORTANT
@@ -48,7 +55,6 @@ export function useGetAuthToken() {
     queryFn: async () : Promise<string> => {
       try {
         var token = await GetAuthToken()
-        console.log("useGetAuthToken", token)
         return token
       } catch (error) {
         LogError("Failed to get auth token: " + error)
@@ -56,6 +62,7 @@ export function useGetAuthToken() {
       }
     },
     retry: false, // Don't retry if authentication fails ! IMPORTANT
+    
   })
 }
 
@@ -132,9 +139,7 @@ export function useLogout() {
     },
     onSuccess: () => {
       // Clear all auth-related cache
-      queryClient.setQueryData(authKeys.user, null)
-      queryClient.removeQueries({ queryKey: authKeys.followers })
-      queryClient.removeQueries({ queryKey: authKeys.following })
+      queryClient.invalidateQueries({})
     },
     onError: (error) => {
       LogError("Logout failed: " + error)

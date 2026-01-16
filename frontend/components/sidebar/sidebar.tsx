@@ -117,7 +117,7 @@ export function MainSidebar() {
       <GlassCard variant="board" className="flex flex-col flex-1 rounded-none h-full p-0 overflow-hidden">
         <SidebarHeader className="p-6 pb-4 border-b border-white/5 bg-white/5 backdrop-blur-3xl">
           <Link href="/" className="flex items-center space-x-2 w-full overflow-hidden">
-            <Image src="/icon.png" alt="Unipilot" className="rounded-lg shrink-0 w-8 h-8 group-data-[collapsible=icon]:w-6 group-data-[collapsible=icon]:h-6" />
+            <Image src="/icon.png" width={32} height={32} alt="Unipilot" className="rounded-lg shrink-0 w-8 h-8 group-data-[collapsible=icon]:w-6 group-data-[collapsible=icon]:h-6" />
             <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 truncate group-data-[collapsible=icon]:hidden transition-all duration-300">
               UniPilot
             </span>

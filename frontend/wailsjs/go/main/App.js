@@ -78,6 +78,10 @@ export function GetAssignmentDocumentIDsRAG(arg1) {
   return window['go']['main']['App']['GetAssignmentDocumentIDsRAG'](arg1);
 }
 
+export function GetAssignmentStorageInfo(arg1) {
+  return window['go']['main']['App']['GetAssignmentStorageInfo'](arg1);
+}
+
 export function GetAssignments() {
   return window['go']['main']['App']['GetAssignments']();
 }

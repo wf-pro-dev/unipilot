@@ -3,7 +3,6 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 
@@ -142,7 +141,7 @@ func CourseShare(c *models.LocalCourse, usersID []uint) error {
 		return errs[0]
 	}
 
-	if statusCode != 200 {
+	if statusCode != fiber.StatusNoContent {
 		serverError := errors.ParseServerError(body, statusCode)
 		return serverError
 	}
@@ -218,8 +217,6 @@ func GetCoursesLinked() ([]models.Course, error) {
 	if err := json.Unmarshal(body, &courses); err != nil {
 		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse response")
 	}
-
-	log.Println("courses linked", courses)
 
 	return courses, nil
 }

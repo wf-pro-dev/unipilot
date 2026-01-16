@@ -4,7 +4,7 @@ import { useChat } from '@ai-sdk/react';
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { Button } from '../ui/button';
 import { ArrowUp, FileText, Sparkles, Paperclip, ListTree, Scale, CalendarClock } from 'lucide-react';
-import { assignment } from '@/wailsjs/go/models';
+import {  models } from '@/wailsjs/go/models';
 import { formatDeadline } from '@/lib/date-utils';
 import TextareaAutosize from 'react-textarea-autosize';
 import { DefaultChatTransport, generateId } from 'ai';
@@ -19,12 +19,10 @@ import { cn } from '@/lib/utils';
 import { DocumentUploadDialog } from '../documents/document-upload-dialog';
 import { useUploadDocumentRAG } from '@/hooks/use-documents';
 import { toast } from 'sonner';
-import { document } from '@/wailsjs/go/models';
-import { useGetAuthToken } from '@/hooks/use-auth';
 import { useAuthContext } from '../provider/auth-provider';
 
 interface AIChatInterfaceProps {
-  assignment: assignment.LocalAssignment;
+  assignment: models.LocalAssignment;
 }
 
 export default function Chat({ assignment }: AIChatInterfaceProps) {
@@ -63,7 +61,7 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
     window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
-  const handleAddDocumentToContext = (doc: document.LocalDocument) => {
+  const handleAddDocumentToContext = (doc: models.LocalDocument) => {
 
     documentRAGMutation(doc, {
       onSuccess: () => {
@@ -286,8 +284,8 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
 
           <div className="flex flex-wrap gap-2 justify-center">
             <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/5 text-xs text-muted-foreground">
-              <div className={`w-1.5 h-1.5 rounded-full ${assignment.Course.Color}`} />
-              <span>{assignment.Course.Code}</span>
+              <div className={`w-1.5 h-1.5 rounded-full ${assignment.Course?.Color}`} />
+              <span>{assignment.Course?.Code}</span>
             </div>
             <div className="flex items-center px-3 py-1 rounded-full bg-white/5 border border-white/5 text-xs text-muted-foreground">
               <span>Due {formatDeadline(assignment.Deadline)}</span>

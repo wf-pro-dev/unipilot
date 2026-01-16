@@ -97,33 +97,7 @@ export function DocumentUploadDialog({
 
         <div className="p-6 space-y-6">
           {/* Document Type Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="document-type" className="text-gray-400 text-xs font-medium uppercase tracking-wider">Document Type</Label>
-            <Select
-              value={selectedType}
-              onValueChange={(value: "support" | "submission") => setSelectedType(value)}
-              disabled={uploadDocument.isPending}
-
-            >
-              <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="glass border-white/10">
-                <SelectItem value="support">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-blue-400" />
-                    <span className="text-sm">Support Document</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="submission">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-green-400" />
-                    <span className="text-sm">Submission</span>
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        
 
           {/* Type Description */}
           <div className="text-xs text-gray-400 bg-white/5 p-3 rounded-lg border border-white/5">
@@ -134,32 +108,8 @@ export function DocumentUploadDialog({
             )}
           </div>
 
-          {/* File Size Limits */}
-          <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg">
-            <div className="flex items-start gap-3">
-              <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
-              <div className="space-y-1 text-xs">
-                <p className="font-medium text-blue-200">File Limits:</p>
-                <ul className="space-y-1 text-blue-200/70 list-disc pl-3">
-                  <li>Maximum file size: 50 MB</li>
-                  <li>Maximum per assignment: 200 MB</li>
-                  <li>Total storage limit: 2 GB</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* Supported Formats */}
-          <div className="space-y-2">
-            <Label className="text-gray-400 text-xs font-medium uppercase tracking-wider">Supported Formats</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {getSupportedFormats().map((format) => (
-                <Badge key={format} variant="secondary" className="text-[10px] bg-white/5 hover:bg-white/10 text-gray-300 border-white/10 font-normal">
-                  {format}
-                </Badge>
-              ))}
-            </div>
-          </div>
+          
+          
 
 
           {/* Upload Progress */}
