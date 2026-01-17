@@ -26,7 +26,7 @@ interface AssignmentDetailsModalProps<T extends models.LocalAssignment | models.
   onEdit?: (assignment: models.LocalAssignment, column: string, value: string) => void
   onDelete?: (assignment: models.LocalAssignment) => void
   onCopy?: (assignment: models.Assignment) => void
-  isRemote?: boolean
+  mode?: "default" | "readonly"
 }
 
 export function AssignmentDetailsModal({
@@ -37,7 +37,7 @@ export function AssignmentDetailsModal({
   onEdit,
   onDelete,
   onCopy,
-  isRemote = false,
+  mode = "default",
 }: AssignmentDetailsModalProps<models.LocalAssignment | models.Assignment>) {
 
   if (!assignment) return null
@@ -131,7 +131,7 @@ export function AssignmentDetailsModal({
                   <div className="grid grid-cols-3 gap-3">
                     <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
                       <span className="text-xs font-medium uppercase tracking-wider">Status</span>
-                      {!isRemote ? (
+                      {mode === "default" ? (
                         <StatusTag assignment={assignment as models.LocalAssignment} onEdit={onEdit!} variant="outline" />
                       ) : (
                         < Badge variant="outline" className={`text-caption font-normal`}>
@@ -143,7 +143,7 @@ export function AssignmentDetailsModal({
 
                     <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
                       <span className="text-xs font-medium uppercase tracking-wider">Priority</span>
-                      {!isRemote ? (
+                      {mode === "default" ? (
                         <PriorityTag assignment={assignment as models.LocalAssignment} onEdit={onEdit!} variant="outline" />
                       ) : (
                         < Badge variant="outline" className={`text-caption font-normal`}>
@@ -154,7 +154,7 @@ export function AssignmentDetailsModal({
 
                     <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
                       <span className="text-xs font-medium uppercase tracking-wider">Type</span>
-                      {!isRemote ? (
+                      {mode === "default" ? (
                         <TypeTag assignment={assignment as models.LocalAssignment} onEdit={onEdit!} variant="outline" />
                       ) : (
                         < Badge variant="outline" className={`text-caption font-normal`}>
@@ -192,6 +192,7 @@ export function AssignmentDetailsModal({
                 >
                   <FileUpload05
                     assignment={assignment as models.LocalAssignment}
+                    mode={mode}
                   />
                 </motion.div>
               </TabsContent>
@@ -203,7 +204,7 @@ export function AssignmentDetailsModal({
 
           <div className="grid grid-cols-4 gap-3 mt-6">
 
-            {!isRemote && (
+            {mode === "default" && (
 
               <Button
                 variant="outline"
@@ -219,7 +220,7 @@ export function AssignmentDetailsModal({
             )}
 
 
-              {!isRemote && (
+              {mode === "default" && (
               <Button
                 variant="outline"
                 size="sm"
@@ -247,7 +248,7 @@ export function AssignmentDetailsModal({
               <span>Link</span>
             </Button>
 
-            {isRemote && (
+            {mode === "readonly" && (
               <Button
                 variant="primary"
                 size="sm"
@@ -262,7 +263,7 @@ export function AssignmentDetailsModal({
                 <span>Copy</span>
               </Button>
             )}
-            {!isRemote && (
+            {mode === "default" && (
               <Button
                 variant="danger"
                 size="sm"

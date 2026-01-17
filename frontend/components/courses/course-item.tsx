@@ -3,7 +3,7 @@ import { CardContent } from "../ui/card"
 import { GlassCard } from "../ui/glass-card"
 import { Progress } from "../ui/progress"
 import { Badge } from "../ui/badge"
-import { Users, Clock, Edit, MoreVertical, Trash2 } from "lucide-react"
+import { Users, Clock, Edit, MoreVertical, Trash2, ChevronLeft } from "lucide-react"
 import { models } from "@/wailsjs/go/models"
 import { useAssignments } from "@/hooks/use-assignments"
 import { LogPrint } from "@/wailsjs/runtime/runtime"
@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 interface CourseItemProps<T extends models.LocalCourse | models.Course> {
     course: T
-    onCourseClick?: (course:T) => void
+    onCourseClick?: (course: T) => void
     onEdit?: (course: models.LocalCourse, column: string, value: string) => void
     onDelete?: (course: models.LocalCourse) => void
     disabled?: boolean
@@ -97,21 +97,31 @@ function CourseItem({ course,
 
     if (size === "sm") {
         return (
-            <div key={course.ID} onClick={handleCardClick} className="flex justify-between items-start border border-white/5  shadow-lg shadow-black/60 rounded-xl py-3 px-4 overflow-hidden relative group/item">
+            <div key={course.ID} onClick={handleCardClick} className="flex flex-1 justify-between items-center border border-white/5  shadow-lg shadow-black/60 rounded-xl py-2 px-4 overflow-hidden relative group/item">
 
                 <div className={`absolute inset-0 z-0 ${getCourseGradientClasses(course.Color, true).bg} ${getCourseGradientClasses(course.Color, true).hover} transition-colors duration-300`} />
 
+                <div className="flex items-center justify-center gap-2 z-10">
+                    
+                    {!onAccept && !onDecline && (
 
-                <div className={`flex flex-col flex-1 gap-2 z-10`}>
+                        <div className=" flex items-center justify-center p-1 rounded-full bg-white/10 border border-white/10 shadow-lg shadow-black/40">
+                            <ChevronLeft className="w-4 h-4 text-white" strokeWidth={1.5} />
+                        </div>
+                    )}
 
-                    <h3 className="text-base font-bold text-white line-clamp-1 tracking-tight">{course.Code}</h3>
+
+                    <div className={`flex flex-col flex-1 z-10`}>
+
+                        <h3 className="text-caption text-gray-300 line-clamp-1 tracking-tight">{course.Code}</h3>
 
 
-                    <p className="text-xs text-gray-400 line-clamp-1 mt-0.5 font-medium">{course.Name}</p>
+                        <p className="text-body line-clamp-1 font-medium">{course.Name}</p>
 
+                    </div>
                 </div>
 
-                <div className="flex flex-col items-center justify-between z-10">
+                <div className="flex flex-col items-center gap-1 z-10">
                     {onAccept && (
                         <Button onClick={onAccept} variant="ghost" size="sm" className="flex-1 text-gray-400 bg-gray-500/10 border-gray-500/20 hover:bg-gray-500/20 hover:text-gray-300 hover:border-gray-500/30 transition-all h-9 text-xs font-medium">
                             Accept

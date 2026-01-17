@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useSearchParams } from "next/navigation"
-import { Home, BookOpen, ClipboardList, FileText, Users, Settings, LogOut, User, Bell, ChevronDown } from "lucide-react"
+import { Home, BookOpen, ClipboardList, FileText, Users, Settings, LogOut, User, Bell, ChevronDown, ChevronRight } from "lucide-react"
 import { useAuthContext } from "@/components/provider/auth-provider"
 import { useGetAvatarUrl, useLogout } from "@/hooks/use-auth"
 import { OfflineIndicator } from "@/components/ui/offline-indicator"
@@ -115,7 +115,7 @@ export function MainSidebar() {
   return (
     <Sidebar collapsible="icon" className="h-screen shadow-2xl border-none bg-transparent" variant="sidebar">
       <GlassCard variant="board" className="flex flex-col flex-1 rounded-none h-full p-0 overflow-hidden">
-        <SidebarHeader className="p-6 pb-4 border-b border-white/5 bg-white/5 backdrop-blur-3xl">
+        <SidebarHeader className="p-4 pb-2 border-b border-white/5 bg-white/5 backdrop-blur-3xl">
           <Link href="/" className="flex items-center space-x-2 w-full overflow-hidden">
             <Image src="/icon.png" width={32} height={32} alt="Unipilot" className="rounded-lg shrink-0 w-8 h-8 group-data-[collapsible=icon]:w-6 group-data-[collapsible=icon]:h-6" />
             <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400 truncate group-data-[collapsible=icon]:hidden transition-all duration-300">
@@ -124,8 +124,8 @@ export function MainSidebar() {
           </Link>
         </SidebarHeader>
 
-        <SidebarContent className="px-4 py-4 gap-6 flex justify-self-center scrollbar-none">
-          <SidebarGroup className="p-0">
+        <SidebarContent>
+          <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu className="gap-2">
                 {navItems.map((item) => (
@@ -147,22 +147,20 @@ export function MainSidebar() {
                     <Collapsible key={item.href} defaultOpen={pathname?.includes(item.href)} className="group/collapsible">
                       <SidebarMenuItem>
                         <SidebarMenuButton
-                          asChild
                           isActive={isLinkActive(item.href)}
                           tooltip={item.label}
-                          className="flex items-center justify-between transition-all duration-200"
+                          className="flex items-center justify-between"
                         >
-                          <div className="flex w-full items-center justify-between">
-                            <Link href={item.href} className="flex items-center w-full gap-2">
-                              <item.icon width={16} height={16} strokeWidth={1.5} />
-                              <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
-                            </Link>
-                            <CollapsibleTrigger asChild>
-                              <div role="button" className="p-1 hover:bg-white/10 rounded-sm cursor-pointer group-data-[collapsible=icon]:hidden">
-                                <ChevronDown className="w-4 h-4" />
-                              </div>
-                            </CollapsibleTrigger>
-                          </div>
+                          <Link href={item.href} className="flex items-center w-full gap-2">
+                            <item.icon width={16} height={16} strokeWidth={1.5} />
+                            <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
+                          </Link>
+                          <CollapsibleTrigger asChild>
+                            <div role="button" className="hover:bg-white/10 rounded-sm cursor-pointer group-data-[collapsible=icon]:hidden">
+                              <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                            </div>
+                          </CollapsibleTrigger>
+
                         </SidebarMenuButton>
 
 

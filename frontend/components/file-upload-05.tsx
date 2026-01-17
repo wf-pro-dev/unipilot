@@ -16,20 +16,21 @@ import { DocumentItem } from "./documents/document-item";
 import { Select, SelectValue, SelectItem, SelectContent, SelectTrigger } from "./ui/select";
 import { EmptyState } from "./ui/empty-state";
 import { DocumentStorageInfo } from "./documents/document-storage-info";
+import { useUpload } from "@/hooks/use-documents";
 
 interface FileUploadProps {
   assignment: models.LocalAssignment;
+  mode?: "default" | "readonly"
 }
 
-export default function FileUpload05({ assignment }: FileUploadProps) {
+export default function FileUpload05({ assignment, mode = "default" }: FileUploadProps) {
 
   const [filter, setFilter] = useState<DocumentFilter>("All")
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [uploadType, setUploadType] = useState<"support" | "submission">("support")
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const [activeUploads, setActiveUploads] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState("upload")
+  const [activeTab, setActiveTab] = useState("documents")
   const [selectedType, setSelectedType] = useState<"support" | "submission">("support")
+  const { activeUploads, addUpload, removeUpload, isUploading } = useUpload()
 
 
   const handlePickFile = () => {
@@ -126,19 +127,26 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
   }, [emblaApi])
 
 
-
-  const handleUploadComplete = () => {
-    setUploadDialogOpen(false)
-    // The hooks will automatically refetch and update the UI
-  }
-
-
   const uploadDocument = useUploadDocument()
+
+  OnFileDrop((x, y, paths) => {
+    if (paths.length > 1) {
+      toast.error("Please drop only one file")
+      return
+    }
+
+    handleUpload(paths[0])
+  }, true);
 
   const handleUpload = async (filePath: string) => {
 
+
+
     const uploadId = crypto.randomUUID()
-    setActiveUploads(prev => new Set(prev).add(uploadId))
+    addUpload(uploadId)
+
+    console.log("Active uploads in func:", activeUploads)
+    console.log("Uploading file:", filePath, "with uploadId:", uploadId)
 
     try {
       const result = await uploadDocument.mutateAsync({
@@ -149,11 +157,7 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
         uploadId: uploadId
       })
     } finally {
-      setActiveUploads(prev => {
-        const next = new Set(prev);
-        next.delete(uploadId);
-        return next;
-      })
+      removeUpload(uploadId)
     }
 
   }
@@ -161,6 +165,7 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
   useEffect(() => {
     console.log("Active uploads:", activeUploads)
   }, [activeUploads])
+
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -182,14 +187,7 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
     )
   }
 
-  OnFileDrop((x, y, paths) => {
-    if (paths.length > 1) {
-      toast.error("Please drop only one file")
-      return
-    }
 
-    handleUpload(paths[0])
-  }, true);
 
   const getSupportedFormats = () => {
     return [
@@ -228,12 +226,7 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 w-full">
           <TabsList className="flex flex-row items-center gap-2 mb-4">
-            <TabsTrigger
-              value="upload"
-              className="flex items-baseline text-body text-gray-400 data-[state=active]:text-h6 data-[state=active]:text-white transition-all duration-200"
-            >
-              <span className="font-normal leading-none uppercase tracking-wider">Upload</span>
-            </TabsTrigger>
+
 
             <TabsTrigger
               value="documents"
@@ -242,8 +235,17 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
               <span className="font-normal leading-none uppercase tracking-wider">Documents</span>
             </TabsTrigger>
 
+            {mode === "default" && (
+              <TabsTrigger
+                value="upload"
+                className="flex items-baseline text-body text-gray-400 data-[state=active]:text-h6 data-[state=active]:text-white transition-all duration-200"
+              >
+                <span className="font-normal leading-none uppercase tracking-wider">Upload</span>
+              </TabsTrigger>
+            )}
 
-            { activeTab === "documents" && documentPages?.length > 1 && (
+
+            {activeTab === "documents" && documentPages?.length > 1 && (
               <div className="flex flex-1 items-center gap-2 justify-end">
                 {/* Pagination buttons */}
                 <Button
@@ -269,94 +271,11 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
 
           </TabsList>
 
-          <TabsContent value="upload" key="upload" className="space-y-4" >
 
-
-            <Select
-              value={selectedType}
-              onValueChange={(value: "support" | "submission") => setSelectedType(value)}
-              disabled={uploadDocument.isPending}
-
-            >
-              <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="glass border-white/10">
-                <SelectItem value="support">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-blue-400" />
-                    <span className="text-sm">Support Document</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="submission">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-green-400" />
-                    <span className="text-sm">Submission</span>
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-
-
-            <GlassCard variant="board"
-              style={{ "--wails-drop-target": "drop" } as React.CSSProperties}
-              className="items-center justify-center border border-dashed border-input py-10
-          [--wails-drop-target:drop] 
-         [.wails-drop-target-active_&]:border-blue-500 [.wails-drop-target-active_&]:bg-blue-50 
-          "
-            >
-              <div className="sm:flex sm:items-center sm:gap-x-3">
-
-                <div className="[--wails-drop-target:none] text-body mt-4 flex items-center  leading-6 sm:mt-0">
-                  <p className="pointer-events-none text-gray-400 ">Drag and drop or</p>
-
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    className="[--wails-drop-target:none] text-body px-2"
-                    onClick={handlePickFile}
-                  >
-                    Choose a file
-                  </Button>
-
-                  <p className="pointer-events-none text-gray-400 ">to upload</p>
-                </div>
-
-              </div>
-
-            </GlassCard>
-
-            {/* File Size Limits */}
-            <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg">
-              <div className="flex items-start gap-3">
-                <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                <div className="space-y-1 text-xs">
-                  <p className="font-medium text-blue-200">File Limits:</p>
-                  <ul className="space-y-1 text-blue-200/70 list-disc pl-3">
-                    <li>Maximum file size: 50 MB</li>
-                    <li>Maximum per assignment: 200 MB</li>
-                    <li>Total storage limit: 2 GB</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Supported Formats */}
-
-            <div className="space-y-2">
-              <Label className="text-gray-400 text-xs font-medium uppercase tracking-wider">Supported Formats</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {getSupportedFormats().map((format) => (
-                  <Badge key={format} variant="secondary" className="text-[10px] bg-white/5 hover:bg-white/10 text-gray-300 border-white/10 font-normal">
-                    {format}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </TabsContent>
 
           <TabsContent value="documents" key="documents" className="space-y-4" >
+
+      
 
 
             {documentPages?.length > 0 && (
@@ -369,7 +288,7 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
                       <div className="flex-none w-full min-w-0 px-1" key={pageIndex}>
 
                         {page.map((document) => (
-                          <DocumentItem key={document.ID || document.UploadID} document={document} isUploading={activeUploads.has(document.UploadID)} />
+                          <DocumentItem key={document.ID || document.UploadID} document={document} isUploading={isUploading(document.UploadID)} />
                         ))}
 
                       </div>
@@ -388,20 +307,102 @@ export default function FileUpload05({ assignment }: FileUploadProps) {
               </GlassCard>
             )}
           </TabsContent>
+
+          {mode === "default" && (
+              <TabsContent value="upload" key="upload" className="space-y-4" >
+
+
+                <Select
+                  value={selectedType}
+                  onValueChange={(value: "support" | "submission") => setSelectedType(value)}
+                  disabled={uploadDocument.isPending}
+
+                >
+                  <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="glass border-white/10">
+                    <SelectItem value="support">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-blue-400" />
+                        <span className="text-sm">Support Document</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="submission">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-green-400" />
+                        <span className="text-sm">Submission</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+
+
+                <GlassCard variant="board"
+                  style={{ "--wails-drop-target": "drop" } as React.CSSProperties}
+                  className="items-center justify-center border border-dashed border-input py-10
+                [--wails-drop-target:drop] 
+              [.wails-drop-target-active_&]:border-blue-500 [.wails-drop-target-active_&]:bg-blue-50 
+                "
+                >
+                  <div className="sm:flex sm:items-center sm:gap-x-3">
+
+                    <div className="[--wails-drop-target:none] text-body mt-4 flex items-center  leading-6 sm:mt-0">
+                      <p className="pointer-events-none text-gray-400 ">Drag and drop or</p>
+
+                      <Button
+                        type="button"
+                        variant="link"
+                        size="sm"
+                        className="[--wails-drop-target:none] text-body px-2"
+                        onClick={handlePickFile}
+                      >
+                        Choose a file
+                      </Button>
+
+                      <p className="pointer-events-none text-gray-400 ">to upload</p>
+                    </div>
+
+                  </div>
+
+                </GlassCard>
+
+                {/* File Size Limits */}
+                <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div className="space-y-1 text-xs">
+                      <p className="font-medium text-blue-200">File Limits:</p>
+                      <ul className="space-y-1 text-blue-200/70 list-disc pl-3">
+                        <li>Maximum file size: 50 MB</li>
+                        <li>Maximum per assignment: 200 MB</li>
+                        <li>Total storage limit: 2 GB</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Supported Formats */}
+
+                <div className="space-y-2">
+                  <Label className="text-gray-400 text-xs font-medium uppercase tracking-wider">Supported Formats</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {getSupportedFormats().map((format) => (
+                      <Badge key={format} variant="secondary" className="text-[10px] bg-white/5 hover:bg-white/10 text-gray-300 border-white/10 font-normal">
+                        {format}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </TabsContent>
+            )}
         </Tabs>
+
 
 
 
       </form>
 
-      <DocumentUploadDialog
-        isOpen={uploadDialogOpen}
-        onClose={() => setUploadDialogOpen(false)}
-        onUploadComplete={handleUploadComplete}
-        assignmentId={assignment.ID}
-        remoteAssignmentId={assignment.RemoteID}
-        documentType={uploadType}
-      />
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { models } from "@/wailsjs/go/models"
-import {  LogError } from "@/wailsjs/runtime/runtime"
+import { LogError } from "@/wailsjs/runtime/runtime"
 import {
   GetFileInfo,
   GetSupportDocuments,
@@ -34,6 +34,8 @@ export const documentKeys = {
   storage: () => [...documentKeys.all, 'storage'] as const,
   assignmentStorage: (assignmentID: number) => [...documentKeys.all, 'assignmentStorage', assignmentID] as const,
 }
+
+const uploadKey = ['uploads'] as const
 
 
 // Hook for fetching support documents
@@ -139,7 +141,7 @@ export function useUploadDocument() {
 
 
       const fileInfo = await GetFileInfo(filePath)
-      
+
       console.log("FileInfo", fileInfo)
 
       var newDocument = new models.LocalDocument({
@@ -167,7 +169,7 @@ export function useUploadDocument() {
         (old) => old ? [newDocument, ...old] : [newDocument]
       )
 
-      
+
 
       return { previousDocuments }
 
@@ -193,7 +195,8 @@ export function useUploadDocument() {
     retry: false,
   },
 
-)}
+  )
+}
 
 // Hook for uploading new document versions
 export function useUploadDocumentVersion() {
@@ -338,6 +341,46 @@ export function useDeleteDocument() {
 
     },
   })
+}
+
+// Hook to get the current upload state
+export function useUpload() {
+  const queryClient = useQueryClient();
+
+  const { data: activeUploads = new Set() } = useQuery({
+    queryKey: uploadKey,
+    queryFn: () => new Set(),
+    staleTime: Infinity,
+    gcTime: Infinity,
+  });
+
+  const addUpload = (uploadId: string) => {
+    queryClient.setQueryData(uploadKey, (old: Set<string> = new Set()) => {
+      const newSet = new Set(old);
+      newSet.add(uploadId);
+      return newSet;
+    });
+  };
+
+  const removeUpload = (uploadId: string) => {
+    queryClient.setQueryData(uploadKey, (old: Set<string> = new Set()) => {
+      const newSet = new Set(old);
+      newSet.delete(uploadId);
+      return newSet;
+    });
+  };
+
+  const isUploading = (uploadId: string) => {
+    return activeUploads.has(uploadId);
+  };
+
+  return {
+    activeUploads,
+    addUpload,
+    removeUpload,
+    isUploading,
+    uploadCount: activeUploads.size,
+  };
 }
 
 // Hook for opening documents
