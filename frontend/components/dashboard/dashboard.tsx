@@ -74,20 +74,15 @@ export function Dashboard() {
     const { data: exams } = useExamAssignments()
     const { data: notes } = useNotes()
 
-    const deleteMutation = useDeleteAssignment()
-    const updateMutation = useUpdateAssignment()
-
-    const [editAssignment, setEditAssignment] = useState<models.LocalAssignment | null>(null)
-    const [editDialogOpen, setEditDialogOpen] = useState(false)
-
     // Filter priority assignments (Not Done, sorted by deadline)
-    const priorityAssignments = useMemo(() => {
-        if (!assignments) return []
-        return assignments
-            .filter(a => a.Status !== "Done")
-            .sort((a, b) => new Date(a.Deadline).getTime() - new Date(b.Deadline).getTime())
+    const dashboardAssignmentIDs = useMemo(() =>
+        assignments
+            ?.filter(a => a.Status !== "Done")
             .slice(0, 6)
-    }, [assignments])
+            .sort((a, b) => new Date(a.Deadline).getTime() - new Date(b.Deadline).getTime())
+            .map(a => a.ID)
+        || []
+        , [assignments])
 
     const upcomingExams = useMemo(() => {
         return exams?.filter((exam) => isAfter(exam.Deadline, new Date()) || isSameDay(exam.Deadline, new Date()))
@@ -105,32 +100,14 @@ export function Dashboard() {
     // Notes carousel
     const [emblaRef, emblaApi] = useEmblaCarousel({ align: 'start', containScroll: 'trimSnaps' })
 
-    const handleEditAssignment = async (assignment: models.LocalAssignment, column: string, value: string) => {
-        const message = "[Frontend] assignment " + assignment.ID + " remote_id " + assignment.RemoteID + " " + column + " changed to " + value
-        LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
-
-        updateMutation.mutate({ assignment, column, value }, {
-            onSuccess: () => toast.success("Assignment updated"),
-            onError: () => toast.error("Update failed")
-        })
+    const SectionTitle = ({ title }: { title: string }) => {
+        return (
+            <div className="flex items-center">
+                <p className="text-body font-medium text-gray-400 uppercase tracking-wider">{title}</p>
+            </div>
+        )
     }
 
-    const handleToggleComplete = (assignment: models.LocalAssignment) => {
-        const newStatus = assignment.Status === "Done" ? "Not started" : "Done"
-        handleEditAssignment(assignment, "status", newStatus)
-    }
-
-    const handleDelete = (assignment: models.LocalAssignment) => {
-        deleteMutation.mutate(assignment, {
-            onSuccess: () => toast.success("Assignment deleted"),
-            onError: () => toast.error("Delete failed")
-        })
-    }
-
-    const handleOpenEdit = (assignment: models.LocalAssignment) => {
-        setEditAssignment(assignment)
-        setEditDialogOpen(true)
-    }
 
     return (
 
@@ -153,14 +130,7 @@ export function Dashboard() {
                         >
 
                             <CardHeader className="flex flex-row items-center justify-between pb-4 z-10 relative">
-                                <div className="flex items-center space-x-3">
-
-                                    <div className="p-2 rounded-xl bg-gradient-to-br from-white/15 to-transparent border border-white/15 shadow-inner">
-                                        <BookOpen className="w-3 h-3 text-white" />
-                                    </div>
-
-                                    <h4 className="text-h4">Next Class</h4>
-                                </div>
+                                <SectionTitle title="Next Class" />
                                 {isOn && (
                                     <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 animate-pulse">
                                         Happening Now
@@ -221,14 +191,7 @@ export function Dashboard() {
                     <div className="flex flex-1">
                         <div className="flex flex-1 flex-col gap-4">
                             <div className="flex items-center justify-between px-1 shrink-0">
-                                <h4 className="text-h4 flex items-center gap-2">
-
-                                    <div className="p-2 rounded-xl bg-gradient-to-br from-white/15 to-transparent border border-white/15 shadow-inner">
-                                        <Clock className="w-3 h-3 text-white" />
-                                    </div>
-
-                                    Priority Tasks
-                                </h4>
+                                <SectionTitle title="Priority Tasks" />
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -239,31 +202,27 @@ export function Dashboard() {
                                 </Button>
                             </div>
 
-                            {priorityAssignments.length > 0 ? (
-                                <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 pb-20">
-                                    {priorityAssignments.map(assignment => (
-                                        <AssignmentItem
-                                            key={assignment.ID}
-                                            assignment={assignment}
-                                            variant="outline"
-                                            onEdit={handleEditAssignment}
-                                            onDelete={(assignment) => handleDelete(assignment as models.LocalAssignment)}
-                                            onOpenEdit={(assignment) => handleOpenEdit(assignment as models.LocalAssignment)}
-                                            size="sm"
-
-                                        />
-                                    ))}
-                                </div>
-                            ) : (
-                                <GlassCard variant="board">
+                            <GlassCard variant="board">
+                                {dashboardAssignmentIDs.length > 0 ? (
+                                    <div className="grid grid-cols-2 gap-3 overflow-y-auto">
+                                        {dashboardAssignmentIDs.map(assignmentId => (
+                                            <AssignmentItem
+                                                key={assignmentId}
+                                                mode="ghost"
+                                                assignmentId={assignmentId}
+                                            />
+                                        ))}
+                                    </div>
+                                ) : (
                                     <HorizontalEmptyState
                                         icon={Clock}
                                         title="All caught up!"
                                         description="No pending assignments due soon."
                                         className="flex-1"
                                     />
-                                </GlassCard>
-                            )}
+
+                                )}
+                            </GlassCard>
                         </div>
                     </div>
 
@@ -275,14 +234,7 @@ export function Dashboard() {
                     {/* Recent Notes */}
                     <div className="flex flex-1 flex-col gap-4">
                         <div className="flex items-center justify-between px-1">
-                            <h4 className="text-h4 flex items-center gap-2">
-
-                                <div className="p-2 rounded-xl bg-gradient-to-br from-white/15 to-transparent border border-white/15 shadow-inner">
-                                    <StickyNote className="w-3 h-3 text-white" />
-                                </div>
-
-                                Recent Notes
-                            </h4>
+                            <SectionTitle title="Recent Notes" />
                             <div className="flex gap-1">
                                 <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-white/10" onClick={() => emblaApi?.scrollPrev()}>
                                     <ArrowRight className="w-4 h-4 rotate-180" />
@@ -333,49 +285,25 @@ export function Dashboard() {
 
                     {/* Upcoming Exams */}
                     <div className="flex flex-col flex-1 gap-4">
-                        <h4 className="text-h4 flex items-center gap-2 px-1 shrink-0">
-                            <div className="p-2 rounded-xl bg-gradient-to-br from-white/15 to-transparent border border-white/15 shadow-inner">
-                                <Calendar className="w-3 h-3 text-white" />
-                            </div>
-                            Upcoming Exams
-                        </h4>
+                        <SectionTitle title="Upcoming Exams" />
                         <div className="flex flex-1 overflow-y-auto">
-                            {upcomingExams && upcomingExams.length > 0 ? (
-                                upcomingExams.map(exam => (
-                                    <GlassCard
-                                        key={exam.ID}
-                                        variant="board"
-                                        onClick={() => router.push(`/assignments?view=exam&assignment=${exam.ID}`)}
-                                        className="border-white/5 bg-white/5 hover:bg-white/10 p-4 transition-all group/exam"
-                                    >
-                                        <div className="flex items-start gap-3">
-                                            <div className="relative aspect-square flex flex-col items-center min-w-[50px] bg-white/5 rounded-lg p-2 border shadow-lg shadow-black/60 border-white/10 group-hover:border-white/15 transition-colors">
-                                                <div className="absolute inset-0 bg-gradient-to-br from-white/15 to-transparent pointer-events-none" />
+                            <GlassCard variant="board">
+                                {upcomingExams && upcomingExams.length > 0 ? (
 
-                                                <span className="text-xs font-bold text-red-400 uppercase">{format(parseDeadline(exam.Deadline), "MMM")}</span>
-                                                <span className="text-xl font-bold text-white">{format(parseDeadline(exam.Deadline), "d")}</span>
-                                            </div>
-                                            <div className="flex flex-col min-w-0">
-                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">{exam.CourseCode}</span>
-                                                <h4 className="text-sm font-medium text-white truncate leading-tight mb-1">{exam.Title}</h4>
-                                                <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                                                    <Clock className="w-3 h-3" />
-                                                    {format(parseDeadline(exam.Deadline), "h:mm a")}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </GlassCard>
-                                ))
-                            ) : (
-                                <GlassCard variant="board">
+                                    upcomingExams.map(exam => (
+                                        <AssignmentItem key={exam.ID} mode="ghost" assignmentId={exam.ID} />
+                                    ))
+                                ) : (
+
                                     <EmptyState
                                         icon={Calendar}
                                         title="No exams"
                                         description="Time to relax!"
                                         className="flex-1"
                                     />
-                                </GlassCard>
-                            )}
+
+                                )}
+                            </GlassCard>
                         </div>
                     </div>
 
@@ -386,12 +314,7 @@ export function Dashboard() {
             </div>
 
 
-            <AssignmentEditDialog
-                open={editDialogOpen}
-                setOpen={setEditDialogOpen}
-                assignment={editAssignment}
-                onEdit={handleEditAssignment}
-            />
+
         </div>
     )
 }

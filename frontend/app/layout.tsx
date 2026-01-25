@@ -12,7 +12,6 @@ import { Toaster } from "@/components/ui/sonner"
 import { MainSidebar } from "@/components/sidebar/sidebar"
 import { usePathname } from 'next/navigation'
 import { MeshBackground } from '@/components/ui/mesh-gradient'
-import { useEffect } from "react"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -27,7 +26,6 @@ function AppContent({ children }: { children: React.ReactNode }) {
 
       {!isChatPage ? (
         <SidebarProvider>
-          <Toaster />
           <MainSidebar />
           <main className="flex flex-col flex-1 w-full p-12">
             <SidebarTrigger className="fixed top-4 left-4 z-50 md:hidden" />
@@ -39,17 +37,11 @@ function AppContent({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       )}
+      <Toaster />
     </div>
   )
 }
 
-function TestEffect() {
-  console.log("🧪 TestEffect rendering")
-  useEffect(() => {
-    console.log("✅ TestEffect useEffect DID RUN!")
-  }, [])
-  return null
-}
 
 export default function RootLayout({
   children,
@@ -61,20 +53,19 @@ export default function RootLayout({
 
       <body className={inter.className}>
         <QueryProvider>
-          <TestEffect />
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
             enableSystem
             disableTransitionOnChange
           >
-            <MeshBackground>
+            <MeshBackground/>
               <AuthProvider>
                 <NetworkProvider>
                   <AppContent>{children}</AppContent>
                 </NetworkProvider>
               </AuthProvider>
-            </MeshBackground>
+        
           </ThemeProvider>
         </QueryProvider>
       </body>

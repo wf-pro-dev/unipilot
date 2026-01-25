@@ -6,12 +6,13 @@ import { addDays, startOfWeek, endOfWeek, isWithinInterval, isAfter, isSameDay }
 import { models } from '@/wailsjs/go/models'
 import { useMemo } from 'react'
 import { toast } from 'sonner'
-import { CreateAssignment, UpdateAssignment } from '@/wailsjs/go/main/App'
+import { CreateAssignment, UpdateAssignment, CopyAssignment } from '@/wailsjs/go/main/App'
 
 // Query keys for consistent cache management
 export const assignmentKeys = {
   all: ['assignments'] as const,
   lists: () => [...assignmentKeys.all, 'list'] as const,
+  single: (id: number) => [...assignmentKeys.all, 'single', id] as const,
   list: (filters: string) => [...assignmentKeys.lists(), { filters }] as const,
   details: () => [...assignmentKeys.all, 'detail'] as const,
   detail: (id: number) => [...assignmentKeys.details(), id] as const,
@@ -32,6 +33,22 @@ export function useAssignments() {
     staleTime: 5 * 60 * 60 * 1000, // Consider fresh for 5 hours
     gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
   })
+}
+
+export function useAssignment(id: number) {
+  
+  // Directly subscribe to assignment cache changes
+  const { data: assignments } = useQuery({
+    queryKey: assignmentKeys.lists(),
+    enabled: false,
+  })
+  
+  const currentAssignment = (assignments as models.LocalAssignment[])?.find(a => a.ID === id)
+  return {
+    data: currentAssignment,
+    isLoading: false,
+    isError: false,
+  }
 }
 
 
@@ -122,6 +139,44 @@ export function useCreateAssignment() {
   })
 }
 
+export function useCopyAssignment() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ assignment, includeDocuments }: { assignment: models.LocalAssignment, includeDocuments: boolean }) => {
+      return await CopyAssignment(assignment, includeDocuments)
+    },
+
+    // Optimistically add the new assignment
+    onMutate: async ({ assignment, includeDocuments }) => {
+      await queryClient.cancelQueries({ queryKey: assignmentKeys.lists() })
+
+      const previousAssignments = queryClient.getQueryData<models.LocalAssignment[]>(assignmentKeys.lists())
+
+      queryClient.setQueryData<models.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
+        if (!old) return [assignment]
+        return [assignment, ...old]
+      })
+
+      return { previousAssignments }
+    },
+    onSuccess: (_, variables) => {
+      toast.success(variables.assignment.Title + " added")
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousAssignments) {
+        queryClient.setQueryData(assignmentKeys.lists(), context.previousAssignments)
+      }
+      LogError("Failed to copy assignment: " + err)
+      toast.error("Failed to copy assignment")
+    },
+
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: assignmentKeys.lists() })
+    },
+  })
+}
+
 
 // Hook for deleting assignments
 export function useDeleteAssignment() {
@@ -145,12 +200,16 @@ export function useDeleteAssignment() {
 
       return { previousAssignments }
     },
+    onSuccess: (_, variables) => {
+      toast.success(variables.Title + " deleted")
+    },
 
     onError: (err, variables, context) => {
       if (context?.previousAssignments) {
         queryClient.setQueryData(assignmentKeys.lists(), context.previousAssignments)
       }
       LogError("Failed to delete assignment: " + err)
+      toast.error("Failed to delete assignment")
     },
 
     onSettled: () => {
@@ -203,6 +262,20 @@ export function useTodayAssignments() {
 
   return {
     data: todayAssignments,
+    ...rest
+  }
+}
+
+export function useExams() {
+  const { data: assignments, ...rest } = useAssignments()
+
+  const exams = useMemo(() => assignments?.filter(assignment => {
+    if (!assignment.Type) return false
+    return assignment.Type === 'Exam'
+  }) || [], [assignments]) // Memoize the result to avoid unnecessary re-renders
+
+  return {
+    data: exams,
     ...rest
   }
 }

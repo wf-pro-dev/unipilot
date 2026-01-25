@@ -36,9 +36,11 @@ export function FormErrorMessage<TFieldValues extends FieldValues>({
 }: FormErrorMessageProps<TFieldValues>) {
     const showError = shouldShowError(fieldState, formState, config)
 
+    console.log("showError",fieldState.error)
     if (!showError || !fieldState.error) {
         return null
     }
+    console.log("show ERROR")
  
     toast.error(fieldState.error.message)
     onErrorResolved?.()

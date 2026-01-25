@@ -72,8 +72,7 @@ export const assignmentStep1Schema = z.object({
     .number()
     .min(1, "Course ID is required"),
   remote_course_id: z
-    .number()
-    .min(1, "Remote Course ID is required"),
+    .number().optional(),
   type: z
     .string()
     .min(1, "Please select an assignment type")

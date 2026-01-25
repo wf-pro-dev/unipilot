@@ -196,7 +196,7 @@ export function MainSidebar() {
                 AI Chat Quick Access
               </SidebarGroupLabel>
             </div>
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col">
               {upcomingAssignments.map((assignment) => (
 
                 <AiAssignmentCard assignment={assignment} />

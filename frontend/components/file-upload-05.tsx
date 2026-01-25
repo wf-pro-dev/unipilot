@@ -3,10 +3,9 @@ import { ChevronLeft, ChevronRight, FileText, Info } from "lucide-react";
 import { GlassCard } from "./ui/glass-card";
 import { OnFileDrop } from "@/wailsjs/runtime/runtime";
 import { models } from "@/wailsjs/go/models";
-import { useAssignmentDocumentData, useUploadDocument } from "@/hooks/use-documents";
+import { useDocuments, useUploadDocument } from "@/hooks/use-documents";
 import { toast } from "sonner";
 import { useCallback, useEffect, useState } from "react";
-import { DocumentUploadDialog } from "./documents/document-upload-dialog";
 import useEmblaCarousel from 'embla-carousel-react'
 import { PickFile } from "@/wailsjs/go/main/App";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
@@ -17,13 +16,22 @@ import { Select, SelectValue, SelectItem, SelectContent, SelectTrigger } from ".
 import { EmptyState } from "./ui/empty-state";
 import { DocumentStorageInfo } from "./documents/document-storage-info";
 import { useUpload } from "@/hooks/use-documents";
+import { Checkbox } from "./ui/checkbox";
 
 interface FileUploadProps {
   assignment: models.LocalAssignment;
   mode?: "default" | "readonly"
+  includeDocuments?: boolean
+  setIncludeDocuments?: (includeDocuments: boolean) => void
 }
 
-export default function FileUpload05({ assignment, mode = "default" }: FileUploadProps) {
+ type DocumentFilter = "All" | "support" | "submission"
+
+export default function FileUpload05({ assignment, mode = "default", includeDocuments = true, setIncludeDocuments }: FileUploadProps) {
+
+  const { data: documentData } = useDocuments(assignment)
+  var documents = documentData || assignment.Documents || []
+
 
   const [filter, setFilter] = useState<DocumentFilter>("All")
   const [uploadType, setUploadType] = useState<"support" | "submission">("support")
@@ -46,40 +54,13 @@ export default function FileUpload05({ assignment, mode = "default" }: FileUploa
       })
   }
 
-  // Use the utility hook to get All document data
-  const {
-    supportDocuments,
-    submissionDocuments,
-    isLoading,
-    error
-  } = useAssignmentDocumentData(assignment.ID)
-
-  type DocumentFilter = "All" | "support" | "submission"
-  const documentFilters: DocumentFilter[] = [
-    "All",
-    "support",
-    "submission"
-  ]
-
-  // Get filtered documents
-  const getFilteredDocuments = () => {
-    switch (filter) {
-      case "support":
-        return supportDocuments.data || []
-      case "submission":
-        return submissionDocuments.data || []
-      default:
-        return supportDocuments.data || []
-    }
-  }
-
-  const filteredDocs = getFilteredDocuments() || []
+  
 
   // Group documents into pages of 4 (2x2 grid)
   const documentsPerPage = 1
   const documentPages: models.LocalDocument[][] = []
-  for (let i = 0; i < filteredDocs.length; i += documentsPerPage) {
-    documentPages.push(filteredDocs.slice(i, i + documentsPerPage))
+  for (let i = 0; i < ( documents || [] ).length; i += documentsPerPage) {
+    documentPages.push(( documents || [] ).slice(i, i + documentsPerPage))
   }
 
 
@@ -114,9 +95,6 @@ export default function FileUpload05({ assignment, mode = "default" }: FileUploa
     }
   }, [filter, emblaApi])
 
-
-
-
   // Carousel navigation functions
   const scrollPrev = useCallback(() => {
     if (emblaApi) emblaApi.scrollPrev()
@@ -141,53 +119,29 @@ export default function FileUpload05({ assignment, mode = "default" }: FileUploa
   const handleUpload = async (filePath: string) => {
 
 
-
     const uploadId = crypto.randomUUID()
     addUpload(uploadId)
-
-    console.log("Active uploads in func:", activeUploads)
-    console.log("Uploading file:", filePath, "with uploadId:", uploadId)
-
+    setActiveTab("documents")
+    
     try {
+      
       const result = await uploadDocument.mutateAsync({
         assignmentId: assignment.ID,
         remoteAssignmentId: assignment.RemoteID,
         documentType: uploadType,
         filePath: filePath,
-        uploadId: uploadId
+        uploadId: uploadId,
+
       })
     } finally {
       removeUpload(uploadId)
-    }
 
-  }
-
-  useEffect(() => {
-    console.log("Active uploads:", activeUploads)
-  }, [activeUploads])
-
+  }}
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     await handleUpload("")
   }
-
-  // Handle loading state
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="flex gap-2 items-center">
-          <FileText className="w-5 h-5 text-muted-foreground" />
-          <h3 className="text-lg font-semibold">Documents</h3>
-        </div>
-        <div className="flex justify-center items-center py-8">
-          <div className="text-sm text-muted-foreground">Loading documents...</div>
-        </div>
-      </div>
-    )
-  }
-
-
 
   const getSupportedFormats = () => {
     return [
@@ -198,24 +152,6 @@ export default function FileUpload05({ assignment, mode = "default" }: FileUploa
       "Text files (.txt, .md)",
       "Images (.png, .jpg, .jpeg, .gif, .bmp, .svg)"
     ]
-  }
-
-
-
-
-  // Handle error state
-  if (error) {
-    return (
-      <div className="space-y-4">
-        <div className="flex gap-2 items-center">
-          <FileText className="w-5 h-5 text-muted-foreground" />
-          <h3 className="text-lg font-semibold">Documents</h3>
-        </div>
-        <div className="flex justify-center items-center py-8">
-          <div className="text-sm text-red-500">Failed to load documents</div>
-        </div>
-      </div>
-    )
   }
 
 
@@ -230,17 +166,17 @@ export default function FileUpload05({ assignment, mode = "default" }: FileUploa
 
             <TabsTrigger
               value="documents"
-              className="flex items-baseline text-body text-gray-400 data-[state=active]:text-h6 data-[state=active]:text-white transition-all duration-200"
+              className="flex items-baseline text-body font-medium text-gray-400 uppercase tracking-wider data-[state=active]:text-h6 data-[state=active]:text-white transition-all duration-200"
             >
-              <span className="font-normal leading-none uppercase tracking-wider">Documents</span>
+              <span>Documents</span>
             </TabsTrigger>
 
             {mode === "default" && (
               <TabsTrigger
                 value="upload"
-                className="flex items-baseline text-body text-gray-400 data-[state=active]:text-h6 data-[state=active]:text-white transition-all duration-200"
+                className="flex items-baseline text-body font-medium text-gray-400 uppercase tracking-wider data-[state=active]:text-h6 data-[state=active]:text-white transition-all duration-200"
               >
-                <span className="font-normal leading-none uppercase tracking-wider">Upload</span>
+                <span>Upload</span>
               </TabsTrigger>
             )}
 
@@ -288,7 +224,7 @@ export default function FileUpload05({ assignment, mode = "default" }: FileUploa
                       <div className="flex-none w-full min-w-0 px-1" key={pageIndex}>
 
                         {page.map((document) => (
-                          <DocumentItem key={document.ID || document.UploadID} document={document} isUploading={isUploading(document.UploadID)} />
+                          <DocumentItem key={document.ID || document.UploadID} document={document} isUploading={isUploading(document.UploadID!)} mode={mode} />
                         ))}
 
                       </div>
@@ -296,7 +232,17 @@ export default function FileUpload05({ assignment, mode = "default" }: FileUploa
                     ))}
                   </div>
                 </div>
-                <DocumentStorageInfo assignmentID={assignment.ID} />
+
+                {mode === "default" && (
+                  <DocumentStorageInfo assignmentID={assignment.ID} />
+                )}
+
+                { mode !== "default" && (
+                  <div className="flex items-center gap-2">
+                  <Checkbox checked={includeDocuments} onCheckedChange={(checked) => setIncludeDocuments?.(checked === "indeterminate" ? false : checked)} />
+                    <Label className="text-caption">Do you want to include documents ?</Label>
+                  </div>
+                )}
               </div>
 
             )}

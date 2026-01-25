@@ -10,12 +10,10 @@ interface CalendarContainerProps {
     isToday: boolean
     onMoveAssignment: (assignment: models.LocalAssignment, date: Date) => void
     index: number
-    onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
-    onAssignmentClick: (assignment: models.LocalAssignment) => void
     onDateClick: (date: Date) => void
 }
 
-function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMoveAssignment, index, onEdit, onAssignmentClick, onDateClick }: CalendarContainerProps) {
+function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMoveAssignment, index, onDateClick }: CalendarContainerProps) {
     const [{ isOver }, drop] = useDrop({
         accept: "assignment",
         drop: (item: { assignment: models.LocalAssignment }) => {
@@ -65,8 +63,7 @@ function CalendarContainer({ day, dayAssignments, isCurrentMonth, isToday, onMov
                 {dayAssignments.slice(0, 2).map((assignment) => (
                     <CalendarItem
                         key={assignment.ID}
-                        assignment={assignment}
-                        onEdit={onEdit}
+                        assignmentId={assignment.ID}
                     />
                 ))}
                 {dayAssignments.length > 2 && (

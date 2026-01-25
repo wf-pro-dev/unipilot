@@ -21,16 +21,16 @@ export function EmptyState({
 }: EmptyStateProps) {
   return (
     <div className={cn("flex flex-col items-center justify-center text-center gap-4 animate-in fade-in zoom-in duration-500", className)}>
-      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center ring-1 ring-white/10 shadow-lg shadow-black/20">
-        <Icon className="h-8 w-8 text-caption text-text-caption" strokeWidth={1.5} />
+      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-blue-500/30 to-transparent flex items-center justify-center ring-1 ring-primary-blue-400/50">
+        <Icon className="h-6 w-6 text-primary-blue-400" strokeWidth={1.5} />
       </div>
 
       <div className="flex flex-col items-center gap-2">
-        <h5 className="text-h5">{title}</h5>
-        <p className="pl-2 text-caption text-text-caption max-w-sm">{description}</p>
+        <h5 className="text-h5 font-medium">{title}</h5>
+        <p className="pl-2 text-caption text-gray-400 max-w-sm">{description}</p>
       </div>
       {onClick && (
-        <Button variant="outline" onClick={onClick} className="text-caption text-text-caption">
+        <Button variant="outline" onClick={onClick} className="text-caption text-gray-400">
           {buttonText}
         </Button>
       )}
@@ -48,15 +48,15 @@ export function HorizontalEmptyState({
 }: EmptyStateProps) {
   return (
     <div className={cn("flex items-center gap-4 justify-center text-center animate-in fade-in zoom-in duration-500", className)}>
-      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-white/10 to-transparent flex items-center justify-center ring-1 ring-white/10 shadow-lg shadow-black/20">
-        <Icon className="h-8 w-8 text-caption text-text-caption" strokeWidth={1.5} />
+      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-blue-500/30 to-transparent flex items-center justify-center ring-1 ring-primary-blue-400/50">
+        <Icon className="h-6 w-6 text-primary-blue-400" strokeWidth={1.5} />
       </div>
       <div className="flex flex-col items-start gap-2">
-        <h5 className="text-h5">{title}</h5>
-        <p className="pl-2 text-caption text-text-caption max-w-sm">{description}</p>
+        <h5 className="text-h5 font-medium">{title}</h5>
+        <p className="pl-2 text-caption text-gray-400 max-w-sm">{description}</p>
       </div>
       {onClick && (
-        <Button variant="outline" onClick={onClick} className="text-caption text-text-caption">
+        <Button variant="outline" onClick={onClick} className="text-caption text-gray-400">
           {buttonText}
         </Button>
       )}

@@ -79,7 +79,7 @@ func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.
 
 // CancelUpload cancels an upload on the server
 // GetProgress listens for upload progress via SSE
-func GetProgress(ctx context.Context, uploadID string) error {
+func GetProgress(ctx context.Context, uploadID string, currentPercentage float64) error {
 	api_url := secrets.CONSTANTS["API_URL"]
 	url := fmt.Sprintf("%s/documents/progress/%s", api_url, uploadID)
 
@@ -162,6 +162,7 @@ func GetProgress(ctx context.Context, uploadID string) error {
 					})
 					return fmt.Errorf("server error: %s", data)
 				default:
+
 					// Parse progress data
 					var progressData progress.TrackerSnapshot
 					if err := json.Unmarshal([]byte(data), &progressData); err != nil {
@@ -183,7 +184,7 @@ func GetProgress(ctx context.Context, uploadID string) error {
 
 					if progressData.Status != "stopped" {
 						// Adjust percentage if needed
-						progressData.Percentage = 60 + progressData.Percentage*0.4
+						progressData.Percentage = currentPercentage + progressData.Percentage*(100-currentPercentage)/100
 						// Emit progress
 						runtime.EventsEmit(ctx, fmt.Sprintf("upload:progress:%s", uploadID), progressData)
 					}

@@ -125,7 +125,7 @@ func (h *Database) DeleteNote(note *models.LocalNote) error {
 func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUploadRequest, hasLocalFile bool) (*fileops.FileUploadResponse, error) {
 
 	// Create LocalDocument record
-	localDoc := models.LocalDocument{
+	localDoc := &models.LocalDocument{
 		BaseDocument: models.BaseDocument{
 
 			AssignmentID: uploadReq.AssignmentID,
@@ -136,8 +136,12 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 			Version:      1,
 			HasLocalFile: hasLocalFile, // Will be set to true after successful file write
 		},
-		UploadID:           uploadReq.UploadID,
+
 		RemoteAssignmentID: uploadReq.RemoteAssignmentID,
+	}
+
+	if uploadReq.UploadID != nil {
+		localDoc.UploadID = uploadReq.UploadID
 	}
 
 	// Generate file path
@@ -163,13 +167,13 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 
 	if hasLocalFile {
 		// Upload the document locally
-		response, err = fileops.WriteDocument(&localDoc, uploadReq.FileContent, h.db)
+		response, err = fileops.WriteDocument(localDoc, uploadReq.FileContent, h.db)
 		if err != nil {
 			return nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to write document on disk")
 		}
 	} else {
 		response = &fileops.FileUploadResponse{
-			LocalDocument: &localDoc,
+			LocalDocument: localDoc,
 			Success:       true,
 			Message:       "Upload successful",
 		}

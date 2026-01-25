@@ -4,7 +4,8 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query"
 import { SaveUIMessage, GetConversationHistory } from "@/wailsjs/go/main/App"
 import { UIMessage } from "@ai-sdk/react"
 import { LogError } from "@/wailsjs/runtime/runtime"
-import { aimessage } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
+import { toast } from "sonner"
 
 
 export const aimessageKeys = {
@@ -28,23 +29,33 @@ export function useSaveUIMessage() {
             return await SaveUIMessage(assignmentID, vercelMessage)
         },
 
-        onSuccess: (savedMessage, variables) => {
-            // Invalidate and refetch the conversation history
-            queryClient.invalidateQueries({ 
-              queryKey: aimessageKeys.list(variables.assignmentID) 
-            });
-            
-            // Optional: Optimistically update the cache
+        onMutate: async ({ assignmentID, vercelMessage }) => {
+            await queryClient.cancelQueries({ queryKey: aimessageKeys.list(assignmentID) })
+            const previousMessages = queryClient.getQueryData(aimessageKeys.list(assignmentID))
+
             queryClient.setQueryData(
-              aimessageKeys.list(variables.assignmentID),
-              (old: UIMessage[] | undefined) => 
-                old ? [...old, savedMessage] : [savedMessage]
+                aimessageKeys.list(assignmentID),
+                (old: UIMessage[] | undefined) =>
+                    old ? [...old, vercelMessage] : [vercelMessage]
             );
+
+            return { previousMessages }
         },
 
-        // If the mutation fails, rollback
-        onError: (error) => {
-            console.error('Failed to save message:', error)
+        onSuccess: (savedMessage, variables) => {
+            // Invalidate and refetch the conversation history
+            queryClient.invalidateQueries({
+                queryKey: aimessageKeys.list(variables.assignmentID)
+            });
+
+        },
+
+        onError: (error, variables, context) => {
+            if (context?.previousMessages) {
+                queryClient.setQueryData(aimessageKeys.list(variables.assignmentID), context.previousMessages)
+            }
+            LogError('Failed to save message: ' + error)
+            toast.error('Failed to save message')
         },
     })
 }
@@ -52,8 +63,8 @@ export function useSaveUIMessage() {
 // Custom hook for fetching conversation history
 export const useConversationHistory = (assignmentID: number) => {
     return useQuery({
-        queryKey: ['conversation', assignmentID],
-        queryFn: async (): Promise<aimessage.LocalAiMessage[]> => {
+        queryKey: aimessageKeys.list(assignmentID),
+        queryFn: async (): Promise<models.LocalAiMessage[]> => {
             try {
                 return await GetConversationHistory(assignmentID)
             } catch (error) {
@@ -61,8 +72,8 @@ export const useConversationHistory = (assignmentID: number) => {
                 throw new Error(error instanceof Error ? error.message : "Failed to fetch conversation history")
             }
         },
-        staleTime: 1000 * 60 * 30, // 30 minutes
-        gcTime: 1000 * 60 * 60, // 1 hour
+        staleTime: 5 * 60 * 1000, // 5 minutes
+        gcTime: 15 * 60 * 1000, // 15 minutes
         refetchOnWindowFocus: false,
     });
 };

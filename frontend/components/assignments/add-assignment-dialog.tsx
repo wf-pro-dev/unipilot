@@ -19,7 +19,6 @@ import {
   Link as LinkIcon, ClipboardList
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { toast } from "sonner"
 import { models } from "@/wailsjs/go/models"
 import {
   assignmentSchema,
@@ -81,6 +80,7 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
     if (step === 1) {
       setStep1Attempted(true)
       const step1Valid = await form.trigger(["title", "course_code", "course_id", "remote_course_id", "type", "deadline"])
+      console.log("step1Valid", step1Valid)
       if (step1Valid) setStep(2)
     }
   }
@@ -92,7 +92,7 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
   const onSubmit = async (data: AssignmentValues) => {
     setIsSubmitting(true)
     try {
-      console.log("data", data.course_id)
+
       const assignmentData: models.LocalAssignment = {
         Title: data.title,
         Todo: data.todo || "",
@@ -140,7 +140,7 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange} modal={false}>
       <DialogTrigger asChild>
         <Button variant="default" size="lg">
           <Plus className="h-4 w-4 mr-2" />

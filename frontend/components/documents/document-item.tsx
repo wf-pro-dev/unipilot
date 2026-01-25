@@ -18,8 +18,8 @@ import {
   useOpenDocument,
   useSaveDocumentAs,
   useDeleteDocument,
-  useUploadDocumentVersion,
-  useDownloadDocument
+  useDownloadDocument,
+  useUpload
 } from "@/hooks/use-documents"
 import { toast } from "sonner"
 import { GlassCard } from "../ui/glass-card"
@@ -30,16 +30,20 @@ import { Progress } from "../ui/progress"
 interface DocumentItemProps {
   document: models.LocalDocument
   isUploading: boolean
+  mode?: "default" | "readonly"
 
 }
 
-function BaseDocumentItem({ document: doc, isUploading }: DocumentItemProps) {
+function BaseDocumentItem({ document: doc, isUploading, mode = "default" }: DocumentItemProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
 
+  const { addUpload, removeUpload } = useUpload()
+
   useEffect(() => {
+
     if (!isUploading) return
     var KeyProgress = "upload:progress:" + doc.UploadID
     var KeyStatus = "upload:status:" + doc.UploadID
@@ -63,13 +67,12 @@ function BaseDocumentItem({ document: doc, isUploading }: DocumentItemProps) {
     EventsOn(KeyError, (error: string) => {
       setError(error)
     })
-  }, [])
+  }, [isUploading])
 
   // Document action hooks
   const openDocument = useOpenDocument()
   const saveDocumentAs = useSaveDocumentAs()
   const deleteDocument = useDeleteDocument()
-  const uploadVersion = useUploadDocumentVersion()
   const downloadDocument = useDownloadDocument()
 
   const formatFileSize = (bytes: number) => {
@@ -109,17 +112,9 @@ function BaseDocumentItem({ document: doc, isUploading }: DocumentItemProps) {
     }
   }
 
-  const handleUploadNewVersion = async () => {
+  const handleDelete = async (document: models.LocalDocument) => {
     try {
-      await uploadVersion.mutateAsync(doc.ID)
-    } catch (error) {
-      console.error("Failed to upload new version:", error)
-    }
-  }
-
-  const handleDelete = async (documentId: number) => {
-    try {
-      await deleteDocument.mutateAsync(documentId)
+      await deleteDocument.mutateAsync(document)
       setDeleteDialogOpen(false)
     } catch (error) {
       console.error("Failed to delete document:", error)
@@ -127,20 +122,23 @@ function BaseDocumentItem({ document: doc, isUploading }: DocumentItemProps) {
   }
 
   const handleDownload = async () => {
+    const uploadId = crypto.randomUUID()
+    addUpload(uploadId)
+
     try {
-      await downloadDocument.mutateAsync(doc,
-        {
-          onError: (error) => {
-            toast.error("Failed to download document: " + error)
-          }
-        })
-    } catch (error) {
-      console.error("Failed to download document:", error)
+      await downloadDocument.mutateAsync(new models.LocalDocument({
+        ...doc,
+        UploadID: uploadId,
+        HasLocalFile: true
+      }))
+    } finally {
+      removeUpload(uploadId)
     }
+
   }
 
   const isLoading = openDocument.isPending || saveDocumentAs.isPending ||
-    deleteDocument.isPending || uploadVersion.isPending
+    deleteDocument.isPending
 
   return (
     <>
@@ -193,48 +191,47 @@ function BaseDocumentItem({ document: doc, isUploading }: DocumentItemProps) {
         </div>
 
         {/* Actions */}
-        <div className="flex items-center">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="ghost" className="p-0 h-8 w-8 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-colors" disabled={isLoading}>
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="glass border-white/10 bg-black/90 backdrop-blur-xl">
-              {(doc.HasLocalFile) && (
-                <>
-                  <DropdownMenuItem onClick={handleOpen} disabled={!doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
-                    <Eye className="h-4 w-4 mr-2" />
-                    Open
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleSaveAs} disabled={!doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
+        {mode === "default" && (
+          <div className="flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="ghost" className="p-0 h-8 w-8 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-colors" disabled={isLoading}>
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="glass border-white/10 bg-black/90 backdrop-blur-xl">
+                {(doc.HasLocalFile) && (
+                  <>
+                    <DropdownMenuItem onClick={handleOpen} disabled={!doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
+                      <Eye className="h-4 w-4 mr-2" />
+                      Open
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleSaveAs} disabled={!doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
+                      <Download className="h-4 w-4 mr-2" />
+                      Save As...
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                {!doc.HasLocalFile && (
+                  <DropdownMenuItem onClick={handleDownload} disabled={doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
                     <Download className="h-4 w-4 mr-2" />
-                    Save As...
+                    Download
                   </DropdownMenuItem>
-                </>
-              )}
+                )}
 
-              {!doc.HasLocalFile && (
-                <DropdownMenuItem onClick={handleDownload} disabled={doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
+
+                <DropdownMenuItem
+                  onClick={() => setDeleteDialogOpen(true)}
+                  className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
                 </DropdownMenuItem>
-              )}
-
-              <DropdownMenuItem onClick={handleUploadNewVersion} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
-                <Upload className="h-4 w-4 mr-2" />
-                Upload New Version
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setDeleteDialogOpen(true)}
-                className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
       </GlassCard >
 
       {/* Delete Confirmation Dialog */}
@@ -249,7 +246,7 @@ function BaseDocumentItem({ document: doc, isUploading }: DocumentItemProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => handleDelete(doc.ID)}
+              onClick={() => handleDelete(doc)}
               className="bg-red-600 hover:bg-red-700"
               disabled={isLoading}
             >

@@ -13,7 +13,7 @@ import { AiDocumentCard } from "./ai-chat-documents";
 import { GlassCard } from "../ui/glass-card";
 import { useNextAssignments } from "@/hooks/use-assignments";
 import { AiAssignmentCard } from "./ai-chat-assignments";
-import { useCallback  } from "react";
+import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -25,17 +25,18 @@ interface AiChatSidebarProps {
 export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
   const router = useRouter();
 
-  const { data: nextAssignments } =  useNextAssignments()
+  const { data: nextAssignments } = useNextAssignments()
   const { data: documentRagIDs } = useAssignmentDocumentIDsRAG(assignment.RemoteID)
+  console.log(documentRagIDs)
 
-  const getDocumentAdded = useCallback(( document: models.LocalDocument) => {
+  const IsDocumentAdded = useCallback((document: models.LocalDocument) => {
     return documentRagIDs?.includes(document.RemoteID) || false;
   }, [documentRagIDs]);
 
   const getNextAssignments = useCallback(() => {
     return nextAssignments?.
-    filter((assign)=> assign.ID != assignment.ID).
-    slice(0, 3) || [];
+      filter((assign) => assign.ID != assignment.ID).
+      slice(0, 3) || [];
   }, [nextAssignments, assignment.ID]);
 
   const handleBack = () => {
@@ -48,9 +49,9 @@ export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
         <SidebarHeader className="p-6 pb-4 border-b border-white/5 bg-white/5 backdrop-blur-3xl">
           <div className="flex flex-col gap-3 group-data-[collapsible=icon]:hidden">
             <div className="flex items-center justify-between">
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 className="h-6 w-6 rounded-full hover:bg-white/10 -ml-2"
                 onClick={handleBack}
               >
@@ -64,30 +65,29 @@ export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
             <h1 className="text-h4 font-semibold leading-tight text-white drop-shadow-sm truncate">{assignment.Title}</h1>
           </div>
           <div className="hidden group-data-[collapsible=icon]:flex flex-col gap-4 items-center justify-center">
-             <Button 
-                variant="ghost" 
-                size="icon" 
-                className="h-8 w-8 rounded-full hover:bg-white/10"
-                onClick={handleBack}
-              >
-                <ArrowLeft className="h-4 w-4 text-white/70" />
-              </Button>
-             <div className={`w-4 h-4 rounded-full ${assignment.Course?.Color} shadow-[0_0_12px] shadow-${assignment.Course?.Color}`} />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-full hover:bg-white/10"
+              onClick={handleBack}
+            >
+              <ArrowLeft className="h-4 w-4 text-white/70" />
+            </Button>
+            <div className={`w-4 h-4 rounded-full ${assignment.Course?.Color} shadow-[0_0_12px] shadow-${assignment.Course?.Color}`} />
           </div>
         </SidebarHeader>
 
-        <SidebarContent className="px-4 py-4 gap-6 flex justify-self-center scrollbar-none">
+        <SidebarContent className="gap-6 pt-4 flex justify-self-center scrollbar-none">
           <SidebarGroup className="p-0 group-data-[collapsible=icon]:hidden">
-            <div className="flex items-center justify-between mb-3 px-1">
-              <SidebarGroupLabel className="text-xs uppercase tracking-widest text-white/40 font-bold">
+            <div >
+              <SidebarGroupLabel className="text-xs uppercase tracking-widest text-white/40 font-semibold">
                 Context Sources
               </SidebarGroupLabel>
-              <span className="text-caption font-semibold text-muted-foreground/40 bg-white/5 rounded px-1.5">{assignment.Documents?.length || 0}</span>
             </div>
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col">
               {assignment.Documents?.map((document) => {
-                const added = getDocumentAdded(document)
-                console.log(added,document.RemoteID)
+                const added = IsDocumentAdded(document)
+                console.log(added, document.FileName)
                 return (
                   <AiDocumentCard key={document.ID} document={document} added={added} />
                 )
@@ -100,12 +100,12 @@ export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
             </div>
           </SidebarGroup>
           <SidebarGroup className="p-0 group-data-[collapsible=icon]:hidden">
-            <div className="flex items-center justify-between mb-3 px-1">
-              <SidebarGroupLabel className="text-xs uppercase tracking-widest text-white/40 font-bold">
+            <div>
+              <SidebarGroupLabel className="text-xs uppercase tracking-widest text-white/40 font-semibold">
                 Upcoming Assignments
               </SidebarGroupLabel>
             </div>
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col">
               {getNextAssignments().map((assignment) => (
                 <AiAssignmentCard key={assignment.ID} assignment={assignment} />
               ))}

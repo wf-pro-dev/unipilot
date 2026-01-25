@@ -2,7 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { LogError } from "@/wailsjs/runtime/runtime"
-import { user } from '@/wailsjs/go/models'
+import { models } from '@/wailsjs/go/models'
+import { GetRemoteUsers } from '@/wailsjs/go/main/App'
 
 // Query keys for consistent cache management
 export const userKeys = {
@@ -17,10 +18,9 @@ export const userKeys = {
 export function useUsers() {
   return useQuery({
     queryKey: userKeys.lists(),
-    queryFn: async (): Promise<user.User[]> => {
+    queryFn: async (): Promise<models.User[]> => {
       try {
-        var users = await window.go.main.App.GetRemoteUsers()
-        console.log("Users fetched", users)
+        var users = await GetRemoteUsers()
         return users
       } catch (error) {
         LogError(error as string)

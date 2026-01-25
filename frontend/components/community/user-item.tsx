@@ -11,6 +11,8 @@ import { Skeleton } from "../ui/skeleton"
 import { toast } from "sonner"
 
 import { models} from "@/wailsjs/go/models"
+import { UserDetailsModal } from "./user-details-modal"
+import { useState } from "react"
 
 interface UserItemProps {
   userID: number
@@ -19,6 +21,7 @@ interface UserItemProps {
 
 export function UserItem({ userID, user: userProp }: UserItemProps) {
 
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
 
   const { data: followers, isLoading: followersLoading } = useFollowers(userID)
   const { data: following, isLoading: followingLoading } = useFollowing(userID)
@@ -55,11 +58,16 @@ export function UserItem({ userID, user: userProp }: UserItemProps) {
     })
   }
 
+  const handleOpenDetails = () => {
+    setIsDetailsOpen(true)
+  }
+
   return (
     <GlassCard
       key={userID}
       variant="outline"
       className="cursor-pointer group"
+      onClick={handleOpenDetails}
     >
       <CardContent className="p-5">
         <div className="flex items-start space-x-4 mb-6">
@@ -181,6 +189,13 @@ export function UserItem({ userID, user: userProp }: UserItemProps) {
           </div>
         </div>
       </CardContent>
+      <UserDetailsModal
+        isOpen={isDetailsOpen}
+        onClose={() => setIsDetailsOpen(false)}
+        user={user!}
+        followers={followers || []}
+        following={following || []}
+      />
     </GlassCard>
   )
 }

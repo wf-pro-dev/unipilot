@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AssignmentsCalendar } from "@/components/assignments/assignments-calendar"
 import { AssignmentsTable } from "@/components/assignments/assignments-table"
 import { AddAssignmentDialog } from "@/components/assignments/add-assignment-dialog"
-import { AssignmentDetailsModal } from "@/components/assignments/assignment-details-modal"
-import { Calendar, List, Clock, CheckCircle2, AlertTriangle, CalendarDays, Loader2 } from "lucide-react"
+import { Calendar, List, CheckCircle2, CalendarDays, Loader2 } from "lucide-react"
 import { models } from "@/wailsjs/go/models"
 import {
   useAssignments,
@@ -19,12 +18,7 @@ import {
   useDeleteAssignment,
   useCreateAssignment
 } from "@/hooks/use-assignments"
-import { LogInfo } from "@/wailsjs/runtime/runtime"
-import { format, isSameDay } from "date-fns"
 import { DayAssignmentsModal } from "@/components/assignments/day-assignments-modal"
-import { toast } from "sonner"
-import { AssignmentEditDialog } from "@/components/assignments/assignment-edit-dialog"
-import { AssignmentView } from "@/components/assignments/assignment-view"
 
 /**
  * Main assignments management page component.
@@ -98,58 +92,6 @@ export default function AssignmentsPage() {
     }
   }, [currentAssignment, assignments])
 
-  /**
-   * Handles assignment card click to open details modal.
-   * 
-   * @param {assignment.LocalAssignment} assignment - The assignment that was clicked
-   */
-  const handleAssignmentClick = (assignment: models.LocalAssignment) => {
-    setSelectedAssignmentID(assignment.ID)
-  }
-
-  /**
-   * Handles assignment field updates with optimistic UI updates.
-   * 
-   * Updates a specific field of an assignment and provides immediate UI feedback
-   * through optimistic updates. Logs the change and shows success/error toast notifications.
-   * 
-   * @param {assignment.LocalAssignment} assignment - The assignment to update
-   * @param {string} column - The field name to update (e.g., "status", "deadline")
-   * @param {string} value - The new value for the field
-   * @returns {Promise<void>}
-   */
-  const handleEditAssignment = async (assignment: models.LocalAssignment, column: string, value: string) => {
-
-    updateMutation.mutate({
-      assignment,
-      column,
-      value
-    })
-  }
-
-
-  /**
-   * Handles assignment deletion with optimistic UI updates.
-   * 
-   * Deletes an assignment and provides immediate UI feedback. Logs the deletion
-   * and shows success/error toast notifications.
-   * 
-   * @param {assignment.LocalAssignment} assignment - The assignment to delete
-   * @returns {Promise<void>}
-   */
-  const handleDeleteAssignment = async (assignment: models.LocalAssignment) => {
-    const message = "[Frontend] assignment " + assignment.Title + " deleted"
-    LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
-    deleteMutation.mutate(assignment, {
-      onSuccess: () => {
-        toast.success("Assignment deleted successfully")
-      },
-      onError: () => {
-        toast.error("Assignment deletion failed")
-      }
-    })
-  }
-
 
   /**
    * Handles assignment creation with optimistic UI updates.
@@ -160,11 +102,9 @@ export default function AssignmentsPage() {
    * @param {assignment.LocalAssignment} assignment - The assignment to create
    * @returns {Promise<void>}
    */
-  const handleAddAssignment = async (assignment: models.LocalAssignment) => {
-    const message = "[Frontend] assignment " + assignment.Title + " added"
-    LogInfo(format(new Date(), "yyyy/MM/dd HH:mm:ssxxx") + " " + message)
+  const handleAddAssignment = useCallback((assignment: models.LocalAssignment) => {
     createMutation.mutate(assignment)
-  }
+  }, [createMutation])
 
 
   /**
@@ -211,7 +151,7 @@ export default function AssignmentsPage() {
       <div className="flex flex-col flex-1 relative z-10">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-h1 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            <h1 className="text-h1 text-white">
               Assignments
             </h1>
             <p className="text-body-small text-gray-400 mt-3">Track and manage your coursework deadlines</p>
@@ -256,12 +196,8 @@ export default function AssignmentsPage() {
 
 
             <TabsContent value="week" className="flex flex-col data-[state=active]:flex-1 m-0">
-              <AssignmentsTable
+            <AssignmentsTable
               assignments={weekAssignments || []}
-              onEdit={handleEditAssignment}
-              onDelete={handleDeleteAssignment}
-              onOpenEdit={(assignment) => setSelectedAssignmentEdit(assignment as models.LocalAssignment)}
-              onAssignmentClick={handleAssignmentClick}
               filter={{ course: courseFilter || "all", status: statusFilter || "all", priority: priorityFilter || "all" }}
               isLoading={isLoading}
             />
@@ -269,10 +205,6 @@ export default function AssignmentsPage() {
           <TabsContent value="exam" className="flex flex-col data-[state=active]:flex-1 m-0">
             <AssignmentsTable
               assignments={examAssignments || []}
-              onEdit={handleEditAssignment}
-              onDelete={handleDeleteAssignment}
-              onOpenEdit={(assignment) => setSelectedAssignmentEdit(assignment as models.LocalAssignment)}
-              onAssignmentClick={handleAssignmentClick}
               filter={{ course: courseFilter || "all", status: statusFilter || "all", priority: priorityFilter || "all" }}
               isLoading={isLoading}
             />
@@ -281,8 +213,6 @@ export default function AssignmentsPage() {
           <TabsContent value="calendar" className="flex flex-col data-[state=active]:flex-1 m-0">
             <AssignmentsCalendar
               assignments={assignments || []}
-              onEdit={handleEditAssignment}
-              onAssignmentClick={handleAssignmentClick}
               onDateClick={setSelectedDate}
               isLoading={isLoading}
             />
@@ -291,10 +221,6 @@ export default function AssignmentsPage() {
           <TabsContent value="list" className="flex flex-col  data-[state=active]:flex-1 m-0">
             <AssignmentsTable
               assignments={assignments || []}
-              onEdit={handleEditAssignment}
-              onDelete={handleDeleteAssignment}
-              onAssignmentClick={handleAssignmentClick}
-              onOpenEdit={setSelectedAssignmentEdit}
               filter={{ course: courseFilter || "all", status: statusFilter || "all", priority: priorityFilter || "all" }}
               isLoading={isLoading}
             />
@@ -308,18 +234,9 @@ export default function AssignmentsPage() {
           date={selectedDate}
           assignments={assignments || []}
           onAddAssignment={() => { }}
-          onEdit={handleEditAssignment}
-          onDelete={handleDeleteAssignment}
-          onOpenEdit={setSelectedAssignmentEdit}
           isLoading={updateMutation.isPending}
         />
 
-        <AssignmentEditDialog
-          open={!!selectedAssignmentEdit}
-          setOpen={() => setSelectedAssignmentEdit(null)}
-          assignment={selectedAssignmentEdit!}
-          onEdit={handleEditAssignment}
-        />
       </div>
     </div>
   )

@@ -75,7 +75,7 @@ export function NoteItem({
               <div className="flex-1 space-y-3">
                 <div className="flex gap-3 justify-between items-start">
                   <div className="space-y-1 flex-1 min-w-0">
-                    <h5 className="text-h5 line-clamp-1 tracking-tight ">{note.Title}</h5>
+                    <h5 className="text-h5 font-medium line-clamp-1 tracking-tight ">{note.Title}</h5>
                     <p className="text-caption flex items-center gap-1 line-clamp-1 leading-relaxed">{note.Subject}</p>
                   </div>
                   <div className="flex items-center flex-shrink-0">
@@ -148,7 +148,7 @@ export function NoteItem({
                 </div>
               </div>
   
-              <h5 className="text-h5 line-clamp-2 tracking-tight ">{note.Title}</h5>
+              <h5 className="text-h5 font-medium line-clamp-2 tracking-tight ">{note.Title}</h5>
   
               <div className="w-full h-px bg-gray-600">
   

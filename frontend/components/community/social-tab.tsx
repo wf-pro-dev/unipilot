@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { GlassCard } from "@/components/ui/glass-card"
 import { useMemo } from "react"
 import { AssignmentItem } from "@/components/assignments/assignment-item"
-import { useCreateAssignment, useAssignments } from "@/hooks/use-assignments"
+import { useCreateAssignment, useAssignments, useCopyAssignment } from "@/hooks/use-assignments"
 import { useCreateNote, useNotes } from "@/hooks/use-notes"
 import { NoteItem } from "@/components/notes/note-item"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -34,7 +34,7 @@ export function SocialTab() {
     const { data: assignments } = useAssignments()
     const { data: notes } = useNotes()
 
-    const createMutation = useCreateAssignment()
+    const copyAssignmentMutation = useCopyAssignment()
     const createNoteMutation = useCreateNote()
     const AcceptCourseInvitation = useAcceptCourseInvitation()
     const DeclineCourseInvitation = useDeclineCourseInvitation()
@@ -49,17 +49,20 @@ export function SocialTab() {
       * @param {assignment.LocalAssignment} assignment - The assignment to create
       * @returns {Promise<void>}
       */
-    const handleCopyAssignment = async (assignment: models.Assignment) => {
+    const handleCopyAssignment = async (assignment: models.Assignment, includeDocuments: boolean) => {
         const message = "[Frontend] assignment " + assignment.Title + " added"
         var correspondingCourse = userCourses?.find((c) => c.Code == assignment.CourseCode)
         var newAssignment = models.LocalAssignment.createFrom(assignment)
-        createMutation.mutate({
-            ...newAssignment,
-            Status: "Not started",
-            ParentID: newAssignment.ID,
-            CourseID: correspondingCourse?.ID,
-            RemoteCourseID: correspondingCourse?.RemoteID,
-        } as models.LocalAssignment)
+        copyAssignmentMutation.mutate({
+            assignment: {
+                ...newAssignment,
+                Status: "Not started",
+                ParentID: newAssignment.ID,
+                CourseID: correspondingCourse?.ID,
+                RemoteCourseID: correspondingCourse?.RemoteID,
+            } as models.LocalAssignment,
+            includeDocuments
+        })
 
     }
 
@@ -177,7 +180,7 @@ export function SocialTab() {
 
                         <h3 className="flex items-end gap-2 text-h3">
                             {selectedCluster?.course.Name}
-                            <p className="text-h5 text-text-caption align-baseline">{selectedCluster?.course.Code}</p>
+                            <p className="text-h5 font-medium text-text-caption align-baseline">{selectedCluster?.course.Code}</p>
 
                         </h3>
 
@@ -195,8 +198,8 @@ export function SocialTab() {
                                 <span className="font-normal leading-none uppercase tracking-wider">Notes</span>
                             </TabsTrigger>
                             {selectedCluster && selectedCluster?.users.length > 0 && (
-                                <div className="flex items-center gap-4"> 
-                                <Separator orientation="vertical" className="h-2 w-px bg-gray-300" />
+                                <div className="flex items-center gap-4">
+                                    <Separator orientation="vertical" className="h-2 w-px bg-gray-300" />
                                     <div className="flex items-center gap-2">
                                         <div className="flex items-center">
                                             {selectedCluster?.users.map((user: models.User) => {
@@ -227,6 +230,8 @@ export function SocialTab() {
                                 {filteredAssignments?.map((a) => {
                                     return (
                                         <AssignmentItem
+                                            key={a.ID}
+                                            assignmentId={a.ID}
                                             assignment={a}
                                             variant="outline"
                                             mode="user"
@@ -238,6 +243,15 @@ export function SocialTab() {
 
 
                             </div>
+                        )}
+                        {filteredAssignments?.length === 0 && (
+                            <GlassCard variant="board" className="flex-1 items-center justify-center">
+                                <EmptyState
+                                    icon={FileText}
+                                    title="No assignments found"
+                                    description="Create a new assignment to get started"
+                                />
+                            </GlassCard>
                         )}
                     </TabsContent>
 
@@ -256,6 +270,15 @@ export function SocialTab() {
                                     )
                                 })}
                             </div>
+                        )}
+                        {filteredNotes?.length === 0 && (
+                            <GlassCard variant="board" className="flex-1 items-center justify-center">
+                                <EmptyState
+                                    icon={BookOpenIcon}
+                                    title="No notes found"
+                                    description="Create a new note to get started"
+                                />
+                            </GlassCard>
                         )}
                     </TabsContent>
                 </Tabs>

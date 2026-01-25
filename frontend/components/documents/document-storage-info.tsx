@@ -46,9 +46,9 @@ export function DocumentStorageInfo({ assignmentID }: DocumentStorageInfoProps) 
 
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div className="flex items-center gap-2 text-body text-gray-400">
-          <HardDrive className="w-4 h-4 text-gray-400" />
-          <span className="font-normal leading-none uppercase tracking-wider">Storage</span>
+        <div className="flex items-center space-x-2 text-body font-medium text-gray-400 uppercase tracking-wider">
+          <HardDrive className="w-4 h-4" />
+          <span >Storage</span>
         </div>
         <Button
           type="button"

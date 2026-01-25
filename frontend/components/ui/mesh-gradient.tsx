@@ -4,7 +4,6 @@
 import { useState, useEffect } from 'react';
 
 interface MeshBackgroundProps {
-  children: React.ReactNode;
   animated?: boolean;
   interactive?: boolean;
   density?: 'sparse' | 'balanced' | 'dense';
@@ -13,7 +12,6 @@ interface MeshBackgroundProps {
 }
 
 export function MeshBackground({
-  children,
   animated = true,
   interactive = false,
   density = 'balanced',
@@ -51,7 +49,7 @@ export function MeshBackground({
   
   return (
     <div 
-      className={`mesh-background ${animated ? 'animated' : ''} ${interactive ? 'interactive' : ''}`}
+      className={` mesh-background ${animated ? 'animated' : ''} ${interactive ? 'interactive' : ''}`}
       style={meshStyle}
     >
       {/* Animated orbs */}
@@ -77,10 +75,7 @@ export function MeshBackground({
         />
       )}
       
-      {/* Content */}
-      <div className="mesh-content">
-        {children}
-      </div>
+ 
     </div>
   );
 }

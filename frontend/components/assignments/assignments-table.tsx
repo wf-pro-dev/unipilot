@@ -25,33 +25,25 @@ interface Filter {
 
 interface AssignmentsTableProps {
   assignments: models.LocalAssignment[]
-  onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
-  onDelete: (assignment: models.LocalAssignment) => void
-  onOpenEdit: (assignment: models.LocalAssignment) => void
-  onAssignmentClick: (assignment: models.LocalAssignment) => void
   filter: Filter
   isLoading?: boolean
 }
 
 export function AssignmentsTable({
   assignments,
-  onEdit,
-  onDelete,
-  onOpenEdit,
-  onAssignmentClick,
   filter,
   isLoading = false
 }: AssignmentsTableProps) {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCourseData, setSelectedCourseData] = useState<models.LocalCourse |  undefined>(undefined)
+  const [selectedCourseData, setSelectedCourseData] = useState<models.LocalCourse | undefined>(undefined)
   const [selectedCourse, setSelectedCourse] = useState(filter.course || "all")
   const [selectedStatus, setSelectedStatus] = useState(filter.status || "all")
   const [selectedPriority, setSelectedPriority] = useState(filter.priority || "all")
 
   const { user } = useAuthContext()
   const { data: courses } = useCoursesBySemester(user?.Semester || "FALL 2025")
-  
+
   const searchParams = useSearchParams()
   const currentView = searchParams.get("view") || "week"
 
@@ -111,67 +103,67 @@ export function AssignmentsTable({
     <div className="flex flex-col flex-1 space-y-4">
 
       <GlassCard variant="board" className="flex-grow-0 flex-row">
-        <CardContent className="flex-1 p-5 ">
-          <div className="space-y-4">
-            <div className="flex flex-col lg:flex-row lg:items-center space-x-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search assignments..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-white/5 border-white/10  rounded-xl transition-all duration-300 h-10"
+        <CardContent className="flex-1 p-2">
+          <div className="flex flex-col lg:flex-row lg:items-center space-x-2">
+
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search assignments..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 bg-white/5 border-white/10  rounded-xl transition-all duration-300 h-10"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 m-0 space-y-0">
+
+              <div className="w-36">
+                <CoursesSelect
+                  value={selectedCourse}
+                  onValueChange={onCourseChange}
+                  onCourseChange={setSelectedCourseData}
+                  selectedCourse={selectedCourseData}
                 />
               </div>
 
-              <div className="flex items-center gap-3 m-0 space-y-0">
 
-                <div className="w-36">
-                  <CoursesSelect
-                    value={selectedCourse}
-                    onValueChange={onCourseChange}
-                    onCourseChange={setSelectedCourseData}
-                    selectedCourse={selectedCourseData}
-                  />
-                </div>
+              <Select value={selectedStatus} onValueChange={onStatusChange}>
+                <SelectTrigger className="w-36 bg-white/5 border-white/10 h-10 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-transparent border-none">
+                  <GlassCard variant="board">
+                    <SelectItem value="all" className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">All Statuses</SelectItem>
+                    {statuses.map((status) => (
+                      <SelectItem key={status} value={status} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </GlassCard>
+                </SelectContent>
 
-
-                <Select value={selectedStatus} onValueChange={onStatusChange}>
-                  <SelectTrigger className="w-36 bg-white/5 border-white/10 h-11 rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-transparent border-none">
-                    <GlassCard variant="board">
-                      <SelectItem value="all" className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">All Statuses</SelectItem>
-                      {statuses.map((status) => (
-                        <SelectItem key={status} value={status} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
-                          {status}
-                        </SelectItem>
-                      ))}
-                    </GlassCard>
-                  </SelectContent>
-
-                </Select>
+              </Select>
 
 
-                <Select value={selectedPriority} onValueChange={onPriorityChange}>
-                  <SelectTrigger className="w-36 bg-white/5 border-white/10 h-11 rounded-xl">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-transparent border-none">
-                    <GlassCard variant="board">
-                      <SelectItem value="all" className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">All Priorities</SelectItem>
-                      {priorities.map((priority) => (
-                        <SelectItem key={priority} value={priority} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
-                          {priority}
-                        </SelectItem>
-                      ))}
-                    </GlassCard>
-                  </SelectContent>
-                </Select>
-              </div>
+              <Select value={selectedPriority} onValueChange={onPriorityChange}>
+                <SelectTrigger className="w-36 bg-white/5 border-white/10 h-10 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-transparent border-none">
+                  <GlassCard variant="board">
+                    <SelectItem value="all" className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">All Priorities</SelectItem>
+                    {priorities.map((priority) => (
+                      <SelectItem key={priority} value={priority} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
+                        {priority}
+                      </SelectItem>
+                    ))}
+                  </GlassCard>
+                </SelectContent>
+              </Select>
             </div>
           </div>
+
         </CardContent>
       </GlassCard>
 
@@ -193,10 +185,7 @@ export function AssignmentsTable({
           {filteredAssignments.map((assignment) => (
             <AssignmentItem
               key={assignment.ID}
-              assignment={assignment}
-              onEdit={onEdit}
-              onDelete={(assignment) => onDelete(assignment as models.LocalAssignment)}
-              onOpenEdit={(assignment) => onOpenEdit(assignment as models.LocalAssignment)}
+              assignmentId={assignment.ID}
               disabled={isLoading}
               variant="outline"
             />

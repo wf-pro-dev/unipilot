@@ -256,20 +256,20 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 	progressManager := progress.GetManager()
 
 	// Create progress tracker
-	connTracker := progressManager.Create(localDocument.UploadID, localDocument.FileSize)
+	connTracker := progressManager.Create(*localDocument.UploadID, localDocument.FileSize)
 	connTracker.SetStatus("Connecting to server")
 	connTracker.OnProgress(func(t *progress.Tracker) {
 		snapshot := t.Snapshot()
 		// 40% of the total progress
 
 		if snapshot.Error != nil {
-			runtime.EventsEmit(ctx, fmt.Sprintf("upload:error:%s", localDocument.UploadID), map[string]interface{}{
-				"upload_id": localDocument.UploadID,
+			runtime.EventsEmit(ctx, fmt.Sprintf("upload:error:%s", *localDocument.UploadID), map[string]interface{}{
+				"upload_id": *localDocument.UploadID,
 				"error":     snapshot.Error.Error(),
 			})
 		} else {
 			snapshot.Percentage = 20 + t.Percentage()*0.4
-			runtime.EventsEmit(ctx, fmt.Sprintf("upload:progress:%s", localDocument.UploadID), snapshot)
+			runtime.EventsEmit(ctx, fmt.Sprintf("upload:progress:%s", *localDocument.UploadID), snapshot)
 		}
 
 	})
@@ -288,7 +288,7 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 			},
 		},
 	}
-	go GetProgress(ctx, localDocument.UploadID)
+	go GetProgress(ctx, *localDocument.UploadID, 60)
 	resp, err := httpClient.Do(req)
 	if err != nil {
 
@@ -297,7 +297,7 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 			return nil, fmt.Errorf("upload cancelled")
 		}
 
-		progress.GetManager().Remove(localDocument.UploadID)
+		progress.GetManager().Remove(*localDocument.UploadID)
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
 	defer resp.Body.Close()
@@ -326,7 +326,7 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 // SendDocument remains for metadata-only uploads (no progress tracking)
 // ... keep existing implementation
 
-func DownloadDocument(document *models.LocalDocument) (io.Reader, error) {
+func DownloadDocument(ctx context.Context, document *models.LocalDocument) (io.Reader, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Post(fmt.Sprintf("%s/documents/%d/download", api_url, document.ID))
@@ -336,6 +336,7 @@ func DownloadDocument(document *models.LocalDocument) (io.Reader, error) {
 		return nil, err
 	}
 
+	go GetProgress(ctx, *document.UploadID, 0)
 	statusCode, body, errs := agent.Bytes()
 	if len(errs) > 0 {
 		return nil, errs[0]
@@ -360,7 +361,6 @@ func DeleteDocument(documentID uint) error {
 	if err := SetAuthHeader(agent); err != nil {
 		return err
 	}
-
 	statusCode, _, errs := agent.Bytes()
 	if len(errs) > 0 {
 		return errs[0]
@@ -502,12 +502,10 @@ func GetAssignmentDocumentIDsRAG(assignmentID uint) ([]uint, error) {
 		return nil, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
 	}
 
-	var res struct {
-		DocumentIDs []uint `json:"document_ids"`
-	}
-	if err := json.Unmarshal(body, &res); err != nil {
+	var documentIDs []uint
+	if err := json.Unmarshal(body, &documentIDs); err != nil {
 		return nil, fmt.Errorf("error decoding response: %v", err)
 	}
 
-	return res.DocumentIDs, nil
+	return documentIDs, nil
 }

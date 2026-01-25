@@ -1,7 +1,7 @@
 "use client"
 
 import { createContext, useContext, ReactNode, useEffect, useState } from "react"
-import { useCurrentUser, useGetAuthToken } from "@/hooks/use-auth"
+import { useCurrentUser } from "@/hooks/use-auth"
 import AuthPage from "../auth/page"
 import { models } from "@/wailsjs/go/models"
 import { useFollowers, useFollowing } from "@/hooks/use-follows"
@@ -12,7 +12,6 @@ import { useNotes } from "@/hooks/use-notes"
 
 interface AuthContextType {
   user: models.User | null | undefined
-  token: string | undefined
   followers: models.User[] | undefined
   following: models.User[] | undefined
   users: models.User[] | undefined
@@ -37,8 +36,7 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
 
-  const { data: user } = useCurrentUser()
-  const { data: token, refetch: refetchToken } = useGetAuthToken()
+  const { data: user, isLoading: isLoadingUser } = useCurrentUser()
   const { data: followers, refetch: refetchFollowers } = useFollowers(user?.ID ?? 0)
   const { data: following, refetch: refetchFollowing } = useFollowing(user?.ID ?? 0)
   const { data: users, refetch: refetchUsers } = useUsers()
@@ -48,9 +46,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
 
   useEffect(() => {
-    console.log("auth provider useEffect", user)
     if (user) {
-      refetchToken()
       refetchFollowers()
       refetchFollowing()
       refetchUsers()
@@ -60,13 +56,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [user])
 
+  if (isLoadingUser) {
+    return <div>Loading...</div>
+  }
 
   return (
 
     <div>
       {
         user ? (
-          <AuthContext.Provider value={{ user, token, followers, following, users, courses, assignments, notes }
+          <AuthContext.Provider value={{ user, followers, following, users, courses, assignments, notes }
           }>
             {children}
           </AuthContext.Provider >

@@ -189,6 +189,41 @@ func (a *App) CreateAssignment(assignmentData *models.LocalAssignment) (*models.
 	return localAssignment, nil
 }
 
+func (a *App) CopyAssignment(assignment *models.LocalAssignment, includeDocuments bool) error {
+
+	if a.DB == nil {
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
+	}
+
+	newAssignment, err := a.CreateAssignment(assignment)
+	if err != nil {
+		return Errors.Wrap(err, Errors.InternalError, "Failed to create assignment")
+	}
+
+	if includeDocuments {
+		for _, document := range assignment.Documents {
+			_, err := a.CreateDocument(fileops.FileUploadRequest{
+				AssignmentID:       newAssignment.ID,
+				RemoteAssignmentID: newAssignment.RemoteID,
+				UserID:             a.Auth.User.ID,
+				Type:               document.Type,
+				FileName:           document.FileName,
+				FileSize:           document.FileSize,
+				StorageKey:         document.StorageKey,
+			}, false)
+			if err != nil {
+				return Errors.Wrap(err, Errors.InternalError, "Failed to create document")
+			}
+		}
+	}
+
+	return nil
+}
+
 // CreateCourse creates a new course
 func (a *App) CreateCourse(courseData *models.LocalCourse) error {
 	if a.DB == nil {
@@ -382,7 +417,7 @@ func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documen
 
 	// Create upload request
 	uploadReq := fileops.FileUploadRequest{
-		UploadID:           uploadID,
+		UploadID:           &uploadID,
 		AssignmentID:       assignmentID,
 		RemoteAssignmentID: remoteAssignmentID,
 		UserID:             a.Auth.User.ID,
@@ -536,7 +571,7 @@ func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse)
 	progressManager := progress.GetManager()
 
 	// Create progress tracker
-	tracker := progressManager.Create(document.UploadID, document.FileSize)
+	tracker := progressManager.Create(*document.UploadID, document.FileSize)
 	tracker.SetStatus("starting")
 
 	// Register progress callback to emit events to frontend
@@ -544,27 +579,27 @@ func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse)
 		snapshot := t.Snapshot()
 
 		if snapshot.Error != nil {
-			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:error:%s", document.UploadID), map[string]interface{}{
-				"upload_id": document.UploadID,
+			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:error:%s", *document.UploadID), map[string]interface{}{
+				"upload_id": *document.UploadID,
 				"error":     snapshot.Error.Error(),
 			})
 		} else {
 			snapshot.Percentage = snapshot.Percentage * 0.2
-			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:progress:%s", document.UploadID), snapshot)
+			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:progress:%s", *document.UploadID), snapshot)
 		}
 
 	})
 
 	// Emit started event
-	runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:started:%s", document.UploadID), map[string]string{
-		"upload_id": document.UploadID,
+	runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:started:%s", *document.UploadID), map[string]string{
+		"upload_id": *document.UploadID,
 		"file_name": document.FileName,
 	})
 
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(a.ctx)
-	progress.StoreCancelFunc(document.UploadID, cancel)
-	defer progress.RemoveCancelFunc(document.UploadID)
+	progress.StoreCancelFunc(*document.UploadID, cancel)
+	defer progress.RemoveCancelFunc(*document.UploadID)
 
 	// Perform upload with progress tracking
 	response, err := a.sendDocumentWithProgress(ctx, uploadResp, tracker)
@@ -652,7 +687,7 @@ func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse) (*models.Loca
 }
 
 // DownloadDocument retrieves a document file for download
-func (a *App) DownloadDocument(doc *models.LocalDocument) error {
+func (a *App) DownloadDocument(document *models.LocalDocument) error {
 
 	if a.DB == nil {
 		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
@@ -661,7 +696,7 @@ func (a *App) DownloadDocument(doc *models.LocalDocument) error {
 	db := a.DB.GetDB()
 
 	// Send document to Server to create remote document & download from cloud
-	downloadResp, err := client.DownloadDocument(doc)
+	downloadResp, err := client.DownloadDocument(a.ctx, document)
 	if err != nil {
 		return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to download document")
 	}
@@ -672,7 +707,7 @@ func (a *App) DownloadDocument(doc *models.LocalDocument) error {
 	}
 
 	// write file to disk
-	if _, err := fileops.WriteDocument(doc, downloadResp, db); err != nil {
+	if _, err := fileops.WriteDocument(document, downloadResp, db); err != nil {
 		return Errors.Wrap(err, Errors.FSWriteFailed, "Failed to write file")
 	}
 
@@ -1455,7 +1490,7 @@ func (a *App) Sync() error {
 }
 
 func (a *App) GetAuthToken() (string, error) {
-	token, err := client.LoadToken()
+	token, err := client.GetAuthToken()
 	if err != nil {
 		return "", err
 	}
@@ -1491,7 +1526,12 @@ func (a *App) GetAssignments() ([]models.LocalAssignment, error) {
 	if a.DB == nil {
 		return []models.LocalAssignment{}, nil
 	}
-	assignments, err := models.GetLAssignments(a.DB.GetDB().Preload("Course").Preload("Documents"))
+	assignments, err := models.GetLAssignments(
+		a.DB.GetDB().
+			Preload("Course").
+			Preload("Documents").
+			Order("deadline DESC").
+			Order("created_at DESC"))
 	if err != nil {
 		return nil, Errors.HandleDBReadError(err)
 	}

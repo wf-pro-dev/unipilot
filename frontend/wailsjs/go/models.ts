@@ -85,7 +85,7 @@ export namespace client {
 export namespace fileops {
 	
 	export class FileUploadRequest {
-	    UploadID: string;
+	    UploadID?: string;
 	    AssignmentID: number;
 	    RemoteAssignmentID: number;
 	    UserID: number;
@@ -768,7 +768,7 @@ export namespace models {
 	    AssignmentID: number;
 	    RemoteID: number;
 	    RemoteAssignmentID: number;
-	    UploadID: string;
+	    UploadID?: string;
 	    Assignment: LocalAssignment;
 	    Parent?: LocalDocument;
 	    ParentDoc?: LocalDocument;

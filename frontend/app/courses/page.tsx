@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { AddCourseDialog } from "@/components/courses/add-course-dialog"
+import { CourseAddDialog } from "@/components/courses/course-add-dialog"
 import { CourseDetailsModal } from "@/components/courses/course-details-modal"
 import { Loader2, Calendar, List } from "lucide-react"
 import { useCourses, useCreateCourse, useDeleteCourse, useUpdateCourse } from "@/hooks/use-courses"
@@ -11,10 +11,9 @@ import CoursesSchedule from "@/components/courses/courses-schedule"
 import CoursesTable from "@/components/courses/courses-table"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
-import { course } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { CourseDeleteDialog } from "./course-delete-dialog"
 import { LinkRequestModal } from "@/components/community/link-request-modal"
-import { LinkedResources } from "@/components/courses/linked-resources"
 import { Link as LinkIcon } from "lucide-react"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { useAuthContext } from "@/components/provider/auth-provider"
@@ -118,7 +117,7 @@ export default function CoursesPage() {
   }, [currentCourse, courses])
 
   // Valid view values for tab navigation
-  const validViews = ["schedule", "list", "linked"]
+  const validViews = ["schedule", "list"]
 
   // Validate and sanitize view parameter to prevent invalid states
   const activeView = validViews.includes(currentView) ? currentView : "schedule"
@@ -141,7 +140,7 @@ export default function CoursesPage() {
    * @param {string} value - The new value for the field
    * @returns {Promise<void>}
    */
-  const handleEditCourse = async (courseData: course.LocalCourse, column: string, value: string) => {
+  const handleEditCourse = async (courseData: models.LocalCourse, column: string, value: string) => {
     const message = "course " + courseData.Code + " " + column + " changed to " + value
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
 
@@ -162,7 +161,7 @@ export default function CoursesPage() {
    * @param {course.LocalCourse} course - The course to delete
    * @returns {Promise<void>}
    */
-  const handleDeleteCourse = async (course: course.LocalCourse) => {
+  const handleDeleteCourse = async (course: models.LocalCourse) => {
     const message = "course " + course.Code + " deleted"
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     deleteMutation.mutate(course)
@@ -177,7 +176,7 @@ export default function CoursesPage() {
    * @param {course.LocalCourse} course - The course to create
    * @returns {Promise<void>}
    */
-  const handleAddCourse = async (course: course.LocalCourse) => {
+  const handleAddCourse = async (course: models.LocalCourse) => {
     const message = "course " + course.Code + " added"
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     createMutation.mutate(course)
@@ -188,7 +187,7 @@ export default function CoursesPage() {
    * 
    * @param {course.LocalCourse} course - The course that was clicked
    */
-  const handleCourseClick = (course: course.LocalCourse) => {
+  const handleCourseClick = (course: models.LocalCourse) => {
     setSelectedCourseId(course.ID)
   }
 
@@ -197,7 +196,7 @@ export default function CoursesPage() {
    * 
    * @param {course.LocalCourse} course - The course to delete
    */
-  const handleDeleteCourseClick = (course: course.LocalCourse) => {
+  const handleDeleteCourseClick = (course: models.LocalCourse) => {
     setSelectedDeleteCourseId(course.ID)
   }
 
@@ -246,14 +245,14 @@ export default function CoursesPage() {
         {/* Page header with course count and add course button */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-h1 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
+            <h1 className="text-h1 text-white">
               Courses
             </h1>
             <p className="mt-3 text-body-small text-gray-400">
               Manage your enrolled courses ({courses.length} total)
             </p>
           </div>
-          <AddCourseDialog onAdd={handleAddCourse} />
+          <CourseAddDialog onAdd={handleAddCourse} />
         </div>
 
         {/* Tab navigation with URL synchronization */}
@@ -267,13 +266,7 @@ export default function CoursesPage() {
                 <Calendar className="w-4 h-4" />
                 <span className="hidden sm:inline text-sm font-medium">Schedule</span>
               </TabsTrigger>
-              <TabsTrigger
-                value="linked"
-                className="flex w-60 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
-              >
-                <LinkIcon className="w-4 h-4" />
-                <span className="hidden sm:inline text-sm font-medium">Linked</span>
-              </TabsTrigger>
+             
               <TabsTrigger
                 value="list"
                 className="flex w-60 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
@@ -314,16 +307,11 @@ export default function CoursesPage() {
             />
           </TabsContent>
 
-           {/* Linked Resources View */}
-           <TabsContent value="linked" className="flex flex-col data-[state=active]:flex-1 m-0">
-            <LinkedResources />
-          </TabsContent>
-
           {/* List view: Table-based course display with filtering */}
           <TabsContent value="list" className="flex flex-col data-[state=active]:flex-1 m-0">
             <CoursesTable
               courses={courses || []}
-              filter={{ semester: semester || "all", instructor: instructor || "all" }}
+              filter={{ semester: semester || null, instructor: instructor || null }}
               onCourseClick={handleCourseClick}
               onEdit={handleEditCourse}
               onDelete={handleDeleteCourseClick}

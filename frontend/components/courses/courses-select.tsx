@@ -51,22 +51,20 @@ export function CoursesSelect({
     }
   }
 
-  console.log("selectedCourse", selectedCourse)
-
   return (
     <Select value={value} onValueChange={handleValueChange}>
-      <SelectTrigger className="bg-white/5 border-white/10 h-11 rounded-xl">
-        {selectedCourse && (
+      <SelectTrigger className="bg-white/5 border-white/10 text-gray-400 h-10 rounded-xl">
+        {selectedCourse && ( 
           <div className="flex items-center gap-2">
             <div className={` h-2 w-2 rounded-full ${selectedCourse?.Color}`} />
-            <p className="line-clamp-1">
+            <p className="line-clamp-1 text-body text-white">
               {selectedCourse?.Code}
             </p>
           </div>
         )}
 
         {!selectedCourse && (
-          <SelectValue placeholder="Select course" />
+          <SelectValue  placeholder="Select course" />
         )}
       </SelectTrigger>
 

@@ -1,20 +1,25 @@
 "use client"
-
+import { useCallback, useState } from "react"
 import { useDrag } from "react-dnd"
 import { models } from "@/wailsjs/go/models"
 import { parseDeadline } from "@/lib/date-utils"
 import { StatusTag } from "./tags/status-tag"
-import { useState } from "react"
-import { AssignmentDetailsModal } from "./assignment-details-modal"
+import { AssignmentDetailsDialog } from "./assignment-details-dialog"
+import { useAssignment, useUpdateAssignment, useDeleteAssignment } from "@/hooks/use-assignments"
 
 interface CalendarItemProps {
-  assignment: models.LocalAssignment
-  onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
+  assignmentId: number
 }
 
-export function CalendarItem({ assignment, onEdit }: CalendarItemProps) {
+export function CalendarItem({ assignmentId }: CalendarItemProps) {
+
+  const { data: assignment } = useAssignment(assignmentId)
+  if (!assignment) return null
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  
+  const updateMutation = useUpdateAssignment()
+  const deleteMutation = useDeleteAssignment()
 
   const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation()
@@ -39,6 +44,37 @@ export function CalendarItem({ assignment, onEdit }: CalendarItemProps) {
   }[assignment.Priority?.toLowerCase() || "low"] || "bg-gray-500"
 
   const isDone = assignment.Status === "Done"
+
+
+  /**
+   * Handles assignment field updates with optimistic UI updates.
+   * 
+   * Updates a specific field of an assignment and provides immediate UI feedback
+   * through optimistic updates. Logs the change and shows success/error toast notifications.
+   * 
+   * @param {assignment.LocalAssignment} assignment - The assignment to update
+   * @param {string} column - The field name to update (e.g., "status", "deadline")
+   * @param {string} value - The new value for the field
+   * @returns {Promise<void>}
+   */
+  const handleEditAssignment = useCallback((assignment: models.LocalAssignment, column: string, value: string) => {
+    updateMutation.mutate({ assignment, column, value })
+  }, [updateMutation])
+
+
+  /**
+   * Handles assignment deletion with optimistic UI updates.
+   * 
+   * Deletes an assignment and provides immediate UI feedback. Logs the deletion
+   * and shows success/error toast notifications.
+   * 
+   * @param {assignment.LocalAssignment} assignment - The assignment to delete
+   * @returns {Promise<void>}
+   */
+  const handleDeleteAssignment = useCallback((assignment: models.LocalAssignment) => {
+    deleteMutation.mutate(assignment)
+  }, [deleteMutation])
+
 
   return (
     <div>
@@ -74,24 +110,25 @@ export function CalendarItem({ assignment, onEdit }: CalendarItemProps) {
             </div>
 
             {/* Title */}
-            <h5 className={`text-h5 truncate leading-tight drop-shadow-sm ${isDone ? "line-through text-white/30" : "text-white"}`}>
+            <h5 className={`text-h5 font-medium truncate leading-tight drop-shadow-sm ${isDone ? "line-through text-white/30" : "text-white"}`}>
               {assignment.Title}
             </h5>
 
             {/* Footer: Tags */}
             <div className="flex items-center justify-between pt-0.5">
               <div className="scale-[0.85] origin-left -ml-1 transition-opacity">
-                <StatusTag variant="outline" assignment={assignment} onEdit={onEdit} />
+                <StatusTag variant="outline" assignment={assignment} onEdit={handleEditAssignment} />
               </div>
             </div>
           </div>
         </div>
       </div>
-      <AssignmentDetailsModal
+      <AssignmentDetailsDialog
         isOpen={isDetailsOpen}
+        assignmentId={assignment.ID}
         onClose={() => setIsDetailsOpen(false)}
-        assignment={assignment}
-        onEdit={onEdit}
+        onEdit={handleEditAssignment}
+        onDelete={handleDeleteAssignment}
       />
     </div>
   )

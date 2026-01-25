@@ -15,10 +15,11 @@ func (m *Manager) syncAssignment(syncLog models.LocalSync, remoteAssignments []m
 	switch syncLog.Action {
 	case "create":
 		return m.syncAssignmentCreate(syncLog)
-	case "update", "delete":
-		return m.syncAssignmentUpdate(syncLog, remoteAssignments)
+	// case "update", "delete":
+	// 	return m.syncAssignmentUpdate(syncLog, remoteAssignments)
 	default:
-		return errors.NewAppError(errors.SyncFailed, "Unknown action: "+syncLog.Action, nil)
+		log.Printf("[Sync] Unknown action: %s", syncLog.Action)
+		return nil
 	}
 }
 

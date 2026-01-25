@@ -30,7 +30,7 @@ func GetAuthAgent(agent *fiber.Agent) (*fiber.Agent, error) {
 
 // SetAuthHeader sets the Authorization header on a fiber agent with automatic token refresh
 func SetAuthHeader(agent *fiber.Agent) error {
-	token, err := getAuthToken()
+	token, err := GetAuthToken()
 	if err != nil {
 		return err
 	}
@@ -43,7 +43,7 @@ func SetAuthHeader(agent *fiber.Agent) error {
 	return nil
 }
 
-func getAuthToken() (string, error) {
+func GetAuthToken() (string, error) {
 	token, err := LoadToken()
 	if err != nil {
 		return "", errors.Wrap(err, errors.FSFileNotFound, "Failed to load token")
@@ -105,7 +105,7 @@ func doRefresh() (string, error) {
 
 // SetAuthHeaderRequest sets the Authorization header on an http.Request with automatic token refresh
 func SetAuthHeaderRequest(req *http.Request) error {
-	token, err := getAuthToken()
+	token, err := GetAuthToken()
 	if err != nil {
 		return err
 	}

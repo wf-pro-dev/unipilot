@@ -28,6 +28,8 @@ const (
 )
 
 var SupportedFileTypes = map[string]bool{
+
+	// Binary files
 	".pdf":  true,
 	".doc":  true,
 	".docx": true,
@@ -35,14 +37,30 @@ var SupportedFileTypes = map[string]bool{
 	".pptx": true,
 	".xls":  false,
 	".xlsx": false,
-	".txt":  true,
-	".md":   true,
+
+	// Images
 	".png":  false,
 	".jpg":  false,
 	".jpeg": false,
 	".gif":  false,
 	".bmp":  false,
 	".svg":  false,
+
+	// Text files
+	".txt":  true,
+	".md":   true,
+	".cpp":  true,
+	".java": true,
+	".py":   true,
+	".js":   true,
+	".ts":   true,
+	".html": true,
+	".css":  true,
+	".scss": true,
+	".sass": true,
+	".go":   true,
+	".php":  true,
+	".sh":   true,
 }
 
 type BaseDocument struct {
@@ -65,7 +83,7 @@ type Document struct {
 	gorm.Model
 	BaseDocument
 
-	StorageKey string `gorm:"unique"` // Adds unique Gorm constraint
+	StorageKey string `gorm:"unique"`
 	UserID     uint   `gorm:"not null;index" validate:"required,min=1"`
 
 	// Relationships
@@ -81,9 +99,9 @@ type LocalDocument struct {
 	gorm.Model
 	BaseDocument
 
-	RemoteID           uint   `gorm:"unique;default:null" validate:"omitempty,min=1"`
-	RemoteAssignmentID uint   `gorm:"default:null" validate:"omitempty,min=1"`
-	UploadID           string `gorm:"unique;default:null" validate:"omitempty,min=1"` // For tracking upload progress
+	RemoteID           uint    `gorm:"unique;default:null" validate:"omitempty,min=1"`
+	RemoteAssignmentID uint    `gorm:"default:null" validate:"omitempty,min=1"`
+	UploadID           *string `gorm:"unique;default:null" validate:"omitempty,min=1"`
 
 	// Local relationships
 	Assignment LocalAssignment `gorm:"foreignKey:AssignmentID;references:ID" validate:"-"`
@@ -131,6 +149,7 @@ func (ld *LocalDocument) ToRemote() *Document {
 
 	return &Document{
 		BaseDocument: baseDocument,
+		StorageKey:   ld.StorageKey,
 	}
 }
 
@@ -156,7 +175,7 @@ func (bd *BaseDocument) Validate() error {
 	// Validate file size
 	if bd.FileSize > MaxFileSize {
 
-		return errors.Wrap(fmt.Errorf("file size exceeds limit of %d MB", MaxFileSize/(1024*1024)), errors.ValidationInvalid, "File size exceeds limit")
+		return errors.Wrap(fmt.Errorf("file size exceeds limit of 50MB"), errors.ValidationInvalid, "File size exceeds limit")
 	}
 
 	if err := validator.New().Struct(bd); err != nil {
@@ -196,7 +215,7 @@ func (ld *LocalDocument) Validate(db *gorm.DB) error {
 // ValidateFileType checks if the file extension is supported
 func ValidateFileType(fileName string) error {
 	ext := strings.ToLower(filepath.Ext(fileName))
-	if !SupportedFileTypes[ext] {
+	if _, ok := SupportedFileTypes[ext]; !ok {
 		return errors.Wrap(fmt.Errorf("file type %s is not supported", ext), errors.FSFileTypeNotSupported, "File type not supported")
 	}
 	return nil
@@ -551,6 +570,7 @@ func GetLocalStorageInfo(db *gorm.DB) (*DocumentStorage, error) {
 
 	err := db.Model(&LocalDocument{}).
 		Select("COALESCE(SUM(file_size), 0), COUNT(*)").
+		Where("has_local_file = ?", true).
 		Row().Scan(&totalSize, &documentCount)
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
@@ -574,6 +594,7 @@ func GetLocalAssignmentStorage(assignmentID uint, db *gorm.DB) (*LocalAssignment
 	err = db.Model(&LocalDocument{}).
 		Where("assignment_id = ?", assignmentID).
 		Select("COALESCE(SUM(file_size), 0), COUNT(*)").
+		Where("has_local_file = ?", true).
 		Row().Scan(&size, &documentCount)
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)

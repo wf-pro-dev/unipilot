@@ -18,7 +18,7 @@ import (
 
 // FileUploadRequest represents a file upload request
 type FileUploadRequest struct {
-	UploadID           string
+	UploadID           *string
 	AssignmentID       uint
 	RemoteAssignmentID uint
 	UserID             uint
@@ -43,7 +43,7 @@ func PickFile(ctx context.Context) (string, error) {
 	filters := []runtime.FileFilter{
 		{
 			DisplayName: "Documents",
-			Pattern:     "*.pdf;*.doc;*.docx;*.ppt;*.pptx;*.xls;*.xlsx;*.txt;*.md",
+			Pattern:     "*.pdf;*.doc;*.docx;*.ppt;*.pptx;*.xls;*.xlsx;*.txt;*.md;*.html",
 		},
 		{
 			DisplayName: "Images",
@@ -105,7 +105,10 @@ func WriteDocument(document *models.LocalDocument, fileContent io.Reader, db *go
 
 	// Update HasLocalFile to true after successful write
 	document.HasLocalFile = true
-	if err := db.Model(&document).Update("has_local_file", true).Error; err != nil {
+	if err := db.Model(&document).Updates(map[string]interface{}{
+		"has_local_file": true,
+		"upload_id":      document.UploadID,
+	}).Error; err != nil {
 		return &FileUploadResponse{
 			Success: false,
 			Message: "Failed to update document",

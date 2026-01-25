@@ -38,8 +38,6 @@ export function useCurrentUser() {
     queryFn: async () => {
       try {
         const user = await GetCurrentUser()
-        console.log("cache", authKeys.user)
-        console.log("useCurrentUser", user)
         return user
       } catch (error) {
         LogError("Failed to check authentication: " + error)
@@ -49,22 +47,7 @@ export function useCurrentUser() {
   })
 }
 
-export function useGetAuthToken() {
-  return useQuery({
-    queryKey: authKeys.token,
-    queryFn: async () : Promise<string> => {
-      try {
-        var token = await GetAuthToken()
-        return token
-      } catch (error) {
-        LogError("Failed to get auth token: " + error)
-        throw error
-      }
-    },
-    retry: false, // Don't retry if authentication fails ! IMPORTANT
-    
-  })
-}
+
 
 // Login mutation
 export function useLogin() {

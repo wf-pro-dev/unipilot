@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Calendar, Edit, Trash2, FileText, ExternalLink, Info, Bot, Clock, Link as LinkIcon, CopyPlus } from "lucide-react"
+import { Edit, Trash2, FileText, ExternalLink, Info, Bot, Clock, CopyPlus } from "lucide-react"
 import { format } from "date-fns"
 import { models } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
@@ -12,37 +12,45 @@ import { BrowserOpenURL } from "@/wailsjs/runtime/runtime"
 import { StatusTag } from "@/components/assignments/tags/status-tag"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
 import { TypeTag } from "./tags/type-tag"
-import { useAssignments } from "@/hooks/use-assignments"
+import { useAssignment } from "@/hooks/use-assignments"
 import { PriorityTag } from "./tags/priority-tag"
 import { useRouter } from "next/navigation"
 import FileUpload05 from "../file-upload-05"
 import { AnimatePresence, motion } from "framer-motion"
 
-interface AssignmentDetailsModalProps<T extends models.LocalAssignment | models.Assignment> {
+interface AssignmentDetailsDialogProps {
   isOpen: boolean
   onClose: () => void
-  assignment: T
-  onOpenEdit?: (assignment: models.LocalAssignment) => void
+  assignmentId: number
+  assignmentRO?: models.Assignment
+  handleEditOpen?: () => void
   onEdit?: (assignment: models.LocalAssignment, column: string, value: string) => void
   onDelete?: (assignment: models.LocalAssignment) => void
-  onCopy?: (assignment: models.Assignment) => void
+  onCopy?: (assignment: models.Assignment, includeDocuments: boolean) => void
   mode?: "default" | "readonly"
 }
 
-export function AssignmentDetailsModal({
+const AssignmentDetailsDialog = ({
   isOpen,
   onClose,
-  assignment,
-  onOpenEdit,
+  assignmentId,
+  assignmentRO,
+  handleEditOpen,
   onEdit,
   onDelete,
-  onCopy,
+  onCopy, 
   mode = "default",
-}: AssignmentDetailsModalProps<models.LocalAssignment | models.Assignment>) {
+}: AssignmentDetailsDialogProps) => {
+  
+  const { data: assignmentData } = useAssignment(assignmentId)
 
+  var assignment = mode == "default" ?  assignmentData as models.LocalAssignment : assignmentRO
+  
   if (!assignment) return null
 
-  const { Title, Deadline, Status, Priority, Type, Todo, Documents, Course, Link } = assignment
+  const [includeDocuments, setIncludeDocuments] = useState(true)
+
+  const { Title, Deadline, Status, Priority, Type, Todo, Course, Link } = assignment
 
   const router = useRouter()
 
@@ -167,8 +175,8 @@ export function AssignmentDetailsModal({
                   {/* Description */}
                   {assignment.Todo && (
                     <div className="space-y-2">
-                      <div className="flex items-center space-x-2 text-xs font-medium text-gray-400 uppercase tracking-wider">
-                        <FileText className="w-3.5 h-3.5" />
+                      <div className="flex items-center space-x-2 text-body font-medium text-gray-400 uppercase tracking-wider">
+                        <FileText className="w-4 h-4" />
                         <span>Description & Notes</span>
                       </div>
                       <div className="bg-white/5 border border-white/5 p-4 rounded-xl  overflow-y-auto custom-scrollbar max-h-[100px] hover:max-h-[200px] transition-all duration-300 ease-in-out">
@@ -193,6 +201,8 @@ export function AssignmentDetailsModal({
                   <FileUpload05
                     assignment={assignment as models.LocalAssignment}
                     mode={mode}
+                    includeDocuments={includeDocuments}
+                    setIncludeDocuments={setIncludeDocuments}
                   />
                 </motion.div>
               </TabsContent>
@@ -210,7 +220,7 @@ export function AssignmentDetailsModal({
                 variant="outline"
                 size="sm"
                 className="rounded-full"
-                onClick={() => router.push(`/chat?assignment=${assignment.ID}`)}
+                onClick={() => router.push(`/chat?assignment=${assignmentId}`)}
               >
                 <Bot className="w-4 h-4" />
                 <span>AI Help</span>
@@ -227,7 +237,7 @@ export function AssignmentDetailsModal({
                 className="rounded-full"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onOpenEdit?.(assignment as models.LocalAssignment)
+                  handleEditOpen?.()
                 }}
               >
                 <Edit className="w-4 h-4" />
@@ -255,7 +265,7 @@ export function AssignmentDetailsModal({
                 className=" rounded-full"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onCopy?.(assignment as models.Assignment)
+                  onCopy?.(assignment as models.Assignment, includeDocuments)
                 }}
               >
 
@@ -284,3 +294,5 @@ export function AssignmentDetailsModal({
     </Dialog >
   )
 }
+
+export { AssignmentDetailsDialog }

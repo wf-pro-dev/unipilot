@@ -23,8 +23,9 @@ import {
   CourseValues,
   courseSchema
 } from "./shema"
+import { FormErrorMessage } from "../auth/form-error-message"
 
-interface AddCourseDialogProps {
+interface CourseAddDialogProps {
   onAdd: (course: models.LocalCourse) => void
 }
 
@@ -52,10 +53,11 @@ const semesters = [
   { name: "SUMMER 2028", value: "SUMMER 2028" },
 ]
 
-export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
+export function CourseAddDialog({ onAdd }: CourseAddDialogProps) {
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState(1)
   const [step1Attempted, setStep1Attempted] = useState(false)
+  const [step2Attempted, setStep2Attempted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const form = useForm<CourseValues>({
@@ -82,6 +84,7 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
       const step1Valid = await form.trigger(["name", "code", "credits", "semester"])
       if (step1Valid) setStep(2)
     } else if (step === 2) {
+      setStep2Attempted(true)
       const step2Valid = await form.trigger(["schedule", "location", "startDate", "endDate"])
       if (step2Valid) setStep(3)
     }
@@ -123,15 +126,32 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
     if (!isOpen) {
       setStep(1)
       setStep1Attempted(false)
+      setStep2Attempted(false)
       form.reset()
+    }
+  }
+
+  const handleErrorResolved = () => {
+    if (step === 1) {
+      setTimeout(() => {
+        setStep1Attempted(false)
+      }, 200)
+    }
+    if (step === 2) {
+      setTimeout(() => {
+        setStep2Attempted(false)
+      }, 200)
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="default" className="text-body bg-white/10 hover:bg-white/20 border-white/20">
-          <Plus className="mr-2 w-4 h-4" />
+        <Button
+          type="button"
+          variant="default"
+          className="text-body text-black">
+          <Plus className="h-4 w-4" strokeWidth={2} />
           Add Course
         </Button>
       </DialogTrigger>
@@ -188,9 +208,12 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                                 />
                               </FormControl>
                             </div>
-                            {fieldState.error && (
-                              <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                            )}
+                            <FormErrorMessage
+                              fieldState={fieldState}
+                              formState={form.formState}
+                              config={{ strategy: "onStepAttempt", submitAttempted: step1Attempted }}
+                              onErrorResolved={handleErrorResolved}
+                            />
                           </FormItem>
                         )}
                       />
@@ -215,9 +238,12 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                                 />
                               </FormControl>
                             </div>
-                            {fieldState.error && (
-                              <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                            )}
+                            <FormErrorMessage
+                              fieldState={fieldState}
+                              formState={form.formState}
+                              config={{ strategy: "onStepAttempt", stepAttempted: step1Attempted }}
+                              onErrorResolved={handleErrorResolved}
+                            />
                           </FormItem>
                         )}
                       />
@@ -244,9 +270,12 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                                 />
                               </FormControl>
                             </div>
-                            {fieldState.error && (
-                              <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                            )}
+                            <FormErrorMessage
+                              fieldState={fieldState}
+                              formState={form.formState}
+                              config={{ strategy: "onStepAttempt", stepAttempted: step1Attempted }}
+                              onErrorResolved={handleErrorResolved}
+                            />
                           </FormItem>
                         )}
                       />
@@ -273,9 +302,12 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                                 ))}
                               </SelectContent>
                             </Select>
-                            {fieldState.error && (
-                              <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                            )}
+                            <FormErrorMessage
+                              fieldState={fieldState}
+                              formState={form.formState}
+                              config={{ strategy: "onStepAttempt", stepAttempted: step1Attempted }}
+                              onErrorResolved={handleErrorResolved}
+                            />
                           </FormItem>
                         )}
                       />
@@ -320,9 +352,12 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                               />
                             </FormControl>
                           </div>
-                          {fieldState.error && (
-                            <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                          )}
+                          <FormErrorMessage
+                            fieldState={fieldState}
+                            formState={form.formState}
+                            config={{ strategy: "onStepAttempt", stepAttempted: step2Attempted }}
+                            onErrorResolved={handleErrorResolved}
+                          />
                           <p className="text-xs text-gray-400 mt-1 ml-1">
                             Format: Days (M, T, W, Th, F, Sa, Su) followed by time
                           </p>
@@ -350,9 +385,12 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                               />
                             </FormControl>
                           </div>
-                          {fieldState.error && (
-                            <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                          )}
+                          <FormErrorMessage
+                            fieldState={fieldState}
+                            formState={form.formState}
+                            config={{ strategy: "onStepAttempt", stepAttempted: step2Attempted }}
+                            onErrorResolved={handleErrorResolved}
+                          />
                         </FormItem>
                       )}
                     />
@@ -389,9 +427,12 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                                 />
                               </PopoverContent>
                             </Popover>
-                            {fieldState.error && (
-                              <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                            )}
+                            <FormErrorMessage
+                              fieldState={fieldState}
+                              formState={form.formState}
+                              config={{ strategy: "onStepAttempt", stepAttempted: step2Attempted }}
+                              onErrorResolved={handleErrorResolved}
+                            />
                           </FormItem>
                         )}
                       />
@@ -427,9 +468,12 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                                 />
                               </PopoverContent>
                             </Popover>
-                            {fieldState.error && (
-                              <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                            )}
+                            <FormErrorMessage
+                              fieldState={fieldState}
+                              formState={form.formState}
+                              config={{ strategy: "onStepAttempt", stepAttempted: step2Attempted }}
+                              onErrorResolved={handleErrorResolved}
+                            />
                           </FormItem>
                         )}
                       />
@@ -485,9 +529,12 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                                 />
                               </FormControl>
                             </div>
-                            {fieldState.error && (
-                              <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                            )}
+                            <FormErrorMessage
+                              fieldState={fieldState}
+                              formState={form.formState}
+                              config={{ strategy: "onSubmit", submitAttempted: isSubmitting }}
+                              onErrorResolved={handleErrorResolved}
+                            />
                           </FormItem>
                         )}
                       />
@@ -512,9 +559,12 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                                 />
                               </FormControl>
                             </div>
-                            {fieldState.error && (
-                              <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                            )}
+                            <FormErrorMessage
+                              fieldState={fieldState}
+                              formState={form.formState}
+                              config={{ strategy: "onSubmit", submitAttempted: isSubmitting }}
+                              onErrorResolved={handleErrorResolved}
+                            />
                           </FormItem>
                         )}
                       />
@@ -550,9 +600,12 @@ export function AddCourseDialog({ onAdd }: AddCourseDialogProps) {
                               </SelectContent>
                             </Select>
                           </div>
-                          {fieldState.error && (
-                            <p className="text-xs text-red-400 mt-1 ml-1">{fieldState.error.message}</p>
-                          )}
+                          <FormErrorMessage
+                            fieldState={fieldState}
+                            formState={form.formState}
+                            config={{ strategy: "onSubmit", submitAttempted: isSubmitting }}
+                            onErrorResolved={handleErrorResolved}
+                          />
                         </FormItem>
                       )}
                     />

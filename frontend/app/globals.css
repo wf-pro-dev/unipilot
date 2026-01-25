@@ -293,15 +293,15 @@
   }
 
   .text-h5 {
-    @apply text-[16px] leading-[24px] font-medium  tracking-tight;
+    @apply text-[16px] leading-[24px] tracking-tight;
   }
   
   .text-body {
-    @apply text-[14px] leading-[24px] font-normal;
+    @apply text-[14px] leading-[24px];
   }
   
   .text-caption {
-    @apply text-[12px] leading-[20px] font-normal;
+    @apply text-[12px] leading-[20px];
   }
 }
 
@@ -610,7 +610,9 @@
 
 /* Mesh Gradient Background - Using your color variables */
 .mesh-background {
-  position: relative;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
   min-height: 100vh;
   width: 100%;
   overflow: hidden;
@@ -750,13 +752,6 @@
   );
 }
 
-/* Content wrapper */
-.mesh-background .mesh-content {
-  position: relative;
-  z-index: 10;
-  width: 100%;
-  height: 100%;
-}
 
 /* Animations */
 @keyframes meshMove {

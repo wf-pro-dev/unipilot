@@ -11,23 +11,22 @@ import { parseDeadline } from "@/lib/date-utils"
 import { CalendarContainer } from "./calendar-container"
 import { DndProvider } from "react-dnd"
 import { HTML5Backend } from "react-dnd-html5-backend"
+import { useUpdateAssignment } from "@/hooks/use-assignments"
 
 interface AssignmentsCalendarProps {
   assignments: models.LocalAssignment[]
   isLoading?: boolean
-  onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
-  onAssignmentClick: (assignment: models.LocalAssignment) => void
   onDateClick: (date: Date) => void
 }
 
 export function AssignmentsCalendar({
   assignments,
-  onEdit,
-  onAssignmentClick,
   onDateClick,
   isLoading = false,
 }: AssignmentsCalendarProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
+
+  const updateMutation = useUpdateAssignment()
   // Local state to manage assignments for optimistic updates
   const [localAssignments, setLocalAssignments] = useState<models.LocalAssignment[]>(assignments)
   // Track pending optimistic updates: map of assignment ID to new deadline string
@@ -97,7 +96,7 @@ export function AssignmentsCalendar({
 
     // Call the original onMoveAssignme
     if (!isSameDay(assignment.Deadline, date)) {
-      onEdit(assignment, "deadline", newDeadline)
+      updateMutation.mutate({ assignment, column: "deadline", value: newDeadline })
     }
 
   }
@@ -247,8 +246,6 @@ export function AssignmentsCalendar({
                     isToday={isToday}
                     onMoveAssignment={handleMoveAssignment}
                     onDateClick={onDateClick}
-                    onEdit={onEdit}
-                    onAssignmentClick={onAssignmentClick}
                     index={index}
                   />
                 )

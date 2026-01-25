@@ -13,9 +13,6 @@ interface DayAssignmentsModalProps {
   date: Date | null
   assignments: models.LocalAssignment[]
   onAddAssignment: () => void
-  onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
-  onDelete: (assignment: models.LocalAssignment) => void
-  onOpenEdit: (assignment: models.LocalAssignment) => void
   isLoading: boolean
 }
 
@@ -25,9 +22,6 @@ export function DayAssignmentsModal({
   date,
   assignments,
   onAddAssignment,
-  onEdit,
-  onDelete,
-  onOpenEdit,
   isLoading,
   }: DayAssignmentsModalProps) {
   if (!date) return null
@@ -96,11 +90,8 @@ export function DayAssignmentsModal({
               {dayAssignments.map((assignment) => (
                 <AssignmentItem
                   key={assignment.ID}
-                  assignment={assignment}
+                  assignmentId={assignment.ID}
                   variant="outline"
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  onOpenEdit={onOpenEdit}
                   disabled={isLoading}
                 />
               ))}

@@ -14,6 +14,8 @@ export function AcceptDocument(arg1:string):Promise<void>;
 
 export function AcceptNote(arg1:string):Promise<void>;
 
+export function CopyAssignment(arg1:models.LocalAssignment,arg2:boolean):Promise<void>;
+
 export function CourseShare(arg1:models.LocalCourse,arg2:Array<number>):Promise<void>;
 
 export function CreateAssignment(arg1:models.LocalAssignment):Promise<models.LocalAssignment>;

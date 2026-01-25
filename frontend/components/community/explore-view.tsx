@@ -22,7 +22,6 @@ interface ExploreViewProps {
 export function ExploreView({ users }: ExploreViewProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedUniversity, setSelectedUniversity] = useState("All Universities")
-  const { user: currentUser } = useAuthContext()
 
   const { isOnline } = useNetworkStatus()
 
@@ -53,8 +52,7 @@ export function ExploreView({ users }: ExploreViewProps) {
     return <OfflineBanner />
   }
 
-  // if there is only one user (current user), show a message that there are no users to explore
-  if (users?.length === 0) {
+  if ( !users || users.length === 0) {
     return (
       <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
         <EmptyState

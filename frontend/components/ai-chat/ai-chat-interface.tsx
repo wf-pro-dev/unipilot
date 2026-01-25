@@ -20,6 +20,7 @@ import { DocumentUploadDialog } from '../documents/document-upload-dialog';
 import { useUploadDocumentRAG } from '@/hooks/use-documents';
 import { toast } from 'sonner';
 import { useAuthContext } from '../provider/auth-provider';
+import { GetAuthToken } from '@/wailsjs/go/main/App';
 
 interface AIChatInterfaceProps {
   assignment: models.LocalAssignment;
@@ -34,16 +35,15 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
   const previousAssignmentIdRef = useRef<number | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const { mutate: documentRAGMutation } = useUploadDocumentRAG()
+ 
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [uploadType, setUploadType] = useState<"support" | "submission">("support")
 
-  
- const { token } = useAuthContext()
 
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' })
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
   }
 
@@ -93,8 +93,15 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
     messages: [],
     transport: new DefaultChatTransport({
       api: 'https://wwwill.xyz/unipilot/ai/v1',
-      prepareSendMessagesRequest: ({ id, messages, trigger, messageId }) => {
-        console.log("prepareSendMessagesRequest", token)
+      prepareSendMessagesRequest: async ({ id, messages, trigger, messageId }) => {
+        
+       const token = await GetAuthToken()
+       console.log('token', token)
+       console.log('messages', messages)
+       if (!token) {
+        throw new Error('No auth token found')
+       }
+       
         return {
           headers: {
             'X-Session-ID': id,
@@ -110,7 +117,6 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
       },
     }),
     onFinish: (message) => {
-      console.log('Message finished:', message);
       saveUIMessage({
         assignmentID: assignment.ID,
         vercelMessage: message.message,
@@ -146,7 +152,6 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
   // Set messages once conversation history is loaded
   useEffect(() => {
     if (initialMessages.length > 0 && messages.length === 0) {
-      console.log('Setting initial messages from conversation history');
       setMessages(initialMessages);
     }
   }, [initialMessages, messages.length, setMessages, scrollToBottom]);
@@ -204,7 +209,7 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
   return (
     <div className="flex w-full h-full justify-center relative">
       {messages.length > 0 && (
-        <div className="flex flex-col max-w-3xl pt-24 pb-48 gap-6 w-full px-4">
+        <div className="flex flex-col pt-24 pb-48 max-w-3xl gap-6 w-full px-4">
           <div ref={messagesStartRef} />
           {messages.map((message) => (
             <div key={message.id} className="w-full group animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -234,7 +239,7 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
                         switch (message.role) {
                           case 'user':
                             return (
-                              <GlassCard key={`${message.id}-${i}`} variant="board">
+                              <GlassCard className="p-2" key={`${message.id}-${i}`} variant="board">
                                 <div className="text-sm leading-relaxed">{part.text}</div>
                               </GlassCard>
                             );
@@ -365,7 +370,7 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
             </div>
           )}
 
-          <div className={`relative group transition-all duration-300 ${input.trim().length > 0 ? 'scale-[1.01]' : ''}`}>
+          <div className={`relative group transition-all duration-300`}>
             <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500/30 to-purple-500/30 rounded-3xl opacity-0 group-focus-within:opacity-100 transition duration-500 blur-md"></div>
             <div className="relative flex flex-col rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl shadow-black/40 overflow-hidden focus-within:border-white/20 transition-colors">
               <TextareaAutosize

@@ -1,5 +1,5 @@
 "use client"
-import { AddNoteDialog } from "@/components/notes/note-add-dialog"
+import { NoteAddDialog } from "@/components/notes/note-add-dialog"
 import { NoteView } from "@/components/notes/note-view"
 import { NoteDetailModal } from "@/components/notes/note-detail-modal"
 import { useNotes, useDeleteNote, useUpdateNote, useCreateNote } from "@/hooks/use-notes"
@@ -83,7 +83,7 @@ export default function NotesPage() {
             </h1>
             <p className="mt-3 text-body-small text-gray-400">Generate AI-powered study notes for your courses</p>
           </div>
-          <AddNoteDialog isOpen={addNoteOpen} setOpen={setAddNoteOpen} />
+          <NoteAddDialog isOpen={addNoteOpen} setOpen={setAddNoteOpen} />
         </div>
 
 

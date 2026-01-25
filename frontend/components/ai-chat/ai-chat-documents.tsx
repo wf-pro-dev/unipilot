@@ -1,5 +1,5 @@
-import { memo, useEffect, useState } from "react";
-import { document } from "@/wailsjs/go/models";
+import { memo } from "react";
+import { models } from "@/wailsjs/go/models";
 import { toast } from "sonner";
 import { useUploadDocumentRAG } from "@/hooks/use-documents";
 import { Check, Edit, Eye, Plus, X } from "lucide-react";
@@ -8,38 +8,38 @@ import { DropdownMenu, DropdownMenuTrigger } from "../ui/dropdown-menu";
 import { useDeleteDocumentRAG } from "@/hooks/use-documents";
 
 interface DocumentCardProps {
-  document: document.LocalDocument,
+  document: models.LocalDocument,
   added: boolean,
 }
 
-function BaseDocumentCard(props: DocumentCardProps) {
+function BaseDocumentCard({ document, added }: DocumentCardProps) {
   const { mutate: documentRAGMutation } = useUploadDocumentRAG()
   const { mutate: deleteDocumentRAG } = useDeleteDocumentRAG()
   // ✅ Remove local state - rely on props.added which comes from the query
 
   const handleAddDocumentToContext = () => {
-    if (!props.added) {
-      documentRAGMutation(props.document, {
+    if (!added) {
+      documentRAGMutation(document, {
         onSuccess: () => {
-          toast.success(props.document.FileName + " added to context")
+          toast.success(document.FileName + " added to context")
           // ✅ No need to set state - query will update via invalidation
         },
         onError: () => {
-          toast.error(props.document.FileName + " failed to add to RAG")
+          toast.error(document.FileName + " failed to add to RAG")
         }
       })
     }
   }
 
   const handleDeleteDocumentFromContext = () => {
-    if (props.added) {
-      deleteDocumentRAG(props.document, {
+    if (added) {
+      deleteDocumentRAG(document, {
         onSuccess: () => {
-          toast.success(props.document.FileName + " removed from context")
+          toast.success(document.FileName + " removed from context")
           // ✅ No need to set state - query will update via invalidation
         },
         onError: () => {
-          toast.error(props.document.FileName + " failed to remove from RAG")
+          toast.error(document.FileName + " failed to remove from RAG")
         }
       })
     }
@@ -55,32 +55,29 @@ function BaseDocumentCard(props: DocumentCardProps) {
 
   return (
 
-
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <div className="flex items-center gap-2">
-          <div
-            key={props.document.ID}
-            className={`bg-white/5 flex items-center gap-4 p-4 border-white/5 shadow-lg shadow-black/40 hover:border-white/10 hover:translate-y-1 rounded-xl transition-all duration-300 cursor-pointer group w-full text-left border relative overflow-hidden group/document-card`}
-          >
+        <div key={document.ID}
+          className={`flex items-center gap-4 px-4 py-2 transition-all duration-300 cursor-pointer group w-full relative group/document-card`}
+        >
 
-            {/* Shine effect on hover - inspired by courses-schedule.tsx */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover/document-card:opacity-100 transition-opacity duration-300" />
 
-            <div className="flex-1 min-w-0 flex flex-col relative z-10">
-              <span className={`text-body-small font-semibold text-white truncate transition-colors duration-300 `}>
-                {props.document.FileName}
-              </span>
-              <span className="text-caption text-white/50 truncate transition-colors">
-                {formatFileSize(props.document.FileSize)}
-              </span>
-            </div>
+          {/* Shine effect on hover - inspired by courses-schedule.tsx */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover/document-card:opacity-100 transition-opacity duration-300" />
 
-            <div className=" flex items-center justify-center p-2 rounded-full bg-white/10 border border-white/10 shadow-lg shadow-black/40 hover:-translate-y-1 transition-all duration-300">
-              {props.added ? <Check className="w-4 h-4 text-white" strokeWidth={1.5} /> : <Plus className="w-4 h-4 text-white" strokeWidth={1.5} />}
-            </div>
-
+          <div className="flex-1 min-w-0 flex flex-col relative z-10">
+            <p className="text-body font-medium text-white truncate transition-colors duration-300">
+              {document.FileName}
+            </p>
+            <p className="text-caption text-gray-400 truncate transition-colors">
+              {formatFileSize(document.FileSize)}
+            </p>
           </div>
+
+          <div className=" flex items-center justify-center p-1 rounded-full bg-white/10 border border-white/10 shadow-lg shadow-black/40 hover:-translate-y-1 transition-all duration-300">
+            {added ? <Check className="w-4 h-4 text-white" strokeWidth={1.5} /> : <Plus className="w-4 h-4 text-white" strokeWidth={1.5} />}
+          </div>
+
 
 
         </div>
@@ -101,7 +98,7 @@ function BaseDocumentCard(props: DocumentCardProps) {
         <DropdownMenuItem
           onClick={() => handleAddDocumentToContext()}
           className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer"
-          disabled={props.added}
+          disabled={added}
         >
           <Edit className="h-4 w-4 mr-2" />
           Add to context
@@ -112,7 +109,7 @@ function BaseDocumentCard(props: DocumentCardProps) {
             handleDeleteDocumentFromContext()
           }}
           className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer"
-          disabled={!props.added}
+          disabled={!added}
         >
           <X className="h-4 w-4 mr-2" />
           Remove from context
@@ -123,6 +120,5 @@ function BaseDocumentCard(props: DocumentCardProps) {
 }
 
 export const AiDocumentCard = memo(BaseDocumentCard, (prevProps, nextProps) => {
-  console.log(prevProps.added, nextProps.added)
   return prevProps.document.ID === nextProps.document.ID && prevProps.added === nextProps.added
 })

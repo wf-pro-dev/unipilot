@@ -76,7 +76,7 @@ export function RegisterForm({ onRegisterSuccess, onLoginClick, className }: Reg
             year: currentYear.toString(),
             language: "en",
         },
-        
+
     })
 
     // Centralized error display control
@@ -140,7 +140,9 @@ export function RegisterForm({ onRegisterSuccess, onLoginClick, className }: Reg
                                         name="username"
                                         render={({ field, fieldState }) => (
                                             <FormItem className="space-y-1 group">
-                                                <FormLabel className="text-xs font-medium uppercase tracking-wider text-gray-400 group-focus-within:text-white ml-1 transition-colors duration-300">Username</FormLabel>
+                                                <FormLabel className="text-xs font-medium uppercase tracking-wider text-gray-400 group-focus-within:text-white ml-1 transition-colors duration-300">
+                                                    Username
+                                                </FormLabel>
                                                 <div className="relative">
                                                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-white transition-colors duration-300">
                                                         <User className="h-4 w-4" />
@@ -251,7 +253,7 @@ export function RegisterForm({ onRegisterSuccess, onLoginClick, className }: Reg
                                 >
 
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <FormField
                                             control={form.control}
                                             name="university"
@@ -372,7 +374,7 @@ export function RegisterForm({ onRegisterSuccess, onLoginClick, className }: Reg
                                         />
                                     </div>
 
-                                    <div className="flex gap-4 pt-4">
+                                    <div className="flex gap-4">
                                         <Button
                                             type="button"
                                             variant="ghost"
