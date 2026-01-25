@@ -15,7 +15,7 @@ import (
 // GetUploadProgressHandler returns the current progress of an upload
 // GetUploadProgressHandler returns the current progress of an upload
 func GetUploadProgressHandler(c *fiber.Ctx) error {
-	c.Locals("message", "Upload progress fetched successfully")
+	c.Locals("message", "Progress fetched successfully")
 	uploadID := c.Params("upload_id")
 	if uploadID == "" {
 		return errors.WrapServer(

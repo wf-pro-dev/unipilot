@@ -359,8 +359,11 @@ func GetAssignmentDocumentIDsRAG(assignmentID uint, qdrantClient *qdrant.Client)
 	collectionName := GetQdrantCollectionName(assignmentID)
 
 	exists, err := qdrantClient.CollectionExists(ctx, collectionName)
-	if err != nil || !exists {
+	if err != nil {
 		return nil, errors.Wrap(err, errors.QdrantCollectionNotFound, "Assignment collection could not be found")
+	}
+	if !exists {
+		return []uint{}, nil
 	}
 	// Retrive All Qdrant Points for that assignment
 	points, err := qdrantClient.Scroll(context.Background(), &qdrant.ScrollPoints{

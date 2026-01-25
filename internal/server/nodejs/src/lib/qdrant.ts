@@ -91,6 +91,8 @@ const findRelevantContent = async (userQuery: string, assignmentID: string): Pro
             };
         }
 
+        console.log("jsonResponse", jsonResponse);
+
         const chunks = jsonResponse.result.map((point: ScoredPoint, index: number) => {
             const payload = point.payload || {};
 

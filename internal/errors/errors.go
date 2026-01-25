@@ -185,6 +185,9 @@ func HasAppError(err error) bool {
 // GetRootAppError finds the root AppError in an error chain
 // Works with any error type, traverses via Unwrap()
 func GetRootAppError(err error) *AppError {
+	if err == nil {
+		return nil
+	}
 	// Find first AppError in chain
 	var root *AppError
 	if !Errors.As(err, &root) {

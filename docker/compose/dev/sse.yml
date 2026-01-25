@@ -1,6 +1,7 @@
 
 services:
   sse:
+    image: wwwill-1.lab:5000/unipilot/sse:${IMAGE_TAG:-latest}
     build:
       context: /home/will/unipilot
       dockerfile: docker/Dockerfile.sse

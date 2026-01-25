@@ -157,6 +157,7 @@ If chunks don't help, use your model knowledge (SOURCE 3) to provide an answer.
                   .map(chunk => chunk.text)
                   .join('\n\n---\n\n');
                 
+                console.log("formattedChunks", formattedChunks);
                 return formattedChunks;
               } catch (error) {
                 return `Error retrieving information: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -164,7 +165,7 @@ If chunks don't help, use your model knowledge (SOURCE 3) to provide an answer.
             },
           }),
 
-          google_search: google.tools.googleSearch({})
+          //google_search: google.tools.googleSearch({})
         },
       });
 

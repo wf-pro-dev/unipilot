@@ -3,6 +3,7 @@ package fileops
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -53,15 +54,31 @@ func GetFileTextForPdf(filename string) (string, error) {
 	return string(output), nil
 }
 
-func GetFileText(filename, ext string) (string, error) {
-	if ext == ".docx" {
-		return GetFileTextForDocx(filename)
+func GetFileTextForTxt(filename string) (string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return "", errors.Wrap(err, errors.FSOpenFailed, "Error opening file")
 	}
-	if ext == ".pdf" {
-		return GetFileTextForPdf(filename)
+	defer file.Close()
+	content, err := io.ReadAll(file)
+	if err != nil {
+		return "", errors.Wrap(err, errors.FSFileFailed, "Error reading file")
 	}
+	return string(content), nil
+}
 
-	return "", errors.Wrap(fmt.Errorf("file type not supported"), errors.FSFileTypeNotSupported, "File type not supported")
+func GetFileText(filename, ext string) (string, error) {
+
+	switch ext {
+	case ".txt", ".md", ".go", ".py", ".js", ".json", ".yaml", ".yml", ".html", ".css", ".scss", ".less", ".sass", ".php", ".sql":
+		return GetFileTextForTxt(filename)
+	case ".docx":
+		return GetFileTextForDocx(filename)
+	case ".pdf":
+		return GetFileTextForPdf(filename)
+	default:
+		return "", errors.Wrap(fmt.Errorf("file type %s not supported", ext), errors.FSFileTypeNotSupported, "File type not supported")
+	}
 }
 
 func GetFileChunks(text string) []string {
@@ -124,7 +141,6 @@ func GetFileChunks(text string) []string {
 }
 
 func GetQdrantVectors(document *models.Document) ([]*qdrant.PointStruct, error) {
-	fmt.Println("GetQdrantVectors")
 	var vectors []*qdrant.PointStruct
 
 	//Get file text

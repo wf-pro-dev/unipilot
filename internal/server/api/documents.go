@@ -553,8 +553,8 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 func DownloadDocumentHandler(c *fiber.Ctx) error {
 	c.Locals("message", "Document downloaded successfully")
 	// Step 1: Parse document download request from JSON body
-	var docData models.LocalDocument
-	if err := c.BodyParser(&docData); err != nil {
+	var localDoc models.LocalDocument
+	if err := c.BodyParser(&localDoc); err != nil {
 		return errors.WrapServer(
 			err,
 			errors.ReqBodyInvalid,
@@ -563,9 +563,27 @@ func DownloadDocumentHandler(c *fiber.Ctx) error {
 		)
 	}
 
+	uploadID := localDoc.UploadID
+	progressManager := progress.GetManager()
+
+	progressTracker := progressManager.Create(uploadID, localDoc.FileSize)
+	progressTracker.SetStatus("Downloading file from cloud storage")
+	snapshot := progressTracker.Snapshot()
+
+	CacheService.PublishProgress(c.Context(), uploadID, &snapshot)
+
+	progressTracker.OnProgress(func(t *progress.Tracker) {
+		snapshot := t.Snapshot()
+		// Calculate progress pe
+		progress := float64(snapshot.Current) / float64(snapshot.Total) * 100
+		snapshot.Percentage = progress
+		// Store in cache
+		CacheService.PublishProgress(c.Context(), uploadID, &snapshot)
+	})
+
 	// Step 2: Download file from AWS S3 using storage key
 	// Download from aws S3
-	fileReader, err := cloudstorage.DownloadFile(docData.StorageKey)
+	file, err := cloudstorage.DownloadFileWithProgress(localDoc.StorageKey, progressTracker)
 	if err != nil {
 		return errors.WrapServer(
 			err,
@@ -574,14 +592,15 @@ func DownloadDocumentHandler(c *fiber.Ctx) error {
 			fiber.StatusInternalServerError,
 		)
 	}
+	defer file.Close()
 
 	// Step 3: Set appropriate HTTP headers for secure file download
 	c.Set("Content-Type", "application/octet-stream")
-	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", docData.FileName))
-	c.Set("Content-Length", strconv.FormatInt(docData.FileSize, 10))
+	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", localDoc.FileName))
+	c.Set("Content-Length", strconv.FormatInt(localDoc.FileSize, 10))
 
 	// Step 4: Stream file content directly to client response
-	_, err = io.Copy(c.Response().BodyWriter(), fileReader)
+	_, err = io.Copy(c.Response().BodyWriter(), file)
 	if err != nil {
 
 		return errors.WrapServer(
@@ -591,6 +610,10 @@ func DownloadDocumentHandler(c *fiber.Ctx) error {
 			fiber.StatusInternalServerError,
 		)
 	}
+
+	progressTracker.Complete()
+	snapshot = progressTracker.Snapshot()
+	CacheService.PublishProgress(c.Context(), uploadID, &snapshot)
 
 	return nil
 }
@@ -868,12 +891,12 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 //   - Logs RAG processing metrics for monitoring
 func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 
-	currentUser, ok := c.Locals("user").(models.User)
+	db, ok := c.Locals("db").(*gorm.DB)
 	if !ok {
 		return errors.WrapServer(
-			fmt.Errorf("user not found"),
+			fmt.Errorf("db not found"),
 			errors.ValidationInvalid,
-			"User not found",
+			"DB not found",
 			fiber.StatusInternalServerError,
 		)
 	}
@@ -942,8 +965,15 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 
 	}
 
-	doc := localDoc.ToRemote()
-	doc.UserID = currentUser.ID
+	doc, err := models.GetDocument(localDoc.RemoteID, db)
+	if doc == nil {
+		return errors.WrapServer(
+			fmt.Errorf("document not found"),
+			errors.DBRecordNotFound,
+			"Document not found",
+			fiber.StatusNotFound,
+		)
+	}
 
 	vectors, err := fileops.GetQdrantVectors(doc)
 	if err != nil {

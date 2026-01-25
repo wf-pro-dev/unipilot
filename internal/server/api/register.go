@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
@@ -95,7 +94,6 @@ func RegisterHandler(c *fiber.Ctx) error {
 			Semester:     registrationData.Semester,
 			Year:         registrationData.Year,
 		}
-		log.Println("userJSON", newUser.ToMap())
 		if err := tx.Create(&newUser).Error; err != nil {
 			return errors.HandleDBCreateError(err).ToServerError(fiber.StatusInternalServerError)
 		}

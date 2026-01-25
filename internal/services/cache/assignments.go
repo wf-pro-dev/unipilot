@@ -70,6 +70,7 @@ func (c *Cache) GetAssignmentsByIDs(ctx context.Context, assignmentIDs []uint, d
 	}
 
 	if len(missingIDs) > 0 {
+		//
 		missingAssignments, err := models.GetAssignmentsByIDs(missingIDs, db)
 		if err != nil {
 			return nil, errors.Wrap(err, errors.DBQueryFailed, "Error getting assignments from database")

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	Errors "errors"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"unipilot/internal/services/fileops/progress"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
@@ -210,4 +212,58 @@ func DownloadFile(key string) (io.Reader, error) {
 
 	return result.Body, nil
 
+}
+
+func DownloadFileWithProgress(key string, progressTracker *progress.Tracker) (*os.File, error) {
+	// Get S3 client
+	svc, err := S3Client()
+	if err != nil {
+		return nil, errors.Wrap(err, errors.StorageClientFailed, "Failed to get S3 client")
+	}
+
+	downloader := manager.NewDownloader(svc)
+
+	dir := filepath.Dir(key)
+
+	// 2. Create the directories if they don't exist (0755 is standard permissions)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, err
+	}
+
+	file, err := os.Create(key)
+	if err != nil {
+		return nil, errors.Wrap(err, errors.InternalError, "Unable to create file")
+	}
+
+	_ = progress.NewReader(file, progressTracker)
+	if err != nil {
+		return nil, errors.Wrap(err, errors.InternalError, "Unable to create progress reader")
+	}
+
+	// Download object
+	// 5. Download the object
+	_, err = downloader.Download(context.TODO(), file, &s3.GetObjectInput{
+		Bucket: aws.String(Bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, errors.StorageApiFailed, "Failed to download object")
+	}
+
+	if err != nil {
+		var noKey *types.NoSuchKey
+		var apiErr *smithy.GenericAPIError
+		if Errors.As(err, &noKey) {
+			return nil, errors.Wrap(err, errors.StorageFileNotFound, "Object not found")
+		} else if Errors.As(err, &apiErr) {
+			switch apiErr.ErrorCode() {
+			case "AccessDenied":
+				return nil, errors.Wrap(err, errors.AuthForbidden, "Access denied")
+			}
+			return nil, errors.Wrap(err, errors.StorageApiFailed, "Failed to copy object")
+		}
+
+	}
+
+	return file, nil
 }

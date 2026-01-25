@@ -1,10 +1,9 @@
 services:
   api:
+    image: unipilot-api:${IMAGE_TAG:-latest}
     build:
       context: /home/will/unipilot
       dockerfile: docker/Dockerfile.api
-      tags:
-        - unipilot-api:${IMAGE_TAG:-latest}
     networks:
       - unipilot
     ports:

@@ -1,6 +1,7 @@
 
 services:
   nodejs:
+    image: wwwill-1.lab:5000/unipilot/nodejs:${IMAGE_TAG:-latest}
     build:
       context: /home/will/unipilot
       dockerfile: docker/Dockerfile.nodejs

@@ -304,7 +304,7 @@ func (cache *Cache) GetCoursesByIDs(ctx context.Context, courseIDs []uint, db *g
 	}
 
 	// Step 3: Batch fetch assignment objects
-	assignments, err := cache.GetAssignmentsByIDs(ctx, allAssignmentIDs, db)
+	assignments, err := cache.GetAssignmentsByIDs(ctx, allAssignmentIDs, db.Preload("Documents"))
 	if err != nil {
 		return nil, errors.Wrap(err, errors.CacheOperationFailed, "Error getting assignments from redis")
 	}
@@ -324,13 +324,14 @@ func (cache *Cache) GetCoursesByIDs(ctx context.Context, courseIDs []uint, db *g
 		course.Notes = buildList(courseNoteMap[course.ID], notesMap)
 	}
 
+	// Initialize courses missing from cache
 	if len(missingCourseIDs) > 0 {
 		missingCourses, err := models.GetCoursesByIDs(missingCourseIDs,
 			db.
 				Preload("User", func(db *gorm.DB) *gorm.DB {
 					return db.Select("id, username, avatar, email")
 				}).
-				Preload("Assignments", "parent_id IS NULL").
+				Preload("Assignments", "parent_id IS NULL").Preload("Assignments.Documents").
 				Preload("Notes", "parent_id IS NULL"))
 		if err != nil {
 			return nil, errors.Wrap(err, errors.DBQueryFailed, "Error getting courses from database")
