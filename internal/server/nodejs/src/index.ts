@@ -157,7 +157,6 @@ If chunks don't help, use your model knowledge (SOURCE 3) to provide an answer.
                   .map(chunk => chunk.text)
                   .join('\n\n---\n\n');
                 
-                console.log("formattedChunks", formattedChunks);
                 return formattedChunks;
               } catch (error) {
                 return `Error retrieving information: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -174,7 +173,6 @@ If chunks don't help, use your model knowledge (SOURCE 3) to provide an answer.
       
     } catch (error ) {
       // Step 7: Handle errors with proper HTTP status and logging
-      console.error('AI chat error:', error);
       if (!res.headersSent) {
         res.status(500).json({ 
           error: 'AI service unavailable',

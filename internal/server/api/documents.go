@@ -451,7 +451,7 @@ func UploadFileLegacy(localDoc models.LocalDocument, key string, w http.Response
 		)
 	}
 
-	uploadID := localDoc.UploadID
+	uploadID := *localDoc.UploadID
 	progressManager := progress.GetManager()
 	progressTracker := progressManager.Create(uploadID, localDoc.FileSize)
 
@@ -478,7 +478,7 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 	}
 	defer os.Remove(filePath)
 
-	uploadID := localDoc.UploadID
+	uploadID := *localDoc.UploadID
 	progressManager := progress.GetManager()
 
 	progressTracker := progressManager.Create(uploadID, localDoc.FileSize)
@@ -563,7 +563,7 @@ func DownloadDocumentHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	uploadID := localDoc.UploadID
+	uploadID := *localDoc.UploadID
 	progressManager := progress.GetManager()
 
 	progressTracker := progressManager.Create(uploadID, localDoc.FileSize)
