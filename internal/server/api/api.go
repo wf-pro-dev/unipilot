@@ -67,18 +67,21 @@ func StartServer() error {
 		}
 	}()
 
+	app.Use(server.ErrorHandlerMiddleware)
+
 	app.Get("/health", HealthHandler)
 
 	app.Use(server.LoggerMiddleware)
+
+	app.Post("/auth/logout", server.AuthMiddleware, LogoutHandler)
+	app.Post("/auth/refresh-token", server.AuthMiddleware, RefreshTokenHandler)
+
 	app.Use(server.DBMiddleware(db))
-	app.Use(server.ErrorHandlerMiddleware)
 
 	app.Post("/auth/register", RegisterHandler)
 	app.Post("/auth/login", LoginHandler)
 
 	// Protected routes
-	app.Post("/auth/logout", server.AuthMiddleware, LogoutHandler)
-	app.Post("/auth/refresh-token", server.AuthMiddleware, RefreshTokenHandler)
 
 	app.Get("/users", server.AuthMiddleware, GetUsersHandler)
 	app.Get("/users/me", server.AuthMiddleware, GetUserHandler)

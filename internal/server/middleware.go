@@ -19,21 +19,6 @@ import (
 	"unipilot/internal/secrets"
 )
 
-// responseWriter wraps http.ResponseWriter to capture status code
-type responseWriter struct {
-	http.ResponseWriter
-	statusCode int
-}
-
-func newResponseWriter(w http.ResponseWriter) *responseWriter {
-	return &responseWriter{w, http.StatusOK}
-}
-
-func (rw *responseWriter) WriteHeader(code int) {
-	rw.statusCode = code
-	rw.ResponseWriter.WriteHeader(code)
-}
-
 // RouteTags defines tags for each route pattern
 // Format: [resource, operation, level, action?]
 // - resource: user, assignment, course, document, note, follow, auth, system
@@ -100,31 +85,6 @@ var routeTags = map[string][]string{
 	"GET /follow-status": {"follow", "db", "low", "read"},
 }
 
-// getRouteTags returns tags for a given HTTP method and route pattern
-// Uses "METHOD /route/pattern" format to uniquely identify routes
-// Falls back to generic tags if route not found
-func getRouteTags(method, routePattern string) []string {
-	// Normalize method to uppercase
-	method = strings.ToUpper(method)
-
-	// Remove query parameters from route pattern if present
-	cleanPattern := routePattern
-	if idx := strings.Index(routePattern, "?"); idx != -1 {
-		cleanPattern = routePattern[:idx]
-	}
-
-	// Create composite key: "METHOD /route/pattern"
-	key := method + " " + cleanPattern
-
-	// Try exact match first
-	if tags, ok := routeTags[key]; ok {
-		return tags
-	}
-
-	// Fallback to generic tags
-	return []string{"system", "network", "medium"}
-}
-
 // getClientIP extracts the real client IP from request headers
 // Handles Docker Swarm, nginx, and other proxy scenarios
 func getClientIP(c *fiber.Ctx) string {
@@ -174,7 +134,9 @@ func getClientIP(c *fiber.Ctx) string {
 //   - No user-specific database isolation (handled at application level)
 func DBMiddleware(db *gorm.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		c.Locals("db", db)
+		ctx := c.UserContext()
+		ctx = context.WithValue(ctx, "db", db)
+		c.SetUserContext(ctx)
 		return c.Next()
 	}
 }
@@ -211,77 +173,44 @@ func LoggerMiddleware(c *fiber.Ctx) error {
 	startTime := time.Now()
 	requestID := uuid.New().String()
 
-	// Get the actual request path (with parameters, e.g., "/assignments/289")
-	// This is what we'll log in the output
-	requestPath := c.Path()
+	ctx := c.UserContext()
 
-	// Store in locals for handlers
-	c.Locals("request_id", requestID)
-	c.Locals("start_time", startTime)
-	c.Locals("component", "api")
+	// Store in context for logging
+	ctx = context.WithValue(ctx, "request_id", requestID)
+	ctx = context.WithValue(ctx, "start_time", startTime)
+	ctx = context.WithValue(ctx, "component", "api")
+	ctx = context.WithValue(ctx, "path", c.Path())
+
+	ctx = context.WithValue(ctx, "method", c.Method())
+	ctx = context.WithValue(ctx, "client_ip", getClientIP(c))
+
+	c.SetUserContext(ctx)
 
 	// Execute the next handler (route matching happens here)
 	err := c.Next()
 
-	if errorHandled, ok := c.Locals("error_handled").(bool); ok && errorHandled {
-		// Error was already logged and handled, don't log again
-		return err
-	}
-
-	// Get the route pattern from Fiber after route matching (e.g., "/assignments/:id")
-	// This is what we use for tag matching
-	routePattern := requestPath
-	if route := c.Route(); route != nil && route.Path != "" {
-		routePattern = route.Path
-	}
-
-	// Get route-specific tags using method + route pattern
-	tags := getRouteTags(c.Method(), routePattern)
+	ctx = c.UserContext()
 
 	// Calculate request duration
+	ctx = context.WithValue(ctx, "route", c.Route().Path)
 	duration := time.Since(startTime).Milliseconds()
-
-	// Get real client IP (handles Docker Swarm VIP issue)
-	clientIP := getClientIP(c)
-
-	// Create context for logging
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "request_id", requestID)
-	ctx = context.WithValue(ctx, "start_time", startTime)
 	ctx = context.WithValue(ctx, "status_code", c.Response().StatusCode())
 	ctx = context.WithValue(ctx, "duration", duration)
 
-	userID, ok := c.Locals("user_id").(uint)
-	if !ok {
-		userID = 0
-	}
-	ctx = context.WithValue(ctx, "user_id", userID)
-
-	message, ok := c.Locals("message").(string)
-	if !ok {
-		message = "Request completed"
-		LogWarn(ctx, errors.WrapServer(fmt.Errorf("route message not found"), errors.ValidationInvalid, "Route message not found", fiber.StatusInternalServerError))
+	if err != nil {
+		return err
 	}
 
 	logLevel := "INFO"
 	if duration > 1000 {
 		logLevel = "WARN"
-		// Update tags level to "high" for slow requests
-		if len(tags) >= 3 {
-			tags[2] = "high"
-		}
 	}
 
 	// Log slow request
 	if logLevel == "WARN" && err == nil {
 		LogWarn(ctx, errors.WrapServer(fmt.Errorf("slow request: %dms", duration), errors.SlowRequest, "Slow request", fiber.StatusInternalServerError))
 	} else {
-		LogInfo(ctx, message,
-			"method", c.Method(),
-			"path", requestPath,
-			"remote_addr", clientIP,
-			"tags", tags,
-		)
+		LogInfo(ctx)
 	}
 
 	return err
@@ -400,11 +329,11 @@ func AuthMiddleware(c *fiber.Ctx) error {
 	// Step 7: Extract user object from validated claims
 	user := claims.User
 
-	// Step 8: Inject user context into Fiber locals for downstream handlers
-	c.Locals("user", user)
-	c.Locals("user_id", user.ID)
+	ctx := c.UserContext()
+	ctx = context.WithValue(ctx, "user", &user)
+	ctx = context.WithValue(ctx, "user_id", user.ID)
+	c.SetUserContext(ctx)
 
-	// Step 9: Continue to next handler with authenticated user context
 	return c.Next()
 }
 
@@ -503,22 +432,11 @@ func ErrorHandlerMiddleware(c *fiber.Ctx) error {
 		return nil
 	}
 
-	// Extract context from Fiber locals (set by LoggerMiddleware)
-	ctx := context.Background()
-	if requestID := c.Locals("request_id"); requestID != nil {
-		ctx = context.WithValue(ctx, "request_id", requestID)
-	}
-	if startTime := c.Locals("start_time"); startTime != nil {
-		ctx = context.WithValue(ctx, "start_time", startTime)
-	}
-	ctx = context.WithValue(ctx, "component", "api")
+	ctx := c.UserContext()
 
 	// Try to extract ServerError from error chain
 	var serverErr *errors.ServerError
 	if Errors.As(err, &serverErr) {
-
-		// We have a ServerError with status code
-		ctx = context.WithValue(ctx, "status_code", serverErr.StatusCode)
 
 		// Log based on status code severity
 		if serverErr.StatusCode >= 500 {
@@ -538,21 +456,11 @@ func ErrorHandlerMiddleware(c *fiber.Ctx) error {
 	if Errors.As(err, &appErr) {
 		// Convert AppError to ServerError with 500 status
 		serverErr = appErr.ToServerError(fiber.StatusInternalServerError)
-		ctx = context.WithValue(ctx, "status_code", serverErr.StatusCode)
-		LogError(ctx, serverErr)
 
 		c.Locals("error_handled", true)
 		return c.Status(fiber.StatusInternalServerError).JSON(serverErr)
 	}
 
-	// Unknown error type - wrap it
-	serverErr = errors.WrapServer(
-		err,
-		errors.InternalError,
-		"Internal server error",
-		fiber.StatusInternalServerError,
-	)
-	ctx = context.WithValue(ctx, "status_code", serverErr.StatusCode)
 	LogError(ctx, serverErr)
 
 	c.Locals("error_handled", true)

@@ -50,15 +50,15 @@ import (
 //   - Logs successful retrieval with note count for monitoring
 //   - No database modifications (read-only operation)
 func GetNotesHandler(c *fiber.Ctx) error {
-	c.Locals("message", "User's notes retrieved successfully")
-	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser, ok := c.Locals("user").(models.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
+
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 	userID := currentUser.ID
 
@@ -126,15 +126,15 @@ func GetNotesHandler(c *fiber.Ctx) error {
 //   - Logs note creation with performance metrics
 //   - Prepares notification data for future SSE implementation
 func CreateNoteHandler(c *fiber.Ctx) error {
-	c.Locals("message", "Note created successfully")
-	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser, ok := c.Locals("user").(models.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
+
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 	userID := currentUser.ID
 
@@ -201,7 +201,6 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 }
 
 func CreateNoteStreamHandler(c *fiber.Ctx) error {
-	c.Locals("message", "Note streaming created successfully")
 
 	// Step 1: Define and parse note creation request structure
 	var input models.LocalNote
@@ -317,16 +316,14 @@ func CreateNoteStreamHandler(c *fiber.Ctx) error {
 //   - Logs successful updates with change details for audit trail
 //   - No notification system integration (updates are silent)
 func UpdateNoteHandler(c *fiber.Ctx) error {
-	c.Locals("message", "Note updated successfully")
-	// Step 1: Extract context values from middleware (user and database connection)
 
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
 	var int_id int
-	var err error
 	idStr := c.Params("id")
 	if idStr == "" {
 		return errors.WrapServer(fmt.Errorf("note ID required"), errors.ReqParamMissing, "Note ID required", fiber.StatusBadRequest)
@@ -373,11 +370,11 @@ func UpdateNoteHandler(c *fiber.Ctx) error {
 }
 
 func DeleteNoteHandler(c *fiber.Ctx) error {
-	c.Locals("message", "Note deleted successfully")
-	// Step 1: Extract context values from middleware (user and database connection)
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
 	idStr := c.Params("id")

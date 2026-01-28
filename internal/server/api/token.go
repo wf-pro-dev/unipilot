@@ -1,14 +1,12 @@
 package server
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 
 	"unipilot/internal/errors"
-	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 	"unipilot/internal/server"
 )
@@ -45,11 +43,12 @@ import (
 //   - Logs token refresh events for audit trail
 //   - Previous tokens remain valid until natural expiration
 func RefreshTokenHandler(c *fiber.Ctx) error {
-	c.Locals("message", "Token refreshed")
-	// Step 2: Extract user context from request context (validated by AuthMiddleware)
-	userObj, ok := c.Locals("user").(models.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
+
+	ctx := c.UserContext()
+
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
 	// Step 3: Retrieve JWT signing key from environment for secure token generation
@@ -60,7 +59,7 @@ func RefreshTokenHandler(c *fiber.Ctx) error {
 
 	// Step 4: Generate new access token with 15-minute expiration for API access
 	accessToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, server.Claims{
-		User: userObj,
+		User: *currentUser,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 15)),
@@ -72,7 +71,7 @@ func RefreshTokenHandler(c *fiber.Ctx) error {
 
 	// Step 5: Generate new refresh token with 30-day expiration for long-term sessions
 	refreshToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, server.Claims{
-		User: userObj,
+		User: *currentUser,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 30)),

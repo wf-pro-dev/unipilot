@@ -127,10 +127,7 @@ package server
 
 import (
 	"context"
-	"log"
-	"net/http"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -284,28 +281,26 @@ func parseLogLevel(levelStr string) zapcore.Level {
 // logWithLevel is a helper function that handles the common logging pattern:
 // extract console/file fields, merge with additional fields, remove tags from console,
 // and write to both console and file loggers at the specified level.
-func logWithLevel(ctx context.Context, level zapcore.Level, message string, keysAndValues ...interface{}) {
+func logWithLevel(ctx context.Context, level zapcore.Level, keysAndValues ...interface{}) {
 	// Step 1: Extract console fields (minimal for readability)
-	consoleFields := extractConsoleFields(ctx)
-	consoleAllFields := mergeFields(consoleFields, keysAndValues...)
+	consoleFields := mergeFields(extractFields(ctx), keysAndValues...)
 
 	// Step 2: Extract file fields (comprehensive for analysis)
-	fileFields := extractContextFields(ctx)
-	fileAllFields := mergeFields(fileFields, keysAndValues...)
+	fileFields := extractFileFields(ctx)
 
 	// Step 4: Write to console logger (if enabled and level permits)
 	if Logger != nil {
 		switch level {
 		case zapcore.DebugLevel:
-			Logger.Debugw(message, consoleAllFields...)
+			Logger.Debugw("", consoleFields...)
 		case zapcore.InfoLevel:
-			Logger.Infow(message, consoleAllFields...)
+			Logger.Infow("", consoleFields...)
 		case zapcore.WarnLevel:
-			Logger.Warnw(message, consoleAllFields...)
+			Logger.Warnw("", consoleFields...)
 		case zapcore.ErrorLevel:
-			Logger.Errorw(message, consoleAllFields...)
+			Logger.Errorw("", consoleFields...)
 		case zapcore.FatalLevel:
-			Logger.Fatalw(message, consoleAllFields...)
+			Logger.Fatalw("", consoleFields...)
 		}
 	}
 
@@ -313,50 +308,50 @@ func logWithLevel(ctx context.Context, level zapcore.Level, message string, keys
 	if FileLogger != nil {
 		switch level {
 		case zapcore.DebugLevel:
-			FileLogger.Debugw(message, fileAllFields...)
+			FileLogger.Debugw("", fileFields...)
 		case zapcore.InfoLevel:
-			FileLogger.Infow(message, fileAllFields...)
+			FileLogger.Infow("", fileFields...)
 		case zapcore.WarnLevel:
-			FileLogger.Warnw(message, fileAllFields...)
+			FileLogger.Warnw("", fileFields...)
 		case zapcore.ErrorLevel:
-			FileLogger.Errorw(message, fileAllFields...)
+			FileLogger.Errorw("", fileFields...)
 		case zapcore.FatalLevel:
-			FileLogger.Fatalw(message, fileAllFields...)
+			FileLogger.Fatalw("", fileFields...)
 		}
 	}
 }
 
-func LogDebug(ctx context.Context, message string, keysAndValues ...interface{}) {
-	logWithLevel(ctx, zapcore.DebugLevel, message, keysAndValues...)
+func LogDebug(ctx context.Context, keysAndValues ...interface{}) {
+	logWithLevel(ctx, zapcore.DebugLevel, keysAndValues...)
 }
 
-func LogInfo(ctx context.Context, message string, keysAndValues ...interface{}) {
-	logWithLevel(ctx, zapcore.InfoLevel, message, keysAndValues...)
+func LogInfo(ctx context.Context) {
+	logWithLevel(ctx, zapcore.InfoLevel)
 }
 
 func LogWarn(ctx context.Context, err *errors.ServerError) {
 	// Flatten the error to a ...interface{} slice
-	fields := []interface{}{
-		"error_code", err.Code,
-		"root", errors.GetRootAppError(err),
-	}
-	ctx = context.WithValue(ctx, "status_code", err.StatusCode)
-	logWithLevel(ctx, zapcore.WarnLevel, err.Message, fields...)
+	ctx = context.WithValue(ctx, "error_code", err.Code)
+	ctx = context.WithValue(ctx, "root", errors.GetRootAppError(err))
+
+	logWithLevel(ctx, zapcore.WarnLevel)
 }
 
 func LogError(ctx context.Context, err *errors.ServerError) error {
-	fields := []interface{}{
-		"error_code", err.Code,
-		"root", errors.GetRootAppError(err),
-	}
-	ctx = context.WithValue(ctx, "status_code", err.StatusCode)
-	logWithLevel(ctx, zapcore.ErrorLevel, err.Message, fields...)
+
+	ctx = context.WithValue(ctx, "error_code", err.Code)
+	ctx = context.WithValue(ctx, "root", errors.GetRootAppError(err))
+
+	logWithLevel(ctx, zapcore.ErrorLevel)
 	return err
 }
 
-func LogFatal(ctx context.Context, message string, err error, keysAndValues ...interface{}) {
-	logWithLevel(ctx, zapcore.FatalLevel, message, keysAndValues...)
-	os.Exit(1)
+func LogFatal(ctx context.Context, err *errors.ServerError) error {
+	ctx = context.WithValue(ctx, "error_code", err.Code)
+	ctx = context.WithValue(ctx, "root", errors.GetRootAppError(err))
+
+	logWithLevel(ctx, zapcore.FatalLevel)
+	return err
 }
 
 // mergeFields merges context fields with additional key-value pairs.
@@ -374,35 +369,37 @@ func mergeFields(contextFields []interface{}, keysAndValues ...interface{}) []in
 		return contextFields
 	}
 
-	NonLoggableFields := []string{"tags", "component", "remote_addr"}
-
 	filteredKeysAndValues := []interface{}{}
 	for i := 0; i < len(keysAndValues)-1; i += 2 {
 		fieldName, ok := keysAndValues[i].(string)
 		if !ok {
 			continue
 		}
-		if !slices.Contains(NonLoggableFields, fieldName) {
-			filteredKeysAndValues = append(filteredKeysAndValues, strings.ToUpper(fieldName[:1]))
-			filteredKeysAndValues = append(filteredKeysAndValues, keysAndValues[i+1])
-		}
+
+		filteredKeysAndValues = append(filteredKeysAndValues, fieldName, keysAndValues[i+1])
+
 	}
 	return append(contextFields, filteredKeysAndValues...)
 }
 
-// extractContextFields extracts all logging fields from the context for file logging.
-func extractContextFields(ctx context.Context) []interface{} {
+func extractFields(ctx context.Context) []interface{} {
 	fields := []interface{}{}
 
-	// Extract request_id (essential for distributed tracing)
-	if requestID := ctx.Value("request_id"); requestID != nil {
-		fields = append(fields, "request_id", requestID)
+	if path := ctx.Value("path"); path != nil {
+		if p, ok := path.(string); ok {
+			fields = append(fields, "path", p)
+		}
 	}
 
-	// Extract user_id from user context (if available from authentication middleware)
-	if userCtx := ctx.Value("user_id"); userCtx != nil {
-		if u, ok := userCtx.(uint); ok {
-			fields = append(fields, "user_id", u)
+	if method := ctx.Value("method"); method != nil {
+		if m, ok := method.(string); ok {
+			fields = append(fields, "method", m)
+		}
+	}
+
+	if user_id := ctx.Value("user_id"); user_id != nil {
+		if id, ok := user_id.(uint); ok {
+			fields = append(fields, "user_id", id)
 		}
 	}
 
@@ -416,14 +413,6 @@ func extractContextFields(ctx context.Context) []interface{} {
 					fields = append(fields, "duration", duration)
 				}
 			}
-		}
-	}
-	// Calculate duration from start_time (performance metric)
-
-	// Extract component (api, sse, grpc) for service identification
-	if component := ctx.Value("component"); component != nil {
-		if comp, ok := component.(string); ok {
-			fields = append(fields, "component", comp)
 		}
 	}
 
@@ -434,54 +423,41 @@ func extractContextFields(ctx context.Context) []interface{} {
 		}
 	}
 
+	if error_code := ctx.Value("error_code"); error_code != nil {
+		if code, ok := error_code.(string); ok {
+			fields = append(fields, "error_code", code)
+		}
+	}
+
 	return fields
 }
 
 // extractConsoleFields extracts only essential debugging fields from the context for console logging.
-func extractConsoleFields(ctx context.Context) []interface{} {
-	fields := []interface{}{}
+func extractFileFields(ctx context.Context) []interface{} {
+	fields := extractFields(ctx)
 
-	// Essential for request tracing (correlate logs across services)
-	if requestID := ctx.Value("request_id"); requestID != nil {
-		fields = append(fields, "request_id", requestID)
-	}
-
-	// Essential for user context (identify which user's request)
-	if userCtx := ctx.Value("user_id"); userCtx != nil {
-		if u, ok := userCtx.(uint); ok {
-			fields = append(fields, "user_id", u)
+	if request_id := ctx.Value("request_id"); request_id != nil {
+		if id, ok := request_id.(string); ok {
+			fields = append(fields, "request_id", id)
 		}
 	}
 
-	// Essential for performance debugging (identify slow operations)
-	if duration := ctx.Value("duration"); duration != nil {
-		if d, ok := duration.(int64); ok {
-			fields = append(fields, "duration", d)
-		} else {
-			if startTime := ctx.Value("start_time"); startTime != nil {
-				if st, ok := startTime.(time.Time); ok {
-					duration := time.Since(st).Milliseconds()
-					fields = append(fields, "duration", duration)
-				}
-			}
+	if component := ctx.Value("component"); component != nil {
+		if comp, ok := component.(string); ok {
+			fields = append(fields, "component", comp)
+		}
+	}
+	if route := ctx.Value("route"); route != nil {
+		if r, ok := route.(string); ok {
+			fields = append(fields, "route", r)
 		}
 	}
 
-	// Useful for debugging HTTP errors (included in console for quick diagnosis)
-	if statusCode := ctx.Value("status_code"); statusCode != nil {
-		if code, ok := statusCode.(int); ok {
-			fields = append(fields, "status_code", code)
+	if client_ip := ctx.Value("client_ip"); client_ip != nil {
+		if ip, ok := client_ip.(string); ok {
+			fields = append(fields, "client_ip", ip)
 		}
 	}
-
-	// Note: component and tags are excluded from console
-	// - component: redundant (always "api" for most logs)
-	// - tags: for metrics/analysis, not debugging
 
 	return fields
-}
-
-func PrintERROR(w http.ResponseWriter, code int, message string) {
-	log.Printf("[ERROR] [%d] %s", code, message)
-	http.Error(w, message, code)
 }

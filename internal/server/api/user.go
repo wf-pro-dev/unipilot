@@ -46,13 +46,13 @@ import (
 //   - No database or cache modifications
 func GetUserHandler(c *fiber.Ctx) error {
 	// Step 1: Extract user context from JWT token (validated by AuthMiddleware)
-	currentUser := c.Locals("user").(models.User)
+	currentUser, err := server.GetUser(c.UserContext())
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
+	}
 
 	// Step 3: Send successful response with sanitized user data
-	return c.JSON(fiber.Map{
-		"message": "User retrieved successfully",
-		"user":    currentUser,
-	})
+	return c.JSON(currentUser)
 }
 
 // UpdateUserHandler updates a specific field of the authenticated user's profile.
@@ -94,16 +94,17 @@ func GetUserHandler(c *fiber.Ctx) error {
 //   - Updates Redis cache (logs warning on failure, non-critical)
 //   - Logs successful updates for audit trail
 func UpdateUserHandler(c *fiber.Ctx) error {
-	c.Locals("message", "User updated successfully")
-	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser, ok := c.Locals("user").(models.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
+
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
+
 	userID := currentUser.ID
 
 	// Step 2: Define and parse update request structure
@@ -112,7 +113,7 @@ func UpdateUserHandler(c *fiber.Ctx) error {
 		Column string `json:"column"`
 	}
 
-	err := c.BodyParser(&updateData)
+	err = c.BodyParser(&updateData)
 	if err != nil {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
@@ -157,16 +158,17 @@ func UpdateUserHandler(c *fiber.Ctx) error {
 }
 
 func UpdateProfilePictureHandler(c *fiber.Ctx) error {
-	c.Locals("message", "Profile picture updated successfully")
-	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser, ok := c.Locals("user").(models.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.AuthUnauthorized, "User not found", fiber.StatusUnauthorized)
+
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
+
 	userID := currentUser.ID
 
 	// Step 2: Extract file from multipart form
@@ -227,15 +229,15 @@ func UpdateProfilePictureHandler(c *fiber.Ctx) error {
 }
 
 func GetUserCourseInvitationsHandler(c *fiber.Ctx) error {
-	c.Locals("message", "User course invitations retrieved successfully")
 
-	currentUser, ok := c.Locals("user").(models.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
 	invitations, err := models.GetUserCourseInvitations(currentUser.ID, db.Where("status = ?", models.InvitationPending))

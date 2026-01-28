@@ -52,12 +52,11 @@ import (
 func GetAssignmentHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (timing, user, database connection)
 
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-
-	c.Locals("message", "Assignments list retrieved")
 
 	var userID uint
 	if id := c.Query("id"); id != "" {
@@ -140,17 +139,19 @@ func GetAssignmentHandler(c *fiber.Ctx) error {
 //   - Logs creation with performance metrics and assignment details
 func CreateAssignmentHandler(c *fiber.Ctx) error {
 
-	currentUser, ok := c.Locals("user").(models.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
-	}
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
-	}
-	userID := currentUser.ID
+	ctx := c.UserContext()
 
-	c.Locals("message", "Assignment created successfully")
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
+	}
+
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
+	}
+
+	userID := currentUser.ID
 
 	var input models.Assignment
 	if err := c.BodyParser(&input); err != nil {
@@ -260,11 +261,12 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 func UpdateAssignmentHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (timing, user, database connection)
 
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	ctx := c.UserContext()
+
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	c.Locals("message", "Assignment updated successfully")
 
 	var assignmentID uint
 	idStr := c.Params("id")
@@ -312,14 +314,14 @@ func UpdateAssignmentHandler(c *fiber.Ctx) error {
 }
 
 func DeleteAssignmentHandler(c *fiber.Ctx) error {
-	// Step 1: Extract context values from middleware (timing, user, database connection)
 
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	ctx := c.UserContext()
+
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
-	c.Locals("message", "Assignment deleted successfully")
 	// Step 2: Extract assignment ID from path parameter
 	idStr := c.Params("id")
 	if idStr == "" {

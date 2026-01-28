@@ -29,10 +29,16 @@ import (
 )
 
 func GetDocumentsHandler(c *fiber.Ctx) error {
-	currentUser := c.Locals("user").(models.User)
-	db := c.Locals("db").(*gorm.DB)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
+	}
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
+	}
 	currentUserID := currentUser.ID
-	c.Locals("message", "Documents retrieved successfully")
 
 	// Get all documents for the current user
 	var documents []models.Document
@@ -127,10 +133,16 @@ func GetDocumentsHandler(c *fiber.Ctx) error {
 //   - Logs document creation with performance metrics
 func CreateDocumentHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser := c.Locals("user").(models.User)
-	db := c.Locals("db").(*gorm.DB)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
+	}
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
+	}
 	userID := currentUser.ID
-	c.Locals("message", "Document created successfully")
 
 	// Step 3: Extract and validate document metadata from form
 	metadata := c.FormValue("metadata")
@@ -551,7 +563,7 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 //   - Logs download metrics for monitoring
 //   - No local file storage or cleanup required
 func DownloadDocumentHandler(c *fiber.Ctx) error {
-	c.Locals("message", "Document downloaded successfully")
+
 	// Step 1: Parse document download request from JSON body
 	var localDoc models.LocalDocument
 	if err := c.BodyParser(&localDoc); err != nil {
@@ -660,17 +672,12 @@ func DownloadDocumentHandler(c *fiber.Ctx) error {
 //   - Logs document retrieval with count for monitoring
 //   - No database modifications (read-only operation)
 func GetAssignmentDocumentsHandler(c *fiber.Ctx) error {
-	c.Locals("message", "Assignment documents retrieved successfully")
 	// Step 1: Extract context values from middleware (user and database connection)
 
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(
-			fmt.Errorf("db not found"),
-			errors.ValidationInvalid,
-			"DB not found",
-			fiber.StatusInternalServerError,
-		)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
 	// Step 2: Extract and validate assignment ID from query parameters
@@ -755,24 +762,14 @@ func GetAssignmentDocumentsHandler(c *fiber.Ctx) error {
 //   - Logs deletion for audit trail
 func DeleteDocumentHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
-	c.Locals("message", "Document deleted successfully")
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(
-			fmt.Errorf("db not found"),
-			errors.ValidationInvalid,
-			"DB not found",
-			fiber.StatusInternalServerError,
-		)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	currentUser, ok := c.Locals("user").(models.User)
-	if !ok {
-		return errors.WrapServer(
-			fmt.Errorf("user not found"),
-			errors.ValidationInvalid,
-			"User not found",
-			fiber.StatusInternalServerError,
-		)
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 	// Step 2: Extract document ID from path parameter
 	docID := c.Params("id")
@@ -891,16 +888,11 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 //   - Logs RAG processing metrics for monitoring
 func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(
-			fmt.Errorf("db not found"),
-			errors.ValidationInvalid,
-			"DB not found",
-			fiber.StatusInternalServerError,
-		)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	c.Locals("message", "Document uploaded for RAG successfully")
 
 	metadata := c.FormValue("metadata")
 	if metadata == "" {
@@ -1053,8 +1045,6 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 
 func DeleteDocumentRAG(c *fiber.Ctx) error {
 
-	c.Locals("message", "Document deleted from RAG successfully")
-
 	strDocID := c.Params("id")
 	if strDocID == "" {
 		return errors.WrapServer(
@@ -1122,7 +1112,6 @@ func DeleteDocumentRAG(c *fiber.Ctx) error {
 func GetAssignmentDocumentIDsRAG(c *fiber.Ctx) error {
 	// Step 1: Extract assignment ID from path parameter
 	idStr := c.Params("id")
-	c.Locals("message", "Assignment document IDs retrieved successfully")
 	if idStr == "" {
 
 		return errors.WrapServer(

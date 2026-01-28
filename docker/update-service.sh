@@ -41,6 +41,6 @@ docker service ps "unipilot_$SERVICE"
 # Clean up
 docker stop $DEV_CONTAINER && docker rm $DEV_CONTAINER
 
-docker rmi $DEV_IMAGE
+#docker rmi $DEV_IMAGE
 
 docker rmi $IMAGE

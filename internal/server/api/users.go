@@ -1,16 +1,13 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
-	"log"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
+	"unipilot/internal/server"
 )
 
 // GetUsersHandler retrieves all users in the system except the current authenticated models.
@@ -56,20 +53,17 @@ import (
 //   - No database modifications (read-only operation)
 func GetUsersHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values from middleware (user and database connection)
-	currentUser, ok := c.Locals("user").(models.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-
-	db := c.Locals("db").(*gorm.DB)
-	if db == nil {
-		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
-
-	c.Locals("message", "Users retrieved successfully")
 
 	// Step 2: Attempt to retrieve users from Redis cache first (performance optimization)
-	ctx := context.Background()
 	usersHash, err := CacheService.GetUsers(ctx)
 	if err != nil {
 		return errors.WrapServer(err, errors.CacheOperationFailed, "Error getting users from redis", fiber.StatusInternalServerError)
@@ -80,7 +74,6 @@ func GetUsersHandler(c *fiber.Ctx) error {
 		for _, userJSON := range usersHash {
 			var user models.User
 			if err := json.Unmarshal([]byte(userJSON), &user); err == nil {
-				log.Println("user", user.ID, "currentUser", currentUser.ID)
 				if user.ID == currentUser.ID {
 					continue
 				}

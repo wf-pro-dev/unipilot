@@ -37,6 +37,7 @@ const (
 	QdrantFailed            ErrorCode = "net-0006" // Qdrant failed
 	GeminiFailed            ErrorCode = "net-0007" // Gemini failed
 	SlowRequest             ErrorCode = "net-0008" // slow request
+	ContextInvalid          ErrorCode = "net-0009" // context invalid
 
 	ClientRequestFailed   ErrorCode = "net-0101" // client request failed
 	ClientResponseInvalid ErrorCode = "net-0102" // client response invalid

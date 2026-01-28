@@ -30,9 +30,11 @@ import (
 //   - 500 Internal Server Error: If database query fails
 func GetCoursesHandler(c *fiber.Ctx) error {
 
-	db := c.Locals("db").(*gorm.DB)
-
-	c.Locals("message", "Courses retrieved successfully")
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
+	}
 
 	var userID uint
 	if id := c.Query("id"); id != "" {
@@ -42,9 +44,6 @@ func GetCoursesHandler(c *fiber.Ctx) error {
 
 		}
 		userID = uint(idInt)
-	} else {
-		currentUser := c.Locals("user").(models.User)
-		userID = currentUser.ID
 	}
 
 	// Step 2: Query database for user's courses using parameterized query for security
@@ -91,15 +90,16 @@ func GetCoursesHandler(c *fiber.Ctx) error {
 //   - 500 Internal Server Error: If database operations fail
 func CreateCourseHandler(c *fiber.Ctx) error {
 	// Step 1: Extract context values and initialize transaction for atomicity
-	userID, ok := c.Locals("user_id").(uint)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
-	c.Locals("message", "Course created successfully")
+	userID := currentUser.ID
 
 	var input models.Course
 	// Parse JSON request body into input struct
@@ -166,11 +166,12 @@ func CreateCourseHandler(c *fiber.Ctx) error {
 //   - 400 Bad Request: If request body is invalid or course ID conversion fails
 //   - 500 Internal Server Error: If database operations fail
 func UpdateCourseHandler(c *fiber.Ctx) error {
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	c.Locals("message", "Course updated successfully")
 
 	idStr := c.Params("id")
 	if idStr == "" {
@@ -219,11 +220,11 @@ func UpdateCourseHandler(c *fiber.Ctx) error {
 
 func DeleteCourseHandler(c *fiber.Ctx) error {
 
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	c.Locals("message", "Course deleted successfully")
 
 	var courseID uint
 	idStr := c.Params("id")
@@ -264,15 +265,15 @@ func DeleteCourseHandler(c *fiber.Ctx) error {
 
 // ClusterShareCourseHandler shares a course with a cluster of users
 func ClusterShareHandler(c *fiber.Ctx) error {
-	c.Locals("message", "Course cluster share processed")
 
-	currentUser, ok := c.Locals("user").(models.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
 	idStr := c.Params("id")
@@ -347,15 +348,14 @@ func ClusterShareHandler(c *fiber.Ctx) error {
 
 func ClusterRequestHandler(c *fiber.Ctx) error {
 
-	c.Locals("message", "Course cluster request processed")
-
-	currentUser, ok := c.Locals("user").(models.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
 	idStr := c.Params("id")
@@ -397,15 +397,15 @@ func ClusterRequestHandler(c *fiber.Ctx) error {
 
 // AcceptInvitationHandler accepts a course invitation
 func AcceptInvitationHandler(c *fiber.Ctx) error {
-	c.Locals("message", "Course invitation accepted")
-	// Step 1: Extract context values set by middleware (start_time, request_id, user, db)
-	currentUser, ok := c.Locals("user").(models.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
+
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
 	idStr := c.Params("id")
@@ -495,11 +495,11 @@ func AcceptInvitationHandler(c *fiber.Ctx) error {
 }
 
 func DeclineInvitationHandler(c *fiber.Ctx) error {
-	c.Locals("message", "Course invitation declined")
 
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
 	idStr := c.Params("id")
@@ -525,20 +525,18 @@ func DeclineInvitationHandler(c *fiber.Ctx) error {
 }
 
 func GetCoursesLinkedHandler(c *fiber.Ctx) error {
-	ctx := context.Background()
-	c.Locals("message", "Courses linked retrieved successfully")
 
-	currentUser, ok := c.Locals("user").(models.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
 	var courseClusters []uint
-	var err error
 
 	courseClusters, err = CacheService.GetUserClusterIDs(ctx, currentUser.ID, db)
 	if err != nil {

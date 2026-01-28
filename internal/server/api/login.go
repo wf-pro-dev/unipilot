@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"time"
 
 	//"github.com/gorilla/sessions"
@@ -51,7 +50,9 @@ import (
 //   - Logs authentication attempts (both successful and failed)
 //   - Generates new JWT tokens for each login session
 func LoginHandler(c *fiber.Ctx) error {
-	c.Locals("message", "User logging in")
+
+	ctx := c.UserContext()
+
 	var credentials struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -61,9 +62,9 @@ func LoginHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
 	var userObj models.User

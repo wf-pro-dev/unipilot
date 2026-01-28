@@ -8,7 +8,6 @@ import (
 
 	"unipilot/internal/errors"
 	"unipilot/internal/secrets"
-	"unipilot/internal/server"
 	"unipilot/internal/server/sse/grpc/messages"
 )
 
@@ -28,14 +27,11 @@ func NewGRPCClient() error {
 	}
 
 	c := messages.NewMessageServiceClient(conn)
-	message, err := c.SendHeartbeat(context.Background(), &messages.Heartbeat{Body: "heartbeat"})
+
+	_, err = c.SendHeartbeat(context.Background(), &messages.Heartbeat{Body: "heartbeat"})
 	if err != nil {
 		return errors.Wrap(err, errors.GRPCUnreachable, "cannot send heartbeat")
 	}
-	ctx := context.WithValue(context.Background(), "component", "grpc")
-	server.LogDebug(ctx, "Heartbeat response received", "message", message.Body,
-		"tags", []string{"system", "network", "low"},
-	)
 
 	GrpcClient = &c
 

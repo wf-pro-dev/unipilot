@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
@@ -107,20 +106,20 @@ type FollowStatusResponse struct {
 //   - Logs follow actions for social analytics
 func HandleFollow(c *fiber.Ctx) error {
 	// Step 2: Extract context values from middleware (user and database connection)
-	currentUser, ok := c.Locals("user").(models.User)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("db not found"), errors.ValidationInvalid, "DB not found", fiber.StatusInternalServerError)
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 	userID := currentUser.ID
 
 	// Step 3: Extract user ID from path parameter
 	var followedID uint
 	var int_followedID int
-	var err error
 	idStr := c.Params("id")
 	if idStr == "" {
 		return errors.WrapServer(
@@ -173,7 +172,6 @@ func HandleFollow(c *fiber.Ctx) error {
 	// Step 7: Handle follow/unfollow operation based on current status
 	var response FollowResponse
 	if isFollowing {
-		c.Locals("message", "Follow removed")
 		// Step 7a: Unfollow operation - remove existing relationship
 		if err := models.RemoveFollow(userID, followedID, db); err != nil {
 			return errors.WrapServer(err, errors.DBQueryFailed, "Error removing follow", fiber.StatusInternalServerError)
@@ -196,7 +194,6 @@ func HandleFollow(c *fiber.Ctx) error {
 		}
 
 	} else {
-		c.Locals("message", "New follower added")
 		// Step 7b: Follow operation - create new relationship
 		if err := models.CreateFollow(userID, followedID, db); err != nil {
 			if errors.HasCode(err, errors.DBConstraintViolation) {
@@ -215,7 +212,7 @@ func HandleFollow(c *fiber.Ctx) error {
 		ctx := context.Background()
 
 		// Add current user to followed user's followers list
-		if err := CacheService.SetUserFollowers(ctx, followedID, userID, &currentUser); err != nil {
+		if err := CacheService.SetUserFollowers(ctx, followedID, userID, currentUser); err != nil {
 			server.LogWarn(ctx, errors.WrapServer(err, errors.CacheOperationFailed, "Failed to add user to followers cache", fiber.StatusInternalServerError))
 		}
 
@@ -308,10 +305,11 @@ func HandleFollow(c *fiber.Ctx) error {
 //   - No database modifications (read-only operation)
 func HandleGetFollowers(c *fiber.Ctx) error {
 	// Step 2: Extract context values from middleware (user and database connection)
-	currentUser := c.Locals("user").(models.User)
-	db := c.Locals("db").(*gorm.DB)
-	_ = currentUser.ID // Available but not used for this endpoint
-	c.Locals("message", "Followers list retrieved")
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
+	}
 
 	// Step 3: Extract user ID from path parameter
 	userIDStr := c.Params("id")
@@ -348,7 +346,6 @@ func HandleGetFollowers(c *fiber.Ctx) error {
 	var followers []models.User
 	var total int
 	// Step 6: Attempt to retrieve followers from Redis cache first (performance optimization)
-	ctx := context.Background()
 	followers, err = CacheService.GetUserFollowers(ctx, uint(userID))
 	if err == nil {
 		response := FollowersResponse{
@@ -429,10 +426,11 @@ func HandleGetFollowers(c *fiber.Ctx) error {
 //   - No database modifications (read-only operation)
 func HandleGetFollowing(c *fiber.Ctx) error {
 	// Step 2: Extract context values from middleware (user and database connection)
-	currentUser := c.Locals("user").(models.User)
-	db := c.Locals("db").(*gorm.DB)
-	_ = currentUser.ID // Available but not used for this endpoint
-	c.Locals("message", "Following list retrieved")
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
+	}
 	// Step 3: Extract user ID from path parameter
 	userIDStr := c.Params("id")
 	if userIDStr == "" {
@@ -467,7 +465,6 @@ func HandleGetFollowing(c *fiber.Ctx) error {
 	}
 
 	var following []models.User
-	ctx := context.Background()
 	following, err = CacheService.GetUserFollowing(ctx, uint(userID))
 	if err == nil {
 		response := FollowingResponse{

@@ -5,12 +5,16 @@ package sse
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"unipilot/internal/server"
 	serverSSE "unipilot/internal/server/sse"
 	"unipilot/internal/server/sse/grpc/messages"
 
+	"unipilot/internal/errors"
+
+	"github.com/gofiber/fiber/v2"
 	"google.golang.org/grpc"
 )
 
@@ -53,10 +57,7 @@ func StartGRPCServer(sseServer *serverSSE.SSEServer) {
 	ctx := context.WithValue(context.Background(), "component", "grpc")
 	lis, err := net.Listen("tcp4", "0.0.0.0:9000")
 	if err != nil {
-		server.LogFatal(ctx, "Failed to listen on port 9000", err,
-			"tags", []string{"system", "network", "high"},
-			"error_type", "network",
-		)
+		server.LogFatal(ctx, errors.WrapServer(err, errors.GRPCFailed, "Failed to listen on port 9000", fiber.StatusInternalServerError))
 		return
 	}
 
@@ -72,17 +73,11 @@ func StartGRPCServer(sseServer *serverSSE.SSEServer) {
 	messages.RegisterMessageServiceServer(grpcServer, &s)
 
 	// Step 5: Log server startup for monitoring and debugging
-	server.LogDebug(ctx, "gRPC server starting", "port", 9000,
-		"tags", []string{"system", "network", "high"},
-	)
-
+	server.LogDebug(ctx, "message", fmt.Sprintf("gRPC server starting on port %d", 9000))
 	// Step 6: Start serving gRPC requests (blocking operation)
 	if err := grpcServer.Serve(lis); err != nil {
 		// Fatal error if server fails during operation
-		server.LogFatal(ctx, "Failed to serve gRPC on port 9000", err,
-			"tags", []string{"system", "network", "high"},
-			"error_type", "network",
-		)
+		server.LogFatal(ctx, errors.WrapServer(err, errors.GRPCFailed, "Failed to serve gRPC on port 9000", fiber.StatusInternalServerError))
 	}
 
 }

@@ -27,9 +27,8 @@ import (
 //   - Logs logout event for audit trail
 //   - No server-side session state changes (stateless design)
 func LogoutHandler(c *fiber.Ctx) error {
-	c.Locals("message", "User logged out")
 
-	// Step 2: Send successful logout acknowledgment (no server-side token invalidation needed)
+	// !!! TODO: Implement logout logic (JWT token invalidation)
 	return c.JSON(fiber.Map{
 		"message": "Logout successful",
 	})

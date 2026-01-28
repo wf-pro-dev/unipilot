@@ -120,7 +120,7 @@ func StartSSEServer() *SSEServer {
 	app.Get("/unipilot/sse/v1/count", sseServer.CountHandler)
 
 	// Step 4: Register authenticated SSE endpoint with JWT middleware
-	app.Get("/unipilot/sse/v1", server.LoggerMiddleware, server.ErrorHandlerMiddleware, server.AuthMiddleware, sseServer.SSEHandler)
+	app.Get("/unipilot/sse/v1", server.ErrorHandlerMiddleware, server.LoggerMiddleware, server.AuthMiddleware, sseServer.SSEHandler)
 
 	// Step 6: Start Fiber server in background goroutine to avoid blocking
 	go func() {

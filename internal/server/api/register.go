@@ -50,11 +50,15 @@ import (
 //   - Generates cryptographically secure password hash using bcrypt
 func RegisterHandler(c *fiber.Ctx) error {
 	// Step 2: Define input structure for JSON unmarshaling with required user fields
-	c.Locals("message", "Registration successful")
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
+	}
 
 	var registrationData models.User
 	// Parse JSON request body into registration data structure
-	err := c.BodyParser(&registrationData)
+	err = c.BodyParser(&registrationData)
 	if err != nil {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
