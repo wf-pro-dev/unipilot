@@ -1,4 +1,4 @@
-"use client"
+  "use client"
 
 import type React from "react"
 import { useState } from "react"
@@ -12,9 +12,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format, isSameDay } from "date-fns"
 import { CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { course as Course } from "@/wailsjs/go/models"
-import { LogInfo } from "@/wailsjs/runtime/runtime"
+import { models} from "@/wailsjs/go/models"
 import { toast } from "sonner"
+import { useCourse, useUpdateCourse } from "@/hooks/use-courses"
 
 const colors = [
     { name: "Blue", value: "bg-blue-500" },
@@ -41,14 +41,18 @@ const semesters = [
 ]
 
 interface CourseEditDialogProps {
-    open: boolean
-    setOpen: (open: boolean) => void
-    course: Course.LocalCourse | null
-    onEdit: (course: Course.LocalCourse, column: string, value: string) => void
+    courseId: number
+    isOpen: boolean
+    onClose: () => void
 }
 
-export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDialogProps) {
+export function CourseEditDialog({ courseId, isOpen, onClose }: CourseEditDialogProps) {
+    const { data: course } = useCourse(courseId)
     if (!course) return null
+
+    const updateMutation = useUpdateCourse()
+   
+
     const [startDate, setStartDate] = useState<Date>(new Date(course.StartDate) || new Date())
     const [endDate, setEndDate] = useState<Date>(new Date(course.EndDate) || new Date())
     const [formData, setFormData] = useState({
@@ -176,13 +180,17 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
             return
         }
 
-        setOpen(false)
+        onClose()
 
         for (const [key, value] of Object.entries(formData)) {
 
-            const column = key_to_column[key as keyof typeof key_to_column] as keyof Course.LocalCourse
+            const column = key_to_column[key as keyof typeof key_to_column] as keyof models.LocalCourse
             if (value != course[column]) {
-                onEdit(course, key, value)
+                updateMutation.mutate({
+                    course,
+                    column,
+                    value
+                })
                 isChanged = true
             }
         }
@@ -191,11 +199,19 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
         const formattedEndDate = format(endDate, "yyyy-MM-dd HH:mm:ssxxx")
 
         if (!isSameDay(startDate, new Date(course.StartDate))) {
-            onEdit(course, "start_date", formattedStartDate)
+            updateMutation.mutate({
+                course,
+                column: "start_date",
+                value: formattedStartDate
+            })
             isChanged = true
         }
         if (!isSameDay(endDate, new Date(course.EndDate))) {
-            onEdit(course, "end_date", formattedEndDate)
+            updateMutation.mutate({
+                course,
+                column: "end_date",
+                value: formattedEndDate
+            })
             isChanged = true
         }
 
@@ -212,7 +228,7 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
 
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="glass border-white/10 text-white max-w-lg p-0 overflow-hidden gap-0">
         <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
           <DialogTitle className="text-xl font-semibold">Edit Course</DialogTitle>
@@ -397,7 +413,7 @@ export function CourseEditDialog({ open, setOpen, course, onEdit }: CourseEditDi
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setOpen(false)}
+                  onClick={onClose}
                   className="border-white/10 bg-transparent hover:bg-white/5 text-gray-300 hover:text-white"
                 >
                   Cancel

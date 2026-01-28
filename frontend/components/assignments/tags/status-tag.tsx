@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { GlassCard, GlassCardVariants } from "@/components/ui/glass-card"
+import { useUpdateAssignment } from "@/hooks/use-assignments"
 import { cn } from "@/lib/utils"
 import { models } from "@/wailsjs/go/models"
 import { useState, memo, useEffect } from "react"
@@ -16,17 +17,17 @@ const statuses = [
 
 interface StatusTagProps {
     assignment: models.LocalAssignment
-    onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
     variant?: GlassCardVariants
     className?: string
 }
 
 
 
-function BaseStatusTag({ assignment, onEdit, variant = "default", className = "" }: StatusTagProps) {
+function BaseStatusTag({ assignment, variant = "default", className = "" }: StatusTagProps) {
+   
+    const updateMutation = useUpdateAssignment()
     const [status, setStatus] = useState(assignment.Status)
-
-
+    
     useEffect(() => {
         setStatus(assignment.Status)
     }, [assignment.Status])
@@ -34,7 +35,7 @@ function BaseStatusTag({ assignment, onEdit, variant = "default", className = ""
     const handleEdit = (e: React.MouseEvent<HTMLDivElement>, status: string) => {
         e.stopPropagation()
         setStatus(status)
-        onEdit(assignment, "status", status)
+        updateMutation.mutate({ assignment, column: "status", value: status })
     }
 
     return (

@@ -9,13 +9,14 @@ import { Input } from "../ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { Filter, Search } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
-import { Button } from "../ui/button"
-import { Badge } from "../ui/badge"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCoursesBySemester } from "@/hooks/use-courses"
 import { useAuthContext } from "../provider/auth-provider"
 import { CoursesSelect } from "../courses/courses-select"
 import { EmptyState } from "../ui/empty-state"
+import { AssignmentDetailsDialog } from "./assignment-details-dialog"
+import { AssignmentEditDialog } from "./assignment-edit-dialog"
+import { Scroll } from "../ui/scroll"
 
 interface Filter {
   course: string | null
@@ -40,6 +41,8 @@ export function AssignmentsTable({
   const [selectedCourse, setSelectedCourse] = useState(filter.course || "all")
   const [selectedStatus, setSelectedStatus] = useState(filter.status || "all")
   const [selectedPriority, setSelectedPriority] = useState(filter.priority || "all")
+  const [DetailsID, setDetailsID] = useState<number | undefined>(undefined)
+  const [EditID, setEditID] = useState<number | undefined>(undefined)
 
   const { user } = useAuthContext()
   const { data: courses } = useCoursesBySemester(user?.Semester || "FALL 2025")
@@ -100,7 +103,7 @@ export function AssignmentsTable({
   }
 
   return (
-    <div className="flex flex-col flex-1 space-y-4">
+    <div className="flex flex-col h-full min-h-0 space-y-4">
 
       <GlassCard variant="board" className="flex-grow-0 flex-row">
         <CardContent className="flex-1 p-2">
@@ -167,32 +170,54 @@ export function AssignmentsTable({
         </CardContent>
       </GlassCard>
 
-      {filteredAssignments.length === 0 ? (
-        <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
-          <EmptyState
-            icon={List}
-            title="No assignments found"
-            description="Try adjusting your filters or search terms"
-            className="flex-1 items-center"
-            onClick={clearFilters}
-            buttonText="Clear Filters"
+
+      <div className="flex h-full min-h-0">
+        {filteredAssignments.length > 0 ? (
+          <Scroll
+            data={filteredAssignments}
+            renderItem={(assignment: models.LocalAssignment) => (
+              <AssignmentItem
+                key={assignment.ID}
+                assignmentId={assignment.ID}
+                disabled={isLoading}
+                variant="outline"
+              />
+            )}
+            keyExtractor={(item: models.LocalAssignment) => item.ID}
+            numColumns={3}
+            containerClassName="grid grid-cols-3 gap-4"
           />
-
-        </div>
-
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredAssignments.map((assignment) => (
-            <AssignmentItem
-              key={assignment.ID}
-              assignmentId={assignment.ID}
-              disabled={isLoading}
-              variant="outline"
+        ) : (
+          <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
+            <EmptyState
+              icon={List}
+              title="No assignments found"
+              description="Try adjusting your filters or search terms"
+              className="flex-1 items-center"
+              onClick={clearFilters}
+              buttonText="Clear Filters"
             />
-          ))}
-        </div>
-      )
-      }
+
+          </div>
+        )}
+      </div>
+
+
+
+      <AssignmentDetailsDialog
+        key={DetailsID}
+        assignmentId={DetailsID!}
+        isOpen={DetailsID !== undefined}
+        onClose={() => setDetailsID(undefined)}
+        handleEditOpen={() => setEditID(DetailsID)}
+      />
+
+      <AssignmentEditDialog
+        key={EditID}
+        assignmentId={EditID!}
+        isOpen={EditID !== undefined}
+        onClose={() => setEditID(undefined)}
+      />
 
     </div >
   )

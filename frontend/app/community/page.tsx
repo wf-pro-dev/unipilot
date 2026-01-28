@@ -34,10 +34,6 @@ export default function CommunityPage() {
   // Context provides pre-fetched data avoiding prop drilling through component tree
   const { followers, following, users } = useAuthContext()
 
-
-
-
-
   const router = useRouter()
   const searchParams = useSearchParams()
   // Get the current view from URL parameters, default to "today"

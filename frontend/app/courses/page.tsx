@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { CourseAddDialog } from "@/components/courses/course-add-dialog"
-import { CourseDetailsModal } from "@/components/courses/course-details-modal"
-import { Loader2, Calendar, List } from "lucide-react"
-import { useCourses, useCreateCourse, useDeleteCourse, useUpdateCourse } from "@/hooks/use-courses"
+import { Loader2, Calendar, List, Plus } from "lucide-react"
+import { useCourses, useCreateCourse } from "@/hooks/use-courses"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter, useSearchParams } from "next/navigation"
 import CoursesSchedule from "@/components/courses/courses-schedule"
@@ -12,11 +11,11 @@ import CoursesTable from "@/components/courses/courses-table"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
 import { models } from "@/wailsjs/go/models"
-import { CourseDeleteDialog } from "./course-delete-dialog"
 import { LinkRequestModal } from "@/components/community/link-request-modal"
-import { Link as LinkIcon } from "lucide-react"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { useAuthContext } from "@/components/provider/auth-provider"
+import { Button } from "@/components/ui/button"
+import { useDialogContext } from "@/components/provider/dialog-provider"
 
 /**
  * Courses page component for course management and viewing.
@@ -50,6 +49,7 @@ export default function CoursesPage() {
   const [selectedDeleteCourseId, setSelectedDeleteCourseId] = useState<number | null>(null)
   const [isLinkRequestModalOpen, setIsLinkRequestModalOpen] = useState(false)
   const [selectedSemester, setSelectedSemester] = useState<string>(user?.Semester || "")
+  const { SetDialogState } = useDialogContext()
 
 
 
@@ -125,47 +125,9 @@ export default function CoursesPage() {
   const semester = searchParams.get("semester") || null
   const instructor = searchParams.get("instructor") || null
 
-  const updateMutation = useUpdateCourse()
-  const deleteMutation = useDeleteCourse()
   const createMutation = useCreateCourse()
 
-  /**
-   * Handles course field updates with optimistic UI updates.
-   * 
-   * Updates a specific field of a course and provides immediate UI feedback
-   * through optimistic updates. Logs the change for audit purposes.
-   * 
-   * @param {course.LocalCourse} courseData - The course to update
-   * @param {string} column - The field name to update
-   * @param {string} value - The new value for the field
-   * @returns {Promise<void>}
-   */
-  const handleEditCourse = async (courseData: models.LocalCourse, column: string, value: string) => {
-    const message = "course " + courseData.Code + " " + column + " changed to " + value
-    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
 
-    // Use the optimistic update mutation
-    updateMutation.mutate({
-      course: courseData,
-      column,
-      value
-    })
-  }
-
-  /**
-   * Handles course deletion with optimistic UI updates.
-   * 
-   * Deletes a course and provides immediate UI feedback. Logs the deletion
-   * for audit purposes. Note: This triggers the delete confirmation dialog.
-   * 
-   * @param {course.LocalCourse} course - The course to delete
-   * @returns {Promise<void>}
-   */
-  const handleDeleteCourse = async (course: models.LocalCourse) => {
-    const message = "course " + course.Code + " deleted"
-    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-    deleteMutation.mutate(course)
-  }
 
   /**
    * Handles course creation with optimistic UI updates.
@@ -252,7 +214,15 @@ export default function CoursesPage() {
               Manage your enrolled courses ({courses.length} total)
             </p>
           </div>
-          <CourseAddDialog onAdd={handleAddCourse} />
+          <Button
+            type="button"
+            variant="default"
+            className="text-body text-black"
+            onClick={() => SetDialogState({ modelType: "course", dialogType: "add" })}
+          >
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            Add Course
+          </Button>
         </div>
 
         {/* Tab navigation with URL synchronization */}
@@ -266,7 +236,7 @@ export default function CoursesPage() {
                 <Calendar className="w-4 h-4" />
                 <span className="hidden sm:inline text-sm font-medium">Schedule</span>
               </TabsTrigger>
-             
+
               <TabsTrigger
                 value="list"
                 className="flex w-60 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
@@ -274,7 +244,7 @@ export default function CoursesPage() {
                 <List className="w-4 h-4" />
                 <span className="hidden sm:inline text-sm font-medium">All ({courses.length || 0})</span>
               </TabsTrigger>
-             
+
             </TabsList>
             <div>
               <Select value={selectedSemester} onValueChange={setSelectedSemester}>
@@ -300,8 +270,6 @@ export default function CoursesPage() {
           <TabsContent value="schedule" className="flex flex-col data-[state=active]:flex-1 m-0">
             <CoursesSchedule
               selectedSemester={selectedSemester}
-              onEdit={handleEditCourse}
-              onDelete={handleDeleteCourseClick}
               courses={courses || []}
               onCourseClick={handleCourseClick}
             />
@@ -312,34 +280,11 @@ export default function CoursesPage() {
             <CoursesTable
               courses={courses || []}
               filter={{ semester: semester || null, instructor: instructor || null }}
-              onCourseClick={handleCourseClick}
-              onEdit={handleEditCourse}
-              onDelete={handleDeleteCourseClick}
             />
           </TabsContent>
 
-         
         </Tabs>
 
-
-        <CourseDetailsModal
-          isOpen={!!selectedCourseId}
-          courseId={selectedCourseId}
-          courses={courses || []}
-          onClose={() => setSelectedCourseId(null)}
-          onEdit={handleEditCourse}
-          onDelete={handleDeleteCourseClick}
-          onLinkRequest={() => setIsLinkRequestModalOpen(true)}
-          onViewLinks={() => handleTabChange("linked")}
-        />
-
-        <CourseDeleteDialog
-          isOpen={!!selectedDeleteCourseId}
-          onClose={() => setSelectedDeleteCourseId(null)}
-          courseId={selectedDeleteCourseId}
-          courses={courses || []}
-          onDelete={handleDeleteCourse}
-        />
 
         <LinkRequestModal
           courseID={selectedCourseId!}

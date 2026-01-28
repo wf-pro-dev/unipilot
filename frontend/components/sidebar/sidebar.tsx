@@ -35,13 +35,13 @@ import { SidebarMenuSub, SidebarMenuSubItem, SidebarMenuSubButton } from "@/comp
 import { GlassCard } from "@/components/ui/glass-card"
 import { useNextAssignments } from "@/hooks/use-assignments"
 import { AiAssignmentCard } from "@/components/ai-chat/ai-chat-assignments"
+import { useMemo } from "react"
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: Home },
   {
     href: "/courses", label: "Courses", icon: BookOpen, items: [
       { href: "/courses?view=schedule", label: "Schedule" },
-      { href: "/courses?view=linked", label: "Linked" },
       { href: "/courses?view=list", label: "All" },
     ]
   },
@@ -55,15 +55,14 @@ const navItems = [
   {
     href: "/notes", label: "Notes", icon: FileText, items: [
       { href: "/notes", label: "All" },
-      { href: "/notes", label: "Videos" },
     ]
   },
   {
     href: "/community", label: "Community", icon: Users, items: [
-      { href: "/community", label: "Explore" },
-      { href: "/community", label: "Followers" },
-      { href: "/community", label: "Following" },
-
+      { href: "/community?view=explore", label: "Explore" },
+      { href: "/community?view=followers", label: "Followers" },
+      { href: "/community?view=following", label: "Following" },
+      { href: "/community?view=social", label: "Social" },
     ]
   },
 
@@ -86,7 +85,9 @@ export function MainSidebar() {
     window.location.reload()
   }
 
-  const upcomingAssignments = nextAssignments?.slice(0, 3) || []
+  const upcomingAssignments = useMemo(() => {
+    return nextAssignments?.slice(0, 5) || []
+  }, [nextAssignments])
 
   // Helper to check if a link is active, handling query parameters
   const isLinkActive = (href: string) => {
@@ -192,7 +193,7 @@ export function MainSidebar() {
 
           <SidebarGroup className="p-0 group-data-[collapsible=icon]:hidden">
             <div className="flex items-center justify-between mb-3 px-1">
-              <SidebarGroupLabel className="text-xs uppercase tracking-widest text-white/40 font-bold">
+              <SidebarGroupLabel className="text-body font-medium text-gray-400 uppercase tracking-wider">
                 AI Chat Quick Access
               </SidebarGroupLabel>
             </div>

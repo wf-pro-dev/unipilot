@@ -26,6 +26,7 @@ import {
 } from "./schema"
 import { CoursesSelect } from "../courses/courses-select"
 import { FormErrorMessage } from "../auth/form-error-message"
+import { useCreateAssignment } from "@/hooks/use-assignments"
 
 const types = [
   { value: "HW", label: "HW", icon: "📝", color: "text-blue-400" },
@@ -47,13 +48,15 @@ const statuses = [
   { value: "Done", label: "Done", color: "text-green-400" },
 ]
 
-interface AddAssignmentDialogProps {
-  onAdd: (assignment: models.LocalAssignment) => void
+interface AssignmentAddDialogProps {
   isOpen: boolean
-  setOpen: (open: boolean) => void
+  onClose: () => void
 }
 
-export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDialogProps) {
+export function AssignmentAddDialog({ isOpen, onClose }: AssignmentAddDialogProps) {
+
+  const createMutation = useCreateAssignment()
+  
   const [step, setStep] = useState(1)
   const [step1Attempted, setStep1Attempted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -80,7 +83,6 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
     if (step === 1) {
       setStep1Attempted(true)
       const step1Valid = await form.trigger(["title", "course_code", "course_id", "remote_course_id", "type", "deadline"])
-      console.log("step1Valid", step1Valid)
       if (step1Valid) setStep(2)
     }
   }
@@ -106,8 +108,8 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
         Link: data.link || "https://acconline.austincc.edu/ultra/stream",
       } as unknown as models.LocalAssignment
 
-      onAdd(assignmentData)
-      handleOpenChange(false)
+      createMutation.mutate(assignmentData)
+      onClose()
     } catch (error) {
     } finally {
       setIsSubmitting(false)
@@ -115,12 +117,13 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
   }
 
   const handleOpenChange = (open: boolean) => {
-    setOpen(open)
     if (!open) {
+      
       setStep(1)
       setStep1Attempted(false)
       form.reset()
     }
+    onClose()
   }
 
   const handleCourseChange = (course: models.LocalCourse | undefined) => {
@@ -140,13 +143,7 @@ export function AddAssignmentDialog({ onAdd, isOpen, setOpen }: AddAssignmentDia
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange} modal={false}>
-      <DialogTrigger asChild>
-        <Button variant="default" size="lg">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Assignment
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="glass border-white/10 text-white max-w-md p-0 overflow-hidden gap-0">
         <DialogHeader className="px-6 pt-8 pb-4 border-b border-white/5 bg-white/5">
           <div className="flex items-center justify-between">

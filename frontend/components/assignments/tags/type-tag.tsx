@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { memo, useEffect, useState } from "react"
 import { GlassCard, GlassCardVariants } from "@/components/ui/glass-card"
 import { cn } from "@/lib/utils"
+import { useUpdateAssignment } from "@/hooks/use-assignments"
 
 
 
@@ -19,26 +20,29 @@ const types = [
 
 interface TypeTagProps {
     assignment: models.LocalAssignment
-    onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
     variant?: GlassCardVariants
     className?: string
 }
 
 
 
-function BaseTypeTag({ assignment, onEdit, variant = "default", className = "" }: TypeTagProps) {
+function BaseTypeTag({ assignment, variant = "default", className = "" }: TypeTagProps) {
 
     const [type, setType] = useState(assignment.Type)
+    const updateMutation = useUpdateAssignment()
 
     useEffect(() => {
         setType(assignment.Type)
     }, [assignment.Type])
 
+
     const handleEdit = (e: React.MouseEvent<HTMLDivElement>, type: string) => {
         e.stopPropagation()
         setType(type)
-        onEdit(assignment, "type", type)
+        updateMutation.mutate({ assignment, column: "type", value: type })
     }
+
+    
 
     return (
         <DropdownMenu>

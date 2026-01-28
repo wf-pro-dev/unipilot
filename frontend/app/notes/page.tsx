@@ -9,6 +9,9 @@ import { toast } from "sonner"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
 import { useSearchParams, usePathname } from "next/navigation"
+import { Plus } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { useDialogContext } from "@/components/provider/dialog-provider"
 
 export default function NotesPage() {
   const searchParams = useSearchParams()
@@ -21,8 +24,7 @@ export default function NotesPage() {
   const updateNote = useUpdateNote()
   const [selectedNoteID, setSelectedNoteID] = useState<number | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [addNoteOpen, setAddNoteOpen] = useState(false)
-
+  const { SetDialogState } = useDialogContext()
   const courseFilter = searchParams.get("course") || "all"
 
   // const handleAddNote = async (note: models.LocalNote) => {
@@ -75,7 +77,7 @@ export default function NotesPage() {
     <div className="flex flex-col flex-1">
 
       <div className="flex flex-col flex-1 relative z-10">
-        
+
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-h1 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">
@@ -83,7 +85,15 @@ export default function NotesPage() {
             </h1>
             <p className="mt-3 text-body-small text-gray-400">Generate AI-powered study notes for your courses</p>
           </div>
-          <NoteAddDialog isOpen={addNoteOpen} setOpen={setAddNoteOpen} />
+          <Button
+            type="button"
+            variant="default"
+            className="text-body text-black"
+            onClick={() => SetDialogState({ modelType: "note", dialogType: "add" })}
+          >
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            Add Note
+          </Button>
         </div>
 
 
@@ -94,14 +104,13 @@ export default function NotesPage() {
           onNoteClick={handleNoteClick}
           onDelete={handleDeleteNote}
           onEdit={handleEditNote}
-          setAddOpen={setAddNoteOpen}
           isLoading={isLoading}
           filter={{ course: courseFilter }}
         />
 
 
         {/* Note Detail Modal */}
-       
+
       </div>
     </div>
   )

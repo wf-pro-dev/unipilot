@@ -1,20 +1,17 @@
-import { assignment, course as Course } from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { useState, useMemo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { GlassCard } from "@/components/ui/glass-card"
 import { EmptyState } from "@/components/ui/empty-state"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { differenceInMinutes, format, isAfter, isBefore, isSameDay } from "date-fns"
+import { differenceInMinutes, format, isAfter, isBefore } from "date-fns"
 import { CourseItem } from "./course-item"
 import { useAuthContext } from "../provider/auth-provider"
 import { ParsedSchedule, parseSchedule } from "@/lib/date-utils"
 import { BookOpen, FileText } from "lucide-react"
 
 interface CoursesScheduleProps {
-    courses: Course.LocalCourse[]
-    onCourseClick: (course: Course.LocalCourse) => void
-    onEdit: (course: Course.LocalCourse, column: string, value: string) => void
-    onDelete: (course: Course.LocalCourse) => void
+    courses: models.LocalCourse[]
+    onCourseClick: (course: models.LocalCourse) => void
     selectedSemester: string
 }
 
@@ -25,7 +22,7 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i)
 
 
 
-interface CourseWithSchedule extends Course.LocalCourse {
+interface CourseWithSchedule extends models.LocalCourse {
     parsedSchedule: ParsedSchedule | null
 }
 
@@ -37,7 +34,7 @@ function formatTime(hour: number): string {
     return `${hour - 12}:00 PM`
 }
 
-function CoursesSchedule({ courses, selectedSemester, onCourseClick, onEdit, onDelete }: CoursesScheduleProps) {
+function CoursesSchedule({ courses, selectedSemester, onCourseClick }: CoursesScheduleProps) {
     const { user } = useAuthContext()
     if (!user) return null
 
@@ -122,62 +119,8 @@ function CoursesSchedule({ courses, selectedSemester, onCourseClick, onEdit, onD
                                                 {scheduledCourses
                                                     .filter(course => course.parsedSchedule?.days.includes(dayIndex))
                                                     .map((course, index) => {
-                                                        if (!course.parsedSchedule) return null
-
-                                                        var isOn = false
-                                                        const startHour = course.parsedSchedule.startHour
-                                                        const startMinute = course.parsedSchedule.startMinute
-                                                        const endHour = course.parsedSchedule.endHour
-                                                        const endMinute = course.parsedSchedule.endMinute
-
-                                                        const today = new Date()
-                                                        const startDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), startHour, startMinute)
-                                                        const endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate(), endHour, endMinute)
-
-                                                        isOn = day == format(today, 'EEEE') && isBefore(startDate, today) && isAfter(endDate, today)
-                                                        const duration = differenceInMinutes(endDate, startDate)
-
-                                                        // Calculate position
-                                                        var topPosition = ((startHour - timeSlots[0]) * 60)
-                                                        if (startMinute != 0) {
-                                                            topPosition = topPosition + (60 / (60 / startMinute))
-                                                        }
-                                                        const height = duration // Exact duration
-
                                                         return (
-                                                            <div
-                                                                key={`${course.ID}-${index}`}
-                                                                className={` absolute left-1 right-1 border rounded-lg hover:translate-y-0.5 backdrop-blur-lg transition-all duration-300 overflow-hidden  cursor-pointer group ${isOn
-                                                                        ? 'border-blue-400/50 ring-2 ring-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
-                                                                        : 'bg-white/5 border-white/5 shadow-lg shadow-black/60'
-                                                                    }`}
-                                                                style={{
-                                                                    top: `${topPosition}px`,
-                                                                    height: `${height}px`,
-                                                                }}
-                                                                onClick={() => onCourseClick(course)}
-                                                            >
-                                                                <div className="h-full w-full p-2.5 flex flex-col relative overflow-hidden">
-                                                                    {/* Shine effect on hover */}
-                                                                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-                                                                    <div className="flex items-center gap-2 mb-0.5 relative z-10">
-                                                                        <div className="font-semibold text-sm text-white drop-shadow-md truncate">
-                                                                            {course.Code}
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <div className="text-[10px] font-medium text-white/90 truncate relative z-10">
-                                                                        {course.parsedSchedule?.startTimeString} - {course.parsedSchedule?.endTimeString}
-                                                                    </div>
-
-                                                                    {course.Name && height > 50 && (
-                                                                        <div className="text-[10px] text-white/80 truncate mt-1 relative z-10">
-                                                                            {course.Name}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
+                                                            <CourseItem key={course.ID} mode="schedule" courseId={course.ID} timeSlots={timeSlots} day={day} />
                                                         )
                                                     })
                                                 }
@@ -196,7 +139,7 @@ function CoursesSchedule({ courses, selectedSemester, onCourseClick, onEdit, onD
                     <h3 className="text-lg font-semibold text-white px-1">Asynchronous Courses</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {asyncCourses.map((course) => (
-                            <CourseItem key={course.ID} course={course} onCourseClick={onCourseClick} onEdit={onEdit} onDelete={onDelete} />
+                            <CourseItem key={course.ID} courseId={course.ID} />
                         ))}
                     </div>
                 </div>

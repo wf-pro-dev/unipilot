@@ -36,6 +36,37 @@ export function useCourses() {
   })
 }
 
+export function useCourse(id: number) {
+  
+  // Directly subscribe to assignment cache changes
+  const { data: courses } = useQuery({
+    queryKey: courseKeys.lists(),
+    enabled: false,
+  })
+  
+  const currentCourse = (courses as models.LocalCourse[])?.find(c => c.ID === id)
+  return {
+    data: currentCourse,
+    isLoading: false,
+    isError: false,
+  }
+}
+
+export function useCourseAssignments(courseId: number) {
+  const { data: assignments } = useQuery({
+    queryKey: assignmentKeys.lists(),
+    enabled: false,
+  })
+  
+  const currentAssignments = (assignments as models.LocalAssignment[])?.filter(a => a.Course?.ID === courseId)
+  return {
+    data: currentAssignments,
+    isLoading: false,
+    isError: false,
+  }
+}
+
+
 export function useCoursesLinked() {
   return useQuery({
     queryKey: courseKeys.linked(),
@@ -162,9 +193,7 @@ export function useDeleteCourse() {
       
       assignmentsToRemove.forEach(assignment => {
         // Remove assignment documents
-        queryClient.removeQueries({ queryKey: documentKeys.list(assignment.ID) })
-        queryClient.removeQueries({ queryKey: documentKeys.support(assignment.ID) })
-        queryClient.removeQueries({ queryKey: documentKeys.submissions(assignment.ID) })
+        queryClient.removeQueries({ queryKey: documentKeys.assignmentStorage(assignment.ID) })
       })
       
       return { previousCourses, previousAssignments }
@@ -184,7 +213,6 @@ export function useDeleteCourse() {
       // Invalidate all related caches to ensure consistency
       queryClient.invalidateQueries({ queryKey: courseKeys.all })
       queryClient.invalidateQueries({ queryKey: assignmentKeys.all })
-      queryClient.invalidateQueries({ queryKey: documentKeys.all })
       
       // Also invalidate storage info since documents were deleted
       queryClient.invalidateQueries({ queryKey: documentKeys.storage() })

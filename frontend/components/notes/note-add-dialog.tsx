@@ -145,16 +145,7 @@ export function NoteAddDialog({ isOpen, setOpen }: NoteAddDialogProps) {
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange} modal={false}>
-            <DialogTrigger asChild>
-                <Button
-                    type="button"
-                    variant="default"
-                    className="text-body text-black">
-                    <Plus className="h-4 w-4" strokeWidth={2} />
-                    Add Note
-                </Button>
-            </DialogTrigger>
-
+            
             <DialogContent className="glass border-white/10 text-white max-w-md p-0 overflow-hidden gap-0">
                 <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
                     <DialogTitle className="text-h3">Add Note</DialogTitle>

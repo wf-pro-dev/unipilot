@@ -18,13 +18,12 @@ import (
 
 // Scheduler handles scheduled notification tasks
 type Scheduler struct {
-	cron      *cron.Cron
-	db        *gorm.DB
-	ctx       context.Context
-	cancel    context.CancelFunc
-	isRunning bool
-	mu        sync.RWMutex
-	// Performance optimizations
+	cron          *cron.Cron
+	db            *gorm.DB
+	ctx           context.Context
+	cancel        context.CancelFunc
+	isRunning     bool
+	mu            sync.RWMutex
 	courseEntries map[uint]*CourseEntry
 }
 
@@ -60,8 +59,8 @@ func (s *Scheduler) StartScheduler() error {
 		return errors.NewAppError(errors.ValidationInvalid, "Scheduler is already running", nil)
 	}
 
-	// Schedule morning notifications at 9:00 AM
-	_, err := s.cron.AddFunc("0 0 0 * * *", func() {
+	// Schedule morning notifications at 8:00 AM
+	_, err := s.cron.AddFunc("0 8 * * *", func() {
 		if err := s.CleanUp(); err != nil {
 			err = errors.Wrap(err, errors.InternalError, "Failed to clean up course entries")
 			return
@@ -76,6 +75,7 @@ func (s *Scheduler) StartScheduler() error {
 			err = errors.Wrap(err, errors.InternalError, "Failed to schedule course notifications")
 			return
 		}
+
 	})
 
 	_, err = s.cron.AddFunc("@every 30m", func() {
@@ -131,7 +131,6 @@ type CourseEntry struct {
 }
 
 func (s *Scheduler) GetCourseEntries() error {
-	now := time.Now()
 	var entries map[uint]*CourseEntry = make(map[uint]*CourseEntry)
 
 	courses, err := models.GetActiveCourses(s.db)
@@ -140,17 +139,15 @@ func (s *Scheduler) GetCourseEntries() error {
 	}
 
 	for _, course := range courses {
-		schedule, err := models.ParseSchedule(course.Schedule)
-		if err != nil {
-			return errors.Wrap(err, errors.InternalError, "Failed to parse schedule")
-		}
 
-		startTime := time.Date(now.Year(), now.Month(), now.Day(), schedule.StartTime, schedule.StartMinute, 0, 0, now.Location())
-		notifTime := startTime.Add(-30 * time.Minute)
+		notifTime, err := GetNotificationTime(course.Schedule)
+		if err != nil {
+			return errors.Wrap(err, errors.InternalError, "Failed to get notification time")
+		}
 
 		entries[course.ID] = &CourseEntry{
 			course:  course,
-			pattern: fmt.Sprintf("0 %d %d * * *", notifTime.Format("15"), notifTime.Format("4")),
+			pattern: fmt.Sprintf("%d %d * * *", notifTime.Minute(), notifTime.Hour()),
 			message: models.Message{
 				Type:    models.MessageCourse,
 				Title:   fmt.Sprintf("%s - %s", course.Code, course.Name),
@@ -186,7 +183,6 @@ func (s *Scheduler) UpdateCourseEntries() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	now := time.Now()
 	courses, err := models.GetActiveCourses(s.db)
 	if err != nil {
 		return errors.HandleDBReadError(err)
@@ -204,13 +200,13 @@ func (s *Scheduler) UpdateCourseEntries() error {
 			s.RemoveCourseEntry(entry.ID)
 
 			// Compute new entry
-			schedule, err := models.ParseSchedule(course.Schedule)
+
+			notifTime, err := GetNotificationTime(course.Schedule)
 			if err != nil {
-				return errors.Wrap(err, errors.InternalError, "Failed to parse schedule")
+				return errors.Wrap(err, errors.InternalError, "Failed to get notification time")
 			}
-			startTime := time.Date(now.Year(), now.Month(), now.Day(), schedule.StartTime, schedule.StartMinute, 0, 0, now.Location())
-			notifTime := startTime.Add(-30 * time.Minute)
-			entry.pattern = fmt.Sprintf("0 %d %d * * *", notifTime.Format("15"), notifTime.Format("04"))
+
+			entry.pattern = fmt.Sprintf("%d %d * * *", notifTime.Minute(), notifTime.Hour())
 			entry.message = models.Message{
 				Type:    models.MessageCourse,
 				Title:   fmt.Sprintf("%s - %s", course.Code, course.Name),
@@ -233,6 +229,14 @@ func (s *Scheduler) UpdateCourseEntries() error {
 	return nil
 }
 
+// ListCronEntries lists all cron entries
+func (s *Scheduler) ListCronEntries() ([]cron.Entry, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.cron.Entries(), nil
+}
+
+// CleanUp removes all course entries from the cron scheduler
 func (s *Scheduler) CleanUp() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -242,4 +246,20 @@ func (s *Scheduler) CleanUp() error {
 	}
 	s.courseEntries = make(map[uint]*CourseEntry)
 	return nil
+}
+
+// Helpers
+
+// GetNotificationTime returns the time 30 minutes before the start of the course
+func GetNotificationTime(schedule string) (time.Time, error) {
+
+	parsedSchedule, err := models.ParseSchedule(schedule)
+	if err != nil {
+		return time.Time{}, errors.Wrap(err, errors.InternalError, "Failed to parse schedule")
+	}
+
+	now := time.Now()
+	startTime := time.Date(now.Year(), now.Month(), now.Day(), parsedSchedule.StartTime, parsedSchedule.StartMinute, 0, 0, now.Location())
+	notifTime := startTime.Add(-30 * time.Minute)
+	return notifTime, nil
 }

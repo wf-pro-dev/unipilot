@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge"
 import { GlassCard, GlassCardVariants } from "@/components/ui/glass-card"
 import { models } from "@/wailsjs/go/models"
 import { parseDeadline, getDueDescription } from "@/lib/date-utils"
-import { memo, useCallback, useState } from "react"
-import { BrowserOpenURL, LogInfo } from "@/wailsjs/runtime/runtime"
+import { memo, useCallback, useRef, useState } from "react"
+import { BrowserOpenURL } from "@/wailsjs/runtime/runtime"
 import { StatusTag } from "./tags/status-tag"
 import { TypeTag } from "./tags/type-tag"
 import { PriorityTag } from "./tags/priority-tag"
@@ -18,9 +18,8 @@ import { cn } from "@/lib/utils"
 import { Avatar, AvatarImage, AvatarFallback } from "@radix-ui/react-avatar"
 import { AssignmentDetailsDialog } from "./assignment-details-dialog"
 import { useAssignment, useDeleteAssignment, useUpdateAssignment } from "@/hooks/use-assignments"
-import { AssignmentEditDialog } from "./assignment-edit-dialog"
-import { toast } from "sonner"
 import { format } from "date-fns"
+import { useDialogContext } from "../provider/dialog-provider"
 
 interface AssignmentItemProps {
   assignmentId: number
@@ -60,38 +59,26 @@ const BaseAssignmentItem = ({
   onCopy,
 }: AssignmentItemProps) => {
 
+  console.log("AssignmentItem Render", assignmentId)
 
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isActionsOpen, setIsActionsOpen] = useState(false)
+  
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [isEditOpen, setIsEditOpen] = useState(false)
 
   const router = useRouter()
 
-  const updateMutation = useUpdateAssignment()
   const deleteMutation = useDeleteAssignment()
+  const { SetDialogState } = useDialogContext()
 
-  const handleDeleteAssignment = useCallback((assignment: models.LocalAssignment) => {
-    deleteMutation.mutate(assignment, {
-      onSuccess: () => toast.success("Assignment deleted"),
-      onError: () => toast.error("Delete failed")
-    })
-  }, [deleteMutation])
+  const handleEditDialog = useCallback(() => {
+    SetDialogState({ modelType: "assignment", dialogType: "edit", id: assignmentId })
+  }, [])
 
-  const handleEditAssignment = useCallback((assignment: models.LocalAssignment, column: string, value: string) => {
-    updateMutation.mutate({ assignment, column, value }, {
-      onSuccess: () => toast.success("Assignment updated"),
-      onError: () => toast.error("Update failed")
-    })
-  }, [updateMutation])
+  const handleDetailsDialog = useCallback(() => {
+    SetDialogState({ modelType: "assignment", dialogType: "details", id: assignmentId })
+  }, [])  
 
-  const handleEditOpen = () => {
-    setIsEditOpen(true)
-  }
-
-  const handleCardClick = () => {
-    console.log("handleCardClick")
-    setIsDetailsOpen(true)
-  }
 
   const statusColors = {
     "Not started": "bg-gray-500",
@@ -128,11 +115,6 @@ const BaseAssignmentItem = ({
 
     if (!assignment) return null
 
-    // Parse deadline with timezone awareness
-    const { Deadline, Status } = assignment
-    const deadline = parseDeadline(Deadline)
-
-
 
     const handleOpenLink = (e: React.MouseEvent<HTMLDivElement>) => {
       e.stopPropagation()
@@ -150,7 +132,7 @@ const BaseAssignmentItem = ({
 
     const handleDelete = (e: React.MouseEvent<HTMLDivElement>) => {
       e.stopPropagation()
-      handleDeleteAssignment(assignment)
+      deleteMutation.mutate(assignment)
     }
 
 
@@ -171,7 +153,7 @@ const BaseAssignmentItem = ({
         icon: Edit,
         onClick: (e: React.MouseEvent<HTMLDivElement>) => {
           e.stopPropagation()
-          handleEditOpen()
+          SetDialogState({ modelType: "assignment", dialogType: "edit", id: assignmentId })
         }
       },
       {
@@ -183,19 +165,12 @@ const BaseAssignmentItem = ({
 
 
 
-
-
-    const handleActionOpenChange = (e: React.MouseEvent<HTMLDivElement>, isOpen: boolean) => {
-      e.stopPropagation()
-      setIsDetailsOpen(isOpen)
-    }
-
     return (
       <div className="flex flex-1">
         <GlassCard
           key={assignment.ID}
           variant={variant}
-          onClick={handleCardClick}
+          onClick={() => SetDialogState({ modelType: "assignment", dialogType: "details", id: assignmentId })}
           className="min-w-0"
         >
           <CardContent className="flex flex-col flex-1 p-4 gap-4 ">
@@ -233,30 +208,15 @@ const BaseAssignmentItem = ({
 
           {size === "default" && (
             <CardFooter className="grid grid-cols-3 gap-4">
-              <StatusTag assignment={assignment} onEdit={handleEditAssignment} variant={variant} />
-              <TypeTag assignment={assignment} onEdit={handleEditAssignment} variant={variant} />
-              <PriorityTag assignment={assignment} onEdit={handleEditAssignment} variant={variant} />
+              <StatusTag assignment={assignment} variant={variant} />
+              <TypeTag assignment={assignment} variant={variant} />
+              <PriorityTag assignment={assignment} variant={variant} />
             </CardFooter>
           )}
 
 
         </GlassCard >
-        <AssignmentDetailsDialog
-          key={assignment.ID}
-          assignmentId={assignment.ID}
-          isOpen={isDetailsOpen}
-          onClose={() => setIsDetailsOpen(false)}
-          onEdit={handleEditAssignment}
-          onDelete={handleDeleteAssignment}
-          handleEditOpen={handleEditOpen}
-        />
-        <AssignmentEditDialog
-          key={assignment.ID}
-          assignmentId={assignment.ID}
-          isOpen={isEditOpen}
-          onClose={() => setIsEditOpen(false)}
-          onEdit={handleEditAssignment}
-        />
+       
       </div>
     )
   }
@@ -287,7 +247,7 @@ const BaseAssignmentItem = ({
       <div
         key={assignment.ID}
         className="flex hover:bg-white/10 p-4 transition-all group/exam"
-        onClick={handleCardClick}
+        onClick={() => SetDialogState({ modelType: "assignment", dialogType: "details", id: assignmentId })}
       >
         <div className="flex flex-1 items-center gap-4 min-w-0">
           <div className="flex flex-1 items-center gap-3 min-w-0">
@@ -304,7 +264,7 @@ const BaseAssignmentItem = ({
 
             <div className="flex flex-col gap-1 min-w-0 max-w-3/4 flex-1" >
               <span className="text-caption font-semibold text-gray-400 uppercase tracking-wider">{assignment.CourseCode}</span>
-              <p className="text-body font-medium text-white truncate leading-tight mr-2">{assignment.Title}</p>
+              <p className="text-body font-medium text-white truncate leading-tight">{assignment.Title}</p>
               <div className="text-caption text-gray-400 flex items-center gap-1.5">
                 <Clock className="w-3 h-3" />
                 {getDueDescription(parseDeadline(assignment.Deadline), assignment.Status)}
@@ -314,22 +274,7 @@ const BaseAssignmentItem = ({
 
           <SideActionDropdown isOpen={isActionsOpen} setIsOpen={setIsActionsOpen} sideActions={SideActions} variant={"outline"} />
         </div>
-        <AssignmentDetailsDialog
-          key={assignment.ID}
-          assignmentId={assignment.ID}
-          isOpen={isDetailsOpen}
-          onClose={() => setIsDetailsOpen(false)}
-          onEdit={handleEditAssignment}
-          onDelete={handleDeleteAssignment}
-          handleEditOpen={handleEditOpen}
-        />
-        <AssignmentEditDialog
-          key={assignment.ID}
-          assignmentId={assignment.ID}
-          isOpen={isEditOpen}
-          onClose={() => setIsEditOpen(false)}
-          onEdit={handleEditAssignment}
-        />
+        
       </div>
     )
   }
@@ -343,7 +288,7 @@ const BaseAssignmentItem = ({
         <GlassCard
           key={assignment.ID}
           variant={variant}
-          onClick={handleCardClick}
+          onClick={() => SetDialogState({ modelType: "assignment", dialogType: "details", id: assignmentId })}
         >
           <CardContent className="flex flex-col flex-1 p-5 gap-4 ">
 
@@ -414,8 +359,7 @@ const BaseAssignmentItem = ({
           assignmentRO={assignment}
           mode={"readonly"}
           isOpen={isDetailsOpen}
-          onClose={() => setIsDetailsOpen(false)}
-
+          onClose={() => SetDialogState({ modelType: "assignment", dialogType: "details", id: assignmentId })}
           onCopy={onCopy}
         />
       </div>

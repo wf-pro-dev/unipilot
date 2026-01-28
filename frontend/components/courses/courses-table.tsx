@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Filter, X } from "lucide-react";
 import { models } from "@/wailsjs/go/models";
-import { CardContent } from "../ui/card";
 import { GlassCard } from "../ui/glass-card";
 import { useRouter } from "next/navigation";
 import { EmptyState } from "../ui/empty-state";
@@ -20,13 +19,10 @@ interface Filter {
 interface CoursesTableProps {
     courses: models.LocalCourse[]
     filter: Filter
-    onCourseClick: (course: models.LocalCourse) => void
-    onEdit: (course: models.LocalCourse, column: string, value: string) => void
-    onDelete: (course: models.LocalCourse) => void
 }
 
 
-export default function CoursesTable({ courses, filter, onCourseClick, onEdit, onDelete }: CoursesTableProps) {
+export default function CoursesTable({ courses, filter }: CoursesTableProps) {
     const router = useRouter()
     const [searchTerm, setSearchTerm] = useState("")
     const [selectedSemester, setSelectedSemester] = useState(filter.semester)
@@ -172,9 +168,7 @@ export default function CoursesTable({ courses, filter, onCourseClick, onEdit, o
                     {filteredCourses.map((course) => {
                         return (
                             <CourseItem
-                                course={course}
-                                onEdit={onEdit}
-                                onDelete={onDelete}
+                                courseId={course.ID}
                             />
                         )
                     })}

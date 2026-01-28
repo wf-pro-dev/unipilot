@@ -5,8 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AssignmentsCalendar } from "@/components/assignments/assignments-calendar"
 import { AssignmentsTable } from "@/components/assignments/assignments-table"
-import { AddAssignmentDialog } from "@/components/assignments/add-assignment-dialog"
-import { Calendar, List, CheckCircle2, CalendarDays, Loader2 } from "lucide-react"
+import { AssignmentAddDialog } from "@/components/assignments/assignment-add-dialog"
+import { Calendar, List, CheckCircle2, CalendarDays, Loader2, Plus } from "lucide-react"
 import { models } from "@/wailsjs/go/models"
 import {
   useAssignments,
@@ -19,6 +19,8 @@ import {
   useCreateAssignment
 } from "@/hooks/use-assignments"
 import { DayAssignmentsModal } from "@/components/assignments/day-assignments-modal"
+import { Button } from "@/components/ui/button"
+import { useDialogContext } from "@/components/provider/dialog-provider"
 
 /**
  * Main assignments management page component.
@@ -52,20 +54,15 @@ export default function AssignmentsPage() {
 
   // Use the new optimized hooks
   const { data: assignments, isLoading, error } = useAssignments()
-  const { data: todayAssignments } = useTodayAssignments()
   const { data: weekAssignments } = useWeekAssignments()
-  const { data: overdueAssignments } = useOverdueAssignments()
   const { data: examAssignments } = useExamAssignments()
 
-  // Mutation for updates with optimistic updates
   const updateMutation = useUpdateAssignment()
-  const deleteMutation = useDeleteAssignment()
   const createMutation = useCreateAssignment()
+  const { SetDialogState } = useDialogContext()
 
   const [selectedAssignmentID, setSelectedAssignmentID] = useState<number | null>(null)
-  const [selectedAssignmentEdit, setSelectedAssignmentEdit] = useState<models.LocalAssignment | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [addAssignmentOpen, setAddAssignmentOpen] = useState(false)
 
   // Get the current view from URL parameters, default to "today"
   const currentView = searchParams.get("view") || "week"
@@ -147,8 +144,8 @@ export default function AssignmentsPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1">
-      <div className="flex flex-col flex-1 relative z-10">
+    <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full min-h-0 relative z-10">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-h1 text-white">
@@ -156,37 +153,45 @@ export default function AssignmentsPage() {
             </h1>
             <p className="text-body-small text-gray-400 mt-3">Track and manage your coursework deadlines</p>
           </div>
-          <AddAssignmentDialog isOpen={addAssignmentOpen} setOpen={setAddAssignmentOpen} onAdd={handleAddAssignment} />
+          <Button
+            type="button"
+            variant="default"
+            className="text-body text-black"
+            onClick={() => SetDialogState({ modelType: "assignment", dialogType: "add" })}
+            >
+            <Plus className="h-4 w-4" strokeWidth={2} />
+            Add Assignment
+          </Button>
         </div>
 
-        <Tabs value={activeView} onValueChange={handleTabChange} className="flex flex-col flex-1 w-full">
-          
+        <Tabs value={activeView} onValueChange={handleTabChange} className="flex flex-col w-full h-full min-h-0">
+
           <TabsList className="flex flex-row bg-white/5 p-1 rounded-xl w-full mb-6 border border-white/5">
-           
-            <TabsTrigger 
-              value="week" 
+
+            <TabsTrigger
+              value="week"
               className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
             >
               <CalendarDays className="h-4 w-4" />
               <span className="hidden sm:inline text-sm font-medium">This Week ({weekAssignments?.length || 0})</span>
             </TabsTrigger>
-            
-            <TabsTrigger 
-              value="exam" 
+
+            <TabsTrigger
+              value="exam"
               className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
             >
               <CheckCircle2 className="h-4 w-4" />
               <span className="hidden sm:inline text-sm font-medium">Exam ({examAssignments?.length || 0})</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="calendar" 
+            <TabsTrigger
+              value="calendar"
               className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
             >
               <Calendar className="h-4 w-4" />
               <span className="hidden sm:inline text-sm font-medium">Calendar</span>
             </TabsTrigger>
-            <TabsTrigger 
-              value="list" 
+            <TabsTrigger
+              value="list"
               className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
             >
               <List className="h-4 w-4" />
@@ -195,13 +200,13 @@ export default function AssignmentsPage() {
           </TabsList>
 
 
-            <TabsContent value="week" className="flex flex-col data-[state=active]:flex-1 m-0">
+          <TabsContent value="week" className="flex flex-col data-[state=active]:h-full m-0 min-h-0">
             <AssignmentsTable
               assignments={weekAssignments || []}
               filter={{ course: courseFilter || "all", status: statusFilter || "all", priority: priorityFilter || "all" }}
               isLoading={isLoading}
             />
-          </TabsContent> 
+          </TabsContent>
           <TabsContent value="exam" className="flex flex-col data-[state=active]:flex-1 m-0">
             <AssignmentsTable
               assignments={examAssignments || []}
@@ -210,7 +215,7 @@ export default function AssignmentsPage() {
             />
           </TabsContent>
 
-          <TabsContent value="calendar" className="flex flex-col data-[state=active]:flex-1 m-0">
+          <TabsContent value="calendar" className="flex flex-col data-[state=active]:h-full m-0 min-h-0">
             <AssignmentsCalendar
               assignments={assignments || []}
               onDateClick={setSelectedDate}
@@ -218,7 +223,7 @@ export default function AssignmentsPage() {
             />
           </TabsContent>
 
-          <TabsContent value="list" className="flex flex-col  data-[state=active]:flex-1 m-0">
+          <TabsContent value="list" className="flex flex-col  data-[state=active]:h-full m-0 min-h-0">
             <AssignmentsTable
               assignments={assignments || []}
               filter={{ course: courseFilter || "all", status: statusFilter || "all", priority: priorityFilter || "all" }}
@@ -227,7 +232,7 @@ export default function AssignmentsPage() {
           </TabsContent>
         </Tabs>
 
-       
+
         <DayAssignmentsModal
           isOpen={!!selectedDate}
           onClose={() => setSelectedDate(null)}

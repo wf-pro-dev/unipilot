@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { memo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -12,7 +12,7 @@ import { BrowserOpenURL } from "@/wailsjs/runtime/runtime"
 import { StatusTag } from "@/components/assignments/tags/status-tag"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
 import { TypeTag } from "./tags/type-tag"
-import { useAssignment } from "@/hooks/use-assignments"
+import { useAssignment, useDeleteAssignment } from "@/hooks/use-assignments"
 import { PriorityTag } from "./tags/priority-tag"
 import { useRouter } from "next/navigation"
 import FileUpload05 from "../file-upload-05"
@@ -24,28 +24,26 @@ interface AssignmentDetailsDialogProps {
   assignmentId: number
   assignmentRO?: models.Assignment
   handleEditOpen?: () => void
-  onEdit?: (assignment: models.LocalAssignment, column: string, value: string) => void
-  onDelete?: (assignment: models.LocalAssignment) => void
   onCopy?: (assignment: models.Assignment, includeDocuments: boolean) => void
   mode?: "default" | "readonly"
 }
 
-const AssignmentDetailsDialog = ({
+const BaseAssignmentDetailsDialog = ({
   isOpen,
   onClose,
   assignmentId,
   assignmentRO,
   handleEditOpen,
-  onEdit,
-  onDelete,
-  onCopy, 
+  onCopy,
   mode = "default",
 }: AssignmentDetailsDialogProps) => {
-  
-  const { data: assignmentData } = useAssignment(assignmentId)
 
-  var assignment = mode == "default" ?  assignmentData as models.LocalAssignment : assignmentRO
-  
+
+  const { data: assignmentData } = useAssignment(assignmentId)
+  const deleteMutation = useDeleteAssignment()
+
+  var assignment = mode == "default" ? assignmentData as models.LocalAssignment : assignmentRO
+
   if (!assignment) return null
 
   const [includeDocuments, setIncludeDocuments] = useState(true)
@@ -62,7 +60,7 @@ const AssignmentDetailsDialog = ({
   const isOverdueStatus = isOverdue(deadline, Status)
 
   const daysUntilDue = calculateDaysDifference(deadline)
-  
+
   const handleOpenLink = () => {
     BrowserOpenURL(Link)
   }
@@ -140,7 +138,7 @@ const AssignmentDetailsDialog = ({
                     <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
                       <span className="text-xs font-medium uppercase tracking-wider">Status</span>
                       {mode === "default" ? (
-                        <StatusTag assignment={assignment as models.LocalAssignment} onEdit={onEdit!} variant="outline" />
+                        <StatusTag assignment={assignment as models.LocalAssignment} variant="outline" />
                       ) : (
                         < Badge variant="outline" className={`text-caption font-normal`}>
                           {Status}
@@ -152,7 +150,7 @@ const AssignmentDetailsDialog = ({
                     <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
                       <span className="text-xs font-medium uppercase tracking-wider">Priority</span>
                       {mode === "default" ? (
-                        <PriorityTag assignment={assignment as models.LocalAssignment} onEdit={onEdit!} variant="outline" />
+                        <PriorityTag assignment={assignment as models.LocalAssignment} variant="outline" />
                       ) : (
                         < Badge variant="outline" className={`text-caption font-normal`}>
                           {Priority}
@@ -163,7 +161,7 @@ const AssignmentDetailsDialog = ({
                     <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
                       <span className="text-xs font-medium uppercase tracking-wider">Type</span>
                       {mode === "default" ? (
-                        <TypeTag assignment={assignment as models.LocalAssignment} onEdit={onEdit!} variant="outline" />
+                        <TypeTag assignment={assignment as models.LocalAssignment} variant="outline" />
                       ) : (
                         < Badge variant="outline" className={`text-caption font-normal`}>
                           {Type}
@@ -179,8 +177,10 @@ const AssignmentDetailsDialog = ({
                         <FileText className="w-4 h-4" />
                         <span>Description & Notes</span>
                       </div>
-                      <div className="bg-white/5 border border-white/5 p-4 rounded-xl  overflow-y-auto custom-scrollbar max-h-[100px] hover:max-h-[200px] transition-all duration-300 ease-in-out">
-                        <p className="whitespace-pre-wrap leading-relaxed text-sm text-gray-200">{Todo}</p>
+                      <div className="bg-white/5 border border-white/5  rounded-xl p-4 group">
+                        <div className="overflow-y-auto custom-scrollbar max-h-[100px] group-hover:max-h-[200px] transition-all duration-300 ease-in-out">
+                          <p className="whitespace-pre-wrap leading-relaxed text-sm text-gray-200">{Todo}</p>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -230,7 +230,7 @@ const AssignmentDetailsDialog = ({
             )}
 
 
-              {mode === "default" && (
+            {mode === "default" && (
               <Button
                 variant="outline"
                 size="sm"
@@ -280,7 +280,7 @@ const AssignmentDetailsDialog = ({
                 className="rounded-full"
                 onClick={(e) => {
                   e.stopPropagation()
-                  onDelete?.(assignment as models.LocalAssignment)
+                  deleteMutation.mutate(assignment as models.LocalAssignment)
                 }}
               >
                 <Trash2 className="w-4 h-4" />
@@ -295,4 +295,7 @@ const AssignmentDetailsDialog = ({
   )
 }
 
-export { AssignmentDetailsDialog }
+export const AssignmentDetailsDialog = memo(BaseAssignmentDetailsDialog, (prevProps, nextProps) => {
+  return prevProps.assignmentId === nextProps.assignmentId &&
+    prevProps.isOpen === nextProps.isOpen
+})

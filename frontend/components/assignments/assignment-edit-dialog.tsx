@@ -6,7 +6,6 @@ import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -25,6 +24,7 @@ import { Form, FormField, FormItem, FormLabel, FormControl } from "../ui/form"
 import { FormErrorMessage } from "../auth/form-error-message"
 import { AnimatePresence } from "framer-motion"
 import { motion } from "framer-motion"
+import { useUpdateAssignment } from "@/hooks/use-assignments"
 
 
 const types = [
@@ -51,18 +51,15 @@ interface AssignmentEditDialogProps {
   assignmentId: number
   isOpen: boolean
   onClose: () => void
-  onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
 }
 
-export function AssignmentEditDialog({ assignmentId, isOpen, onClose, onEdit }: AssignmentEditDialogProps) {
+export function AssignmentEditDialog({ assignmentId, isOpen, onClose }: AssignmentEditDialogProps) {
   
   const { data: assignment } = useAssignment(assignmentId)
 
-  console.log("AssignmentEditDialog", assignmentId)
-
   if (!assignment) { return null }
 
-  console.log("AssignmentEditDialog", assignment, isOpen)
+  const updateMutation = useUpdateAssignment()
 
   const [step, setStep] = useState(1)
   const [step1Attempted, setStep1Attempted] = useState(false)
@@ -129,7 +126,7 @@ export function AssignmentEditDialog({ assignmentId, isOpen, onClose, onEdit }: 
 
         const message = `Changes to ${column} value: ${value}`
         LogInfo(message)
-        onEdit(assignment, key, value as string)
+        updateMutation.mutate({ assignment, column: key, value: value as string })
       }
       else {
         const message = `No changes to ${column}`
@@ -138,7 +135,7 @@ export function AssignmentEditDialog({ assignmentId, isOpen, onClose, onEdit }: 
     }
 
     if (!isSameDay(form.getValues("deadline"), new Date(assignment.Deadline))) {
-      onEdit(assignment, "deadline", format(form.getValues("deadline"), "yyyy-MM-dd HH:mm:ssxxx"))
+      updateMutation.mutate({ assignment, column: "deadline", value: format(form.getValues("deadline"), "yyyy-MM-dd HH:mm:ssxxx") })
     }
     setDeadline(new Date())
 

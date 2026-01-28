@@ -6,6 +6,7 @@ import { Flag } from "lucide-react"
 import { memo, useEffect, useState } from "react"
 import { GlassCard, GlassCardVariants } from "@/components/ui/glass-card"
 import { cn } from "@/lib/utils"
+import { useUpdateAssignment } from "@/hooks/use-assignments"
 
 
 
@@ -18,14 +19,15 @@ const priorities = [
 
 interface PriorityTagProps {
     assignment: models.LocalAssignment
-    onEdit: (assignment: models.LocalAssignment, column: string, value: string) => void
     variant?: GlassCardVariants
     className?: string
 }
 
 
 
-function BasePriorityTag({ assignment, onEdit, variant = "default", className = "" }: PriorityTagProps) {
+function BasePriorityTag({ assignment, variant = "default", className = "" }: PriorityTagProps) {
+    
+    const updateMutation = useUpdateAssignment()
 
     const [priority, setPriority] = useState(assignment.Priority)
 
@@ -35,7 +37,7 @@ function BasePriorityTag({ assignment, onEdit, variant = "default", className = 
 
     const handleEdit = (e: React.MouseEvent<HTMLDivElement>, priority: string) => {
         e.stopPropagation()
-        onEdit(assignment, "priority", priority)
+        updateMutation.mutate({ assignment, column: "priority", value: priority })
     }
 
     return (

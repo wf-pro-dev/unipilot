@@ -1,6 +1,6 @@
 "use client"
 
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -10,7 +10,7 @@ import {
   Calendar,
   MapPin,
   Edit,
-  Trash2,  
+  Trash2,
   TrendingUp,
   FileText,
   Mail,
@@ -18,17 +18,14 @@ import {
   CheckCircle2,
   Search,
   Share,
-  Link as LinkIcon,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react"
 import Link from "next/link"
-import { models} from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { useAssignments, useUpdateAssignment } from "@/hooks/use-assignments"
-import { formatDeadline } from "@/lib/date-utils"
-import { StatusTag } from "@/components/assignments/tags/status-tag"
 import { CourseEditDialog } from "./course-edit-dialog"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useState } from "react"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
@@ -39,28 +36,43 @@ import { toast } from "sonner"
 import { Input } from "../ui/input"
 import { useRouter } from "next/navigation"
 import useEmblaCarousel from "embla-carousel-react"
+import { useCourse } from "@/hooks/use-courses"
+import { AssignmentItem } from "../assignments/assignment-item"
 
-interface CourseDetailsModalProps {
+interface CourseDetailsDialogProps {
   isOpen: boolean
   onClose: () => void
-  courseId: number | null
-  courses: models.LocalCourse[]
+  courseId: number
+  courseRO?: models.Course
   onEdit: (course: models.LocalCourse, column: string, value: string) => void
   onDelete: (course: models.LocalCourse) => void
   onLinkRequest: () => void
-  onViewLinks: () => void
+  mode?: "default" | "readonly"
 }
 
-export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit, onDelete, onLinkRequest, onViewLinks }: CourseDetailsModalProps) {
-  const course = courses.find(c => c.ID === courseId) || null
+export function CourseDetailsDialog({
+  isOpen,
+  onClose,
+  courseId,
+  courseRO,
+  mode = "default",
+  onEdit,
+  onDelete,
+  onLinkRequest,
+}: CourseDetailsDialogProps) {
+
+  const { data: courseData } = useCourse(courseId)
+  var course = mode == "default" ? courseData as models.LocalCourse : courseRO
+
   if (!course) return null
+
   const router = useRouter()
   const [activeView, setActiveView] = useState("info")
   const [searchTerm, setSearchTerm] = useState("")
 
 
   const { data: assignments, isLoading } = useAssignments()
-  const notes = useCourseNotes(course)
+  const notes = useCourseNotes(course as models.LocalCourse)
 
   const updateMutation = useUpdateAssignment()
   const updateNote = useUpdateNote()
@@ -68,14 +80,24 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
 
   const [selectedIndex, setSelectedIndex] = useState(0)
 
-  var course_assignments = (assignments || []).filter((assignment: models.LocalAssignment) => assignment.CourseCode === course.Code) || []
-  var completed_assignments_count = course_assignments.filter((assignment: models.LocalAssignment) => assignment.Status === "Done").length
-  var completionPercentage = (completed_assignments_count / course_assignments.length) * 100
-  var isCompleted = completionPercentage === 100
-  const [open, setOpen] = useState(false)
+  const course_assignments = useMemo(() => {
+    return (assignments || []).filter((assignment: models.LocalAssignment) => assignment.CourseCode === course?.Code) || []
+  }, [assignments, course])
 
+  const completed_assignments_count = useMemo(() => {
+    return course_assignments.filter((assignment: models.LocalAssignment) => assignment.Status === "Done").length
+  }, [course_assignments])
+
+  const completionPercentage = useMemo(() => {
+    return (completed_assignments_count / course_assignments.length) * 100
+  }, [completed_assignments_count, course_assignments])
+
+  const isCompleted = useMemo(() => {
+    return completionPercentage === 100
+  }, [completionPercentage])
+
+  const [open, setOpen] = useState(false)
   const handleEditAssignment = async (assignment: models.LocalAssignment, column: string, value: string) => {
-    console.log("Editing assignment:", assignment)
     const message = "assignment " + assignment.ID + " " + column + " changed to " + value
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
 
@@ -86,19 +108,9 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
       value
     })
   }
-  // Mock additional data
-  const courseData = {
-    ...course,
-    location: "Science Building, Room 204",
-    email: "instructor@university.edu",
-    office: "Faculty Building, Room 301",
-    officeHours: "MW 2:00-4:00 PM",
-  }
 
 
-
-
-    const handleDeleteNote = async (note: models.LocalNote | models.Note) => {
+  const handleDeleteNote = async (note: models.LocalNote | models.Note) => {
     const message = "note " + note.Title + " deleted"
     LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
     deleteNote.mutate(note as models.LocalNote, {
@@ -107,16 +119,6 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
       },
       onError: () => {
         toast.error("Note deletion failed")
-      }
-    })
-  }
-
-  const handleEditNote = async (note: models.LocalNote, column: string, value: string) => {
-    const message = "note " + note.Title + " " + column + " changed to " + value
-    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-    updateNote.mutate({ note, column, value }, {
-      onError: () => {
-        toast.error(`Note ${column} update failed`)
       }
     })
   }
@@ -173,49 +175,39 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
   return (
     <div>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="glass border-white/10 text-white max-w-xl max-h-[90vh] overflow-y-auto p-0 overflow-hidden gap-0">
-          
-          <div className="p-6 pb-4 border-b border-white/5 bg-white/5">
-            <div className="flex justify-between items-start">
-              <div className="flex items-center space-x-4">
-                <div className={`w-8 h-8 rounded-full ${courseData.Color} shadow-lg shadow-black/20`} />
-                <div className="space-y-1">
-                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">{courseData.Code}</p>
-                  <h2 className="text-xl font-bold text-white tracking-tight">{courseData.Name}</h2>
-                </div>
+        <DialogContent className="glass border-white/10 text-white max-w-xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+
+          <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
+            <div className="flex items-center space-x-4">
+              <div className={`w-8 h-8 rounded-full ${course.Color} shadow-lg shadow-black/20`} />
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">{course.Code}</p>
+                <DialogTitle className="text-h3">{course.Name}</DialogTitle>
               </div>
-              <Button
-                 variant="ghost"
-                 size="sm"
-                 className="text-gray-400 hover:text-white hover:bg-white/10"
-                 onClick={onViewLinks}
-                 title="View Linked Resources"
-              >
-                <LinkIcon className="w-4 h-4" />
-              </Button>
             </div>
-          </div>
+          </DialogHeader>
 
           <div className="p-6">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent z-0 rounded-2xl pointer-events-none" />
             <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
 
               <TabsList className="flex flex-row bg-white/5 p-1 rounded-xl w-full mb-6 border border-white/5">
-                <TabsTrigger 
-                  value="info" 
+                <TabsTrigger
+                  value="info"
                   className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
                 >
                   <Info className="w-4 h-4" />
                   <span className="text-sm font-medium">Info</span>
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="assignments" 
+                <TabsTrigger
+                  value="assignments"
                   className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
                 >
                   <FileText className="w-4 h-4" />
                   <span className="text-sm font-medium">Assignments</span>
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="notes" 
+                <TabsTrigger
+                  value="notes"
                   className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
                 >
                   <BookOpen className="w-4 h-4" />
@@ -233,7 +225,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                       </div>
                       <span className="text-xs font-medium text-blue-200 uppercase tracking-wider">Schedule</span>
                     </div>
-                    <p className="text-h4 text-white leading-tight">{courseData.Schedule}</p>
+                    <p className="text-h4 text-white leading-tight">{course.Schedule}</p>
                   </div>
 
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 group">
@@ -243,7 +235,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                       </div>
                       <span className="text-xs font-medium text-emerald-200 uppercase tracking-wider">Location</span>
                     </div>
-                    <p className="text-h4 text-white leading-tight">{courseData.Location || "Online"}</p>
+                    <p className="text-h4 text-white leading-tight">{course.Location || "Online"}</p>
                   </div>
                 </div>
 
@@ -254,10 +246,10 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                   </div>
                   <div className="space-y-1">
                     <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Instructor</p>
-                    <p className="text-h4 text-white">{courseData.Instructor}</p>
+                    <p className="text-h4 text-white">{course.Instructor}</p>
                     <div className="flex items-center gap-2 text-sm text-blue-400">
                       <Mail className="w-3.5 h-3.5" />
-                      <a href={`mailto:${courseData.InstructorEmail}`} className="hover:underline">{courseData.InstructorEmail}</a>
+                      <a href={`mailto:${course.InstructorEmail}`} className="hover:underline">{course.InstructorEmail}</a>
                     </div>
                   </div>
                 </div>
@@ -269,14 +261,14 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                     <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider block mb-1.5">Credits</span>
                     <div className="flex">
                       <Badge variant="outline" className="border-white/10 bg-white/5 text-white px-2 py-0.5 text-xs">
-                        {courseData.Credits} credits
+                        {course.Credits} credits
                       </Badge>
                     </div>
                   </div>
 
                   <div className="p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
                     <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider block mb-1.5">Semester</span>
-                    <p className="text-sm font-medium text-white ">{courseData.Semester}</p>
+                    <p className="text-sm font-medium text-white ">{course.Semester}</p>
                   </div>
 
                   <div className="p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
@@ -284,7 +276,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                       <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div>
                       <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Start Date</span>
                     </div>
-                    <p className="text-sm font-medium text-white ">{format(courseData.StartDate, "MMM d, yyyy")}</p>
+                    <p className="text-sm font-medium text-white ">{format(course.StartDate, "MMM d, yyyy")}</p>
                   </div>
 
                   <div className="p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
@@ -292,7 +284,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                       <div className="w-1.5 h-1.5 rounded-full bg-red-400"></div>
                       <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">End Date</span>
                     </div>
-                    <p className="text-sm font-medium text-white ">{format(courseData.EndDate, "MMM d, yyyy")}</p>
+                    <p className="text-sm font-medium text-white ">{format(course.EndDate, "MMM d, yyyy")}</p>
                   </div>
                 </div>
 
@@ -300,34 +292,20 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
 
               <TabsContent value="assignments" className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
                 {course_assignments.length > 0 ? (
-                  <div className="space-y-6">
-                  
-                    <div>
-                      <div className="flex justify-between items-center mb-4">
-                        <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Recent Assignments</label>
 
-                        <Link href={`/assignments?view=list&course=${courseData.Code}`}>
-                          <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 h-8 text-xs">
-                            View All
-                          </Button>
-                        </Link>
-                      </div>
 
-                      <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-2">
-                        {course_assignments.slice(0, 4).map((assignment, index) => (
-                          <div key={index} className="flex items-center p-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 transition-all duration-200 group">
-                            <span className="w-2/3 text-sm text-white line-clamp-1 font-medium group-hover:text-blue-300 transition-colors">{assignment.Title}</span>
-                            <div className="flex flex-col items-end space-y-1 grow">
-                              <span className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">{formatDeadline(assignment.Deadline)}</span>
-                              <StatusTag assignment={assignment} onEdit={handleEditAssignment} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Recent Assignments</label>
 
+                      <Link href={`/assignments?view=list&course=${course.Code}`}>
+                        <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 h-8 text-xs">
+                          View All
+                        </Button>
+                      </Link>
                     </div>
 
-                    <div className="p-4 border border-white/5 bg-white/5 rounded-xl">
+                    <div>
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
                           <div className="flex items-center space-x-2 text-sm">
@@ -341,13 +319,21 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                         <Progress color={isCompleted ? "green" : "white"} value={completionPercentage} className="h-1.5 bg-white/10" />
                       </div>
                     </div>
+
+                    <div className="grid grid-cols-1">
+                      {course_assignments.slice(0, 3).map((assignment, index) => (
+                        <AssignmentItem key={assignment.ID} assignmentId={assignment.ID} mode="ghost" />
+                      ))}
+                    </div>
+
+
                   </div>
 
                 ) : (
 
                   <div className="py-12 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
                     <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
-                        <CheckCircle2 className="h-8 w-8 text-gray-500" />
+                      <CheckCircle2 className="h-8 w-8 text-gray-500" />
                     </div>
                     <h3 className="text-lg font-medium text-white mb-1">No assignments found</h3>
                     <p className="text-gray-400 text-sm">Create an assignment to get started</p>
@@ -376,7 +362,7 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
                         className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white h-10"
                         onClick={(e) => {
                           e.stopPropagation()
-                          router.push(`/notes?course=${course.Code}`)
+                          router.push(`/notes?course=${course?.Code}`)
                         }}
                       >
                         <FileText className="mr-2 w-3.5 h-3.5" />
@@ -433,60 +419,59 @@ export function CourseDetailsModal({ isOpen, onClose, courseId, courses, onEdit,
 
 
               </TabsContent>
-            
+
             </Tabs>
 
 
             {/* Actions */}
-            <div className="flex gap-3 mt-6">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 hover:text-white h-9"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setOpen(true)
-                }}
-              >
-                <Edit className="mr-2 w-3.5 h-3.5" />
-                Edit
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 hover:text-white h-9"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onLinkRequest()
-                }}
-              >
-                <Share className="mr-2 w-3.5 h-3.5" />
-                Share
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 text-red-400 bg-red-500/5 border-red-500/20 hover:bg-red-500/10 hover:text-red-300 h-9"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDelete(course)
-                }}
-              >
-                <Trash2 className="mr-2 w-3.5 h-3.5" />
-                Delete
-              </Button>
+            {mode === "default" && (
+              <div className="flex gap-3 mt-6">
 
-            </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpen(true)
+                  }}
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onLinkRequest()
+                  }}
+                >
+                  <Share className="w-4 h-4" />
+                  Share
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDelete(course as models.LocalCourse)
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </Button>
+
+              </div>
+            )}
           </div>
         </DialogContent>
 
       </Dialog>
-      <CourseEditDialog
-        open={open}
-        setOpen={setOpen}
-        course={course}
-        onEdit={onEdit}
-      />
+
+     
 
     </div>
   )

@@ -12,6 +12,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { MainSidebar } from "@/components/sidebar/sidebar"
 import { usePathname } from 'next/navigation'
 import { MeshBackground } from '@/components/ui/mesh-gradient'
+import { DialogProvider } from "@/components/provider/dialog-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -27,7 +28,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
       {!isChatPage ? (
         <SidebarProvider>
           <MainSidebar />
-          <main className="flex flex-col flex-1 w-full p-12">
+          <main className="flex flex-col flex-1 w-full h-screen p-12">
             <SidebarTrigger className="fixed top-4 left-4 z-50 md:hidden" />
             {children}
           </main>
@@ -59,13 +60,15 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <MeshBackground/>
-              <AuthProvider>
-                <NetworkProvider>
+            <MeshBackground />
+            <AuthProvider>
+              <NetworkProvider>
+                <DialogProvider>
                   <AppContent>{children}</AppContent>
-                </NetworkProvider>
-              </AuthProvider>
-        
+                </DialogProvider>
+              </NetworkProvider>
+            </AuthProvider>
+
           </ThemeProvider>
         </QueryProvider>
       </body>

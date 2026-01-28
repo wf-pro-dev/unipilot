@@ -14,6 +14,7 @@ import { useCoursesBySemester } from "@/hooks/use-courses"
 import { useAuthContext } from "../provider/auth-provider"
 import { GlassCard } from "../ui/glass-card"
 import { EmptyState } from "../ui/empty-state"
+import { useDialogContext } from "../provider/dialog-provider"
 
 interface Filter {
   course: string | null
@@ -26,16 +27,16 @@ interface NoteViewProps {
   onNoteClick: (noteID: number) => void
   onEdit: (note: models.LocalNote, column: string, value: string) => void
   onDelete: (note: models.LocalNote) => void
-  setAddOpen: (open: boolean) => void
   filter: Filter
   isLoading?: boolean
 }
 
-export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, setAddOpen, filter, isLoading }: NoteViewProps) {
+export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, isLoading }: NoteViewProps) {
   const router = useRouter()
   const [selectedCourse, setSelectedCourse] = useState(filter.course || "all")
   const [searchTerm, setSearchTerm] = useState("")
-
+  
+  const { SetDialogState } = useDialogContext()
   const { user } = useAuthContext()
   const { data: courses } = useCoursesBySemester(user?.Semester || "FALL 2025")
 
@@ -79,7 +80,7 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, setAddOp
           title="No notes found"
           description="Create a note to get started"
           className="flex-1 items-center"
-          onClick={() => setAddOpen(true)}
+          onClick={() => SetDialogState({ modelType: "note", dialogType: "add" })}
           buttonText="Create Note"
         />
       </div>

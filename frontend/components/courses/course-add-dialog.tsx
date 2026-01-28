@@ -24,9 +24,11 @@ import {
   courseSchema
 } from "./shema"
 import { FormErrorMessage } from "../auth/form-error-message"
+import { useCreateCourse } from "@/hooks/use-courses"
 
 interface CourseAddDialogProps {
-  onAdd: (course: models.LocalCourse) => void
+  isOpen: boolean
+  onClose: () => void
 }
 
 const colors = [
@@ -53,8 +55,10 @@ const semesters = [
   { name: "SUMMER 2028", value: "SUMMER 2028" },
 ]
 
-export function CourseAddDialog({ onAdd }: CourseAddDialogProps) {
-  const [open, setOpen] = useState(false)
+export function CourseAddDialog({ isOpen, onClose }: CourseAddDialogProps) {
+  
+  const createMutation = useCreateCourse()
+
   const [step, setStep] = useState(1)
   const [step1Attempted, setStep1Attempted] = useState(false)
   const [step2Attempted, setStep2Attempted] = useState(false)
@@ -111,9 +115,9 @@ export function CourseAddDialog({ onAdd }: CourseAddDialogProps) {
         EndDate: data.endDate,
       } as models.LocalCourse
 
-      onAdd(courseData)
+      createMutation.mutate(courseData)
       toast.success("Course added successfully")
-      handleOpenChange(false)
+      onClose()
     } catch (error) {
       toast.error("Failed to add course")
     } finally {
@@ -121,14 +125,14 @@ export function CourseAddDialog({ onAdd }: CourseAddDialogProps) {
     }
   }
 
-  const handleOpenChange = (isOpen: boolean) => {
-    setOpen(isOpen)
-    if (!isOpen) {
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
       setStep(1)
       setStep1Attempted(false)
       setStep2Attempted(false)
       form.reset()
     }
+    onClose()
   }
 
   const handleErrorResolved = () => {
@@ -145,16 +149,7 @@ export function CourseAddDialog({ onAdd }: CourseAddDialogProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant="default"
-          className="text-body text-black">
-          <Plus className="h-4 w-4" strokeWidth={2} />
-          Add Course
-        </Button>
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="glass border-white/10 text-white max-w-md p-0 overflow-hidden gap-0">
         <DialogHeader className="px-6 pt-8 pb-4 border-b border-white/5 bg-white/5">
           <div className="flex items-center justify-between">

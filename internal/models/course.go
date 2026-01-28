@@ -399,14 +399,15 @@ func ParseSchedule(schedule string) (*ParsedSchedule, error) {
 
 	// Parse days (everything before the time)
 	daysPart := re.Split(schedule, 2)[0]
+	daysPart = strings.ReplaceAll(daysPart, ",", "")
 	dayTokens := strings.Fields(daysPart)
+
 	days := []int{}
 	for _, token := range dayTokens {
 		if day, ok := dayMapping[token]; ok {
 			days = append(days, day)
 		}
 	}
-
 	return &ParsedSchedule{
 		Days:        days,
 		StartTime:   startHour,
@@ -426,8 +427,7 @@ func GetActiveCourses(db *gorm.DB) ([]LocalCourse, error) {
 
 	var courses []LocalCourse
 	var activeCourses []LocalCourse
-	err := db.
-		Where("start_date <= ? AND end_date >= ?", time.Now(), time.Now()).
+	err := db.Debug().
 		Find(&courses).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)

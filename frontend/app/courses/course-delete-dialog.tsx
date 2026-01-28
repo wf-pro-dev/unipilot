@@ -1,15 +1,13 @@
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useCourseAssignments } from "@/hooks/use-assignments"
-import { course } from "@/wailsjs/go/models"
-import { toast } from "sonner"
+import { useCourse, useCourseAssignments } from "@/hooks/use-courses"
+import { models } from "@/wailsjs/go/models"
 
 interface CourseDeleteDialogProps {
+    courseId: number
     isOpen: boolean
     onClose: () => void
-    courseId: number | null
-    courses: course.LocalCourse[]
-    onDelete: (course: course.LocalCourse) => void
+    onDelete: (course: models.LocalCourse) => void
 }
 
 /**
@@ -33,17 +31,11 @@ interface CourseDeleteDialogProps {
  * @param {(course: course.LocalCourse) => void} props.onDelete - Callback to execute deletion
  * @returns {JSX.Element | null} The delete confirmation dialog or null if course not found
  */
-export function CourseDeleteDialog({ isOpen, onClose, courseId, courses, onDelete }: CourseDeleteDialogProps) {
+export function CourseDeleteDialog({ isOpen, onClose, courseId, onDelete }: CourseDeleteDialogProps) {
     // Locate the course to delete from the courses array
-    const course = courses.find(c => c.ID === courseId) || null
-    // Early return if course not found to prevent rendering invalid state
-    if (!course) {
-        return null
-    }
-
-    // Fetch course assignments to display accurate deletion impact count
-    const { data: course_assignments } = useCourseAssignments(course as course.LocalCourse)
-    // Default to 0 if assignments data is not yet loaded
+    const { data: course } = useCourse(courseId)
+    if (!course) return null
+    const { data: course_assignments } = useCourseAssignments(courseId)
     const course_assignments_count = course_assignments?.length || 0
 
     /**
@@ -55,7 +47,6 @@ export function CourseDeleteDialog({ isOpen, onClose, courseId, courses, onDelet
     const handleDelete = () => {
     if (course) {
         onDelete(course)
-        toast.success("Course deleted successfully")
         onClose()
     }
 }

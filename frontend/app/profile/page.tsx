@@ -29,11 +29,11 @@ import { useCurrentUser, useGetAvatarUrl, useUpdateUser, useUploadProfilePicture
 import { useAssignments, useCompletedAssignments } from "@/hooks/use-assignments"
 import { useCourses, useDeleteCourse } from "@/hooks/use-courses"
 import { CourseItem } from "@/components/courses/course-item"
-import { CourseDetailsModal } from "@/components/courses/course-details-modal"
+import { CourseDetailsModal } from "@/components/courses/course-details-dialog"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { differenceInDays, format, isSameDay } from "date-fns"
 import { useUpdateCourse } from "@/hooks/use-courses"
-import { course, user } from "@/wailsjs/go/models"
+import {  models } from "@/wailsjs/go/models"
 import { CourseDeleteDialog } from "../courses/course-delete-dialog"
 import useEmblaCarousel from "embla-carousel-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -126,7 +126,7 @@ export default function ProfilePage() {
   const coursesPerPage = 4
   const coursePages = []
   for (let i = 0; i < (courses?.length || 0); i += coursesPerPage) {
-    coursePages.push(courses?.sort((a, b) => differenceInDays(b.StartDate, a.StartDate)).slice(i, i + coursesPerPage))
+    coursePages.push(courses?.sort((a, b) => differenceInDays(b.StartDate, a.StartDate)).slice(i, i + coursesPerPage).map((course) => course.ID))
   }
 
   useEffect(() => {
@@ -155,31 +155,6 @@ export default function ProfilePage() {
     setIsEditing(false)
   }
 
-  const handleCourseClick = (course: course.LocalCourse) => {
-    setSelectedCourseId(course.ID)
-  }
-
-  const handleEditCourse = async (courseData: course.LocalCourse, column: string, value: string) => {
-    const message = "course " + courseData.Code + " " + column + " changed to " + value
-    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-
-    // Use the optimistic update mutation
-    updateMutation.mutate({
-      course: courseData,
-      column,
-      value
-    })
-  }
-
-  const handleDeleteCourseClick = (course: course.LocalCourse) => {
-    setSelectedDeleteCourseId(course.ID)
-  }
-
-  const handleDeleteCourse = async (course: course.LocalCourse) => {
-    const message = "course " + course.Code + " deleted"
-    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-    deleteMutation.mutate(course)
-  }
 
   // Embla Carousel setup
   const [emblaRef, emblaApi] = useEmblaCarousel({
@@ -231,8 +206,8 @@ export default function ProfilePage() {
     // Process updates sequentially to avoid race conditions
     for (const [key, value] of Object.entries(editedData)) {
       const column = key_to_column[key as keyof typeof key_to_column]
-      if (value != user?.[key as keyof user.User]) {
-        const message = "user " + user?.Username + " " + column + ": " + user?.[key as keyof user.User] + " -> " + value
+      if (value != user?.[key as keyof models.User]) {
+        const message = "user " + user?.Username + " " + column + ": " + user?.[key as keyof models.User] + " -> " + value
         LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
         
         // Wait for each update to complete before proceeding
@@ -525,13 +500,10 @@ export default function ProfilePage() {
                           className="flex-none w-full min-w-0"
                         >
                           <div className="grid grid-cols-2 gap-4">
-                            {page?.map((course) => {
+                            {page?.map((courseId: number) => {
                               return (
                                 <CourseItem
-                                  course={course}
-                                  onEdit={() => { }}
-                                  onDelete={handleDeleteCourseClick}
-                                  onCourseClick={handleCourseClick}
+                                  courseId={courseId}
                                 />
                               )
                             })}
@@ -571,24 +543,6 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
-
-        <CourseDeleteDialog
-          isOpen={!!selectedDeleteCourseId}
-          onClose={() => setSelectedDeleteCourseId(null)}
-          courseId={selectedDeleteCourseId}
-          courses={courses || []}
-          onDelete={handleDeleteCourse}
-        />
-
-        <CourseDetailsModal
-          isOpen={!!selectedCourseId}
-          courseId={selectedCourseId}
-          courses={courses || []}
-          onClose={() => setSelectedCourseId(null)}
-          onEdit={handleEditCourse}
-          onDelete={handleDeleteCourseClick}
-          onLinkRequest={() => {}}
-        />
       </div>
     </div>
   )
