@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -108,6 +109,35 @@ type LocalDocument struct {
 	Parent     *LocalDocument  `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
 	ParentDoc  *LocalDocument  `gorm:"foreignKey:ParentDocID;references:ID" validate:"-"`
 	Versions   []LocalDocument `gorm:"foreignKey:ParentDocID;references:ID" validate:"-"`
+}
+
+// Hooks
+
+func (d *Document) BeforeDelete(tx *gorm.DB) error {
+
+	if d.HasLocalFile {
+		// Delete the document on cloud
+		if err := cloudstorage.DeleteFile(d.StorageKey); err != nil {
+			if errors.HasCode(err, errors.StorageFileNotFound) || errors.HasCode(err, errors.AuthForbidden) {
+				return errors.Inherit(err, errors.StorageDeleteFailed)
+			}
+			return errors.Wrap(err, errors.StorageDeleteFailed, "Failed to delete document from storage")
+		}
+	}
+
+	client, ok := tx.Get("qdrantClient")
+	if !ok {
+		return nil
+	}
+	qdrantClient, ok := client.(*qdrant.Client)
+	if !ok {
+		return nil
+	}
+
+	// Delete the document from Qdrant (non blocking)
+	go DeleteDocumentVectors(d, qdrantClient)
+
+	return nil
 }
 
 // START: Conversion Functions
@@ -223,8 +253,13 @@ func ValidateFileType(fileName string) error {
 
 func ValidateFileTypeRAG(fileName string) error {
 	ext := strings.ToLower(filepath.Ext(fileName))
-	if SupportedFileTypes[ext] {
-		return errors.Wrap(fmt.Errorf("file type %s is supported for RAG", ext), errors.FSFileTypeNotSupported, "File type not supported for RAG")
+	valid, ok := SupportedFileTypes[ext]
+	if !ok {
+		return errors.Wrap(fmt.Errorf("file type %s is not supported", ext), errors.FSFileTypeNotSupported, "File type not supported for RAG")
+	}
+	log.Println("valid", valid, "ext", ext)
+	if !valid {
+		return errors.Wrap(fmt.Errorf("file type %s is not supported for RAG", ext), errors.FSFileTypeNotSupported, "File type not supported for RAG")
 	}
 	return nil
 }
@@ -339,24 +374,6 @@ const (
 	MaxAssignmentSize = 200 * 1024 * 1024      // 200MB per assignment
 	MaxUserQuota      = 2 * 1024 * 1024 * 1024 // 2GB per user
 )
-
-// Hooks
-
-func (d *Document) BeforeDelete(tx *gorm.DB) error {
-
-	if d.HasLocalFile {
-		// Delete the document on cloud
-		if err := cloudstorage.DeleteFile(d.StorageKey); err != nil {
-			if errors.HasCode(err, errors.StorageFileNotFound) || errors.HasCode(err, errors.AuthForbidden) {
-				return errors.Inherit(err, errors.StorageDeleteFailed)
-			}
-			return errors.Wrap(err, errors.StorageDeleteFailed, "Failed to delete document from storage")
-		}
-	}
-
-	return nil
-
-}
 
 func (d *Document) AfterDelete(tx *gorm.DB) error {
 	// Commit the transaction

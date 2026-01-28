@@ -805,7 +805,7 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 
 	doc.ID = uint(docIDUint)
 	// Step 4: Remove document record from database
-	if err := db.Delete(&doc).Error; err != nil {
+	if err := db.Set("qdrantClient", QdrantClient).Delete(&doc).Error; err != nil {
 		if Errors.Is(err, gorm.ErrRecordNotFound) {
 			return server.LogError(
 				c.Context(),
@@ -919,6 +919,15 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 			errors.ProcJSONUnmarshalFailed,
 			"Invalid metadata format",
 			fiber.StatusBadRequest,
+		)
+	}
+
+	if err := models.ValidateFileTypeRAG(localDoc.FileName); err != nil {
+		return errors.WrapServer(
+			err,
+			errors.FSFileTypeNotSupported,
+			"File type not supported for RAG",
+			fiber.StatusUnsupportedMediaType,
 		)
 	}
 

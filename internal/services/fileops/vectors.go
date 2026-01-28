@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 	"unipilot/internal/secrets"
 
+	"code.sajari.com/docconv"
 	"github.com/google/uuid"
 	"github.com/tmc/langchaingo/textsplitter"
 
@@ -36,6 +37,22 @@ func GetFileTextForDocx(filename string) (string, error) {
 		return "", errors.Wrap(err, errors.SysExecFailed, "Error executing command")
 	}
 	return string(output), nil
+}
+
+func GetFileTextForPPTX(filename string) (string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return "", errors.Wrap(err, errors.FSOpenFailed, "Error opening file")
+	}
+	defer file.Close()
+
+	// Use docconv.ConvertPptx to extract text
+	text, _, err := docconv.ConvertPptx(file)
+	if err != nil {
+		return "", errors.Wrap(err, errors.FSOpenFailed, "Error converting PPTX")
+	}
+
+	return text, nil
 }
 
 func GetFileTextForPdf(filename string) (string, error) {
@@ -72,8 +89,10 @@ func GetFileText(filename, ext string) (string, error) {
 	switch ext {
 	case ".txt", ".md", ".go", ".py", ".js", ".json", ".yaml", ".yml", ".html", ".css", ".scss", ".less", ".sass", ".php", ".sql":
 		return GetFileTextForTxt(filename)
-	case ".docx":
+	case ".docx", ".doc":
 		return GetFileTextForDocx(filename)
+	case ".pptx", ".ppt":
+		return GetFileTextForPPTX(filename)
 	case ".pdf":
 		return GetFileTextForPdf(filename)
 	default:
