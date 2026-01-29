@@ -26,7 +26,7 @@ services:
       - REDIS_ADDR=${REDIS_ADDR:-unipilot_redis:6379}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - QDRANT_HOST=${QDRANT_HOST:-unipilot-qdrant}
-      - LOG_LEVEL=${LOG_LEVEL}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
       - server_data:/app/data
       - server_uploads:/app/uploads
@@ -61,7 +61,7 @@ services:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
-      - LOG_LEVEL=${LOG_LEVEL:-"DEBUG"}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
       - sse_logs:/app/logs
     restart: unless-stopped
@@ -90,7 +90,7 @@ services:
       - SESSION_KEY=${SESSION_KEY}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - QDRANT_HOST=${QDRANT_HOST:-unipilot-qdrant}
-      - LOG_LEVEL=${LOG_LEVEL:-"DEBUG"}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
       - nodejs_logs:/app/logs
     restart: unless-stopped

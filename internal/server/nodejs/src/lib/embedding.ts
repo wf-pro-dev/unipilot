@@ -80,7 +80,6 @@ const generateEmbedding = async (value: string) => {
     // Step 1: Input preprocessing and normalization
     // Replace escaped newlines with spaces to prevent embedding fragmentation
     const input = value.replaceAll('\\n', ' ');
-    console.log("input", input);
     
     // Step 2: AI model invocation with Google Gemini
     // Call Google's embedding API with 768-dimensional output for Qdrant compatibility

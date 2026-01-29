@@ -25,7 +25,7 @@ services:
       - REDIS_ADDR=${REDIS_ADDR}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - QDRANT_HOST=${QDRANT_HOST:-unipilot-qdrant}
-      - LOG_LEVEL=${LOG_LEVEL}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
     volumes:
       - server_data:/app/data
       - server_uploads:/app/uploads

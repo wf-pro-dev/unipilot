@@ -25,6 +25,7 @@ export interface Assignment {
   
   // Qdrant response types
   export interface QdrantChunk {
+    id: string;
     text: string;
     score: number;
     index: number;

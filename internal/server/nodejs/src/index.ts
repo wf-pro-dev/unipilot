@@ -1,5 +1,5 @@
 // ai-service/server.js
-import express, { Request, Response } from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { streamText, convertToModelMessages, tool, stepCountIs } from 'ai';
 import cors from 'cors';
@@ -8,25 +8,30 @@ import { findRelevantContent } from './lib/qdrant';
 import { z } from 'zod';
 import { Assignment, ChatRequest } from './types';
 import authMiddleware from './lib/middlewares/auth';
+import { initLogger } from './lib/logger/logger';
+import { createAICallbacks, loggerMiddleware, withRAGLogging, withToolLogging } from './lib/middlewares/logger';
 
 dotenv.config();
 
 const google = createGoogleGenerativeAI({
-    apiKey: process.env.GEMINI_API_KEY || '',
+  apiKey: process.env.GEMINI_API_KEY || '',
 });
+
+initLogger();
 
 const app = express();
 // Middleware
 app.use(cors({
-    origin: '*', // or '*' for testing
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization','User-Agent','x-session-id'],
-    credentials: true
+  origin: '*', // or '*' for testing
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'User-Agent', 'x-session-id'],
+  credentials: true
 }));
 
 app.use(express.json({ limit: '10mb' }));
 
 app.use('/unipilot/ai/v1', authMiddleware);
+app.use('/unipilot/ai/v1', loggerMiddleware);
 /**
  * Health check endpoint for service monitoring and load balancer health checks.
  * Returns service status and identification for operational monitoring.
@@ -58,38 +63,52 @@ app.get('/health', (req: Request, res: Response) => {
  * @returns {Stream} Streaming AI response with tool integration
  * @throws {500} When AI service is unavailable or processing fails
  */
-app.post('/unipilot/ai/v1', async (req: Request, res: Response) => {
-    
-    try {
-      // Step 1: Extract and validate request payload
-      const { messages, assignment }: ChatRequest = req.body;
-      
-      // Step 2: Set streaming headers BEFORE any response is sent
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.setHeader('X-Accel-Buffering', 'no'); // Critical for nginx streaming
-      res.setHeader('Access-Control-Allow-Origin', '*');
-      
-      // Step 3: Convert messages to AI SDK format for processing
-      let allMessages = convertToModelMessages(messages);
+app.post('/unipilot/ai/v1', asyncHandler(async (req: Request, res: Response) => {
 
-      // Step 4: Build assignment-specific system prompt for context
-      const systemPrompt = buildSystemPrompt(assignment);
-     
-  
-      // Step 5: Configure streaming AI generation with RAG tool integration
-      const result = streamText({
-        model: google('gemini-2.5-flash-lite'),
-        messages: allMessages,
-        maxOutputTokens: 4000,
-        temperature: 0.7, // Balanced creativity vs accuracy
-        system: systemPrompt,
-        stopWhen: stepCountIs(5),
-        tools: {
-          // RAG tool for knowledge base access
-          getInformation: tool({
-            description: `<tool_purpose>
+
+  // Step 1: Extract and validate request payload
+  const { messages, assignment }: ChatRequest = req.body;
+
+  // Step 2: Set streaming headers BEFORE any response is sent
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no'); // Critical for nginx streaming
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  // Step 3: Convert messages to AI SDK format for processing
+  let allMessages = convertToModelMessages(messages);
+  const userMessage = allMessages[allMessages.length - 1].content as string;
+
+  // Step 4: Build assignment-specific system prompt for context
+  const systemPrompt = buildSystemPrompt(assignment);
+
+  const MODEL = 'gemini-2.5-flash-lite';
+  const TEMPERATURE = 0.7;
+  const MAX_OUTPUT_TOKENS = 4000;
+  const stopWhen = stepCountIs(5);
+
+
+  const { onChunk, onFinish } = createAICallbacks(req, assignment, userMessage, {
+    model: MODEL,
+    temperature: TEMPERATURE,
+    maxTokens: MAX_OUTPUT_TOKENS,
+  });
+
+  // Step 5: Configure streaming AI generation with RAG tool integration
+  const result = streamText({
+    model: google(MODEL),
+    messages: allMessages,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
+    temperature: TEMPERATURE, // Balanced creativity vs accuracy
+    system: systemPrompt,
+    stopWhen: stopWhen,
+    onChunk: onChunk,
+    onFinish: onFinish,
+    tools: {
+      // RAG tool for knowledge base access
+      getInformation: tool({
+        description: `<tool_purpose>
 This tool retrieves information from SOURCE 2: DOCUMENT RETRIEVAL (RAG).
 It searches assignment documents, materials, and notes uploaded by the instructor.
 The tool returns raw document chunks as DATA - you MUST synthesize your own answer from this data.
@@ -136,51 +155,49 @@ After receiving chunks:
 The tool output is NOT your final answer. You MUST continue generating text after receiving chunks.
 If chunks don't help, use your model knowledge (SOURCE 3) to provide an answer.
 </critical_note>`,
-            inputSchema: z.object({
-              question: z.string().describe('The user\'s question as-is, or a refined version if the original question needs clarification for better search results'),
-            }),
-            // Execute RAG search against assignment-specific collection
-            execute: async ({ question }) => {
-              try {
-                const result = await findRelevantContent(question, assignment.RemoteID);
-                
-                // If no chunks retrieved, return a message indicating no results
-                // The model will use this to inform the user
-                if (!result.retrieved || result.chunks.length === 0) {
-                  return result.error 
-                    ? "Error: Unable to retrieve information from the knowledge base."
-                    : "No relevant information found in the knowledge base for this question.";
+        inputSchema: z.object({
+          question: z.string().describe('The user\'s question as-is, or a refined version if the original question needs clarification for better search results'),
+        }),
+        // Execute RAG search against assignment-specific collection
+        execute: async ({ question }) => {
+          return await withToolLogging(
+            req,
+            'getInformation',
+            assignment.RemoteID,
+            { question },
+            async () => {
+              // Wrap RAG query - logs automatically
+              const ragResult = await withRAGLogging(
+                req,
+                assignment.RemoteID,
+                question,
+                async () => {
+                  // Just execute - wrapper handles logging
+                  return await findRelevantContent(question, assignment.RemoteID);
                 }
-                
-                // Format chunks for the main model to reason over
-                const formattedChunks = result.chunks
-                  .map(chunk => chunk.text)
-                  .join('\n\n---\n\n');
-                
-                return formattedChunks;
-              } catch (error) {
-                return `Error retrieving information: ${error instanceof Error ? error.message : 'Unknown error'}`;
-              }
-            },
-          }),
+              );
 
-          //google_search: google.tools.googleSearch({})
+              // Update tool context with results
+              // (wrapper will log this automatically)
+              return {
+                text: ragResult.chunks.map(c => c.text).join('\n\n---\n\n'),
+                chunks: ragResult.chunks, // Used by wrapper for chunks_retrieved
+              };
+            }
+          );
+
         },
-      });
+      }),
 
-      // Step 6: Stream AI response directly to client
-      result.pipeUIMessageStreamToResponse(res);
-      
-    } catch (error ) {
-      // Step 7: Handle errors with proper HTTP status and logging
-      if (!res.headersSent) {
-        res.status(500).json({ 
-          error: 'AI service unavailable',
-          details: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-    }
-});
+      //google_search: google.tools.googleSearch({})
+    },
+  });
+
+  // Step 6: Stream AI response directly to client
+  result.pipeUIMessageStreamToResponse(res);
+
+}
+));
 
 /**
  * Builds a contextual system prompt for AI assistant based on assignment details.
@@ -505,3 +522,11 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 AI Service running on port ${PORT}`);
 });
+
+export function asyncHandler(
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<any>
+) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    Promise.resolve(fn(req, res, next)).catch(next);
+  };
+} 

@@ -26,8 +26,8 @@ const qdrantClient = new QdrantClient({
  * @returns {Promise<{chunks: Array<{text: string, score: number, index: number}>, question: string, retrieved: boolean, error?: boolean}>} Raw retrieved chunks with metadata
  * @throws {Error} When embedding generation or vector search fails
  */
-const findRelevantContent = async (userQuery: string, assignmentID: string): Promise<{
-    chunks: Array<{text: string, score: number, index: number}>;
+const findRelevantContent = async ( userQuery: string, assignmentID: string): Promise<{
+    chunks: Array<{id: string, text: string, score: number, index: number}>;
     question: string;
     retrieved: boolean;
     error?: boolean;
@@ -56,7 +56,7 @@ const findRelevantContent = async (userQuery: string, assignmentID: string): Pro
         const relevantContent = await qdrantClient.api('points').search({
             collectionName: collection,
             vector: vector,
-            limit: BigInt(3), // Retrieve top 3 most similar chunks
+            limit: BigInt(10), // Retrieve top 3 most similar chunks
             // Include chunk text and assignment metadata in results
             // filter: {
             //     should: filters,
@@ -65,7 +65,7 @@ const findRelevantContent = async (userQuery: string, assignmentID: string): Pro
                 selectorOptions: {
                     case: "include",
                     value: {
-                        fields: ["chunk_text", "assignment_id"]
+                        fields: ["chunk_id","chunk_text", "assignment_id"]
                     }
                 }
             }
@@ -91,16 +91,16 @@ const findRelevantContent = async (userQuery: string, assignmentID: string): Pro
             };
         }
 
-        console.log("jsonResponse", jsonResponse);
 
         const chunks = jsonResponse.result.map((point: ScoredPoint, index: number) => {
             const payload = point.payload || {};
 
+            const chunkId = extractChunkId(payload);
 
             const chunkText = extractChunkText(payload);
-            console.log("chunkText", chunkText);
 
             return {
+                id: chunkId.toString(),
                 text: chunkText,
                 score: point.score || 0,
                 index: index + 1
@@ -119,17 +119,12 @@ const findRelevantContent = async (userQuery: string, assignmentID: string): Pro
         // Return raw chunks for the main model to reason over
         // This enables multi-step reasoning and better answer synthesis
         return {
-            chunks: chunks.map(chunk => ({
-                text: chunk.text,
-                score: chunk.score,
-                index: chunk.index
-            })),
+            chunks: chunks,
             question: userQuery,
             retrieved: true,
         };
 
     } catch (error) {
-        console.error("findRelevantContent error", error);
         return {
             chunks: [],
             question: userQuery,
@@ -138,6 +133,10 @@ const findRelevantContent = async (userQuery: string, assignmentID: string): Pro
         };
     }
 };
+
+const extractChunkId = (payload: any) => {
+    return payload['chunk_id'].integerValue as number;
+}
 
 const extractChunkText = (payload: any) => {
     return payload['chunk_text'].stringValue as string;
