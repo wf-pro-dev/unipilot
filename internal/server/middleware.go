@@ -4,6 +4,7 @@ import (
 	"context"
 	Errors "errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -197,6 +198,8 @@ func LoggerMiddleware(c *fiber.Ctx) error {
 	ctx = context.WithValue(ctx, "status_code", c.Response().StatusCode())
 	ctx = context.WithValue(ctx, "duration", duration)
 
+	c.SetUserContext(ctx)
+
 	if err != nil {
 		return err
 	}
@@ -207,13 +210,13 @@ func LoggerMiddleware(c *fiber.Ctx) error {
 	}
 
 	// Log slow request
-	if logLevel == "WARN" && err == nil {
+	if logLevel == "WARN" {
 		LogWarn(ctx, errors.WrapServer(fmt.Errorf("slow request: %dms", duration), errors.SlowRequest, "Slow request", fiber.StatusInternalServerError))
 	} else {
 		LogInfo(ctx)
 	}
 
-	return err
+	return nil
 }
 
 // Claims represents the JWT token payload structure for user authentication.
@@ -438,11 +441,16 @@ func ErrorHandlerMiddleware(c *fiber.Ctx) error {
 	var serverErr *errors.ServerError
 	if Errors.As(err, &serverErr) {
 
+		ctx = context.WithValue(ctx, "error_code", serverErr.Code)
+		ctx = context.WithValue(ctx, "status_code", serverErr.StatusCode)
+		ctx = context.WithValue(ctx, "root", errors.GetRootAppError(serverErr))
+		c.SetUserContext(ctx)
 		// Log based on status code severity
 		if serverErr.StatusCode >= 500 {
 			LogError(ctx, serverErr)
 		} else {
 			// 4xx errors are client errors, log as WARN
+			log.Println("serverErr", serverErr)
 			LogWarn(ctx, serverErr)
 		}
 
@@ -456,10 +464,14 @@ func ErrorHandlerMiddleware(c *fiber.Ctx) error {
 	if Errors.As(err, &appErr) {
 		// Convert AppError to ServerError with 500 status
 		serverErr = appErr.ToServerError(fiber.StatusInternalServerError)
-
 		c.Locals("error_handled", true)
-		return c.Status(fiber.StatusInternalServerError).JSON(serverErr)
 	}
+
+	ctx = context.WithValue(ctx, "error_code", serverErr.Code)
+	ctx = context.WithValue(ctx, "status_code", serverErr.StatusCode)
+	ctx = context.WithValue(ctx, "root", errors.GetRootAppError(serverErr))
+
+	c.SetUserContext(ctx)
 
 	LogError(ctx, serverErr)
 

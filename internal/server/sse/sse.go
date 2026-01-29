@@ -178,9 +178,7 @@ func (s *SSEServer) AddClient(userID uint) *SSEClient {
 		Connected: true,
 	}
 	ctx := context.WithValue(context.Background(), "component", "sse")
-	server.LogDebug(ctx, "SSE client added", "user_id", userID,
-		"tags", []string{"notification", "network", "low"},
-	)
+	server.LogDebug(ctx, "new sse client added", userID)
 
 	s.clients[userID] = client
 	return client
@@ -378,14 +376,13 @@ func (s *SSEServer) CountHandler(c *fiber.Ctx) error {
 //   - Starts heartbeat ticker for connection maintenance
 //   - Automatic cleanup on connection termination
 func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
-	c.Locals("message", "SSE connection established")
-	// Step 1: Extract authenticated user ID from Fiber locals
-	userID, ok := c.Locals("user_id").(uint)
-	if !ok {
-		// User context missing - authentication middleware failed
-		return c.Status(fiber.StatusUnauthorized).SendString("Unauthorized")
-	}
+
 	var err error
+	user, err := server.GetUser(c.UserContext())
+	if err != nil {
+		return errors.WrapServer(err, errors.AuthUnauthorized, "User not found in context", fiber.StatusUnauthorized)
+	}
+	userID := user.ID
 
 	// Step 2: Set Server-Sent Events protocol headers
 	c.Set("Content-Type", "text/event-stream") // SSE MIME type
@@ -407,9 +404,7 @@ func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
 		defer func() {
 			// Step 4: Cleanup client connection on function exit
 			ctx := context.WithValue(context.Background(), "component", "sse")
-			server.LogDebug(ctx, "SSE client removed",
-				"tags", []string{"notification", "network", "low"},
-			)
+			server.LogDebug(ctx, "sse client removed", userID)
 			s.RemoveClient(userID)
 		}()
 

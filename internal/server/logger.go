@@ -212,7 +212,6 @@ func InitLogger() {
 	fileConfig := zapcore.NewTee(fileCores...)
 	fileBaseLogger := zap.New(
 		fileConfig,
-		zap.AddCaller(),                       // Include file:line in logs
 		zap.AddStacktrace(zapcore.ErrorLevel), // Stack traces for errors
 	)
 	FileLogger = fileBaseLogger.Sugar()
@@ -330,18 +329,10 @@ func LogInfo(ctx context.Context) {
 }
 
 func LogWarn(ctx context.Context, err *errors.ServerError) {
-	// Flatten the error to a ...interface{} slice
-	ctx = context.WithValue(ctx, "error_code", err.Code)
-	ctx = context.WithValue(ctx, "root", errors.GetRootAppError(err))
-
 	logWithLevel(ctx, zapcore.WarnLevel)
 }
 
 func LogError(ctx context.Context, err *errors.ServerError) error {
-
-	ctx = context.WithValue(ctx, "error_code", err.Code)
-	ctx = context.WithValue(ctx, "root", errors.GetRootAppError(err))
-
 	logWithLevel(ctx, zapcore.ErrorLevel)
 	return err
 }
@@ -456,6 +447,12 @@ func extractFileFields(ctx context.Context) []interface{} {
 	if client_ip := ctx.Value("client_ip"); client_ip != nil {
 		if ip, ok := client_ip.(string); ok {
 			fields = append(fields, "client_ip", ip)
+		}
+	}
+
+	if root := ctx.Value("root"); root != nil {
+		if root, ok := root.(*errors.AppError); ok {
+			fields = append(fields, "root", root)
 		}
 	}
 

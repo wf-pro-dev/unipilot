@@ -53,9 +53,7 @@ func (s *Server) SendMessage(ctx context.Context, message *Message) (*Response, 
 func (s *Server) SendHeartbeat(ctx context.Context, heartbeat *Heartbeat) (*Heartbeat, error) {
 	// Step 1: Log heartbeat request for service monitoring and debugging
 	ctx = context.WithValue(ctx, "component", "grpc")
-	server.LogDebug(ctx, "Heartbeat received",
-		"tags", []string{"system", "network", "low"},
-	)
+	server.LogDebug(ctx, "message", "heartbeat received")
 
 	// Step 2: Return confirmation message to client
 	return &Heartbeat{Body: "heartbeat received"}, nil
