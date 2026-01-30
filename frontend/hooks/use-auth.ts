@@ -10,16 +10,12 @@ import {
   Register, 
   Logout, 
   UpdateUser, 
-  GetAuthToken,
   GetFileAsDataURL,
   GetUserCourseInvitations
 } from "@/wailsjs/go/main/App"
 import { useAuthContext } from '@/components/provider/auth-provider'
 import { courseKeys } from './use-courses'
-import { userKeys } from './use-users'
-import { assignmentKeys } from './use-assignments'
-import { documentKeys } from './use-documents'
-import { noteKeys } from './use-notes'
+
 
 
 // Query keys for auth
@@ -122,6 +118,7 @@ export function useLogout() {
     },
     onSuccess: () => {
       // Clear all auth-related cache
+      queryClient.setQueryData(authKeys.user, undefined)
       queryClient.invalidateQueries({})
     },
     onError: (error) => {

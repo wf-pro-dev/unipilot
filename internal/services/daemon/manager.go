@@ -214,8 +214,11 @@ func (m *Manager) InstallDaemon() error {
 // UninstallDaemon removes the notification daemon
 func (m *Manager) UninstallDaemon() error {
 	// Stop the service first
-	if err := m.svc.Stop(); err != nil {
-		log.Printf("Warning: Failed to stop notification daemon: %v", err)
+
+	if m.IsDaemonRunning() {
+		if err := m.svc.Stop(); err != nil {
+			log.Printf("Warning: Failed to stop notification daemon: %v", err)
+		}
 	}
 
 	// Uninstall using service library
@@ -268,11 +271,16 @@ func (m *Manager) StartDaemon() error {
 
 // StopDaemon stops the daemon
 func (m *Manager) StopDaemon() error {
+
 	if !m.IsDaemonRunning() {
 		return nil
 	}
 
-	return m.svc.Stop()
+	if err := m.svc.Stop(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // RebuildDaemon rebuilds the daemon binary

@@ -59,27 +59,30 @@ func (s *Scheduler) StartScheduler() error {
 		return errors.NewAppError(errors.ValidationInvalid, "Scheduler is already running", nil)
 	}
 
+	var err error
 	// Schedule morning notifications at 8:00 AM
-	_, err := s.cron.AddFunc("0 8 * * *", func() {
-		if err := s.CleanUp(); err != nil {
+	_, err = s.cron.AddFunc("0 0 8 * * *", func() {
+		if err = s.CleanUp(); err != nil {
 			err = errors.Wrap(err, errors.InternalError, "Failed to clean up course entries")
 			return
 		}
 
-		if err := s.GetCourseEntries(); err != nil {
+		if err = s.GetCourseEntries(); err != nil {
 			err = errors.Wrap(err, errors.InternalError, "Failed to get course entries")
 			return
 		}
 
-		if err := s.ScheduleCourseNotifications(s.courseEntries); err != nil {
+		if err = s.ScheduleCourseNotifications(s.courseEntries); err != nil {
 			err = errors.Wrap(err, errors.InternalError, "Failed to schedule course notifications")
 			return
 		}
 
+		log.Println(err)
+
 	})
 
 	_, err = s.cron.AddFunc("@every 30m", func() {
-		if err := s.UpdateCourseEntries(); err != nil {
+		if err = s.UpdateCourseEntries(); err != nil {
 			err = errors.Wrap(err, errors.InternalError, "Failed to update course entries")
 			return
 		}
@@ -87,6 +90,9 @@ func (s *Scheduler) StartScheduler() error {
 	if err != nil {
 		return err
 	}
+
+	s.cron.Start()
+	s.isRunning = true
 
 	return nil
 }
@@ -147,7 +153,7 @@ func (s *Scheduler) GetCourseEntries() error {
 
 		entries[course.ID] = &CourseEntry{
 			course:  course,
-			pattern: fmt.Sprintf("%d %d * * *", notifTime.Minute(), notifTime.Hour()),
+			pattern: fmt.Sprintf("0 %d %d * * *", notifTime.Minute(), notifTime.Hour()),
 			message: models.Message{
 				Type:    models.MessageCourse,
 				Title:   fmt.Sprintf("%s - %s", course.Code, course.Name),
@@ -163,14 +169,17 @@ func (s *Scheduler) GetCourseEntries() error {
 func (s *Scheduler) ScheduleCourseNotifications(entries map[uint]*CourseEntry) error {
 	for _, entry := range entries {
 
-		if entryID, err := s.cron.AddFunc(entry.pattern, func() {
+		entryID, err := s.cron.AddFunc(entry.pattern, func() {
 			if err := beeep.Notify(entry.message.Title, entry.message.Message, ""); err != nil {
 				log.Printf("[Scheduler] Error sending system notification: %v", err)
 			}
-		}); err != nil {
-			entry.ID = entryID
+		})
+		if err != nil {
+			log.Printf("Schedule: %v", err)
 			return errors.Wrap(err, errors.InternalError, "Failed to add cron entry")
 		}
+		entry.ID = entryID
+
 	}
 	return nil
 }

@@ -1,6 +1,7 @@
 package client
 
 import (
+	"log"
 	"net/http"
 	"sync"
 
@@ -57,6 +58,7 @@ func GetAuthToken() (string, error) {
 	defer mu.Unlock()
 
 	// Recheck after acquiring lock
+	log.Printf("isTolenValid 1: %v", IsTokenValid())
 	if IsTokenValid() {
 		return LoadToken()
 	}
@@ -67,6 +69,7 @@ func GetAuthToken() (string, error) {
 	}
 
 	// Recheck after waiting (another goroutine might have refreshed)
+	log.Printf("isTolenValid 2: %v", IsTokenValid())
 	if IsTokenValid() {
 		return LoadToken()
 	}
@@ -82,6 +85,7 @@ func GetAuthToken() (string, error) {
 }
 
 func doRefresh() (string, error) {
+	log.Println("Perform Refresh")
 	refreshToken, err := LoadRefreshToken()
 	if err != nil {
 		return "", errors.Wrap(err, errors.FSFileNotFound, "Failed to load refresh token")

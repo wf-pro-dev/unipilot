@@ -96,8 +96,6 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
       prepareSendMessagesRequest: async ({ id, messages, trigger, messageId }) => {
         
        const token = await GetAuthToken()
-       console.log('token', token)
-       console.log('messages', messages)
        if (!token) {
         throw new Error('No auth token found')
        }
