@@ -286,11 +286,7 @@ export default function CoursesPage() {
         </Tabs>
 
 
-        <LinkRequestModal
-          courseID={selectedCourseId!}
-          isOpen={isLinkRequestModalOpen}
-          onClose={() => setIsLinkRequestModalOpen(false)}
-        />
+        
 
       </div>
     </div>

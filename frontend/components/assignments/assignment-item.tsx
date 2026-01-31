@@ -288,7 +288,13 @@ const BaseAssignmentItem = ({
         <GlassCard
           key={assignment.ID}
           variant={variant}
-          onClick={() => SetDialogState({ modelType: "assignment", dialogType: "details", id: assignmentId })}
+          onClick={() => SetDialogState({ 
+            modelType: "assignment", 
+            dialogType: "details", 
+            id: assignmentId,
+            item: assignment,
+            viewMode: "readonly"
+          })}
         >
           <CardContent className="flex flex-col flex-1 p-5 gap-4 ">
 
@@ -353,15 +359,7 @@ const BaseAssignmentItem = ({
           )}
 
         </GlassCard >
-        <AssignmentDetailsDialog
-          key={assignment.ID}
-          assignmentId={assignment.ID}
-          assignmentRO={assignment}
-          mode={"readonly"}
-          isOpen={isDetailsOpen}
-          onClose={() => SetDialogState({ modelType: "assignment", dialogType: "details", id: assignmentId })}
-          onCopy={onCopy}
-        />
+       
       </div>
     )
   }

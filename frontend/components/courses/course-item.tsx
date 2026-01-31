@@ -22,13 +22,14 @@ interface CourseItemProps {
     disabled?: boolean
     variant?: GlassCardVariants
     size?: "default" | "sm"
-    mode?: "default" | "schedule"
+    mode?: "default" | "readonly" | "schedule"
 
     timeSlots?: number[]
     day?: string
 
     courseRO?: models.Course
     user?: models.User
+    onClick?: () => void
     onAccept?: () => void
     onDecline?: () => void
 }
@@ -43,6 +44,7 @@ function BaseCourseItem({
     user,
     timeSlots,
     day,
+    onClick,
     onAccept,
     onDecline
 }: CourseItemProps) {
@@ -310,6 +312,119 @@ function BaseCourseItem({
 
     }
 
+    function UserCourseItem({
+
+        courseRO,
+        size,
+        onAccept,
+        onDecline
+    }: CourseItemProps) {
+        
+        if (!courseRO) return null
+
+        if (size === "sm") {
+            return (
+                <div
+                    key={courseRO.ID}
+                    onClick={onClick ? onClick : () => SetDialogState({ modelType: "course", dialogType: "details", id: courseRO.ID, item: courseRO, viewMode: "readonly" })}
+                    className="flex flex-1 justify-between items-center border border-white/5  shadow-lg shadow-black/60 rounded-xl py-2 px-4 overflow-hidden relative group/item">
+
+                    <div className={`absolute inset-0 z-0 ${getCourseGradientClasses(courseRO.Color, true).bg} ${getCourseGradientClasses(courseRO.Color, true).hover} transition-colors duration-300`} />
+
+                    <div className="flex items-center justify-center gap-2 z-10">
+
+                        {!onAccept && !onDecline && (
+
+                            <div className=" flex items-center justify-center p-1 rounded-full bg-white/10 border border-white/10 shadow-lg shadow-black/40">
+                                <ChevronLeft className="w-4 h-4 text-white" strokeWidth={1.5} />
+                            </div>
+                        )}
+
+
+                        <div className={`flex flex-col flex-1 z-10`}>
+
+                            <h3 className="text-caption text-gray-300 line-clamp-1 tracking-tight">{courseRO.Code}</h3>
+
+
+                            <p className="text-body line-clamp-1 font-medium">{courseRO.Name}</p>
+
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col items-center gap-1 z-10">
+                        {onAccept && (
+                            <Button onClick={onAccept} variant="ghost" size="sm" className="flex-1 text-gray-400 bg-gray-500/10 border-gray-500/20 hover:bg-gray-500/20 hover:text-gray-300 hover:border-gray-500/30 transition-all h-9 text-xs font-medium">
+                                Accept
+                            </Button>
+                        )}
+                        {onDecline && (
+                            <Button onClick={onDecline} variant="ghost" size="sm" className="flex-1 text-gray-400 bg-gray-500/10 border-gray-500/20 hover:bg-gray-500/20 hover:text-gray-300 hover:border-gray-500/30 transition-all h-9 text-xs font-medium">
+                                Decline
+                            </Button>
+                        )}
+                    </div>
+
+                </div>
+            )
+        }
+
+        return (
+            <div>
+                <GlassCard
+                    variant={"outline"}
+                    className={`${disabled ? 'opacity-50' : ''}`}
+                    onClick={onClick ? onClick : () => SetDialogState({ modelType: "course", dialogType: "details", id: courseRO.ID, item: courseRO, viewMode: "readonly" })}
+                    key={courseRO.ID}
+                >
+                    <CardContent className="p-5">
+
+                        <div className="flex justify-between items-start mb-5 ">
+                            <div className={`flex items-center border border-white/5  shadow-lg shadow-black/60 rounded-xl p-3 overflow-hidden  space-x-4 w-full  relative `}>
+
+                                <div className={`absolute inset-0 z-0 ${getCourseGradientClasses(courseRO.Color, true).bg} ${getCourseGradientClasses(courseRO.Color, true).hover} transition-colors duration-300`} />
+
+                                <div className="flex flex-col w-full min-w-0">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <h3 className="text-base font-bold text-white line-clamp-1 tracking-tight">{courseRO.Code}</h3>
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                            <Badge variant="outline" className="text-[10px] border-white/10 bg-white/5 text-gray-300 uppercase tracking-wider px-2 py-0.5">
+                                                {courseRO.Credits} credits
+                                            </Badge>
+                                        </div>
+                                    </div>
+
+                                    <p className="text-xs text-gray-400 line-clamp-1 mt-0.5 font-medium">{courseRO.Name}</p>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <div className="mb-5 space-y-2">
+                            <div className="flex items-center space-x-3 text-xs">
+                                <div className="p-1 bg-blue-500/10 rounded-md">
+                                    <Users className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+                                </div>
+                                <span className="text-gray-300 line-clamp-1 font-medium">{courseRO.Instructor}</span>
+                            </div>
+                            <div className="flex items-center space-x-3 text-xs">
+                                <div className="p-1 bg-purple-500/10 rounded-md">
+                                    <Clock className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
+                                </div>
+                                <span className="text-gray-300 line-clamp-1 font-medium">{courseRO.Schedule}</span>
+                            </div>
+                        </div>
+
+
+                    </CardContent>
+                </GlassCard>
+
+            </div>
+
+
+        )
+
+    }
+
     type ScheduleCourseItemProps = CourseItemProps & {
         timeSlots: number[]
         day: string
@@ -388,6 +503,8 @@ function BaseCourseItem({
     switch (mode) {
         case "default":
             return <DefaultCourseItem courseId={courseId} variant={variant} size={size} />
+        case "readonly":
+            return <UserCourseItem courseId={courseRO?.ID!} courseRO={courseRO} size={size} onAccept={onAccept} onDecline={onDecline} />
         case "schedule":
             return <ScheduleCourseItem courseId={courseId} timeSlots={timeSlots!} day={day!} />
 

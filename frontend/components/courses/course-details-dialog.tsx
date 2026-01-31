@@ -38,15 +38,13 @@ import { useRouter } from "next/navigation"
 import useEmblaCarousel from "embla-carousel-react"
 import { useCourse } from "@/hooks/use-courses"
 import { AssignmentItem } from "../assignments/assignment-item"
+import { useDialogContext } from "../provider/dialog-provider"
 
 interface CourseDetailsDialogProps {
   isOpen: boolean
   onClose: () => void
   courseId: number
   courseRO?: models.Course
-  onEdit: (course: models.LocalCourse, column: string, value: string) => void
-  onDelete: (course: models.LocalCourse) => void
-  onLinkRequest: () => void
   mode?: "default" | "readonly"
 }
 
@@ -56,15 +54,15 @@ export function CourseDetailsDialog({
   courseId,
   courseRO,
   mode = "default",
-  onEdit,
-  onDelete,
-  onLinkRequest,
 }: CourseDetailsDialogProps) {
+
 
   const { data: courseData } = useCourse(courseId)
   var course = mode == "default" ? courseData as models.LocalCourse : courseRO
 
   if (!course) return null
+
+  const { SetDialogState } = useDialogContext()
 
   const router = useRouter()
   const [activeView, setActiveView] = useState("info")
@@ -73,9 +71,6 @@ export function CourseDetailsDialog({
 
   const { data: assignments, isLoading } = useAssignments()
   const notes = useCourseNotes(course as models.LocalCourse)
-
-  const updateMutation = useUpdateAssignment()
-  const updateNote = useUpdateNote()
   const deleteNote = useDeleteNote()
 
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -95,19 +90,6 @@ export function CourseDetailsDialog({
   const isCompleted = useMemo(() => {
     return completionPercentage === 100
   }, [completionPercentage])
-
-  const [open, setOpen] = useState(false)
-  const handleEditAssignment = async (assignment: models.LocalAssignment, column: string, value: string) => {
-    const message = "assignment " + assignment.ID + " " + column + " changed to " + value
-    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-
-    // Use the optimistic update mutation
-    updateMutation.mutate({
-      assignment,
-      column,
-      value
-    })
-  }
 
 
   const handleDeleteNote = async (note: models.LocalNote | models.Note) => {
@@ -433,7 +415,11 @@ export function CourseDetailsDialog({
                   className="rounded-full"
                   onClick={(e) => {
                     e.stopPropagation()
-                    setOpen(true)
+                    SetDialogState({
+                      modelType: "course",
+                      dialogType: "edit",
+                      id: courseId
+                    })
                   }}
                 >
                   <Edit className="w-4 h-4" />
@@ -445,7 +431,11 @@ export function CourseDetailsDialog({
                   className="rounded-full"
                   onClick={(e) => {
                     e.stopPropagation()
-                    onLinkRequest()
+                    SetDialogState({
+                      modelType: "course",
+                      dialogType: "linkRequest",
+                      id: courseId
+                    })
                   }}
                 >
                   <Share className="w-4 h-4" />
@@ -457,7 +447,11 @@ export function CourseDetailsDialog({
                   className="rounded-full"
                   onClick={(e) => {
                     e.stopPropagation()
-                    onDelete(course as models.LocalCourse)
+                    SetDialogState({
+                      modelType: "course",
+                      dialogType: "delete",
+                      id: courseId
+                    })
                   }}
                 >
                   <Trash2 className="w-4 h-4" />

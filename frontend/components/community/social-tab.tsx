@@ -39,6 +39,7 @@ export function SocialTab() {
     const AcceptCourseInvitation = useAcceptCourseInvitation()
     const DeclineCourseInvitation = useDeclineCourseInvitation()
 
+
     /**
       
     * Handles assignment creation with optimistic UI updates.
@@ -291,12 +292,13 @@ export function SocialTab() {
 
                         <h5 className="text-h5 font-medium text-gray-400 self-end">Course Invitations</h5>
                         <div className="flex flex-wrap w-full" >
-                            {courseInvitations?.map((invitation) => (
+                            {courseInvitations?.map((invitation) =>
+                            (
 
                                 <CourseItem
-                                    course={invitation.Course!}
-                                    onEdit={() => { }}
-                                    onDelete={() => { }}
+                                    courseId={invitation.Course!.ID}
+                                    courseRO={invitation.Course!}
+                                    mode="readonly"
                                     size="sm"
                                     onAccept={() => handleAcceptCourseInvitation(invitation)}
                                     onDecline={() => handleDeclineCourseInvitation(invitation)}
@@ -319,9 +321,11 @@ export function SocialTab() {
                                 {courses?.map((course) => (
                                     <div key={course.course.Code}>
                                         <CourseItem
-                                            course={course.course}
-                                            onCourseClick={() => handleCourseClick(course)}
+                                            courseId={course.course.ID}
+                                            courseRO={course.course}
+                                            mode="readonly"
                                             size="sm"
+                                            onClick={() => handleCourseClick(course)}
                                         />
                                     </div>
                                 ))}

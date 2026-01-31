@@ -36,9 +36,9 @@ const types = [
 ]
 
 const priorities = [
-  { value: "low", label: "Low", color: "text-green-400"},
-  { value: "medium", label: "Medium", color: "text-accent-amber-500"},
-  { value: "high", label: "High", color: "text-red-400"},
+  { value: "low", label: "Low", color: "text-green-400" },
+  { value: "medium", label: "Medium", color: "text-accent-amber-500" },
+  { value: "high", label: "High", color: "text-red-400" },
 ]
 
 const statuses = [
@@ -54,7 +54,7 @@ interface AssignmentEditDialogProps {
 }
 
 export function AssignmentEditDialog({ assignmentId, isOpen, onClose }: AssignmentEditDialogProps) {
-  
+
   const { data: assignment } = useAssignment(assignmentId)
 
   if (!assignment) { return null }
@@ -65,7 +65,7 @@ export function AssignmentEditDialog({ assignmentId, isOpen, onClose }: Assignme
   const [step1Attempted, setStep1Attempted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [deadline, setDeadline] = useState<Date>(new Date(assignment.Deadline) || new Date())
-  const [selectedCourse, setSelectedCourse] = useState<models.LocalCourse | undefined>({Code: assignment.CourseCode, ID: assignment.CourseID} as models.LocalCourse)
+  const [selectedCourse, setSelectedCourse] = useState<models.LocalCourse | undefined>({ Code: assignment.CourseCode, ID: assignment.CourseID } as models.LocalCourse)
   const form = useForm<AssignmentValues>({
     resolver: zodResolver(assignmentSchema),
     mode: "onChange",
@@ -118,15 +118,23 @@ export function AssignmentEditDialog({ assignmentId, isOpen, onClose }: Assignme
 
 
     for (const [key, value] of Object.entries(data)) {
-      
+
       var column = key_to_column[key as keyof typeof key_to_column] as keyof models.LocalAssignment
       if (!column) { continue }
- 
+
       if (value !== assignment[column]) {
 
         const message = `Changes to ${column} value: ${value}`
         LogInfo(message)
         updateMutation.mutate({ assignment, column: key, value: value as string })
+
+        // If the course code changes, update the course id and remote course id
+        if (column === "CourseCode") {
+          updateMutation.mutate({ assignment, column: "CourseID", value: data.course_id.toString() })
+          if (data.remote_course_id) {
+            updateMutation.mutate({ assignment, column: "RemoteCourseID", value: data.remote_course_id.toString() })
+          }
+        }
       }
       else {
         const message = `No changes to ${column}`
@@ -142,7 +150,7 @@ export function AssignmentEditDialog({ assignmentId, isOpen, onClose }: Assignme
 
     setIsSubmitting(false)
   }
-  
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -198,7 +206,7 @@ export function AssignmentEditDialog({ assignmentId, isOpen, onClose }: Assignme
                           <FormErrorMessage
                             fieldState={fieldState}
                             formState={form.formState}
-                            config={{ strategy: "onSubmit"}}
+                            config={{ strategy: "onSubmit" }}
                           />
                         </FormItem>
                       )}
@@ -221,7 +229,7 @@ export function AssignmentEditDialog({ assignmentId, isOpen, onClose }: Assignme
                           <FormErrorMessage
                             fieldState={fieldState}
                             formState={form.formState}
-                            config={{ strategy: "onSubmit"}}
+                            config={{ strategy: "onSubmit" }}
                           />
                         </FormItem>
                       )}
@@ -258,7 +266,7 @@ export function AssignmentEditDialog({ assignmentId, isOpen, onClose }: Assignme
                             <FormErrorMessage
                               fieldState={fieldState}
                               formState={form.formState}
-                              config={{ strategy: "onSubmit"}}
+                              config={{ strategy: "onSubmit" }}
                             />
                           </FormItem>
                         )}
@@ -344,8 +352,8 @@ export function AssignmentEditDialog({ assignmentId, isOpen, onClose }: Assignme
                                 {priorities.map((priority) => (
                                   <SelectItem key={priority.value} value={priority.value} className="focus:bg-white/10 focus:text-white cursor-pointer">
                                     <div className="flex items-center gap-2">
-                                    <span className={priority.color}>●</span>
-                                    <span>{priority.label}</span>
+                                      <span className={priority.color}>●</span>
+                                      <span>{priority.label}</span>
                                     </div>
                                   </SelectItem>
                                 ))}
@@ -354,7 +362,7 @@ export function AssignmentEditDialog({ assignmentId, isOpen, onClose }: Assignme
                             <FormErrorMessage
                               fieldState={fieldState}
                               formState={form.formState}
-                              config={{ strategy: "onSubmit"}}
+                              config={{ strategy: "onSubmit" }}
                             />
                           </FormItem>
                         )}
@@ -388,7 +396,7 @@ export function AssignmentEditDialog({ assignmentId, isOpen, onClose }: Assignme
                             <FormErrorMessage
                               fieldState={fieldState}
                               formState={form.formState}
-                              config={{ strategy: "onSubmit"}}
+                              config={{ strategy: "onSubmit" }}
                             />
                           </FormItem>
                         )}
@@ -405,7 +413,7 @@ export function AssignmentEditDialog({ assignmentId, isOpen, onClose }: Assignme
                           </FormLabel>
                           <div className="relative">
                             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-white transition-colors duration-300">
-                             <Link className="h-4 w-4" />
+                              <Link className="h-4 w-4" />
                             </div>
                             <FormControl>
                               <Input
@@ -418,7 +426,7 @@ export function AssignmentEditDialog({ assignmentId, isOpen, onClose }: Assignme
                           <FormErrorMessage
                             fieldState={fieldState}
                             formState={form.formState}
-                            config={{ strategy: "onSubmit"}}
+                            config={{ strategy: "onSubmit" }}
                           />
                         </FormItem>
                       )}
@@ -447,7 +455,7 @@ export function AssignmentEditDialog({ assignmentId, isOpen, onClose }: Assignme
                           <FormErrorMessage
                             fieldState={fieldState}
                             formState={form.formState}
-                            config={{ strategy: "onSubmit"}}
+                            config={{ strategy: "onSubmit" }}
                           />
                         </FormItem>
                       )}
