@@ -9,10 +9,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -27,7 +27,6 @@ import (
 	"unipilot/internal/services/database"
 	"unipilot/internal/services/fileops"
 	"unipilot/internal/services/fileops/progress"
-	syncservice "unipilot/internal/services/sync"
 	"unipilot/internal/services/utils"
 )
 
@@ -81,25 +80,6 @@ func (a *App) Startup(ctx context.Context) {
 			a.Daemon = daemon
 		}
 
-		// Ensure database is initialized and trigger server-to-client sync if needed
-		if network.IsOnline() {
-
-			// if err := database.TriggerServerToClientSync(a.DB.GetDB()); err != nil {
-			// 	log.Println(Errors.Wrap(err, Errors.SyncFailed, "Server-to-client sync failed").Error())
-			// }
-
-			// Start background sync manager for client-to-server sync
-			syncManager := syncservice.NewManager(a.DB.GetDB())
-			syncManager.StartBackgroundSync()
-
-			// Process any pending syncs on startup
-			go func() {
-				if err := syncManager.ProcessPendingSyncs(); err != nil {
-					log.Println(Errors.Wrap(err, Errors.DBQueryFailed, "Pending syncs processing failed").Error())
-				}
-			}()
-		}
-
 	}
 }
 
@@ -122,18 +102,16 @@ func (a *App) CreateAssignment(assignmentData *models.LocalAssignment) (*models.
 
 	localAssignment := &models.LocalAssignment{
 		BaseAssignment: models.BaseAssignment{
-			Title:      assignmentData.Title,
-			Todo:       assignmentData.Todo,
-			Deadline:   assignmentData.Deadline,
-			CourseID:   assignmentData.CourseID,
-			CourseCode: assignmentData.CourseCode,
-			Type:       assignmentData.Type,
-			Status:     assignmentData.Status,
-			Priority:   assignmentData.Priority,
-			Link:       assignmentData.Link,
-			ParentID:   assignmentData.ParentID,
+			Title:    assignmentData.Title,
+			Todo:     assignmentData.Todo,
+			Deadline: assignmentData.Deadline,
+			CourseID: assignmentData.CourseID,
+			Type:     assignmentData.Type,
+			Status:   assignmentData.Status,
+			Priority: assignmentData.Priority,
+			Link:     assignmentData.Link,
+			ParentID: assignmentData.ParentID,
 		},
-		RemoteCourseID: assignmentData.RemoteCourseID,
 	}
 
 	if err := localAssignment.Validate(); err != nil {
@@ -147,43 +125,17 @@ func (a *App) CreateAssignment(assignmentData *models.LocalAssignment) (*models.
 
 	// Always try to sync with server
 
-	remoteAssignment := localAssignment.ToRemote()
+	remoteAssignment := localAssignment.ToRemote(a.Auth.User.ID)
 
 	//Online operation
 	isOnline := network.IsOnline()
-	var remoteID uint
-	var clientErr error
 	if isOnline {
-		remoteID, clientErr = client.CreateAssignment(remoteAssignment)
-	} else {
-
-		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
-	}
-
-	if clientErr != nil {
-		// Server operation failed, create sync log
-		syncManager := syncservice.NewManager(db)
-		if syncErr := syncManager.CreateSyncLog(
-			models.EntityAssignment,
-			localAssignment.ID,
-			"create",
-			"",
-			"",
-			clientErr,
-		); syncErr != nil {
-			return nil, Errors.Wrap(syncErr, Errors.ClientRequestFailed, "Failed to create sync log")
+		if err := client.CreateAssignment(remoteAssignment); err != nil {
+			return nil, Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to create assignment")
 		}
-
-		//Commit the transaction with the sync log
-
-		return nil, nil
-	}
-
-	// Server operation succeeded
-	localAssignment.RemoteID = remoteID
-
-	if err := db.Save(localAssignment).Error; err != nil {
-		return nil, Errors.HandleDBWriteError(err)
+		if err := db.Model(localAssignment).Update("synced_at", time.Now()).Error; err != nil {
+			return nil, Errors.HandleDBWriteError(err)
+		}
 	}
 
 	return localAssignment, nil
@@ -207,13 +159,13 @@ func (a *App) CopyAssignment(assignment *models.LocalAssignment, includeDocument
 	if includeDocuments {
 		for _, document := range assignment.Documents {
 			_, err := a.CreateDocument(fileops.FileUploadRequest{
-				AssignmentID:       newAssignment.ID,
-				RemoteAssignmentID: newAssignment.RemoteID,
-				UserID:             a.Auth.User.ID,
-				Type:               document.Type,
-				FileName:           document.FileName,
-				FileSize:           document.FileSize,
-				StorageKey:         document.StorageKey,
+				DocumentID:   document.ID,
+				AssignmentID: newAssignment.ID,
+				UserID:       a.Auth.User.ID,
+				Type:         document.Type,
+				FileName:     document.FileName,
+				FileSize:     document.FileSize,
+				StorageKey:   *document.StorageKey,
 			}, false)
 			if err != nil {
 				return Errors.Wrap(err, Errors.InternalError, "Failed to create document")
@@ -252,57 +204,31 @@ func (a *App) CreateCourse(courseData *models.LocalCourse) error {
 		},
 	}
 
-	if courseData.ParentID != 0 {
-		localCourse.ParentID = courseData.ParentID
+	if courseData.ClusterID != nil {
+		localCourse.ClusterID = courseData.ClusterID
 	}
 
 	if err := localCourse.Validate(); err != nil {
 		return err
 	}
 
-	db.Transaction(func(tx *gorm.DB) error {
+	// Create the course within the transaction
+	if err := db.Create(localCourse).Error; err != nil {
+		return Errors.HandleDBWriteError(err)
+	}
 
-		// Create the course within the transaction
-		if err := tx.Create(localCourse).Error; err != nil {
+	// Convert LocalCourse to Course (Base model) for server API
+	remoteCourse := localCourse.ToRemote(a.Auth.User.ID)
+	isOnline := network.IsOnline()
+	if isOnline {
+		if err := client.CreateCourse(remoteCourse); err != nil {
+			return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to create course")
+		}
+		if err := db.Model(localCourse).Update("synced_at", time.Now()).Error; err != nil {
 			return Errors.HandleDBWriteError(err)
 		}
 
-		// Convert LocalCourse to Course (Base model) for server API
-		remoteCourse := localCourse.ToRemote()
-
-		isOnline := network.IsOnline()
-		var remoteID uint
-		var clientErr error
-		if isOnline {
-			remoteID, clientErr = client.CreateCourse(remoteCourse)
-			log.Printf("Course created successfully: %s", remoteCourse.Code)
-		} else {
-			clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
-		}
-
-		if clientErr != nil {
-			syncManager := syncservice.NewManager(tx)
-			if syncErr := syncManager.CreateSyncLog(
-				models.EntityCourse,
-				localCourse.ID,
-				"create",
-				"",
-				"",
-				clientErr,
-			); syncErr != nil {
-				return Errors.Wrap(syncErr, Errors.ClientRequestFailed, "Failed to create sync log")
-			}
-			return nil
-		}
-
-		localCourse.RemoteID = remoteID
-
-		if err := tx.Model(localCourse).Update("remote_id", remoteID).Error; err != nil {
-			return Errors.HandleDBWriteError(err)
-		}
-
-		return nil
-	})
+	}
 
 	return nil
 }
@@ -327,29 +253,20 @@ func (a *App) CreateNote(noteData *models.LocalNote) error {
 
 	db := a.DB.GetDB()
 
-	db.Transaction(func(tx *gorm.DB) error {
+	// Create the note within the transaction
+	if err := db.Create(noteData).Error; err != nil {
+		return Errors.HandleDBWriteError(err)
+	}
 
-		// Create the note within the transaction
-		if err := tx.Create(noteData).Error; err != nil {
-			return Errors.HandleDBWriteError(err)
-		}
+	remoteNote := noteData.ToRemote(a.Auth.User.ID)
 
-		remoteNote := noteData.ToRemote()
+	if err := client.CreateNote(remoteNote); err != nil {
+		return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to create note")
+	}
 
-		remoteID, err := client.CreateNote(remoteNote)
-		if err != nil {
-			tx.Rollback()
-			return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to create note")
-		}
-
-		noteData.RemoteID = remoteID
-
-		if err := tx.Save(&noteData).Error; err != nil {
-			tx.Rollback()
-			return Errors.HandleDBWriteError(err)
-		}
-		return nil
-	})
+	if err := db.Model(noteData).Update("synced_at", time.Now()).Error; err != nil {
+		return Errors.HandleDBWriteError(err)
+	}
 
 	return nil
 
@@ -382,7 +299,7 @@ func (a *App) PickFile() (string, error) {
 }
 
 // UploadDocument opens a file dialog and uploads a document to an assignment
-func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documentType string, filePath string, uploadID string) (*models.LocalDocument, error) {
+func (a *App) UploadDocument(documentID, assignmentID datatypes.UUID, documentType, filePath string) (*models.LocalDocument, error) {
 
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
@@ -417,16 +334,15 @@ func (a *App) UploadDocument(assignmentID uint, remoteAssignmentID uint, documen
 
 	// Create upload request
 	uploadReq := fileops.FileUploadRequest{
-		UploadID:           &uploadID,
-		AssignmentID:       assignmentID,
-		RemoteAssignmentID: remoteAssignmentID,
-		UserID:             a.Auth.User.ID,
-		Type:               models.DocumentType(documentType),
-		FileName:           filepath.Base(filePath),
-		FilePath:           filePath,
-		FileSize:           fileInfo.Size(),
-		FileContent:        fileContent,
-		StorageKey:         "",
+		DocumentID:   documentID,
+		AssignmentID: assignmentID,
+		UserID:       a.Auth.User.ID,
+		Type:         models.DocumentType(documentType),
+		FileName:     filepath.Base(filePath),
+		FilePath:     filePath,
+		FileSize:     fileInfo.Size(),
+		FileContent:  fileContent,
+		StorageKey:   "",
 	}
 
 	document, err := a.CreateDocument(uploadReq, true)
@@ -571,7 +487,7 @@ func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse)
 	progressManager := progress.GetManager()
 
 	// Create progress tracker
-	tracker := progressManager.Create(*document.UploadID, document.FileSize)
+	tracker := progressManager.Create(document.ID.String(), document.FileSize)
 	tracker.SetStatus("starting")
 
 	// Register progress callback to emit events to frontend
@@ -579,27 +495,27 @@ func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse)
 		snapshot := t.Snapshot()
 
 		if snapshot.Error != nil {
-			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:error:%s", *document.UploadID), map[string]interface{}{
-				"upload_id": *document.UploadID,
+			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:error:%s", document.ID.String()), map[string]interface{}{
+				"upload_id": document.ID.String(),
 				"error":     snapshot.Error.Error(),
 			})
 		} else {
 			snapshot.Percentage = snapshot.Percentage * 0.2
-			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:progress:%s", *document.UploadID), snapshot)
+			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:progress:%s", document.ID.String()), snapshot)
 		}
 
 	})
 
 	// Emit started event
-	runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:started:%s", *document.UploadID), map[string]string{
-		"upload_id": *document.UploadID,
+	runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:started:%s", document.ID.String()), map[string]string{
+		"upload_id": document.ID.String(),
 		"file_name": document.FileName,
 	})
 
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(a.ctx)
-	progress.StoreCancelFunc(*document.UploadID, cancel)
-	defer progress.RemoveCancelFunc(*document.UploadID)
+	progress.StoreCancelFunc(document.ID.String(), cancel)
+	defer progress.RemoveCancelFunc(document.ID.String())
 
 	// Perform upload with progress tracking
 	response, err := a.sendDocumentWithProgress(ctx, uploadResp, tracker)
@@ -632,12 +548,9 @@ func (a *App) sendDocumentWithProgress(ctx context.Context, uploadResp *fileops.
 		return nil, Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
 	}
 
-	// Update document with server response
-	document.StorageKey = serverResponse.StorageKey
-	document.RemoteID = serverResponse.RemoteID
-	document.RemoteAssignmentID = serverResponse.RemoteAssignmentID
-
-	if err := db.Save(document).Error; err != nil {
+	if err := db.Model(document).
+		Update("synced_at", time.Now()).
+		Update("storage_key", &serverResponse.StorageKey).Error; err != nil {
 		return nil, Errors.HandleDBWriteError(err)
 	}
 
@@ -673,10 +586,9 @@ func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse) (*models.Loca
 			return nil, Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
 		}
 
-		uploadResp.LocalDocument.StorageKey = serverResponse.StorageKey
-		uploadResp.LocalDocument.RemoteID = serverResponse.RemoteID
-		uploadResp.LocalDocument.RemoteAssignmentID = serverResponse.RemoteAssignmentID
-		if err := db.Save(uploadResp.LocalDocument).Error; err != nil {
+		if err := db.Model(uploadResp.LocalDocument).
+			Update("synced_at", time.Now()).
+			Update("storage_key", &serverResponse.StorageKey).Error; err != nil {
 			return nil, Errors.HandleDBWriteError(err)
 		}
 
@@ -734,7 +646,7 @@ func (a *App) UploadDocumentRAG(doc *models.LocalDocument) error {
 
 }
 
-func (a *App) DeleteDocumentRAG(assignmentID, documentID uint) error {
+func (a *App) DeleteDocumentRAG(assignmentID, documentID datatypes.UUID) error {
 
 	if a.DB == nil {
 		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
@@ -747,7 +659,7 @@ func (a *App) DeleteDocumentRAG(assignmentID, documentID uint) error {
 	return nil
 }
 
-func (a *App) GetAssignmentDocumentIDsRAG(assignmentID uint) ([]uint, error) {
+func (a *App) GetAssignmentDocumentIDsRAG(assignmentID datatypes.UUID) ([]datatypes.UUID, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -780,45 +692,16 @@ func (a *App) UpdateAssignment(LocalAssignment *models.LocalAssignment, column, 
 		return err
 	}
 
-	assignment_id_int := int(LocalAssignment.RemoteID)
-
-	assignment_id := strconv.Itoa(assignment_id_int)
-
 	isOnline := network.IsOnline()
-	var clientErr error
+
 	if isOnline {
-		clientErr = client.UpdateAssignment(assignment_id, column, value)
-	} else {
-		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
-	}
-
-	if clientErr != nil {
-
-		sm := syncservice.NewManager(db)
-		syncLog, err := sm.GetSyncLog(models.EntityAssignment, LocalAssignment.ID, "update", column)
-
-		// If no sync log is found, create a new one
-		if err != nil {
-			if syncErr := sm.CreateSyncLog(
-				models.EntityAssignment,
-				LocalAssignment.ID,
-				"update",
-				column,
-				value,
-				clientErr,
-			); syncErr != nil {
-				return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
-			}
-			return nil
+		if err := client.UpdateAssignment(LocalAssignment.ID, column, value); err != nil {
+			return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to update assignment")
 		}
-		// If a sync log is found, update it
-		syncLog.Value = value
-		if err := db.Save(&syncLog).Error; err != nil {
-			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to save sync log")
+		if err := db.Model(LocalAssignment).Update("synced_at", time.Now()).Error; err != nil {
+			return Errors.HandleDBWriteError(err)
 		}
-		return nil
 	}
-
 	return nil
 }
 
@@ -830,47 +713,19 @@ func (a *App) UpdateCourse(course *models.LocalCourse, column, value string) err
 
 	db := a.DB.GetDB()
 
-	db.Transaction(func(tx *gorm.DB) error {
+	if err := db.Model(course).Update(column, value).Error; err != nil {
+		return Errors.HandleDBWriteError(err)
+	}
 
-		if err := tx.Model(course).Update(column, value).Error; err != nil {
+	isOnline := network.IsOnline()
+	if isOnline {
+		if err := client.UpdateCourse(course.ID, column, value); err != nil {
+			return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to update course")
+		}
+		if err := db.Model(course).Update("synced_at", time.Now()).Error; err != nil {
 			return Errors.HandleDBWriteError(err)
 		}
-
-		course_id_int := int(course.RemoteID)
-
-		course_id := strconv.Itoa(course_id_int)
-
-		isOnline := network.IsOnline()
-		var clientErr error
-		if isOnline {
-			clientErr = client.UpdateCourse(course_id, column, value)
-		}
-
-		if clientErr != nil && isOnline {
-			sm := syncservice.NewManager(tx)
-			syncLog, err := sm.GetSyncLog(models.EntityCourse, course.ID, "update", column)
-			if err != nil {
-				if syncErr := sm.CreateSyncLog(
-					models.EntityCourse,
-					course.ID,
-					"update",
-					column,
-					value,
-					clientErr,
-				); syncErr != nil {
-					return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
-				}
-				return nil
-			}
-			syncLog.Value = value
-			if err := tx.Save(&syncLog).Error; err != nil {
-				return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to save sync log")
-			}
-			return nil
-		}
-
-		return nil
-	})
+	}
 
 	return nil
 }
@@ -886,46 +741,21 @@ func (a *App) UpdateNote(LocalNote *models.LocalNote, column, value string) erro
 		return err
 	}
 
-	note_id_int := int(LocalNote.RemoteID)
-
-	note_id := strconv.Itoa(note_id_int)
-
 	isOnline := network.IsOnline()
-	var clientErr error
 	if isOnline {
-		clientErr = client.UpdateNote(note_id, column, value)
-	} else {
-		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
-	}
-
-	if clientErr != nil {
-		sm := syncservice.NewManager(db)
-		syncLog, err := sm.GetSyncLog(models.EntityNote, LocalNote.RemoteID, "update", column)
-		if err != nil {
-			if syncErr := sm.CreateSyncLog(
-				models.EntityNote,
-				LocalNote.RemoteID,
-				"update",
-				column,
-				value,
-				clientErr,
-			); syncErr != nil {
-				return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
-			}
-			return nil
+		if err := client.UpdateNote(LocalNote.ID, column, value); err != nil {
+			return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to update note")
 		}
-		syncLog.Value = value
-		if err := db.Save(&syncLog).Error; err != nil {
-			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to save sync log")
+		if err := db.Model(LocalNote).Update("synced_at", time.Now()).Error; err != nil {
+			return Errors.HandleDBWriteError(err)
 		}
-		return nil
 	}
 
 	return nil
 }
 
 // UploadNewDocumentVersion uploads a new version of an existing document
-func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*models.LocalDocument, error) {
+func (a *App) UploadNewDocumentVersion(existingDocumentID datatypes.UUID) (*models.LocalDocument, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -986,13 +816,13 @@ func (a *App) UploadNewDocumentVersion(existingDocumentID uint) (*models.LocalDo
 
 	// Create new version request
 	uploadReq := fileops.FileUploadRequest{
-		AssignmentID:       existingDoc.AssignmentID,
-		RemoteAssignmentID: existingDoc.RemoteAssignmentID,
-		UserID:             userID,
-		Type:               existingDoc.Type,
-		FileName:           filepath.Base(filePath),
-		FilePath:           filePath,
-		FileSize:           fileInfo.Size(),
+		DocumentID:   existingDoc.ID,
+		AssignmentID: existingDoc.AssignmentID,
+		UserID:       userID,
+		Type:         existingDoc.Type,
+		FileName:     filepath.Base(filePath),
+		FilePath:     filePath,
+		FileSize:     fileInfo.Size(),
 	}
 
 	// Upload new version locally
@@ -1072,36 +902,10 @@ func (a *App) UpdateUser(column, value string) (*models.User, error) {
 	}
 
 	isOnline := network.IsOnline()
-	var clientErr error
 	if isOnline {
-		clientErr = client.UpdateUser(column, value)
-	} else {
-		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
-	}
-
-	if clientErr != nil {
-		db := a.DB.GetDB()
-		sm := syncservice.NewManager(db)
-		syncLog, err := sm.GetSyncLog(models.EntityUser, currentUser.ID, "update", column)
-		if err != nil {
-			if syncErr := sm.CreateSyncLog(
-				models.EntityUser,
-				currentUser.ID,
-				"update",
-				column,
-				value,
-				clientErr,
-			); syncErr != nil {
-				return nil, Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
-			}
-			return currentUser, nil
+		if err := client.UpdateUser(column, value); err != nil {
+			return nil, Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to update user")
 		}
-		syncLog.Value = value
-
-		if err := db.Save(&syncLog).Error; err != nil {
-			return nil, Errors.Wrap(err, Errors.DBQueryFailed, "Failed to save sync log")
-		}
-		return currentUser, nil
 	}
 
 	return currentUser, nil
@@ -1123,38 +927,14 @@ func (a *App) DeleteAssignment(assignment *models.LocalAssignment) error {
 		return Errors.HandleDBWriteError(err)
 	}
 
-	remote_assignment_id_str := strconv.Itoa(int(assignment.RemoteID))
-
 	isOnline := network.IsOnline()
-	var clientErr error
 	if isOnline {
-		clientErr = client.DeleteAssignment(remote_assignment_id_str)
-	} else {
-		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
-	}
-
-	if clientErr != nil {
-		sm := syncservice.NewManager(db)
-		_, err := sm.GetSyncLog(models.EntityAssignment, assignment.ID, "create", "")
-		if err != nil {
-			if syncErr := sm.CreateSyncLog(
-				models.EntityAssignment,
-				assignment.ID,
-				"delete",
-				"deleted_at",
-				time.Now().Format(time.RFC3339),
-				clientErr,
-			); syncErr != nil {
-				return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
-			}
-			return nil
+		if err := client.DeleteAssignment(assignment.ID); err != nil {
+			return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to delete assignment")
 		}
-
-		if err := sm.Undo(models.EntityAssignment, assignment.ID); err != nil {
-			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to delete sync log")
+		if err := db.Model(assignment).Update("synced_at", time.Now()).Error; err != nil {
+			return Errors.HandleDBWriteError(err)
 		}
-
-		return nil
 	}
 
 	return nil
@@ -1172,46 +952,21 @@ func (a *App) DeleteCourse(course *models.LocalCourse) error {
 		return Errors.HandleDBWriteError(err)
 	}
 
-	course_id_str := strconv.Itoa(int(course.RemoteID))
-
 	isOnline := network.IsOnline()
-	var clientErr error
 	if isOnline {
-		clientErr = client.DeleteCourse(course_id_str)
-	} else {
-		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
-	}
-
-	if clientErr != nil {
-
-		sm := syncservice.NewManager(db)
-		_, err := sm.GetSyncLog(models.EntityCourse, course.ID, "create", "")
-		if err != nil {
-			if syncErr := sm.CreateSyncLog(
-				models.EntityCourse,
-				course.ID,
-				"delete",
-				"deleted_at",
-				time.Now().Format(time.RFC3339),
-				clientErr,
-			); syncErr != nil {
-				return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
-			}
-			return nil
+		if err := client.DeleteCourse(course.ID); err != nil {
+			return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to delete course")
 		}
-
-		if err := sm.Undo(models.EntityCourse, course.ID); err != nil {
-			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to save sync log")
+		if err := db.Model(course).Update("synced_at", time.Now()).Error; err != nil {
+			return Errors.HandleDBWriteError(err)
 		}
-
-		return nil
 	}
 
 	return nil
 }
 
 // DeleteDocument removes a document and its file
-func (a *App) DeleteDocument(documentID uint) error {
+func (a *App) DeleteDocument(documentID datatypes.UUID) error {
 	if a.DB == nil {
 		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1246,7 +1001,7 @@ func (a *App) DeleteDocument(documentID uint) error {
 			return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 		}
 
-		if err := client.DeleteDocument(doc.RemoteID); err != nil {
+		if err := client.DeleteDocument(doc.ID); err != nil {
 			return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to delete document metadata")
 		}
 
@@ -1265,46 +1020,15 @@ func (a *App) DeleteNote(note *models.LocalNote) error {
 		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
-	db := a.DB.GetDB()
-
 	if err := a.DB.DeleteNote(note); err != nil {
 		return err
 	}
 
-	note_id_str := strconv.Itoa(int(note.RemoteID))
-
-	deleted_at := time.Now().Format(time.RFC3339)
-
 	isOnline := network.IsOnline()
-	var clientErr error
 	if isOnline {
-		clientErr = client.UpdateNote(note_id_str, "deleted_at", deleted_at)
-	} else {
-		clientErr = Errors.Wrap(fmt.Errorf("user is offline"), Errors.NetworkOffline, "User is offline")
-	}
-	if clientErr != nil {
-		sm := syncservice.NewManager(db)
-		_, err := sm.GetSyncLog(models.EntityNote, note.RemoteID, "create", "")
-
-		if err != nil {
-			if syncErr := sm.CreateSyncLog(
-				models.EntityNote,
-				note.RemoteID,
-				"delete",
-				"deleted_at",
-				deleted_at,
-				clientErr,
-			); syncErr != nil {
-				return Errors.Wrap(syncErr, Errors.DBQueryFailed, "Failed to create sync log")
-			}
-			return nil
+		if err := client.DeleteNote(note.ID); err != nil {
+			return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to delete note")
 		}
-
-		if err := sm.Undo(models.EntityNote, note.RemoteID); err != nil {
-			return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to save sync log")
-		}
-
-		return nil
 	}
 
 	return nil
@@ -1328,7 +1052,7 @@ func (a *App) Register(userData *models.User) (*models.User, error) {
 	user := authService.User
 
 	// Initialize daemon manager for the newly registered user
-	if user != nil && user.ID > 0 {
+	if user != nil && !user.ID.IsEmpty() {
 		daemonMgr, err := daemon.NewManager(user.ID, a.ctx)
 		if err != nil {
 			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to initialize daemon manager").Error())
@@ -1377,7 +1101,7 @@ func (a *App) Login(username, password string) (*models.User, error) {
 	user := authService.User
 
 	// Initialize daemon manager for the logged-in user
-	if user != nil && user.ID > 0 {
+	if user != nil && !user.ID.IsEmpty() {
 		daemonMgr, err := daemon.NewManager(user.ID, a.ctx)
 		if err != nil {
 			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to initialize daemon manager").Error())
@@ -1469,28 +1193,6 @@ func (a *App) GetCurrentUser() (*models.User, error) {
 	return a.Auth.User, nil
 }
 
-// Sync performs synchronization of local changes with the remote server
-func (a *App) Sync() error {
-	if a.DB == nil {
-		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
-	}
-
-	// Check if user is authenticated
-	if !a.Auth.IsAuthenticated() {
-		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
-	}
-
-	// Check if we're online
-	if !network.IsOnline() {
-		return Errors.Wrap(fmt.Errorf("not online, cannot sync"), Errors.NetworkOffline, "Not online, cannot sync")
-	}
-
-	sm := syncservice.NewManager(a.DB.GetDB())
-
-	// Perform the sync
-	return sm.ProcessPendingSyncs()
-}
-
 func (a *App) GetAuthToken() (string, error) {
 	token, err := client.GetAuthToken()
 	if err != nil {
@@ -1500,7 +1202,7 @@ func (a *App) GetAuthToken() (string, error) {
 }
 
 // GetLAssignment returns an assignment by ID
-func (a *App) GetLAssignment(id uint) (*models.LocalAssignment, error) {
+func (a *App) GetLAssignment(id datatypes.UUID) (*models.LocalAssignment, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1508,7 +1210,7 @@ func (a *App) GetLAssignment(id uint) (*models.LocalAssignment, error) {
 }
 
 // GetCourse returns a course by ID
-func (a *App) GetCourse(id uint) (*models.LocalCourse, error) {
+func (a *App) GetCourse(id datatypes.UUID) (*models.LocalCourse, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1516,7 +1218,7 @@ func (a *App) GetCourse(id uint) (*models.LocalCourse, error) {
 }
 
 // GetUser returns a user by ID
-func (a *App) GetUser(id uint) (*models.User, error) {
+func (a *App) GetUser(id datatypes.UUID) (*models.User, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1577,7 +1279,7 @@ func (a *App) GetNotes() ([]models.LocalNote, error) {
 }
 
 // GetSupportDocuments retrieves only support documents for an assignment
-func (a *App) GetSupportDocuments(assignmentID uint) ([]models.LocalDocument, error) {
+func (a *App) GetSupportDocuments(assignmentID datatypes.UUID) ([]models.LocalDocument, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1596,7 +1298,7 @@ func (a *App) GetSupportDocuments(assignmentID uint) ([]models.LocalDocument, er
 }
 
 // GetSubmissionDocuments retrieves only submission documents for an assignment
-func (a *App) GetSubmissionDocuments(assignmentID uint) ([]models.LocalDocument, error) {
+func (a *App) GetSubmissionDocuments(assignmentID datatypes.UUID) ([]models.LocalDocument, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1614,14 +1316,14 @@ func (a *App) GetSubmissionDocuments(assignmentID uint) ([]models.LocalDocument,
 	return documents, err
 }
 
-func (a *App) SaveUIMessage(assignmentID uint, vercelMessage map[string]interface{}) error {
+func (a *App) SaveUIMessage(assignmentID datatypes.UUID, vercelMessage map[string]interface{}) error {
 	if a.DB == nil {
 		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 	return a.DB.SaveUIMessage(assignmentID, vercelMessage)
 }
 
-func (a *App) GetConversationHistory(assignmentID uint) ([]models.LocalAiMessage, error) {
+func (a *App) GetConversationHistory(assignmentID datatypes.UUID) ([]models.LocalAiMessage, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1629,7 +1331,7 @@ func (a *App) GetConversationHistory(assignmentID uint) ([]models.LocalAiMessage
 }
 
 // OpenDocument opens a document file with the system default application
-func (a *App) OpenDocument(documentID uint) error {
+func (a *App) OpenDocument(documentID datatypes.UUID) error {
 	if a.DB == nil {
 		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1662,7 +1364,7 @@ func (a *App) OpenDocument(documentID uint) error {
 }
 
 // SaveDocumentAs opens a save dialog and copies the document to chosen location
-func (a *App) SaveDocumentAs(documentID uint) error {
+func (a *App) SaveDocumentAs(documentID datatypes.UUID) error {
 	if a.DB == nil {
 		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1739,7 +1441,7 @@ func (a *App) GetUserStorageInfo() (*models.DocumentStorage, error) {
 	return storageInfo, nil
 }
 
-func (a *App) GetAssignmentStorageInfo(assignmentID uint) (*models.LocalAssignmentStorage, error) {
+func (a *App) GetAssignmentStorageInfo(assignmentID datatypes.UUID) (*models.LocalAssignmentStorage, error) {
 
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
@@ -1780,7 +1482,7 @@ func (a *App) GetRemoteUsers() ([]client.RemoteUser, error) {
 }
 
 // Follow a user
-func (a *App) Follow(followedID uint) (bool, error) {
+func (a *App) Follow(followedID datatypes.UUID) (bool, error) {
 	return client.Follow(followedID)
 }
 
@@ -1791,7 +1493,7 @@ type FollowResponse struct {
 }
 
 // GetFollowers returns all followers for the current user
-func (a *App) GetFollowers(userID uint) (*FollowResponse, error) {
+func (a *App) GetFollowers(userID datatypes.UUID) (*FollowResponse, error) {
 	followers, count, err := client.GetFollowers(userID)
 	if err != nil {
 		return nil, err
@@ -1803,7 +1505,7 @@ func (a *App) GetFollowers(userID uint) (*FollowResponse, error) {
 }
 
 // GetFollowing returns all following for the current user
-func (a *App) GetFollowing(userID uint) (*FollowResponse, error) {
+func (a *App) GetFollowing(userID datatypes.UUID) (*FollowResponse, error) {
 	following, count, err := client.GetFollowing(userID)
 	if err != nil {
 		return nil, err
@@ -1899,7 +1601,7 @@ func (a *App) RebuildNotificationDaemon() error {
 }
 
 // LinkCourse links a course to a list of users
-func (a *App) CourseShare(c *models.LocalCourse, usersID []uint) error {
+func (a *App) CourseShare(c *models.LocalCourse, usersID []datatypes.UUID) error {
 	if err := client.CourseShare(c, usersID); err != nil {
 		return err
 	}
@@ -1958,13 +1660,13 @@ func (a *App) AcceptDocument(documentData string) error {
 	}
 
 	uploadReq := fileops.FileUploadRequest{
-		AssignmentID:       assignment.ID,
-		RemoteAssignmentID: assignment.RemoteID,
-		UserID:             a.Auth.User.ID,
-		Type:               localDoc.Type,
-		FileName:           localDoc.FileName,
-		FileSize:           localDoc.FileSize,
-		StorageKey:         localDoc.StorageKey,
+		DocumentID:   remoteDocument.ID,
+		AssignmentID: assignment.ID,
+		UserID:       a.Auth.User.ID,
+		Type:         localDoc.Type,
+		FileName:     localDoc.FileName,
+		FileSize:     localDoc.FileSize,
+		StorageKey:   *localDoc.StorageKey,
 	}
 
 	if _, err := a.CreateDocument(uploadReq, false); err != nil {

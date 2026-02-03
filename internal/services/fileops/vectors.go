@@ -163,7 +163,7 @@ func GetQdrantVectors(document *models.Document) ([]*qdrant.PointStruct, error) 
 	var vectors []*qdrant.PointStruct
 
 	//Get file text
-	fsFileName := filepath.Join("/app/uploads/", document.StorageKey)
+	fsFileName := filepath.Join("/app/uploads/", *document.StorageKey)
 	text, err := GetFileText(fsFileName, filepath.Ext(document.FileName))
 	if err != nil {
 		return nil, errors.Wrap(err, errors.QdrantTextError, "Error getting file text")

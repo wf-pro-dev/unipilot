@@ -94,13 +94,13 @@ func (f *FileServiceLogger) Infof(format string, a ...interface{}) error {
 
 func RunDaemon() {
 	var (
-		userID  = flag.Uint("user", 0, "User ID to monitor")
+		userID  = flag.String("user", "", "User ID to monitor")
 		logFile = flag.String("log", "", "Log file path")
 	)
 	flag.Parse()
 
 	// Validate user ID is provided
-	if *userID == 0 {
+	if *userID == "" {
 		log.Fatal("User ID must be provided via -user flag")
 	}
 
@@ -130,7 +130,7 @@ func RunDaemon() {
 	}
 
 	// Validate that the user ID from file matches the flag
-	if user.ID != *userID {
+	if user.ID.String() != *userID {
 		log.Fatalf("User ID mismatch: flag=%d, file=%d. The daemon was started for user %d but the stored user is %d",
 			*userID, user.ID, *userID, user.ID)
 	}

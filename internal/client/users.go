@@ -24,11 +24,7 @@ func GetRemoteUsers() ([]RemoteUser, error) {
 		return nil, err
 	}
 
-	statusCode, body, errs := agent.Bytes()
-	if errs != nil && len(errs) > 0 {
-		return nil, errs[0]
-	}
-
+	statusCode, body, _ := agent.Bytes()
 	if statusCode != 200 {
 		var serverError *errors.AppError
 		if err := json.Unmarshal(body, &serverError); err != nil {

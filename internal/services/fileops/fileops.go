@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
@@ -18,16 +19,15 @@ import (
 
 // FileUploadRequest represents a file upload request
 type FileUploadRequest struct {
-	UploadID           *string
-	AssignmentID       uint
-	RemoteAssignmentID uint
-	UserID             uint
-	Type               models.DocumentType
-	FileName           string
-	FilePath           string
-	FileSize           int64
-	FileContent        io.Reader
-	StorageKey         string
+	DocumentID   datatypes.UUID
+	AssignmentID datatypes.UUID
+	UserID       datatypes.UUID
+	Type         models.DocumentType
+	FileName     string
+	FilePath     string
+	FileSize     int64
+	FileContent  io.Reader
+	StorageKey   string
 }
 
 // FileUploadResponse represents the result of a file upload
@@ -107,7 +107,6 @@ func WriteDocument(document *models.LocalDocument, fileContent io.Reader, db *go
 	document.HasLocalFile = true
 	if err := db.Model(&document).Updates(map[string]interface{}{
 		"has_local_file": true,
-		"upload_id":      document.UploadID,
 	}).Error; err != nil {
 		return &FileUploadResponse{
 			Success: false,
@@ -125,7 +124,7 @@ func WriteDocument(document *models.LocalDocument, fileContent io.Reader, db *go
 }
 
 // UploadNewVersion creates a new version of an existing document
-func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.DB) (*FileUploadResponse, error) {
+func UploadNewVersion(existingDocumentID datatypes.UUID, req FileUploadRequest, db *gorm.DB) (*FileUploadResponse, error) {
 	// Get existing document
 	var existingDoc models.LocalDocument
 	if err := db.First(&existingDoc, existingDocumentID).Error; err != nil {
@@ -147,7 +146,6 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 			IsOriginal:   false,
 			HasLocalFile: false,
 		},
-		RemoteAssignmentID: existingDoc.RemoteAssignmentID,
 	}
 
 	// Generate file path
@@ -216,7 +214,7 @@ func UploadNewVersion(existingDocumentID uint, req FileUploadRequest, db *gorm.D
 }
 
 // DeleteDocument removes a document and its file
-func DeleteDocument(docID uint, userID uint, db *gorm.DB) error {
+func DeleteDocument(docID, userID datatypes.UUID, db *gorm.DB) error {
 	// Get document record
 	var doc models.Document
 	if err := db.Where("id = ? AND user_id = ?", docID, userID).First(&doc).Error; err != nil {

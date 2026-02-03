@@ -9,17 +9,19 @@ import (
 	"unipilot/internal/models"
 	"unipilot/internal/services/fileops"
 	"unipilot/internal/services/utils"
+
+	"gorm.io/datatypes"
 )
 
 // GetUser retrieves a user by ID
-func (h *Database) GetUser(id uint) (*models.User, error) {
+func (h *Database) GetUser(id datatypes.UUID) (*models.User, error) {
 	var u models.User
 	err := h.db.First(&u, id).Error
 	return &u, err
 }
 
 // GetLAssignment retrieves an assignment by ID
-func (h *Database) GetLAssignment(id uint) (*models.LocalAssignment, error) {
+func (h *Database) GetLAssignment(id datatypes.UUID) (*models.LocalAssignment, error) {
 	assignment, err := models.GetLAssignment(id, h.db)
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
@@ -132,16 +134,10 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 			Type:         uploadReq.Type,
 			FileName:     uploadReq.FileName,
 			FileSize:     uploadReq.FileSize,
-			StorageKey:   uploadReq.StorageKey,
+			StorageKey:   &uploadReq.StorageKey,
 			Version:      1,
 			HasLocalFile: hasLocalFile, // Will be set to true after successful file write
 		},
-
-		RemoteAssignmentID: uploadReq.RemoteAssignmentID,
-	}
-
-	if uploadReq.UploadID != nil {
-		localDoc.UploadID = uploadReq.UploadID
 	}
 
 	// Generate file path
@@ -187,7 +183,7 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 }
 
 // Saving a message from AI SDK
-func (h *Database) SaveUIMessage(assignmentID uint, vercelMessage map[string]interface{}) error {
+func (h *Database) SaveUIMessage(assignmentID datatypes.UUID, vercelMessage map[string]interface{}) error {
 	message, err := models.FromUIMessage(assignmentID, vercelMessage)
 	if err != nil {
 		return errors.Wrap(err, errors.ValidationInvalid, "Failed to create message from UI message")
@@ -200,7 +196,7 @@ func (h *Database) SaveUIMessage(assignmentID uint, vercelMessage map[string]int
 }
 
 // Retrieving conversation history
-func (h *Database) GetConversationHistory(assignmentID uint) ([]models.LocalAiMessage, error) {
+func (h *Database) GetConversationHistory(assignmentID datatypes.UUID) ([]models.LocalAiMessage, error) {
 	var dbMessages []models.LocalAiMessage
 	err := h.db.Where("assignment_id = ?", assignmentID).
 		Order("created_at ASC").

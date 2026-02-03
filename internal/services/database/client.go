@@ -8,6 +8,7 @@ import (
 	"unipilot/internal/models"
 	"unipilot/internal/services/utils"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -33,7 +34,7 @@ func NewClientMigrator() *ClientMigrator {
 }
 
 // InitializeClientDBWithID initializes a client database for a specific user ID
-func InitializeClient(userID uint, config *DatabaseConfig) (*gorm.DB, error) {
+func InitializeClient(userID datatypes.UUID, config *DatabaseConfig) (*gorm.DB, error) {
 	if config == nil {
 		config = DefaultClientConfig()
 	}
@@ -106,7 +107,7 @@ func CheckClientMigrationNeeded(db *gorm.DB) (bool, []string) {
 }
 
 // EnsureClientDBInitializedWithUser ensures the client database is initialized for a specific user
-func EnsureClientDBInitialized(userID uint) (*gorm.DB, error) {
+func EnsureClientDBInitialized(userID datatypes.UUID) (*gorm.DB, error) {
 	log.Printf("[ClientDB] Ensuring client database is initialized for user ID: %d...", userID)
 
 	// Initialize database for the user (creates DB file and runs migrations if needed)

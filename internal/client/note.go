@@ -7,6 +7,7 @@ import (
 	"unipilot/internal/secrets"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/datatypes"
 )
 
 func GetNotes() ([]models.Note, error) {
@@ -33,21 +34,21 @@ func GetNotes() ([]models.Note, error) {
 	return notes, nil
 }
 
-func CreateNote(n *models.Note) (uint, error) {
+func CreateNote(n *models.Note) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent, err := GetAuthAgent(fiber.Post(fmt.Sprintf("%s/notes", api_url)).JSON(n))
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	statusCode, body, errs := agent.Bytes()
 	if len(errs) > 0 {
-		return 0, errs[0]
+		return errs[0]
 	}
 
 	if statusCode != 200 {
-		return 0, fmt.Errorf("server returned status %d: %s", statusCode, string(body))
+		return fmt.Errorf("server returned status %d: %s", statusCode, string(body))
 	}
 
 	var response struct {
@@ -55,13 +56,13 @@ func CreateNote(n *models.Note) (uint, error) {
 	}
 
 	if err := json.Unmarshal(body, &response); err != nil {
-		return 0, fmt.Errorf("failed to decode response: %w", err)
+		return fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return response.RemoteID, nil
+	return nil
 }
 
-func UpdateNote(id, column, value string) error {
+func UpdateNote(id datatypes.UUID, column, value string) error {
 
 	updateData := map[string]interface{}{
 		"value":  value,
@@ -69,7 +70,7 @@ func UpdateNote(id, column, value string) error {
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent, err := GetAuthAgent(fiber.Put(fmt.Sprintf("%s/notes/%s", api_url, id)).JSON(updateData))
+	agent, err := GetAuthAgent(fiber.Put(fmt.Sprintf("%s/notes/%s", api_url, id.String())).JSON(updateData))
 	if err != nil {
 		return err
 	}
@@ -86,10 +87,10 @@ func UpdateNote(id, column, value string) error {
 	return nil
 }
 
-func DeleteNote(id string) error {
+func DeleteNote(id datatypes.UUID) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent, err := GetAuthAgent(fiber.Delete(fmt.Sprintf("%s/notes/%s", api_url, id)))
+	agent, err := GetAuthAgent(fiber.Delete(fmt.Sprintf("%s/notes/%s", api_url, id.String())))
 	if err != nil {
 		return err
 	}

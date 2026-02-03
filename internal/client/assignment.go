@@ -9,6 +9,7 @@ import (
 	"unipilot/internal/errors"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/datatypes"
 )
 
 func GetAssignments() ([]models.Assignment, error) {
@@ -38,38 +39,30 @@ func GetAssignments() ([]models.Assignment, error) {
 
 }
 
-func CreateAssignment(a *models.Assignment) (uint, error) {
+func CreateAssignment(a *models.Assignment) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent, err := GetAuthAgent(fiber.Post(fmt.Sprintf("%s/assignments", api_url)).JSON(a))
 	if err != nil {
-		return 0, err
+		return err
 	}
 
 	statusCode, body, errs := agent.Bytes()
 	if len(errs) > 0 {
-		return 0, errs[0]
+		return errs[0]
 	}
 
-	if statusCode != 200 {
+	if statusCode != fiber.StatusNoContent {
 		var serverError *errors.ServerError
 		if err := json.Unmarshal(body, &serverError); err != nil {
-			return 0, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
+			return errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 		}
-		return 0, serverError
+		return serverError
 	}
-
-	var response struct {
-		RemoteID uint `json:"remote_id"`
-	}
-	if err := json.Unmarshal(body, &response); err != nil {
-		return 0, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
-	}
-
-	return response.RemoteID, nil
+	return nil
 }
 
-func UpdateAssignment(id, column, value string) error {
+func UpdateAssignment(id datatypes.UUID, column, value string) error {
 
 	updateData := map[string]string{
 		"value":  value,
@@ -77,7 +70,7 @@ func UpdateAssignment(id, column, value string) error {
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent, err := GetAuthAgent(fiber.Put(fmt.Sprintf("%s/assignments/%s", api_url, id)).JSON(updateData))
+	agent, err := GetAuthAgent(fiber.Put(fmt.Sprintf("%s/assignments/%s", api_url, id.String())).JSON(updateData))
 	if err != nil {
 		return err
 	}
@@ -94,10 +87,10 @@ func UpdateAssignment(id, column, value string) error {
 
 }
 
-func DeleteAssignment(id string) error {
+func DeleteAssignment(id datatypes.UUID) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent, err := GetAuthAgent(fiber.Delete(fmt.Sprintf("%s/assignments/%s", api_url, id)))
+	agent, err := GetAuthAgent(fiber.Delete(fmt.Sprintf("%s/assignments/%s", api_url, id.String())))
 	if err != nil {
 		return err
 	}

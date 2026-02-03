@@ -6,6 +6,7 @@ import (
 
 	"unipilot/internal/errors"
 
+	"gorm.io/datatypes"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -42,7 +43,7 @@ func GetUserDB() (*gorm.DB, error) {
 	return db, nil
 }
 
-func GetUserDBWithID(userID uint) (*gorm.DB, error) {
+func GetUserDBWithID(userID datatypes.UUID) (*gorm.DB, error) {
 
 	dbPath, err := GetDBPathWithID(userID)
 	if err != nil {

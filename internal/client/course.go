@@ -9,6 +9,7 @@ import (
 	"unipilot/internal/errors"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/datatypes"
 )
 
 func GetCourses() ([]models.Course, error) {
@@ -39,40 +40,40 @@ func GetCourses() ([]models.Course, error) {
 
 }
 
-func CreateCourse(c *models.Course) (uint, error) {
+func CreateCourse(c *models.Course) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Post(fmt.Sprintf("%s/courses", api_url))
 	agent.JSON(c)
 
 	if err := SetAuthHeader(agent); err != nil {
-		return 0, err
+		return err
 	}
 
 	statusCode, body, errs := agent.Bytes()
 	if len(errs) > 0 {
-		return 0, errs[0]
+		return errs[0]
 	}
 
 	if statusCode != 200 {
 		var serverError *errors.ServerError
 		if err := json.Unmarshal(body, &serverError); err != nil {
-			return 0, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
+			return errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 		}
-		return 0, serverError
+		return serverError
 	}
 
 	var response struct {
 		RemoteID uint `json:"remote_id"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
-		return 0, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
+		return errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 	}
 
-	return response.RemoteID, nil
+	return nil
 }
 
-func UpdateCourse(id, column, value string) error {
+func UpdateCourse(id datatypes.UUID, column, value string) error {
 
 	updateData := map[string]interface{}{
 		"value":  value,
@@ -80,7 +81,7 @@ func UpdateCourse(id, column, value string) error {
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Put(fmt.Sprintf("%s/courses/%s", api_url, id))
+	agent := fiber.Put(fmt.Sprintf("%s/courses/%s", api_url, id.String()))
 	agent.JSON(updateData)
 
 	if err := SetAuthHeader(agent); err != nil {
@@ -100,10 +101,10 @@ func UpdateCourse(id, column, value string) error {
 	return nil
 }
 
-func DeleteCourse(id string) error {
+func DeleteCourse(id datatypes.UUID) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Delete(fmt.Sprintf("%s/courses/%s", api_url, id))
+	agent := fiber.Delete(fmt.Sprintf("%s/courses/%s", api_url, id.String()))
 
 	if err := SetAuthHeader(agent); err != nil {
 		return err
@@ -122,14 +123,14 @@ func DeleteCourse(id string) error {
 	return nil
 }
 
-func CourseShare(c *models.LocalCourse, usersID []uint) error {
+func CourseShare(c *models.LocalCourse, usersID []datatypes.UUID) error {
 
 	linkData := map[string]interface{}{
 		"users_id": usersID,
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Post(fmt.Sprintf("%s/courses/%d/share", api_url, c.RemoteID))
+	agent := fiber.Post(fmt.Sprintf("%s/courses/%s/share", api_url, c.ID.String()))
 	agent.JSON(linkData)
 
 	if err := SetAuthHeader(agent); err != nil {

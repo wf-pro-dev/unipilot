@@ -232,7 +232,7 @@ func GetAssignment(id datatypes.UUID, db *gorm.DB) (*Assignment, error) {
 	return assignment, nil
 }
 
-func GetLAssignment(id uint, db *gorm.DB) (*LocalAssignment, error) {
+func GetLAssignment(id datatypes.UUID, db *gorm.DB) (*LocalAssignment, error) {
 	assignment := &LocalAssignment{}
 	err := db.First(&assignment, id).Error
 	if err != nil {
@@ -277,8 +277,8 @@ func (c *Course) GetCourseAssignments(db *gorm.DB) ([]*Assignment, error) {
 	return assignments, nil
 }
 
-func (c *Course) GetCourseAssignmentIDs(db *gorm.DB) ([]uint, error) {
-	var assignmentIDs []uint
+func (c *Course) GetCourseAssignmentIDs(db *gorm.DB) ([]datatypes.UUID, error) {
+	var assignmentIDs []datatypes.UUID
 	// Pluck extracts a single column
 	err := db.Model(&Assignment{}).
 		Where("course_id = ?", c.ID).
@@ -317,7 +317,7 @@ func GetQdrantCollectionName(assignmentID datatypes.UUID) string {
 	return fmt.Sprintf("unipilot-qdrant-db-%d", assignmentID)
 }
 
-func GetAssignmentDocumentIDsRAG(assignmentID datatypes.UUID, qdrantClient *qdrant.Client) ([]uint, error) {
+func GetAssignmentDocumentIDsRAG(assignmentID datatypes.UUID, qdrantClient *qdrant.Client) ([]datatypes.UUID, error) {
 	ctx := context.Background()
 	collectionName := GetQdrantCollectionName(assignmentID)
 
@@ -326,7 +326,7 @@ func GetAssignmentDocumentIDsRAG(assignmentID datatypes.UUID, qdrantClient *qdra
 		return nil, errors.Wrap(err, errors.QdrantCollectionNotFound, "Assignment collection could not be found")
 	}
 	if !exists {
-		return []uint{}, nil
+		return []datatypes.UUID{}, nil
 	}
 	// Retrive All Qdrant Points for that assignment
 	points, err := qdrantClient.Scroll(context.Background(), &qdrant.ScrollPoints{
@@ -339,15 +339,19 @@ func GetAssignmentDocumentIDsRAG(assignmentID datatypes.UUID, qdrantClient *qdra
 
 	// Step 3: Make a set of document IDs that are in the Qdrant
 	type Set[E comparable] map[E]struct{} // Generic set type
-	uploadedDocumentIDs := Set[uint]{}
+	uploadedDocumentIDs := Set[string]{}
 	for _, point := range points {
-		uploadedDocumentIDs[uint(point.Payload["document_id"].GetIntegerValue())] = struct{}{} // Add document ID to set
+		uploadedDocumentIDs[point.Payload["document_id"].GetStringValue()] = struct{}{} // Add document ID to set
 	}
 
 	// Step 4: Flatten the set of uploaded document IDs
-	uploadedDocumentIDsList := make([]uint, 0, len(uploadedDocumentIDs))
+	uploadedDocumentIDsList := make([]datatypes.UUID, 0, len(uploadedDocumentIDs))
 	for id := range uploadedDocumentIDs {
-		uploadedDocumentIDsList = append(uploadedDocumentIDsList, id)
+		var uuid datatypes.UUID
+		if err := uuid.Scan(id); err != nil {
+			return nil, errors.Wrap(err, errors.ValidationInvalid, "Error converting document ID to UUID")
+		}
+		uploadedDocumentIDsList = append(uploadedDocumentIDsList, uuid)
 	}
 	return uploadedDocumentIDsList, nil
 }

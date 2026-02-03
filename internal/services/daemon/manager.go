@@ -7,17 +7,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 
 	"unipilot/internal/errors"
 	"unipilot/internal/services/utils"
 
 	"github.com/kardianos/service"
+	"gorm.io/datatypes"
 )
 
 // Manager handles daemon installation and management
 type Manager struct {
-	userID       uint
+	userID       datatypes.UUID
 	daemonPath   string
 	logPath      string
 	errorLogPath string
@@ -37,7 +37,7 @@ func (p *dummyProgram) Start(s service.Service) error { return nil }
 func (p *dummyProgram) Stop(s service.Service) error  { return nil }
 
 // NewManager creates a new daemon manager
-func NewManager(userID uint, ctx context.Context) (*Manager, error) {
+func NewManager(userID datatypes.UUID, ctx context.Context) (*Manager, error) {
 	// Get the project directory (where the main app is running from)
 	projectDir, err := getProjectDirectory()
 	if err != nil {
@@ -73,7 +73,7 @@ func NewManager(userID uint, ctx context.Context) (*Manager, error) {
 		DisplayName: fmt.Sprintf("UniPilot Notification Service for User %d", userID),
 		Description: fmt.Sprintf("Background notification service for UniPilot for user %d", userID),
 		Arguments: []string{
-			"-user", strconv.FormatUint(uint64(userID), 10),
+			"-user", userID.String(),
 			"-log", logPath,
 		},
 		Executable: daemonPath,
