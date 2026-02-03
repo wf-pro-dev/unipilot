@@ -87,10 +87,15 @@ func StartServer() error {
 	app.Get("/users/me", server.AuthMiddleware, GetUserHandler)
 	app.Post("/users/me", server.AuthMiddleware, UpdateUserHandler)
 	app.Post("/users/me/profile-picture", server.AuthMiddleware, UpdateProfilePictureHandler)
-	app.Post("/users/:id/follow", server.AuthMiddleware, HandleFollow)
-	app.Get("/users/:id/followers", server.AuthMiddleware, HandleGetFollowers)
-	app.Get("/users/:id/following", server.AuthMiddleware, HandleGetFollowing)
 	app.Get("/users/me/invitations", server.AuthMiddleware, GetUserCourseInvitationsHandler)
+
+	app.Get("/users/:id/friends", server.AuthMiddleware, HandleGetFriends)
+	app.Get("/users/:id/friend-status", server.AuthMiddleware, HandleGetFriendStatus)
+	app.Post("/users/:id/friend-request", server.AuthMiddleware, HandleSendFriendRequest)
+	app.Delete("/users/:id/friend-request", server.AuthMiddleware, HandleCancelFriendRequest)
+	app.Delete("/users/:id/friend", server.AuthMiddleware, HandleRemoveFriend)
+	app.Post("/users/:id/friend-request/accept", server.AuthMiddleware, HandleAcceptFriendRequest)
+	app.Post("/users/:id/friend-request/reject", server.AuthMiddleware, HandleRejectFriendRequest)
 
 	app.Get("/assignments", server.AuthMiddleware, GetAssignmentHandler)
 	app.Post("/assignments", server.AuthMiddleware, CreateAssignmentHandler)
