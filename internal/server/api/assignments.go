@@ -152,12 +152,10 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 
 	userID := currentUser.ID
 
-	var input models.LocalAssignment
-	if err := c.BodyParser(&input); err != nil {
+	var newA models.Assignment
+	if err := c.BodyParser(&newA); err != nil {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
-
-	newA := input.ToRemote(userID)
 
 	// Step 4: Validate all required fields for assignment creation
 	if err := newA.Validate(); err != nil {
@@ -194,7 +192,7 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 					&messages.Message{
 						ReceiverId: sendeeID.String(),
 						SenderId:   userID.String(),
-						Title:      input.Title,
+						Title:      newA.Title,
 						Message:    fmt.Sprintf("%s shared a new assignment on %s", currentUser.Username, newA.Course.Code),
 						Data:       []byte(""),
 						Type:       string(models.MessageNoContent),
@@ -206,16 +204,14 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 
 			}
 
-			CacheService.AddCourseAssignment(context.Background(), clusterRootID, input.ID)
-			CacheService.SetAssignments(context.Background(), []*models.Assignment{newA})
+			CacheService.AddCourseAssignment(context.Background(), clusterRootID, newA.ID)
+			CacheService.SetAssignments(context.Background(), []*models.Assignment{&newA})
 		}
 
 	}()
 
 	// Step 15: Send successful response with created assignment data
-	return c.JSON(fiber.Map{
-		"remote_id": input.ID,
-	})
+	return c.SendStatus(fiber.StatusCreated)
 }
 
 // UpdateAssignmentHandler updates a specific field of an existing models.

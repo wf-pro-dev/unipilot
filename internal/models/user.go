@@ -40,8 +40,9 @@ type User struct {
 	Notes            []*Note             `gorm:"foreignKey:UserID;references:ID"`
 	OwnerRequests    []*CourseInvitation `gorm:"foreignKey:OwnerID;references:ID"`
 	ReceiverRequests []*CourseInvitation `gorm:"foreignKey:ReceiverID;references:ID"`
-	Followers        []*User             `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowerID;References:ID;joinReferences:FollowedID"`
-	Following        []*User             `gorm:"many2many:follows;foreignKey:ID;joinForeignKey:FollowedID;References:ID;joinReferences:FollowerID"`
+
+	SentFriendRequests     []*Friendship `gorm:"foreignKey:RequesterID;references:ID"`
+	ReceivedFriendRequests []*Friendship `gorm:"foreignKey:AddresseeID;references:ID"`
 }
 
 // START; TO MAP FUNCTIONS
@@ -216,121 +217,359 @@ func isValidPassword(password string) error {
 
 // END; VALIDATION FUNCTIONS
 
-// Follow represents a follow relationship between users
-type Follow struct {
-	gorm.Model
-	FollowerID datatypes.UUID `gorm:"not null;index"` // User who is following
-	FollowedID datatypes.UUID `gorm:"not null;index"` // User who is being followed
+// FriendshipStatus represents the state of a friendship
+type FriendshipStatus string
 
-	// Foreign key relationships
-	Follower User `gorm:"foreignKey:FollowerID;references:ID;constraint:OnDelete:CASCADE"`
-	Followed User `gorm:"foreignKey:FollowedID;references:ID;constraint:OnDelete:CASCADE"`
+const (
+	FriendshipPending  FriendshipStatus = "pending"
+	FriendshipAccepted FriendshipStatus = "accepted"
+	FriendshipRejected FriendshipStatus = "rejected"
+	FriendshipBlocked  FriendshipStatus = "blocked"
+)
+
+// Friendship represents a bidirectional friendship between users
+// Uses a request/accept model where one user initiates and another responds
+type Friendship struct {
+	Base
+	RequesterID datatypes.UUID   `gorm:"not null;index:idx_friendship_users"` // User who sent the friend request
+	AddresseeID datatypes.UUID   `gorm:"not null;index:idx_friendship_users"` // User who received the friend request
+	Status      FriendshipStatus `gorm:"type:varchar(20);not null;default:'pending';index:idx_friendship_status"`
+
+	// Foreign key relationships with cascade delete
+	Requester User `gorm:"foreignKey:RequesterID;references:ID;constraint:OnDelete:CASCADE"`
+	Addressee User `gorm:"foreignKey:AddresseeID;references:ID;constraint:OnDelete:CASCADE"`
 }
 
-// Helper functions
-func (f *Follow) ToMap() map[string]interface{} {
-	if f == nil {
-		return nil
-	}
-
-	return map[string]interface{}{
-		"id":          f.ID,
-		"follower_id": f.FollowerID,
-		"followed_id": f.FollowedID,
-		"created_at":  f.CreatedAt,
-		"updated_at":  f.UpdatedAt,
-	}
+// TableName specifies the table name for the Friendship model
+func (Friendship) TableName() string {
+	return "friendships"
 }
 
-// Check if user A is following user B
-func IsFollowing(followerID, followedID datatypes.UUID, db *gorm.DB) (bool, error) {
+// BeforeCreate hook to ensure requester_id < addressee_id for consistency
+// This prevents duplicate friendships (A->B and B->A)
+func (f *Friendship) BeforeCreate(tx *gorm.DB) error {
+	// Ensure requesterID != addresseeID
+	if f.RequesterID == f.AddresseeID {
+		return errors.NewAppError(errors.ValidationInvalid, "Cannot befriend yourself", nil)
+	}
+	return nil
+}
+
+func GetFriendshipByID(friendshipID datatypes.UUID, db *gorm.DB) (*Friendship, error) {
+	var friendship Friendship
+	err := db.Where("id = ?", friendshipID).First(&friendship).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return &friendship, nil
+}
+
+// GetFriendship retrieves a friendship between two users (regardless of who initiated)
+func GetFriendship(userID1, userID2 datatypes.UUID, db *gorm.DB) (*Friendship, error) {
+	var friendship Friendship
+	err := db.Where(
+		"(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
+		userID1, userID2, userID2, userID1,
+	).First(&friendship).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, errors.HandleDBReadError(err)
+	}
+	return &friendship, nil
+}
+
+// AreFriends checks if two users are friends (accepted status)
+func AreFriends(userID1, userID2 datatypes.UUID, db *gorm.DB) (bool, error) {
 	var count int64
-	err := db.Model(&Follow{}).Where("follower_id = ? AND followed_id = ?", followerID, followedID).Count(&count).Error
+	err := db.Model(&Friendship{}).Where(
+		"((requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)) AND status = ?",
+		userID1, userID2, userID2, userID1, FriendshipAccepted,
+	).Count(&count).Error
+
 	if err != nil {
 		return false, errors.HandleDBReadError(err)
 	}
 	return count > 0, nil
 }
 
-// Get followers count for a user
-func GetFollowersCount(userID datatypes.UUID, db *gorm.DB) (int, error) {
+// GetFriendshipStatus returns the status between two users
+// Returns: status, isPending (waiting for current user to respond), error
+func GetFriendshipStatus(currentUserID, otherUserID datatypes.UUID, db *gorm.DB) (*FriendshipStatus, bool, error) {
+	friendship, err := GetFriendship(currentUserID, otherUserID, db)
+	if err != nil {
+		return nil, false, err
+	}
+	if friendship == nil {
+		return nil, false, nil
+	}
+
+	// Check if current user needs to respond to a pending request
+	isPendingForCurrentUser := friendship.Status == FriendshipPending && friendship.AddresseeID == currentUserID
+
+	return &friendship.Status, isPendingForCurrentUser, nil
+}
+
+// GetFriendsCount returns the number of accepted friends for a user
+func GetFriendsCount(userID datatypes.UUID, db *gorm.DB) (int, error) {
 	var count int64
-	err := db.Model(&Follow{}).Where("followed_id = ?", userID).Count(&count).Error
+	err := db.Model(&Friendship{}).Where(
+		"(requester_id = ? OR addressee_id = ?) AND status = ?",
+		userID, userID, FriendshipAccepted,
+	).Count(&count).Error
+
 	if err != nil {
 		return 0, errors.HandleDBReadError(err)
 	}
 	return int(count), nil
 }
 
-// Get following count for a user
-func GetFollowingCount(userID datatypes.UUID, db *gorm.DB) (int, error) {
+// GetPendingRequestsCount returns the number of pending friend requests for a user
+func GetPendingRequestsCount(userID datatypes.UUID, db *gorm.DB) (int, error) {
 	var count int64
-	err := db.Model(&Follow{}).Where("follower_id = ?", userID).Count(&count).Error
+	err := db.Model(&Friendship{}).Where(
+		"addressee_id = ? AND status = ?",
+		userID, FriendshipPending,
+	).Count(&count).Error
+
 	if err != nil {
 		return 0, errors.HandleDBReadError(err)
 	}
 	return int(count), nil
 }
 
-// Create a follow relationship
-func CreateFollow(followerID, followedID datatypes.UUID, db *gorm.DB) error {
-	// Check if already following
-	isFollowing, err := IsFollowing(followerID, followedID, db)
+// SendFriendRequest creates a new friend request
+func SendFriendRequest(requesterID, addresseeID datatypes.UUID, db *gorm.DB) error {
+	// Check if a friendship already exists
+	existing, err := GetFriendship(requesterID, addresseeID, db)
 	if err != nil {
-		return errors.HandleDBReadError(err)
-	}
-	if isFollowing {
-		return errors.NewAppError(errors.DBConstraintViolation, "Already following", nil)
+		return err
 	}
 
-	follow := &Follow{
-		FollowerID: followerID,
-		FollowedID: followedID,
+	if existing != nil {
+		switch existing.Status {
+		case FriendshipAccepted:
+			return errors.NewAppError(errors.DBConstraintViolation, "Already friends", nil)
+		case FriendshipPending:
+			if existing.RequesterID == requesterID {
+				return errors.NewAppError(errors.DBConstraintViolation, "Friend request already sent", nil)
+			}
+			// If there's a pending request from the other user, auto-accept it
+			existing.Status = FriendshipAccepted
+			if err := db.Save(existing).Error; err != nil {
+				return errors.HandleDBWriteError(err)
+			}
+			return nil
+		case FriendshipRejected:
+			// Allow re-requesting after rejection (update existing record)
+			existing.RequesterID = requesterID
+			existing.AddresseeID = addresseeID
+			existing.Status = FriendshipPending
+			if err := db.Save(existing).Error; err != nil {
+				return errors.HandleDBWriteError(err)
+			}
+			return nil
+		case FriendshipBlocked:
+			return errors.NewAppError(errors.DBConstraintViolation, "Cannot send friend request", nil)
+		}
 	}
-	if err := db.Create(follow).Error; err != nil {
+
+	// Create new friend request
+	friendship := &Friendship{
+		RequesterID: requesterID,
+		AddresseeID: addresseeID,
+		Status:      FriendshipPending,
+	}
+
+	if err := db.Create(friendship).Error; err != nil {
 		return errors.HandleDBCreateError(err)
+	}
+	return nil
+}
+
+// AcceptFriendRequest accepts a pending friend request
+func AcceptFriendRequest(friendship *Friendship, db *gorm.DB) error {
+
+	if err := db.Model(friendship).
+		Where("id = ?", friendship.ID).
+		Update("status", FriendshipAccepted).Error; err != nil {
+		return errors.HandleDBWriteError(err)
 	}
 
 	return nil
 }
 
-// Remove a follow relationship
-func RemoveFollow(followerID, followedID datatypes.UUID, db *gorm.DB) error {
-	err := db.Where("follower_id = ? AND followed_id = ?", followerID, followedID).Delete(&Follow{}).Error
+// RejectFriendRequest rejects a pending friend request
+func RejectFriendRequest(friendshipID datatypes.UUID, db *gorm.DB) error {
+	var friendship Friendship
+	err := db.Where("id = ?", friendshipID).First(&friendship).Error
+
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return errors.NewAppError(errors.DBRecordNotFound, "Friend request not found", nil)
+		}
+		return errors.HandleDBReadError(err)
+	}
+
+	friendship.Status = FriendshipRejected
+	if err := db.Save(&friendship).Error; err != nil {
+		return errors.HandleDBWriteError(err)
+	}
+	return nil
+}
+
+// RemoveFriend removes a friendship (unfriend)
+func RemoveFriend(userID1, userID2 datatypes.UUID, db *gorm.DB) error {
+	err := db.Where(
+		"((requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)) AND status = ?",
+		userID1, userID2, userID2, userID1, FriendshipAccepted,
+	).Delete(&Friendship{}).Error
+
 	if err != nil {
 		return errors.HandleDBWriteError(err)
 	}
 	return nil
 }
 
-// Get followers list for a user
-func GetFollowers(userID datatypes.UUID, limit, offset int, db *gorm.DB) ([]User, error) {
-	var followers []User
-	err := db.Joins("JOIN follows ON users.id = follows.follower_id").
-		Where("follows.followed_id = ? AND follows.deleted_at is NULL", userID).
-		Limit(limit).Offset(offset).
-		Find(&followers).
-		Order("users.username ASC").
-		Error
+// CancelFriendRequest cancels a pending friend request that the current user sent
+func CancelFriendRequest(requesterID, addresseeID datatypes.UUID, db *gorm.DB) error {
+	err := db.Where("requester_id = ? AND addressee_id = ? AND status = ?",
+		requesterID, addresseeID, FriendshipPending).Delete(&Friendship{}).Error
+
 	if err != nil {
-		return nil, errors.HandleDBReadError(err)
+		return errors.HandleDBWriteError(err)
 	}
-	return followers, nil
+	return nil
 }
 
-// Get following list for a user
-func GetFollowing(userID datatypes.UUID, limit, offset int, db *gorm.DB) ([]User, error) {
-	var following []User
-	err := db.Joins("JOIN follows ON users.id = follows.followed_id").
-		Where("follows.follower_id = ? AND follows.deleted_at is NULL", userID).
-		Limit(limit).Offset(offset).
-		Find(&following).
+// BlockUser blocks another user
+func BlockUser(blockerID, blockedID datatypes.UUID, db *gorm.DB) error {
+	// Remove any existing friendship
+	existing, err := GetFriendship(blockerID, blockedID, db)
+	if err != nil {
+		return err
+	}
+
+	if existing != nil {
+		existing.RequesterID = blockerID
+		existing.AddresseeID = blockedID
+		existing.Status = FriendshipBlocked
+		if err := db.Save(existing).Error; err != nil {
+			return errors.HandleDBWriteError(err)
+		}
+	} else {
+		friendship := &Friendship{
+			RequesterID: blockerID,
+			AddresseeID: blockedID,
+			Status:      FriendshipBlocked,
+		}
+		if err := db.Create(friendship).Error; err != nil {
+			return errors.HandleDBCreateError(err)
+		}
+	}
+	return nil
+}
+
+// UnblockUser unblocks a user
+func UnblockUser(blockerID, blockedID datatypes.UUID, db *gorm.DB) error {
+	err := db.Where("requester_id = ? AND addressee_id = ? AND status = ?",
+		blockerID, blockedID, FriendshipBlocked).Delete(&Friendship{}).Error
+
+	if err != nil {
+		return errors.HandleDBWriteError(err)
+	}
+	return nil
+}
+
+// GetFriends retrieves the list of accepted friends for a user
+func GetFriends(userID datatypes.UUID, limit, offset int, db *gorm.DB) ([]User, error) {
+	var friends []User
+
+	// Get friendships where user is either requester or addressee with accepted status
+	err := db.Table("users").
+		Select("users.*").
+		Joins("JOIN friendships ON (friendships.requester_id = users.id OR friendships.addressee_id = users.id)").
+		Where("(friendships.requester_id = ? OR friendships.addressee_id = ?) AND friendships.status = ? AND users.id != ? AND friendships.deleted_at IS NULL",
+			userID, userID, FriendshipAccepted, userID).
 		Order("users.username ASC").
-		Error
+		Limit(limit).
+		Offset(offset).
+		Find(&friends).Error
+
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
-	return following, nil
+	return friends, nil
+}
+
+// GetPendingRequests retrieves pending friend requests received by the user
+func GetPendingRequests(userID datatypes.UUID, limit, offset int, db *gorm.DB) ([]User, error) {
+	var users []User
+
+	err := db.Table("users").
+		Select("users.*").
+		Joins("JOIN friendships ON friendships.requester_id = users.id").
+		Where("friendships.addressee_id = ? AND friendships.status = ? AND friendships.deleted_at IS NULL",
+			userID, FriendshipPending).
+		Order("friendships.created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&users).Error
+
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return users, nil
+}
+
+// GetSentRequests retrieves pending friend requests sent by the user
+func GetSentRequests(userID datatypes.UUID, limit, offset int, db *gorm.DB) ([]User, error) {
+	var users []User
+
+	err := db.Table("users").
+		Select("users.*").
+		Joins("JOIN friendships ON friendships.addressee_id = users.id").
+		Where("friendships.requester_id = ? AND friendships.status = ? AND friendships.deleted_at IS NULL",
+			userID, FriendshipPending).
+		Order("friendships.created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&users).Error
+
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return users, nil
+}
+
+// GetMutualFriends retrieves mutual friends between two users
+func GetMutualFriends(userID1, userID2 datatypes.UUID, db *gorm.DB) ([]User, error) {
+	var mutualFriends []User
+
+	// Subquery to get user1's friends
+	user1FriendsQuery := db.Table("friendships").
+		Select("CASE WHEN requester_id = ? THEN addressee_id ELSE requester_id END as friend_id", userID1).
+		Where("(requester_id = ? OR addressee_id = ?) AND status = ?", userID1, userID1, FriendshipAccepted)
+
+	// Subquery to get user2's friends
+	user2FriendsQuery := db.Table("friendships").
+		Select("CASE WHEN requester_id = ? THEN addressee_id ELSE requester_id END as friend_id", userID2).
+		Where("(requester_id = ? OR addressee_id = ?) AND status = ?", userID2, userID2, FriendshipAccepted)
+
+	// Find intersection
+	err := db.Table("users").
+		Select("users.*").
+		Joins("JOIN (?) AS user1_friends ON users.id = user1_friends.friend_id", user1FriendsQuery).
+		Joins("JOIN (?) AS user2_friends ON users.id = user2_friends.friend_id", user2FriendsQuery).
+		Order("users.username ASC").
+		Find(&mutualFriends).Error
+
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return mutualFriends, nil
 }
 
 func GetUserCourseInvitations(userID datatypes.UUID, db *gorm.DB) ([]CourseInvitation, error) {

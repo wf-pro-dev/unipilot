@@ -53,7 +53,7 @@ func CheckLocalDocumentMigrationNeeded(db *gorm.DB) bool {
 func MigrateFollows(db *gorm.DB) error {
 	// Auto-migrate the follow models
 	err := db.AutoMigrate(
-		&Follow{},
+		&Friendship{},
 	)
 
 	if err != nil {
@@ -66,5 +66,5 @@ func MigrateFollows(db *gorm.DB) error {
 // CheckFollowMigrationNeeded checks if follow migration is needed
 func CheckFollowMigrationNeeded(db *gorm.DB) bool {
 	// Check if the follows table exists
-	return !db.Migrator().HasTable(&Follow{})
+	return !db.Migrator().HasTable(&Friendship{})
 }

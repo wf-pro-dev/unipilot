@@ -426,7 +426,7 @@ const (
 
 // Course Link Request
 type CourseInvitation struct {
-	gorm.Model
+	Base
 	OwnerID    datatypes.UUID   `gorm:"not null;index" validate:"required,min=1"`
 	ReceiverID datatypes.UUID   `gorm:"not null;index;uniqueIndex:idx_invitations,where:deleted_at IS NULL" validate:"required,min=1"`
 	SenderID   datatypes.UUID   `gorm:"not null;index;uniqueIndex:idx_invitations,where:deleted_at IS NULL" validate:"required,min=1"`
