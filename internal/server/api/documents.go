@@ -16,6 +16,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/qdrant/go-client/qdrant"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"unipilot/internal/models"
@@ -168,7 +169,7 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 	}
 	// Step 5: Generate unique storage paths and file names for cloud storage
 	// Create user, assignment  directory
-	assignmentDir := fmt.Sprintf("users_data/user_%d/documents/assign_%d", userID, localDoc.RemoteAssignmentID)
+	assignmentDir := fmt.Sprintf("users_data/user_%d/documents/assign_%d", userID, localDoc.AssignmentID)
 
 	// Generate unique filename
 	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().Unix(), localDoc.FileName)
@@ -194,9 +195,9 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 				fiber.StatusInternalServerError,
 			)
 		}
-	} else {
+	} else if localDoc.StorageKey != nil {
 		// Copy existing file within S3 storage system
-		if err := cloudstorage.CopyFile(localDoc.StorageKey, newKey); err != nil {
+		if err := cloudstorage.CopyFile(*localDoc.StorageKey, newKey); err != nil {
 			return errors.WrapServer(
 				err,
 				errors.StorageFileNotFound,
@@ -208,9 +209,8 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 
 	// Step 7: Create document metadata record in database
 	// Create document metadata record
-	doc := localDoc.ToRemote()
-	doc.UserID = userID
-	doc.StorageKey = newKey
+	doc := localDoc.ToRemote(userID)
+	doc.StorageKey = &newKey
 
 	if err := doc.Validate(db); err != nil {
 		return errors.WrapServer(
@@ -251,7 +251,7 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 
 	go func() {
 		if GrpcClient != nil && doc.Assignment.Course.IsInCluster(db) && !doc.Assignment.IsCopy() {
-			var clusterRootID uint = doc.Assignment.ClusterRoot()
+			clusterRootID := doc.Assignment.ClusterRoot()
 			users_course, err := CacheService.GetClusterUsers(context.Background(), clusterRootID, db)
 			if err != nil {
 				server.LogWarn(context.Background(), errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError))
@@ -262,10 +262,10 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 
 				_, err := (*GrpcClient).SendMessage(context.Background(),
 					&messages.Message{
-						ReceiverId: uint32(sendeeID),
-						SenderId:   uint32(userID),
+						ReceiverId: sendeeID.String(),
+						SenderId:   userID.String(),
 						Title:      doc.Assignment.Title,
-						Message:    fmt.Sprintf("%s shared a new document for %s", currentUser.Username, doc.Assignment.CourseCode),
+						Message:    fmt.Sprintf("%s shared a new document for %s", currentUser.Username, doc.Assignment.Course.Code),
 						Data:       []byte(""),
 						Type:       string(models.MessageNoContent),
 					},
@@ -424,60 +424,6 @@ func WriteFile(key string, file io.Reader, c *fiber.Ctx) (string, int64, error) 
 	return filePath, bytesWritten, nil
 }
 
-// (DEPRECATED) UploadFileToS3 handles the complete file upload pipeline from multipart form to AWS S3.
-// Combines local disk writing with cloud storage upload, then cleans up temporary files.
-// Provides comprehensive logging for upload tracking and debugging.
-//
-// Parameters:
-//   - localDoc: Document metadata structure containing file information
-//   - key: S3 storage key/path for organizing file in cloud storage
-//   - w: HTTP response writer (for error handling context)
-//   - r: HTTP request containing multipart form with file data
-//
-// Returns:
-//   - error: Any error encountered during the upload pipeline
-//
-// Upload Pipeline:
-//  1. Writes file to local disk using WriteFileToDisk
-//  2. Uploads file from local disk to AWS S3 using cloud storage service
-//  3. Logs successful upload with file metrics
-//  4. Cleans up temporary local file after S3 upload
-//
-// Error Handling:
-//   - Returns errors from disk writing operations
-//   - Returns errors from S3 upload operations
-//   - Continues with cleanup even if logging fails
-//
-// Side Effects:
-//   - Creates temporary file on local disk (cleaned up after upload)
-//   - Uploads file to AWS S3 cloud storage
-//   - Logs upload metrics for monitoring and debugging
-func UploadFileLegacy(localDoc models.LocalDocument, key string, w http.ResponseWriter, r *http.Request) error {
-
-	filePath, _, err := WriteFileToDisk(key, w, r)
-	if err != nil {
-		return errors.Wrap(
-			err,
-			errors.FSCreateFailed,
-			"Error writing file to disk",
-		)
-	}
-
-	uploadID := *localDoc.UploadID
-	progressManager := progress.GetManager()
-	progressTracker := progressManager.Create(uploadID, localDoc.FileSize)
-
-	// Upload to aws S3
-	if err := cloudstorage.UploadFile(filePath, localDoc.FileName, key, progressTracker); err != nil {
-		return fmt.Errorf("failed to upload file to R2: %w", err)
-	}
-
-	// Clean up local file after S3 upload
-	os.Remove(filePath)
-
-	return nil
-}
-
 // UploadFileToS3Fiber handles the complete file upload pipeline from Fiber multipart form to AWS S3.
 func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart.FileHeader, c *fiber.Ctx) error {
 	filePath, _, err := WriteMultipartFile(key, fileHeader, c)
@@ -490,14 +436,14 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 	}
 	defer os.Remove(filePath)
 
-	uploadID := *localDoc.UploadID
+	documentID := localDoc.ID
 	progressManager := progress.GetManager()
 
-	progressTracker := progressManager.Create(uploadID, localDoc.FileSize)
+	progressTracker := progressManager.Create(documentID.String(), localDoc.FileSize)
 	progressTracker.SetStatus("Uploading file to cloud storage")
 	snapshot := progressTracker.Snapshot()
 
-	CacheService.PublishProgress(c.Context(), uploadID, &snapshot)
+	CacheService.PublishProgress(c.Context(), documentID, &snapshot)
 
 	progressTracker.OnProgress(func(t *progress.Tracker) {
 		snapshot := t.Snapshot()
@@ -505,7 +451,7 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 		progress := float64(snapshot.Current) / float64(snapshot.Total) * 100
 		snapshot.Percentage = progress
 		// Store in cache
-		CacheService.PublishProgress(c.Context(), uploadID, &snapshot)
+		CacheService.PublishProgress(c.Context(), documentID, &snapshot)
 	})
 
 	// Upload to aws S3
@@ -520,7 +466,7 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 	// Complete upload
 	progressTracker.Complete()
 	snapshot = progressTracker.Snapshot()
-	CacheService.PublishProgress(c.Context(), uploadID, &snapshot)
+	CacheService.PublishProgress(c.Context(), documentID, &snapshot)
 
 	return nil
 }
@@ -575,14 +521,14 @@ func DownloadDocumentHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	uploadID := *localDoc.UploadID
+	documentID := localDoc.ID
 	progressManager := progress.GetManager()
 
-	progressTracker := progressManager.Create(uploadID, localDoc.FileSize)
+	progressTracker := progressManager.Create(documentID.String(), localDoc.FileSize)
 	progressTracker.SetStatus("Downloading file from cloud storage")
 	snapshot := progressTracker.Snapshot()
 
-	CacheService.PublishProgress(c.Context(), uploadID, &snapshot)
+	CacheService.PublishProgress(c.Context(), documentID, &snapshot)
 
 	progressTracker.OnProgress(func(t *progress.Tracker) {
 		snapshot := t.Snapshot()
@@ -590,12 +536,12 @@ func DownloadDocumentHandler(c *fiber.Ctx) error {
 		progress := float64(snapshot.Current) / float64(snapshot.Total) * 100
 		snapshot.Percentage = progress
 		// Store in cache
-		CacheService.PublishProgress(c.Context(), uploadID, &snapshot)
+		CacheService.PublishProgress(c.Context(), documentID, &snapshot)
 	})
 
 	// Step 2: Download file from AWS S3 using storage key
 	// Download from aws S3
-	file, err := cloudstorage.DownloadFileWithProgress(localDoc.StorageKey, progressTracker)
+	file, err := cloudstorage.DownloadFileWithProgress(*localDoc.StorageKey, progressTracker)
 	if err != nil {
 		return errors.WrapServer(
 			err,
@@ -625,7 +571,7 @@ func DownloadDocumentHandler(c *fiber.Ctx) error {
 
 	progressTracker.Complete()
 	snapshot = progressTracker.Snapshot()
-	CacheService.PublishProgress(c.Context(), uploadID, &snapshot)
+	CacheService.PublishProgress(c.Context(), documentID, &snapshot)
 
 	return nil
 }
@@ -680,6 +626,7 @@ func GetAssignmentDocumentsHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
+	var assignmentID datatypes.UUID
 	// Step 2: Extract and validate assignment ID from query parameters
 	assignmentIDStr := c.Query("assignment_id")
 	if assignmentIDStr == "" {
@@ -690,18 +637,12 @@ func GetAssignmentDocumentsHandler(c *fiber.Ctx) error {
 			fiber.StatusBadRequest,
 		)
 	}
-
-	// Step 3: Convert assignment ID string to integer for database query
-	assignmentID, err := strconv.ParseUint(assignmentIDStr, 10, 32)
+	err = assignmentID.Scan(assignmentIDStr)
 	if err != nil {
-		return errors.WrapServer(
-			err,
-			errors.ReqParamInvalid,
-			"Error converting assignment ID",
-			fiber.StatusBadRequest,
-		)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to UUID", fiber.StatusBadRequest)
 	}
-	assignment := models.Assignment{Model: gorm.Model{ID: uint(assignmentID)}}
+
+	assignment := models.Assignment{Base: models.Base{ID: assignmentID}}
 
 	// Step 4: Query documents for the specified assignment with user information
 	var documents []models.Document
@@ -772,8 +713,9 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 	// Step 2: Extract document ID from path parameter
-	docID := c.Params("id")
-	if docID == "" {
+	var docID datatypes.UUID
+	idStr := c.Params("id")
+	if idStr == "" {
 		return errors.WrapServer(
 			fmt.Errorf("document ID required"),
 			errors.ReqParamMissing,
@@ -781,13 +723,13 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 			fiber.StatusBadRequest,
 		)
 	}
-	docIDUint, err := strconv.ParseUint(docID, 10, 32)
+	err = docID.Scan(idStr)
 	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting document ID to uint", fiber.StatusBadRequest)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting document ID to UUID", fiber.StatusBadRequest)
 	}
 
 	var doc *models.Document
-	if doc, err = models.GetDocument(uint(docIDUint), db.Select("user_id", "has_local_file", "storage_key")); err != nil {
+	if doc, err = models.GetDocument(docID, db.Select("user_id", "has_local_file", "storage_key")); err != nil {
 		return errors.WrapServer(err, errors.DBRecordNotFound, "Document not found", fiber.StatusNotFound)
 	}
 
@@ -799,8 +741,6 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 			fiber.StatusNotFound,
 		)
 	}
-
-	doc.ID = uint(docIDUint)
 	// Step 4: Remove document record from database
 	if err := db.Set("qdrantClient", QdrantClient).Delete(&doc).Error; err != nil {
 		if Errors.Is(err, gorm.ErrRecordNotFound) {
@@ -914,6 +854,11 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 		)
 	}
 
+	var storageKey string
+	if localDoc.StorageKey != nil {
+		storageKey = *localDoc.StorageKey
+	}
+
 	if err := models.ValidateFileTypeRAG(localDoc.FileName); err != nil {
 		return errors.WrapServer(
 			err,
@@ -933,7 +878,7 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 				fiber.StatusBadRequest,
 			)
 		}
-		_, _, err = WriteMultipartFile(localDoc.StorageKey, fileHeader, c)
+		_, _, err = WriteMultipartFile(storageKey, fileHeader, c)
 		if err != nil {
 			return errors.WrapServer(
 				err,
@@ -944,7 +889,7 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 		}
 	} else {
 
-		fileReader, err := cloudstorage.DownloadFile(localDoc.StorageKey)
+		fileReader, err := cloudstorage.DownloadFile(storageKey)
 		if err != nil {
 			return errors.WrapServer(
 				err,
@@ -954,7 +899,7 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 			)
 		}
 
-		_, _, err = WriteFile(localDoc.StorageKey, fileReader, c)
+		_, _, err = WriteFile(storageKey, fileReader, c)
 		if err != nil {
 			return errors.WrapServer(
 				err,
@@ -966,7 +911,7 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 
 	}
 
-	doc, err := models.GetDocument(localDoc.RemoteID, db)
+	doc, err := models.GetDocument(localDoc.ID, db)
 	if doc == nil {
 		return errors.WrapServer(
 			fmt.Errorf("document not found"),
@@ -1004,7 +949,7 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	collectionName := fmt.Sprintf("unipilot-qdrant-db-%d", localDoc.RemoteAssignmentID)
+	collectionName := fmt.Sprintf("unipilot-qdrant-db-%d", localDoc.AssignmentID)
 
 	if !slices.Contains(collections, collectionName) {
 		err = QdrantClient.CreateCollection(context.Background(), &qdrant.CreateCollection{
@@ -1045,6 +990,7 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 
 func DeleteDocumentRAG(c *fiber.Ctx) error {
 
+	var docID datatypes.UUID
 	strDocID := c.Params("id")
 	if strDocID == "" {
 		return errors.WrapServer(
@@ -1054,17 +1000,12 @@ func DeleteDocumentRAG(c *fiber.Ctx) error {
 			fiber.StatusBadRequest,
 		)
 	}
-
-	docID, err := strconv.Atoi(strDocID)
+	err := docID.Scan(strDocID)
 	if err != nil {
-		return errors.WrapServer(
-			err,
-			errors.ReqParamInvalid,
-			"Error converting document ID to int",
-			fiber.StatusBadRequest,
-		)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting document ID to UUID", fiber.StatusBadRequest)
 	}
 
+	var assignmentID datatypes.UUID
 	assignmentIDStr := c.Params("assignment_id")
 	if assignmentIDStr == "" {
 		return errors.WrapServer(
@@ -1074,22 +1015,17 @@ func DeleteDocumentRAG(c *fiber.Ctx) error {
 			fiber.StatusBadRequest,
 		)
 	}
-	assignmentID, err := strconv.Atoi(assignmentIDStr)
+	err = assignmentID.Scan(assignmentIDStr)
 	if err != nil {
-		return errors.WrapServer(
-			err,
-			errors.ReqParamInvalid,
-			"Error converting assignment ID to int",
-			fiber.StatusBadRequest,
-		)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to UUID", fiber.StatusBadRequest)
 	}
 
 	var doc = models.Document{
-		Model: gorm.Model{
-			ID: uint(docID),
+		Base: models.Base{
+			ID: docID,
 		},
 		BaseDocument: models.BaseDocument{
-			AssignmentID: uint(assignmentID),
+			AssignmentID: assignmentID,
 		},
 	}
 
@@ -1111,6 +1047,7 @@ func DeleteDocumentRAG(c *fiber.Ctx) error {
 
 func GetAssignmentDocumentIDsRAG(c *fiber.Ctx) error {
 	// Step 1: Extract assignment ID from path parameter
+	var assignmentID datatypes.UUID
 	idStr := c.Params("id")
 	if idStr == "" {
 
@@ -1121,16 +1058,11 @@ func GetAssignmentDocumentIDsRAG(c *fiber.Ctx) error {
 			fiber.StatusBadRequest,
 		)
 	}
-	int_assignmentID, err := strconv.Atoi(idStr)
+
+	err := assignmentID.Scan(idStr)
 	if err != nil {
-		return errors.WrapServer(
-			err,
-			errors.ReqParamInvalid,
-			"Error converting assignment ID to int",
-			fiber.StatusBadRequest,
-		)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to UUID", fiber.StatusBadRequest)
 	}
-	assignmentID := uint(int_assignmentID)
 
 	documentIDs, err := models.GetAssignmentDocumentIDsRAG(assignmentID, QdrantClient)
 	if err != nil {

@@ -33,8 +33,8 @@ func (s *Server) SendMessage(ctx context.Context, message *Message) (*Response, 
 
 	// Step 2: Convert gRPC types to internal types and forward to SSE server
 	err := s.SSE.SendMessage(
-		uint(message.SenderId),           // Convert uint32 to uint
-		uint(message.ReceiverId),         // Convert uint32 to uint
+		message.SenderId,                 // Convert uint32 to uint
+		message.ReceiverId,               // Convert uint32 to uint
 		message.Title,                    // Pass string directly
 		message.Message,                  // Pass string directly
 		message.Data,                     // Pass JSON string directly

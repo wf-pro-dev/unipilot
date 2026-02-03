@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v3.12.4
-// source: internal/server/sse/grpc/notifications/messages.proto
+// source: messages.proto
 
 package messages
 
@@ -155,5 +155,5 @@ var MessageService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "internal/server/sse/grpc/notifications/messages.proto",
+	Metadata: "messages.proto",
 }

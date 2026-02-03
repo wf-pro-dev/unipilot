@@ -9,11 +9,12 @@ import (
 	"unipilot/internal/services/fileops/progress"
 
 	"github.com/redis/go-redis/v9"
+	"gorm.io/datatypes"
 )
 
 // Set initializes or updates progress for an upload
-func (c *Cache) SetProgress(ctx context.Context, uploadID string, snapshot *progress.TrackerSnapshot) error {
-	key := FormatKey(KeyProgress, uploadID)
+func (c *Cache) SetProgress(ctx context.Context, progressID datatypes.UUID, snapshot *progress.TrackerSnapshot) error {
+	key := FormatKey(KeyProgress, progressID)
 
 	data, err := json.Marshal(snapshot)
 	if err != nil {
@@ -28,8 +29,8 @@ func (c *Cache) SetProgress(ctx context.Context, uploadID string, snapshot *prog
 }
 
 // Get retrieves progress for an upload
-func (c *Cache) GetProgressChannel(ctx context.Context, uploadID string) (*redis.PubSub, error) {
-	key := FormatKey(KeyProgress, uploadID)
+func (c *Cache) GetProgressChannel(ctx context.Context, progressID datatypes.UUID) (*redis.PubSub, error) {
+	key := FormatKey(KeyProgress, progressID)
 
 	pubsub := c.redis.Subscribe(ctx, key)
 	if pubsub == nil {
@@ -54,9 +55,9 @@ func (c *Cache) GetProgressChannel(ctx context.Context, uploadID string) (*redis
 	return pubsub, nil
 }
 
-func (c *Cache) PublishProgress(ctx context.Context, uploadID string, progress *progress.TrackerSnapshot) error {
+func (c *Cache) PublishProgress(ctx context.Context, progressID datatypes.UUID, progress *progress.TrackerSnapshot) error {
 
-	key := FormatKey(KeyProgress, uploadID)
+	key := FormatKey(KeyProgress, progressID)
 	data, err := json.Marshal(progress)
 	if err != nil {
 		return errors.Wrap(err, errors.ProcJSONMarshalFailed, "Failed to marshal progress data")
@@ -69,8 +70,8 @@ func (c *Cache) PublishProgress(ctx context.Context, uploadID string, progress *
 }
 
 // Exists checks if progress entry exists
-func (c *Cache) ProcessExists(ctx context.Context, uploadID string) (bool, error) {
-	key := FormatKey(KeyProgress, uploadID)
+func (c *Cache) ProcessExists(ctx context.Context, progressID datatypes.UUID) (bool, error) {
+	key := FormatKey(KeyProgress, progressID)
 	exists, err := c.redis.Exists(ctx, key).Result()
 	return exists > 0, err
 }

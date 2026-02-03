@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.10
 // 	protoc        v3.12.4
-// source: internal/server/sse/grpc/notifications/messages.proto
+// source: messages.proto
 
 package messages
 
@@ -30,7 +30,7 @@ type Heartbeat struct {
 
 func (x *Heartbeat) Reset() {
 	*x = Heartbeat{}
-	mi := &file_internal_server_sse_grpc_notifications_messages_proto_msgTypes[0]
+	mi := &file_messages_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +42,7 @@ func (x *Heartbeat) String() string {
 func (*Heartbeat) ProtoMessage() {}
 
 func (x *Heartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_server_sse_grpc_notifications_messages_proto_msgTypes[0]
+	mi := &file_messages_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +55,7 @@ func (x *Heartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Heartbeat.ProtoReflect.Descriptor instead.
 func (*Heartbeat) Descriptor() ([]byte, []int) {
-	return file_internal_server_sse_grpc_notifications_messages_proto_rawDescGZIP(), []int{0}
+	return file_messages_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Heartbeat) GetBody() string {
@@ -67,8 +67,8 @@ func (x *Heartbeat) GetBody() string {
 
 type Message struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	SenderId      uint32                 `protobuf:"varint,1,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
-	ReceiverId    uint32                 `protobuf:"varint,2,opt,name=receiver_id,json=receiverId,proto3" json:"receiver_id,omitempty"`
+	SenderId      string                 `protobuf:"bytes,1,opt,name=sender_id,json=senderId,proto3" json:"sender_id,omitempty"`
+	ReceiverId    string                 `protobuf:"bytes,2,opt,name=receiver_id,json=receiverId,proto3" json:"receiver_id,omitempty"`
 	Title         string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
 	Message       string                 `protobuf:"bytes,4,opt,name=message,proto3" json:"message,omitempty"`
 	Data          []byte                 `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
@@ -79,7 +79,7 @@ type Message struct {
 
 func (x *Message) Reset() {
 	*x = Message{}
-	mi := &file_internal_server_sse_grpc_notifications_messages_proto_msgTypes[1]
+	mi := &file_messages_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -91,7 +91,7 @@ func (x *Message) String() string {
 func (*Message) ProtoMessage() {}
 
 func (x *Message) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_server_sse_grpc_notifications_messages_proto_msgTypes[1]
+	mi := &file_messages_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -104,21 +104,21 @@ func (x *Message) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Message.ProtoReflect.Descriptor instead.
 func (*Message) Descriptor() ([]byte, []int) {
-	return file_internal_server_sse_grpc_notifications_messages_proto_rawDescGZIP(), []int{1}
+	return file_messages_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *Message) GetSenderId() uint32 {
+func (x *Message) GetSenderId() string {
 	if x != nil {
 		return x.SenderId
 	}
-	return 0
+	return ""
 }
 
-func (x *Message) GetReceiverId() uint32 {
+func (x *Message) GetReceiverId() string {
 	if x != nil {
 		return x.ReceiverId
 	}
-	return 0
+	return ""
 }
 
 func (x *Message) GetTitle() string {
@@ -158,7 +158,7 @@ type Response struct {
 
 func (x *Response) Reset() {
 	*x = Response{}
-	mi := &file_internal_server_sse_grpc_notifications_messages_proto_msgTypes[2]
+	mi := &file_messages_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -170,7 +170,7 @@ func (x *Response) String() string {
 func (*Response) ProtoMessage() {}
 
 func (x *Response) ProtoReflect() protoreflect.Message {
-	mi := &file_internal_server_sse_grpc_notifications_messages_proto_msgTypes[2]
+	mi := &file_messages_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -183,7 +183,7 @@ func (x *Response) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Response.ProtoReflect.Descriptor instead.
 func (*Response) Descriptor() ([]byte, []int) {
-	return file_internal_server_sse_grpc_notifications_messages_proto_rawDescGZIP(), []int{2}
+	return file_messages_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Response) GetSuccess() bool {
@@ -193,16 +193,16 @@ func (x *Response) GetSuccess() bool {
 	return false
 }
 
-var File_internal_server_sse_grpc_notifications_messages_proto protoreflect.FileDescriptor
+var File_messages_proto protoreflect.FileDescriptor
 
-const file_internal_server_sse_grpc_notifications_messages_proto_rawDesc = "" +
+const file_messages_proto_rawDesc = "" +
 	"\n" +
-	"5internal/server/sse/grpc/notifications/messages.proto\x12\rnotifications\"\x1f\n" +
+	"\x0emessages.proto\x12\rnotifications\"\x1f\n" +
 	"\tHeartbeat\x12\x12\n" +
 	"\x04body\x18\x01 \x01(\tR\x04body\"\x9f\x01\n" +
 	"\aMessage\x12\x1b\n" +
-	"\tsender_id\x18\x01 \x01(\rR\bsenderId\x12\x1f\n" +
-	"\vreceiver_id\x18\x02 \x01(\rR\n" +
+	"\tsender_id\x18\x01 \x01(\tR\bsenderId\x12\x1f\n" +
+	"\vreceiver_id\x18\x02 \x01(\tR\n" +
 	"receiverId\x12\x14\n" +
 	"\x05title\x18\x03 \x01(\tR\x05title\x12\x18\n" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12\x12\n" +
@@ -215,24 +215,24 @@ const file_internal_server_sse_grpc_notifications_messages_proto_rawDesc = "" +
 	"\rSendHeartbeat\x12\x18.notifications.Heartbeat\x1a\x18.notifications.Heartbeat\"\x00B#Z!internal/server/sse/grpc/messagesb\x06proto3"
 
 var (
-	file_internal_server_sse_grpc_notifications_messages_proto_rawDescOnce sync.Once
-	file_internal_server_sse_grpc_notifications_messages_proto_rawDescData []byte
+	file_messages_proto_rawDescOnce sync.Once
+	file_messages_proto_rawDescData []byte
 )
 
-func file_internal_server_sse_grpc_notifications_messages_proto_rawDescGZIP() []byte {
-	file_internal_server_sse_grpc_notifications_messages_proto_rawDescOnce.Do(func() {
-		file_internal_server_sse_grpc_notifications_messages_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_internal_server_sse_grpc_notifications_messages_proto_rawDesc), len(file_internal_server_sse_grpc_notifications_messages_proto_rawDesc)))
+func file_messages_proto_rawDescGZIP() []byte {
+	file_messages_proto_rawDescOnce.Do(func() {
+		file_messages_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_messages_proto_rawDesc), len(file_messages_proto_rawDesc)))
 	})
-	return file_internal_server_sse_grpc_notifications_messages_proto_rawDescData
+	return file_messages_proto_rawDescData
 }
 
-var file_internal_server_sse_grpc_notifications_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-var file_internal_server_sse_grpc_notifications_messages_proto_goTypes = []any{
+var file_messages_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_messages_proto_goTypes = []any{
 	(*Heartbeat)(nil), // 0: notifications.Heartbeat
 	(*Message)(nil),   // 1: notifications.Message
 	(*Response)(nil),  // 2: notifications.Response
 }
-var file_internal_server_sse_grpc_notifications_messages_proto_depIdxs = []int32{
+var file_messages_proto_depIdxs = []int32{
 	1, // 0: notifications.MessageService.SendMessage:input_type -> notifications.Message
 	0, // 1: notifications.MessageService.SendHeartbeat:input_type -> notifications.Heartbeat
 	2, // 2: notifications.MessageService.SendMessage:output_type -> notifications.Response
@@ -244,26 +244,26 @@ var file_internal_server_sse_grpc_notifications_messages_proto_depIdxs = []int32
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_internal_server_sse_grpc_notifications_messages_proto_init() }
-func file_internal_server_sse_grpc_notifications_messages_proto_init() {
-	if File_internal_server_sse_grpc_notifications_messages_proto != nil {
+func init() { file_messages_proto_init() }
+func file_messages_proto_init() {
+	if File_messages_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_internal_server_sse_grpc_notifications_messages_proto_rawDesc), len(file_internal_server_sse_grpc_notifications_messages_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_messages_proto_rawDesc), len(file_messages_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_internal_server_sse_grpc_notifications_messages_proto_goTypes,
-		DependencyIndexes: file_internal_server_sse_grpc_notifications_messages_proto_depIdxs,
-		MessageInfos:      file_internal_server_sse_grpc_notifications_messages_proto_msgTypes,
+		GoTypes:           file_messages_proto_goTypes,
+		DependencyIndexes: file_messages_proto_depIdxs,
+		MessageInfos:      file_messages_proto_msgTypes,
 	}.Build()
-	File_internal_server_sse_grpc_notifications_messages_proto = out.File
-	file_internal_server_sse_grpc_notifications_messages_proto_goTypes = nil
-	file_internal_server_sse_grpc_notifications_messages_proto_depIdxs = nil
+	File_messages_proto = out.File
+	file_messages_proto_goTypes = nil
+	file_messages_proto_depIdxs = nil
 }

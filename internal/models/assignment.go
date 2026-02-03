@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -12,27 +11,27 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/qdrant/go-client/qdrant"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 type BaseAssignment struct {
-	Title      string    `gorm:"not null" validate:"required,min=3,max=100"`
-	Type       string    `gorm:"not null" validate:"required,oneof=HW 'Group project' Exam Quiz Lab"`
-	Status     string    `gorm:"not null" validate:"required,oneof='Not started' 'In progress' 'Done'"`
-	Todo       string    `gorm:"not null" validate:"max=1000"`
-	Deadline   time.Time `gorm:"not null" validate:"required"`
-	Link       string    `gorm:"default:https://acconline.austincc.edu/ultra/stream" validate:"url"`
-	CourseID   uint      `gorm:"not null;index" validate:"required"`
-	CourseCode string    `gorm:"index" validate:"required"`
-	Priority   string    `gorm:"default:low" validate:"required,oneof=low medium high"`
-	ParentID   uint      `gorm:"default:null"`
+	Title    string          `gorm:"not null" validate:"required,min=3,max=100"`
+	Type     string          `gorm:"not null" validate:"required,oneof=HW 'Group project' Exam Quiz Lab"`
+	Status   string          `gorm:"not null" validate:"required,oneof='Not started' 'In progress' 'Done'"`
+	Todo     string          `gorm:"not null" validate:"max=1000"`
+	Deadline time.Time       `gorm:"not null" validate:"required"`
+	Link     string          `gorm:"default:https://acconline.austincc.edu/ultra/stream" validate:"url"`
+	CourseID datatypes.UUID  `gorm:"not null;index" validate:"required"`
+	Priority string          `gorm:"default:low" validate:"required,oneof=low medium high"`
+	ParentID *datatypes.UUID `gorm:"index"`
 }
 
 // Assignment represents a homework or exam assignment
 type Assignment struct {
-	gorm.Model
+	Base
 	BaseAssignment
-	UserID uint `gorm:"not null" validate:"required,min=1"`
+	UserID datatypes.UUID `gorm:"not null" validate:"required"`
 
 	// Relationships
 	User      *User        `gorm:"foreignKey:UserID;references:ID" validate:"-"`
@@ -43,62 +42,29 @@ type Assignment struct {
 }
 
 type LocalAssignment struct {
-	gorm.Model
+	Base
 	BaseAssignment
-	RemoteID       uint `gorm:"unique;default:null" validate:"omitempty,min=1"`
-	RemoteCourseID uint `gorm:"default:null" validate:"omitempty,min=1"`
+	SyncedAt *time.Time `gorm:"default:null"`
 
 	Course    *LocalCourse    `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
 	Documents []LocalDocument `gorm:"foreignKey:AssignmentID;references:ID" validate:"-"`
 }
 
-func (a *BaseAssignment) ToMap() map[string]string {
-	return map[string]string{
-		"title":       a.Title,
-		"type":        a.Type,
-		"status":      a.Status,
-		"todo":        a.Todo,
-		"deadline":    a.Deadline.Format(time.DateOnly),
-		"course_id":   strconv.Itoa(int(a.CourseID)),
-		"course_code": a.CourseCode,
-		"priority":    a.Priority,
-		"link":        a.Link,
-		"parent_id":   strconv.Itoa(int(a.ParentID)),
-	}
-}
-
-// ToMap converts the Assignment struct to a map[string]string
-func (a *Assignment) ToMap() map[string]string {
-	aMap := a.BaseAssignment.ToMap()
-	aMap["id"] = strconv.Itoa(int(a.ID))
-	aMap["user_id"] = strconv.Itoa(int(a.UserID))
-	aMap["remote_course_id"] = strconv.Itoa(int(a.CourseID))
-	return aMap
-}
-
 func (a *Assignment) ToLocal() *LocalAssignment {
 	return &LocalAssignment{
 		BaseAssignment: a.BaseAssignment,
-		RemoteID:       a.ID,
-		RemoteCourseID: a.CourseID,
 	}
 }
 
-func (a *LocalAssignment) ToRemote() *Assignment {
+func (a *LocalAssignment) ToRemote(userID datatypes.UUID) *Assignment {
 
 	baseAssignment := a.BaseAssignment
-	baseAssignment.CourseID = a.RemoteCourseID
 
 	assignment := &Assignment{
 		BaseAssignment: baseAssignment,
+		UserID:         userID,
 	}
 	return assignment
-}
-
-func (la *LocalAssignment) ToMap() map[string]string {
-	laMap := la.BaseAssignment.ToMap()
-	laMap["remote_id"] = strconv.Itoa(int(la.RemoteID))
-	return laMap
 }
 
 // END: Conversion Functions
@@ -173,10 +139,6 @@ func (ba *BaseAssignment) Validate() error {
 
 	ba.Priority = strings.TrimRight(ba.Priority, " ")
 	ba.Priority = strings.TrimLeft(ba.Priority, " ")
-
-	ba.CourseCode = strings.TrimRight(ba.CourseCode, " ")
-	ba.CourseCode = strings.TrimLeft(ba.CourseCode, " ")
-	ba.CourseCode = strings.ToUpper(ba.CourseCode)
 
 	ba.Type = strings.TrimRight(ba.Type, " ")
 	ba.Type = strings.TrimLeft(ba.Type, " ")
@@ -261,7 +223,7 @@ func isValidTodo(todo string) error {
 
 // GET Operation
 
-func GetAssignment(id uint, db *gorm.DB) (*Assignment, error) {
+func GetAssignment(id datatypes.UUID, db *gorm.DB) (*Assignment, error) {
 	assignment := &Assignment{}
 	err := db.First(&assignment, id).Error
 	if err != nil {
@@ -279,7 +241,7 @@ func GetLAssignment(id uint, db *gorm.DB) (*LocalAssignment, error) {
 	return assignment, nil
 }
 
-func GetAssignments(userID uint, db *gorm.DB) ([]Assignment, error) {
+func GetAssignments(userID datatypes.UUID, db *gorm.DB) ([]Assignment, error) {
 	var assignments []Assignment
 	err := db.Where("user_id = ?", userID).Find(&assignments).Error
 	if err != nil {
@@ -297,7 +259,7 @@ func GetLAssignments(db *gorm.DB) ([]LocalAssignment, error) {
 	return assignments, nil
 }
 
-func GetAssignmentsByIDs(assignmentIDs []uint, db *gorm.DB) ([]*Assignment, error) {
+func GetAssignmentsByIDs(assignmentIDs []datatypes.UUID, db *gorm.DB) ([]*Assignment, error) {
 	var assignments []*Assignment
 	err := db.Where(assignmentIDs).Find(&assignments).Error
 	if err != nil {
@@ -341,20 +303,21 @@ func (lc *LocalCourse) GetAssignmentsByCourse(db *gorm.DB) ([]LocalAssignment, e
 
 // CHECK Operations
 
-func (a *Assignment) ClusterRoot() uint {
-	if a.Course.ParentID != 0 {
-		return a.Course.ParentID
+func (a *Assignment) ClusterRoot() datatypes.UUID {
+	if a.Course.ClusterID != nil {
+		return *a.Course.ClusterID
 	}
 	return a.Course.ID
 }
-func (a *Assignment) IsCopy() bool       { return a.ParentID != 0 }
-func (la *LocalAssignment) IsRoot() bool { return la.ParentID == 0 }
 
-func GetQdrantCollectionName(assignmentID uint) string {
+func (a *Assignment) IsCopy() bool       { return a.ParentID != nil }
+func (la *LocalAssignment) IsRoot() bool { return la.ParentID == nil }
+
+func GetQdrantCollectionName(assignmentID datatypes.UUID) string {
 	return fmt.Sprintf("unipilot-qdrant-db-%d", assignmentID)
 }
 
-func GetAssignmentDocumentIDsRAG(assignmentID uint, qdrantClient *qdrant.Client) ([]uint, error) {
+func GetAssignmentDocumentIDsRAG(assignmentID datatypes.UUID, qdrantClient *qdrant.Client) ([]uint, error) {
 	ctx := context.Background()
 	collectionName := GetQdrantCollectionName(assignmentID)
 

@@ -22,7 +22,7 @@ import (
 // notifications through a buffered message channel.
 type SSEClient struct {
 	// UserID uniquely identifies the authenticated user for this connection
-	UserID uint
+	UserID string
 	// Messages is a buffered channel for queuing outbound notifications
 	Messages chan []byte
 	// Connected indicates if the client connection is active
@@ -36,7 +36,7 @@ type SSEClient struct {
 // to specific users or all connected clients.
 type SSEServer struct {
 	// clients maps user IDs to their active SSE connections
-	clients map[uint]*SSEClient
+	clients map[string]*SSEClient
 	// mu provides thread-safe access to the clients map
 	mu sync.RWMutex
 }
@@ -45,7 +45,7 @@ type SSEServer struct {
 // Returns a server ready to accept client connections and manage models.
 func NewSSEServer() *SSEServer {
 	return &SSEServer{
-		clients: make(map[uint]*SSEClient),
+		clients: make(map[string]*SSEClient),
 	}
 }
 
@@ -162,7 +162,7 @@ func StartSSEServer() *SSEServer {
 // Resource Management:
 //   - Creates new buffered channel (100 message capacity)
 //   - Previous client channels automatically garbage collected
-func (s *SSEServer) AddClient(userID uint) *SSEClient {
+func (s *SSEServer) AddClient(userID string) *SSEClient {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -208,7 +208,7 @@ func (s *SSEServer) AddClient(userID uint) *SSEClient {
 // Error Handling:
 //   - Graceful handling of non-existent clients
 //   - Channel close is safe even if already closed
-func (s *SSEServer) RemoveClient(userID uint) {
+func (s *SSEServer) RemoveClient(userID string) {
 	// Step 1: Acquire write lock for exclusive client map modification
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -252,7 +252,7 @@ func (s *SSEServer) RemoveClient(userID uint) {
 // Error Handling:
 //   - Graceful failure for disconnected users
 //   - Buffer overflow handled by dropping messages (no blocking)
-func (s *SSEServer) SendToUser(userID uint, message []byte) bool {
+func (s *SSEServer) SendToUser(userID string, message []byte) bool {
 	// Step 1: Acquire read lock for concurrent client map access
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -392,7 +392,7 @@ func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
 	c.Set("X-Accel-Buffering", "no")           // Disable proxy buffering
 
 	// Step 3: Register client connection and setup cleanup
-	client := s.AddClient(userID) // Cleanup ticker on exit
+	client := s.AddClient(userID.String()) // Cleanup ticker on exit
 
 	// Step 6: Capture context before entering SetBodyStreamWriter
 	// The context may not be accessible inside the callback
@@ -405,7 +405,7 @@ func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
 			// Step 4: Cleanup client connection on function exit
 			ctx := context.WithValue(context.Background(), "component", "sse")
 			server.LogDebug(ctx, "sse client removed", userID)
-			s.RemoveClient(userID)
+			s.RemoveClient(userID.String())
 		}()
 
 		// Step 5: Setup heartbeat system for connection maintenance
@@ -452,7 +452,7 @@ func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
 }
 
 // SendMessage sends a message to a specific user.
-func (s *SSEServer) SendMessage(senderID, receiverID uint, title, message string, data []byte, messageType models.MessageType) error {
+func (s *SSEServer) SendMessage(senderID, receiverID, title, message string, data []byte, messageType models.MessageType) error {
 
 	// Step 1: Construct structured message with all provided metadata
 	messageData := models.Message{

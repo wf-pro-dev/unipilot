@@ -4,7 +4,6 @@ import (
 	"context"
 	Errors "errors"
 	"fmt"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -14,6 +13,7 @@ import (
 
 	"unipilot/internal/server"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -58,13 +58,12 @@ func GetAssignmentHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
-	var userID uint
+	var userID datatypes.UUID
 	if id := c.Query("id"); id != "" {
-		idInt, err := strconv.Atoi(id)
+		err := userID.Scan(id)
 		if err != nil {
 			return errors.WrapServer(err, errors.ReqParamInvalid, "Invalid assignment ID", fiber.StatusBadRequest)
 		}
-		userID = uint(idInt)
 	} else {
 		currentUser, ok := c.Locals("user").(models.User)
 		if !ok {
@@ -153,19 +152,20 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 
 	userID := currentUser.ID
 
-	var input models.Assignment
+	var input models.LocalAssignment
 	if err := c.BodyParser(&input); err != nil {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
-	input.UserID = userID
+
+	newA := input.ToRemote(userID)
 
 	// Step 4: Validate all required fields for assignment creation
-	if err := input.Validate(); err != nil {
+	if err := newA.Validate(); err != nil {
 		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
 	}
 
 	// Step 9: Create assignment record in database within transaction
-	result := db.Preload("Course").Create(&input).First(&input)
+	result := db.Preload("Course").Create(newA).First(newA)
 	if result.Error != nil {
 		if Errors.Is(result.Error, gorm.ErrDuplicatedKey) {
 			return errors.WrapServer(result.Error, errors.DBConstraintViolation, "Assignment already exists", fiber.StatusConflict)
@@ -176,9 +176,9 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 	// Step 14: Send SSE notifications to linked users via gRPC (if available)
 
 	go func() {
-		if GrpcClient != nil && input.Course.IsInCluster(db) && !input.IsCopy() {
+		if GrpcClient != nil && newA.Course.IsInCluster(db) && !newA.IsCopy() {
 
-			clusterRootID := input.ClusterRoot()
+			clusterRootID := newA.ClusterRoot()
 			users_course, err := CacheService.GetClusterUsers(context.Background(), clusterRootID, db)
 			if err != nil {
 				server.LogWarn(context.Background(), errors.WrapServer(err, errors.DBQueryFailed, "Error getting users linked to course", fiber.StatusInternalServerError))
@@ -192,10 +192,10 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 
 				_, err := (*GrpcClient).SendMessage(context.Background(),
 					&messages.Message{
-						ReceiverId: uint32(sendeeID),
-						SenderId:   uint32(userID),
+						ReceiverId: sendeeID.String(),
+						SenderId:   userID.String(),
 						Title:      input.Title,
-						Message:    fmt.Sprintf("%s shared a new assignment on %s", currentUser.Username, input.CourseCode),
+						Message:    fmt.Sprintf("%s shared a new assignment on %s", currentUser.Username, newA.Course.Code),
 						Data:       []byte(""),
 						Type:       string(models.MessageNoContent),
 					},
@@ -207,7 +207,7 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 			}
 
 			CacheService.AddCourseAssignment(context.Background(), clusterRootID, input.ID)
-			CacheService.SetAssignments(context.Background(), []*models.Assignment{&input})
+			CacheService.SetAssignments(context.Background(), []*models.Assignment{newA})
 		}
 
 	}()
@@ -268,16 +268,15 @@ func UpdateAssignmentHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
-	var assignmentID uint
+	var assignmentID datatypes.UUID
 	idStr := c.Params("id")
 	if idStr == "" {
 		return errors.WrapServer(fmt.Errorf("assignment ID required"), errors.ReqParamMissing, "Assignment ID required", fiber.StatusBadRequest)
 	}
-	int_id, err := strconv.Atoi(idStr)
+	err = assignmentID.Scan(idStr)
 	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to int", fiber.StatusBadRequest)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to UUID", fiber.StatusBadRequest)
 	}
-	assignmentID = uint(int_id)
 
 	// Step 3: Define and parse assignment update request structure
 	var updateData struct {
@@ -292,7 +291,7 @@ func UpdateAssignmentHandler(c *fiber.Ctx) error {
 
 	// Step 6: Execute raw SQL update with automatic timestamp tracking
 	assignment := models.Assignment{
-		Model: gorm.Model{ID: assignmentID},
+		Base: models.Base{ID: assignmentID},
 	}
 	if err := db.Preload("Course").Model(&assignment).Where("id = ?", assignmentID).Update(updateData.Column, updateData.Value).First(&assignment).Error; err != nil {
 
@@ -323,16 +322,17 @@ func DeleteAssignmentHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 2: Extract assignment ID from path parameter
+	var assignmentID datatypes.UUID
 	idStr := c.Params("id")
 	if idStr == "" {
 		return errors.WrapServer(fmt.Errorf("assignment ID required"), errors.ReqParamMissing, "Assignment ID required", fiber.StatusBadRequest)
 	}
-	assignmentID, err := strconv.Atoi(idStr)
+	err = assignmentID.Scan(idStr)
 	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to int", fiber.StatusBadRequest)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to UUID", fiber.StatusBadRequest)
 	}
 
-	assignment, err := models.GetAssignment(uint(assignmentID), db.Preload("Course"))
+	assignment, err := models.GetAssignment(assignmentID, db.Preload("Course"))
 	if err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting assignment from database", fiber.StatusInternalServerError)
 	}
@@ -343,8 +343,8 @@ func DeleteAssignmentHandler(c *fiber.Ctx) error {
 	go func() {
 		if assignment.Course.IsInCluster(db) && !assignment.IsCopy() {
 			clusterRootID := assignment.ClusterRoot()
-			CacheService.RemoveCourseAssignment(context.Background(), clusterRootID, uint(assignmentID))
-			CacheService.DeleteAssignment(context.Background(), uint(assignmentID))
+			CacheService.RemoveCourseAssignment(context.Background(), clusterRootID, assignmentID)
+			CacheService.DeleteAssignment(context.Background(), assignmentID)
 		}
 	}()
 

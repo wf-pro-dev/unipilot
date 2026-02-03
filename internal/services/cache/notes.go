@@ -3,16 +3,16 @@ package cache
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
-func (c *Cache) GetNote(ctx context.Context, noteID uint, db *gorm.DB) (*models.Note, error) {
-	cacheKey := FormatKey(KeyNote, strconv.Itoa(int(noteID)))
+func (c *Cache) GetNote(ctx context.Context, noteID datatypes.UUID, db *gorm.DB) (*models.Note, error) {
+	cacheKey := FormatKey(KeyNote, noteID)
 	noteJSON, err := c.redis.Get(ctx, cacheKey).Result()
 	if err != nil {
 		return nil, errors.Wrap(err, errors.CacheOperationFailed, "Error getting note from redis")
@@ -39,7 +39,7 @@ func (c *Cache) SetNotes(ctx context.Context, notes []*models.Note) error {
 
 	pipe := c.redis.Pipeline()
 	for _, note := range notes {
-		cacheKey := FormatKey(KeyNote, strconv.Itoa(int(note.ID)))
+		cacheKey := FormatKey(KeyNote, note.ID)
 		note.Content = ""
 		noteJSON, err := json.Marshal(note)
 		if err != nil {
@@ -54,14 +54,14 @@ func (c *Cache) SetNotes(ctx context.Context, notes []*models.Note) error {
 	return nil
 }
 
-func (c *Cache) GetNotesByIDs(ctx context.Context, noteIDs []uint, db *gorm.DB) ([]*models.Note, error) {
+func (c *Cache) GetNotesByIDs(ctx context.Context, noteIDs []datatypes.UUID, db *gorm.DB) ([]*models.Note, error) {
 	if len(noteIDs) == 0 {
 		return []*models.Note{}, nil
 	}
 
 	keys := make([]string, len(noteIDs))
 	for i, id := range noteIDs {
-		keys[i] = FormatKey(KeyNote, strconv.Itoa(int(id)))
+		keys[i] = FormatKey(KeyNote, id)
 	}
 
 	results, err := c.redis.MGet(ctx, keys...).Result()
@@ -70,7 +70,7 @@ func (c *Cache) GetNotesByIDs(ctx context.Context, noteIDs []uint, db *gorm.DB) 
 	}
 
 	notes := make([]*models.Note, 0, len(noteIDs))
-	missingIDs := make([]uint, 0)
+	missingIDs := make([]datatypes.UUID, 0)
 
 	for i, result := range results {
 		if result == nil {
@@ -104,10 +104,10 @@ func (c *Cache) GetNotesByIDs(ctx context.Context, noteIDs []uint, db *gorm.DB) 
 	return notes, nil
 }
 
-func (c *Cache) DeleteNote(ctx context.Context, noteID uint) error {
-	return c.redis.Del(ctx, FormatKey(KeyNote, strconv.Itoa(int(noteID)))).Err()
+func (c *Cache) DeleteNote(ctx context.Context, noteID datatypes.UUID) error {
+	return c.redis.Del(ctx, FormatKey(KeyNote, noteID)).Err()
 }
 
-func (c *Cache) SetExpirationNote(ctx context.Context, noteID uint) error {
-	return c.redis.Expire(ctx, FormatKey(KeyNote, strconv.Itoa(int(noteID))), TTLNote).Err()
+func (c *Cache) SetExpirationNote(ctx context.Context, noteID datatypes.UUID) error {
+	return c.redis.Expire(ctx, FormatKey(KeyNote, noteID), TTLNote).Err()
 }

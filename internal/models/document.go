@@ -6,13 +6,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/qdrant/go-client/qdrant"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
@@ -65,50 +65,43 @@ var SupportedFileTypes = map[string]bool{
 }
 
 type BaseDocument struct {
-	Type         DocumentType `gorm:"not null;index" validate:"required,oneof=support submission"`
-	FileName     string       `gorm:"not null" validate:"required,min=3,max=150"`
-	FilePath     string       // relative to app data directory
-	FileSize     int64        `gorm:"not null" validate:"required,min=1"` // in bytes
-	StorageKey   string       // Only for remote storage
-	Version      int          `gorm:"default:1" validate:"min=1"`
-	ParentID     uint         `gorm:"index;default:null"`              // For shared assignment tracking
-	ParentDocID  *uint        `gorm:"index;default:null"`              // For version history
-	IsOriginal   bool         `gorm:"default:true" validate:"boolean"` // For shared assignment tracking
-	HasLocalFile bool         `gorm:"default:false" validate:"boolean"`
+	Type         DocumentType    `gorm:"not null;index" validate:"required,oneof=support submission"`
+	FileName     string          `gorm:"not null" validate:"required,min=3,max=150"`
+	FilePath     string          // relative to app data directory
+	FileSize     int64           `gorm:"not null" validate:"required,min=1"` // in bytes
+	StorageKey   *string         `gorm:"unique;default:null"`                // Only for remote storage
+	Version      int             `gorm:"default:1" validate:"min=1"`
+	ParentDocID  *datatypes.UUID `gorm:"index;default:null"`              // For version history
+	IsOriginal   bool            `gorm:"default:true" validate:"boolean"` // For shared assignment tracking
+	HasLocalFile bool            `gorm:"default:false" validate:"boolean"`
 
-	AssignmentID uint `gorm:"not null;index" validate:"required,min=1"`
+	AssignmentID datatypes.UUID `gorm:"not null;index" validate:"required,min=1"`
 }
 
 // Document represents a file attached to an assignment
 type Document struct {
-	gorm.Model
+	Base
 	BaseDocument
 
-	StorageKey string `gorm:"unique"`
-	UserID     uint   `gorm:"not null;index" validate:"required,min=1"`
+	UserID datatypes.UUID `gorm:"not null;index" validate:"required"`
 
 	// Relationships
 	User       *User       `gorm:"foreignKey:UserID;references:ID" validate:"-"`
 	Assignment *Assignment `gorm:"foreignKey:AssignmentID;references:ID" validate:"-"`
 	Parent     *Document   `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
-	ParentDoc  *Document   `gorm:"foreignKey:ParentDocID;references:ID" validate:"-"`
-	Versions   []Document  `gorm:"foreignKey:ParentDocID;references:ID" validate:"-"`
+	Versions   []Document  `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
 }
 
 // LocalDocument represents a document in the local database
 type LocalDocument struct {
-	gorm.Model
+	Base
 	BaseDocument
-
-	RemoteID           uint    `gorm:"unique;default:null" validate:"omitempty,min=1"`
-	RemoteAssignmentID uint    `gorm:"default:null" validate:"omitempty,min=1"`
-	UploadID           *string `gorm:"unique;default:null" validate:"omitempty,min=1"`
+	SyncedAt *time.Time `gorm:"default:null"`
 
 	// Local relationships
 	Assignment LocalAssignment `gorm:"foreignKey:AssignmentID;references:ID" validate:"-"`
 	Parent     *LocalDocument  `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
-	ParentDoc  *LocalDocument  `gorm:"foreignKey:ParentDocID;references:ID" validate:"-"`
-	Versions   []LocalDocument `gorm:"foreignKey:ParentDocID;references:ID" validate:"-"`
+	Versions   []LocalDocument `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
 }
 
 // Hooks
@@ -117,7 +110,7 @@ func (d *Document) BeforeDelete(tx *gorm.DB) error {
 
 	if d.HasLocalFile {
 		// Delete the document on cloud
-		if err := cloudstorage.DeleteFile(d.StorageKey); err != nil {
+		if err := cloudstorage.DeleteFile(*d.StorageKey); err != nil {
 			if errors.HasCode(err, errors.StorageFileNotFound) || errors.HasCode(err, errors.AuthForbidden) {
 				return errors.Inherit(err, errors.StorageDeleteFailed)
 			}
@@ -142,44 +135,20 @@ func (d *Document) BeforeDelete(tx *gorm.DB) error {
 
 // START: Conversion Functions
 
-func (d *BaseDocument) ToMap() map[string]string {
-	return map[string]string{
-		"type":           string(d.Type),
-		"file_name":      d.FileName,
-		"file_path":      d.FilePath,
-		"file_size":      strconv.FormatInt(d.FileSize, 10),
-		"storage_key":    d.StorageKey,
-		"version":        strconv.Itoa(d.Version),
-		"parent_id":      strconv.Itoa(int(d.ParentID)),
-		"parent_doc_id":  strconv.Itoa(int(*d.ParentDocID)),
-		"is_original":    strconv.FormatBool(d.IsOriginal),
-		"has_local_file": strconv.FormatBool(d.HasLocalFile),
-		"assignment_id":  strconv.Itoa(int(d.AssignmentID)),
-	}
-}
-
 func (d *Document) ToLocal() *LocalDocument {
-	if d.ID == 0 {
-		return &LocalDocument{
-			BaseDocument:       d.BaseDocument,
-			RemoteAssignmentID: d.AssignmentID,
-		}
+
+	localDocument := &LocalDocument{
+		BaseDocument: d.BaseDocument,
 	}
-	return &LocalDocument{
-		BaseDocument:       d.BaseDocument,
-		RemoteID:           d.ID,
-		RemoteAssignmentID: d.AssignmentID,
-	}
+	return localDocument
 }
 
 // ToRemoteDocument converts local document to remote document format
-func (ld *LocalDocument) ToRemote() *Document {
+func (ld *LocalDocument) ToRemote(userID datatypes.UUID) *Document {
 	baseDocument := ld.BaseDocument
-	baseDocument.AssignmentID = ld.RemoteAssignmentID
-
 	return &Document{
 		BaseDocument: baseDocument,
-		StorageKey:   ld.StorageKey,
+		UserID:       userID,
 	}
 }
 
@@ -195,8 +164,12 @@ func (bd *BaseDocument) Validate() error {
 	bd.FilePath = strings.TrimRight(bd.FilePath, " ")
 	bd.FilePath = strings.TrimLeft(bd.FilePath, " ")
 
-	bd.StorageKey = strings.TrimRight(bd.StorageKey, " ")
-	bd.StorageKey = strings.TrimLeft(bd.StorageKey, " ")
+	if bd.StorageKey != nil {
+		storageKey := *bd.StorageKey
+		storageKey = strings.TrimRight(storageKey, " ")
+		storageKey = strings.TrimLeft(storageKey, " ")
+		bd.StorageKey = &storageKey
+	}
 
 	if err := ValidateFileType(bd.FileName); err != nil {
 		return errors.Wrap(err, errors.ValidationInvalid, "Unsupported file type")
@@ -344,28 +317,21 @@ func ValidateLocalFileSize(doc *LocalDocument, db *gorm.DB) error {
 
 // DocumentStorageInfo holds storage statistics
 type DocumentStorage struct {
-	UserID           uint      `gorm:"primaryKey"`
-	TotalSize        int64     `gorm:"default:0"` // Total bytes used by user
-	DocumentCount    int       `gorm:"default:0"`
-	LastCalculatedAt time.Time `gorm:"default:CURRENT_TIMESTAMP"`
+	UserID           datatypes.UUID `gorm:"primaryKey"`
+	TotalSize        int64          `gorm:"default:0"` // Total bytes used by user
+	DocumentCount    int            `gorm:"default:0"`
+	LastCalculatedAt time.Time      `gorm:"default:CURRENT_TIMESTAMP"`
 
-	User User `gorm:"foreignKey:UserID;references:ID"`
+	User *User `gorm:"foreignKey:UserID;references:ID"`
 }
 
 type LocalAssignmentStorage struct {
-	AssignmentID     uint
+	AssignmentID     datatypes.UUID
 	TotalCount       int
 	DocumentCount    int
 	TotalSize        int64
 	Size             int64
 	LastCalculatedAt time.Time
-}
-
-type TempFileRag struct {
-	FilePath     string    `json:"file_path"`
-	FileName     string    `json:"file_name"`
-	AssignmentID uint      `json:"assignment_id"`
-	CreatedAt    time.Time `json:"created_at"`
 }
 
 // Storage limits (in bytes)
@@ -383,7 +349,7 @@ func (d *Document) AfterDelete(tx *gorm.DB) error {
 	return nil
 }
 
-func GetDocument(docID uint, db *gorm.DB) (*Document, error) {
+func GetDocument(docID datatypes.UUID, db *gorm.DB) (*Document, error) {
 
 	var doc Document
 	if err := db.Where("id = ?", docID).First(&doc).Error; err != nil {
@@ -391,7 +357,7 @@ func GetDocument(docID uint, db *gorm.DB) (*Document, error) {
 	}
 	return &doc, nil
 }
-func GetLDocument(docID uint, db *gorm.DB) (*LocalDocument, error) {
+func GetLDocument(docID datatypes.UUID, db *gorm.DB) (*LocalDocument, error) {
 
 	var doc LocalDocument
 	if err := db.Where("id = ?", docID).First(&doc).Error; err != nil {
@@ -399,10 +365,6 @@ func GetLDocument(docID uint, db *gorm.DB) (*LocalDocument, error) {
 	}
 	return &doc, nil
 }
-
-// Check Operations
-
-func (d *Document) IsRoot() bool { return d.ParentID == 0 }
 
 // GetAppDataPath returns the application data directory for file storage
 func GetAppDataPath() (string, error) {
@@ -561,7 +523,7 @@ func GetLatestVersions(assignmentID, userID uint, db *gorm.DB) ([]Document, erro
 }
 
 // GetUserStorageInfo returns storage statistics for a user
-func GetUserStorageInfo(userID uint, db *gorm.DB) (*DocumentStorage, error) {
+func GetUserStorageInfo(userID datatypes.UUID, db *gorm.DB) (*DocumentStorage, error) {
 	var storageInfo DocumentStorage
 	err := db.Where("user_id = ?", userID).First(&storageInfo).Error
 	if err != nil {
@@ -599,7 +561,7 @@ func GetLocalStorageInfo(db *gorm.DB) (*DocumentStorage, error) {
 	}, nil
 }
 
-func GetLocalAssignmentStorage(assignmentID uint, db *gorm.DB) (*LocalAssignmentStorage, error) {
+func GetLocalAssignmentStorage(assignmentID datatypes.UUID, db *gorm.DB) (*LocalAssignmentStorage, error) {
 	var size int64
 	var documentCount int64
 
@@ -628,7 +590,7 @@ func GetLocalAssignmentStorage(assignmentID uint, db *gorm.DB) (*LocalAssignment
 }
 
 // UpdateStorageInfo recalculates and updates user storage statistics
-func UpdateStorageInfo(userID uint, db *gorm.DB) error {
+func UpdateStorageInfo(userID datatypes.UUID, db *gorm.DB) error {
 	var totalSize int64
 	var documentCount int64
 
@@ -665,7 +627,7 @@ func DeleteDocumentVectors(doc *Document, qdrantClient *qdrant.Client) error {
 		Points: qdrant.NewPointsSelectorFilter(
 			&qdrant.Filter{
 				Must: []*qdrant.Condition{
-					qdrant.NewMatchInt("document_id", int64(doc.ID)),
+					qdrant.NewMatch("document_id", doc.ID.String()),
 				},
 			},
 		),

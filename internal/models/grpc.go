@@ -16,8 +16,8 @@ const (
 )
 
 type Message struct {
-	SenderID   uint        `json:"sender_id"`
-	ReceiverID uint        `json:"receiver_id"`
+	SenderID   string      `json:"sender_id"`
+	ReceiverID string      `json:"receiver_id"`
 	Title      string      `json:"title"`
 	Message    string      `json:"message"`
 	Data       []byte      `json:"data"`

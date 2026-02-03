@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	Errors "errors"
 	"fmt"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
@@ -138,18 +138,17 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 	}
 	userID := currentUser.ID
 
-	var input models.Note
+	var newNote models.Note
 	// Step 3: Define and parse note creation request structure
-	if err := c.BodyParser(&input); err != nil {
+	if err := c.BodyParser(&newNote); err != nil {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
-	input.UserID = userID
 
-	if err := input.Validate(); err != nil {
+	if err := newNote.Validate(); err != nil {
 		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
 	}
 
-	result := db.Preload("Course").Create(&input).First(&input)
+	result := db.Preload("Course").Create(&newNote).First(&newNote)
 	if result.Error != nil {
 		if Errors.Is(result.Error, gorm.ErrDuplicatedKey) {
 			return errors.WrapServer(result.Error, errors.DBConstraintViolation, "Note already exists", fiber.StatusConflict)
@@ -159,9 +158,9 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 
 	// Step 14: Send SSE notifications to linked users via gRPC (if available)
 	go func() {
-		clusterRootID := input.ClusterRoot()
+		clusterRootID := newNote.ClusterRoot()
 
-		if GrpcClient != nil && input.Course.IsInCluster(db) && !input.IsCopy() {
+		if GrpcClient != nil && newNote.Course.IsInCluster(db) && !newNote.IsCopy() {
 			users_course, err := CacheService.GetClusterUsers(context.Background(), clusterRootID, db)
 
 			if err != nil {
@@ -175,10 +174,10 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 				}
 				_, err := (*GrpcClient).SendMessage(context.Background(),
 					&messages.Message{
-						ReceiverId: uint32(sendeeID),
-						SenderId:   uint32(userID),
-						Title:      input.Title,
-						Message:    fmt.Sprintf("%s shared a new note on %s", currentUser.Username, input.CourseCode),
+						ReceiverId: sendeeID.String(),
+						SenderId:   userID.String(),
+						Title:      newNote.Title,
+						Message:    fmt.Sprintf("%s shared a new note on %s", currentUser.Username, newNote.Course.Code),
 						Data:       []byte(""),
 						Type:       string(models.MessageNoContent),
 					},
@@ -189,14 +188,14 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 
 			}
 
-			CacheService.AddCourseNote(context.Background(), clusterRootID, input.ID)
-			CacheService.SetNotes(context.Background(), []*models.Note{&input})
+			CacheService.AddCourseNote(context.Background(), clusterRootID, newNote.ID)
+			CacheService.SetNotes(context.Background(), []*models.Note{&newNote})
 		}
 	}()
 
 	// Step 12: Send successful response with created note data
 	return c.JSON(fiber.Map{
-		"remote_id": input.ID,
+		"remote_id": newNote.ID,
 	})
 }
 
@@ -210,13 +209,11 @@ func CreateNoteStreamHandler(c *fiber.Ctx) error {
 
 	var streamRequiredFields = &models.LocalNote{
 		BaseNote: models.BaseNote{
-			Title:      input.Title,
-			Subject:    input.Subject,
-			CourseCode: input.CourseCode,
-			CourseID:   input.CourseID,
-			Content:    "",
+			Title:    input.Title,
+			Subject:  input.Subject,
+			CourseID: input.CourseID,
+			Content:  "",
 		},
-		RemoteCourseID: input.RemoteCourseID,
 	}
 	if err := streamRequiredFields.Validate(); err != nil {
 		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
@@ -234,7 +231,7 @@ func CreateNoteStreamHandler(c *fiber.Ctx) error {
 	geminiRequest := &gemini.GeminiRequest{
 		Title:      input.Title,
 		Subject:    input.Subject,
-		CourseName: input.CourseCode,
+		CourseName: input.Course.Code,
 	}
 
 	var geminiErr error
@@ -323,15 +320,15 @@ func UpdateNoteHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
-	var int_id int
+	var noteID datatypes.UUID
 	idStr := c.Params("id")
 	if idStr == "" {
 		return errors.WrapServer(fmt.Errorf("note ID required"), errors.ReqParamMissing, "Note ID required", fiber.StatusBadRequest)
 	}
-	if int_id, err = strconv.Atoi(idStr); err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting note ID to int", fiber.StatusBadRequest)
+	err = noteID.Scan(idStr)
+	if err != nil {
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting note ID to UUID", fiber.StatusBadRequest)
 	}
-	noteID := uint(int_id)
 
 	// Step 3: Define and parse note update request structure
 	var updateData struct {
@@ -348,7 +345,7 @@ func UpdateNoteHandler(c *fiber.Ctx) error {
 	}
 
 	note := models.Note{
-		Model: gorm.Model{ID: noteID},
+		Base: models.Base{ID: noteID},
 	}
 	if err := db.Preload("Course").Model(&note).Where("id = ?", noteID).Update(updateData.Column, updateData.Value).First(&note).Error; err != nil {
 
@@ -377,20 +374,17 @@ func DeleteNoteHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
+	var noteID datatypes.UUID
 	idStr := c.Params("id")
 	if idStr == "" {
 		return errors.WrapServer(fmt.Errorf("note ID required"), errors.ReqParamMissing, "Note ID required", fiber.StatusBadRequest)
 	}
-	noteID, err := strconv.Atoi(idStr)
+	err = noteID.Scan(idStr)
 	if err != nil {
 		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting note ID to int", fiber.StatusBadRequest)
 	}
 
-	note, err := models.GetNote(uint(noteID), db)
-	if err != nil {
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting note from database", fiber.StatusInternalServerError)
-	}
-
+	note := models.Note{Base: models.Base{ID: noteID}}
 	// Step 2: Delete note from database
 	if err := db.Delete(&note).Error; err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error deleting note from database", fiber.StatusInternalServerError)
@@ -399,8 +393,8 @@ func DeleteNoteHandler(c *fiber.Ctx) error {
 	go func() {
 		if note.Course.IsInCluster(db) && !note.IsCopy() {
 			clusterRootID := note.ClusterRoot()
-			CacheService.RemoveCourseNote(context.Background(), clusterRootID, uint(noteID))
-			CacheService.DeleteNote(context.Background(), uint(noteID))
+			CacheService.RemoveCourseNote(context.Background(), clusterRootID, noteID)
+			CacheService.DeleteNote(context.Background(), noteID)
 		}
 	}()
 

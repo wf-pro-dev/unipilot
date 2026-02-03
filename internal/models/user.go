@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
@@ -15,7 +16,7 @@ import (
 
 // User represents the application user
 type User struct {
-	gorm.Model
+	Base
 	Username string `gorm:"unique;not null" validate:"required,min=3,max=30"`
 	Email    string `gorm:"unique;not null" validate:"required,email"`
 
@@ -71,7 +72,7 @@ func (u *User) ToMap() map[string]interface{} {
 
 // START; GET FUNCTIONS
 
-func GetUser(id uint, db *gorm.DB) (*User, error) {
+func GetUser(id datatypes.UUID, db *gorm.DB) (*User, error) {
 	var user User
 	err := db.Where("id = ?", id).First(&user).Error
 	if err != nil {
@@ -90,11 +91,11 @@ func GetUsers(db *gorm.DB) ([]User, error) {
 }
 
 type UserCourseCodes struct {
-	UserID uint   `gorm:"column:user_id"`
-	Code   string `gorm:"column:code"`
+	UserID datatypes.UUID `gorm:"column:user_id"`
+	Code   string         `gorm:"column:code"`
 }
 
-func GetUsersCourseCodes(userIDs []uint, db *gorm.DB) ([]UserCourseCodes, error) {
+func GetUsersCourseCodes(userIDs []datatypes.UUID, db *gorm.DB) ([]UserCourseCodes, error) {
 	var courseCodes []UserCourseCodes
 	if err := db.Model(&Course{}).
 		Select("user_id, code").
@@ -105,8 +106,8 @@ func GetUsersCourseCodes(userIDs []uint, db *gorm.DB) ([]UserCourseCodes, error)
 	return courseCodes, nil
 }
 
-func GetCourseUsers(courseID uint, db *gorm.DB) ([]uint, error) {
-	var userIDs []uint
+func GetCourseUsers(courseID datatypes.UUID, db *gorm.DB) ([]datatypes.UUID, error) {
+	var userIDs []datatypes.UUID
 
 	var parentCourse Course
 	if err := db.Select("user_id").First(&parentCourse, courseID).Error; err != nil {
@@ -125,8 +126,8 @@ func GetCourseUsers(courseID uint, db *gorm.DB) ([]uint, error) {
 	return userIDs, nil
 }
 
-func GetUserClusterIDs(userID uint, db *gorm.DB) ([]uint, error) {
-	var clusterIDs []uint
+func GetUserClusterIDs(userID datatypes.UUID, db *gorm.DB) ([]datatypes.UUID, error) {
+	var clusterIDs []datatypes.UUID
 
 	// The CourseID in the invitation is ALWAYS the Root IDs
 	err := db.Model(&CourseInvitation{}).
@@ -218,8 +219,8 @@ func isValidPassword(password string) error {
 // Follow represents a follow relationship between users
 type Follow struct {
 	gorm.Model
-	FollowerID uint `gorm:"not null;index"` // User who is following
-	FollowedID uint `gorm:"not null;index"` // User who is being followed
+	FollowerID datatypes.UUID `gorm:"not null;index"` // User who is following
+	FollowedID datatypes.UUID `gorm:"not null;index"` // User who is being followed
 
 	// Foreign key relationships
 	Follower User `gorm:"foreignKey:FollowerID;references:ID;constraint:OnDelete:CASCADE"`
@@ -242,7 +243,7 @@ func (f *Follow) ToMap() map[string]interface{} {
 }
 
 // Check if user A is following user B
-func IsFollowing(followerID, followedID uint, db *gorm.DB) (bool, error) {
+func IsFollowing(followerID, followedID datatypes.UUID, db *gorm.DB) (bool, error) {
 	var count int64
 	err := db.Model(&Follow{}).Where("follower_id = ? AND followed_id = ?", followerID, followedID).Count(&count).Error
 	if err != nil {
@@ -252,7 +253,7 @@ func IsFollowing(followerID, followedID uint, db *gorm.DB) (bool, error) {
 }
 
 // Get followers count for a user
-func GetFollowersCount(userID uint, db *gorm.DB) (int, error) {
+func GetFollowersCount(userID datatypes.UUID, db *gorm.DB) (int, error) {
 	var count int64
 	err := db.Model(&Follow{}).Where("followed_id = ?", userID).Count(&count).Error
 	if err != nil {
@@ -262,7 +263,7 @@ func GetFollowersCount(userID uint, db *gorm.DB) (int, error) {
 }
 
 // Get following count for a user
-func GetFollowingCount(userID uint, db *gorm.DB) (int, error) {
+func GetFollowingCount(userID datatypes.UUID, db *gorm.DB) (int, error) {
 	var count int64
 	err := db.Model(&Follow{}).Where("follower_id = ?", userID).Count(&count).Error
 	if err != nil {
@@ -272,7 +273,7 @@ func GetFollowingCount(userID uint, db *gorm.DB) (int, error) {
 }
 
 // Create a follow relationship
-func CreateFollow(followerID, followedID uint, db *gorm.DB) error {
+func CreateFollow(followerID, followedID datatypes.UUID, db *gorm.DB) error {
 	// Check if already following
 	isFollowing, err := IsFollowing(followerID, followedID, db)
 	if err != nil {
@@ -294,7 +295,7 @@ func CreateFollow(followerID, followedID uint, db *gorm.DB) error {
 }
 
 // Remove a follow relationship
-func RemoveFollow(followerID, followedID uint, db *gorm.DB) error {
+func RemoveFollow(followerID, followedID datatypes.UUID, db *gorm.DB) error {
 	err := db.Where("follower_id = ? AND followed_id = ?", followerID, followedID).Delete(&Follow{}).Error
 	if err != nil {
 		return errors.HandleDBWriteError(err)
@@ -303,7 +304,7 @@ func RemoveFollow(followerID, followedID uint, db *gorm.DB) error {
 }
 
 // Get followers list for a user
-func GetFollowers(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
+func GetFollowers(userID datatypes.UUID, limit, offset int, db *gorm.DB) ([]User, error) {
 	var followers []User
 	err := db.Joins("JOIN follows ON users.id = follows.follower_id").
 		Where("follows.followed_id = ? AND follows.deleted_at is NULL", userID).
@@ -318,7 +319,7 @@ func GetFollowers(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
 }
 
 // Get following list for a user
-func GetFollowing(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
+func GetFollowing(userID datatypes.UUID, limit, offset int, db *gorm.DB) ([]User, error) {
 	var following []User
 	err := db.Joins("JOIN follows ON users.id = follows.followed_id").
 		Where("follows.follower_id = ? AND follows.deleted_at is NULL", userID).
@@ -332,7 +333,7 @@ func GetFollowing(userID uint, limit, offset int, db *gorm.DB) ([]User, error) {
 	return following, nil
 }
 
-func GetUserCourseInvitations(userID uint, db *gorm.DB) ([]CourseInvitation, error) {
+func GetUserCourseInvitations(userID datatypes.UUID, db *gorm.DB) ([]CourseInvitation, error) {
 	var invitations []CourseInvitation
 	err := db.Preload("Course").Where("receiver_id = ? OR owner_id = ?", userID, userID).Find(&invitations).Error
 	if err != nil {

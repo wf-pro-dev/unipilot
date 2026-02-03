@@ -3,12 +3,12 @@ package cache
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
 
 	"github.com/redis/go-redis/v9"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -25,17 +25,17 @@ func (c *Cache) GetUsers(ctx context.Context) (map[string]string, error) {
 }
 
 // SetUsers stores a user in cache (hash structure).
-func (c *Cache) SetUsers(ctx context.Context, userID uint, user *models.User) error {
+func (c *Cache) SetUsers(ctx context.Context, userID datatypes.UUID, user *models.User) error {
 	userJSON, err := json.Marshal(user)
 	if err != nil {
 		return errors.Wrap(err, errors.ProcJSONMarshalFailed, "Error marshalling user to json")
 	}
-	return c.redis.HSet(ctx, KeyUsers, strconv.Itoa(int(userID)), userJSON).Err()
+	return c.redis.HSet(ctx, KeyUsers, userID.String(), userJSON).Err()
 }
 
 // DeleteUsers removes a user from cache.
-func (c *Cache) DeleteUsers(ctx context.Context, userID uint) error {
-	return c.redis.HDel(ctx, KeyUsers, strconv.Itoa(int(userID))).Err()
+func (c *Cache) DeleteUsers(ctx context.Context, userID datatypes.UUID) error {
+	return c.redis.HDel(ctx, KeyUsers, userID.String()).Err()
 }
 
 // SetExpirationUsers sets TTL for the entire users hash.
@@ -43,9 +43,9 @@ func (c *Cache) SetExpirationUsers(ctx context.Context) error {
 	return c.redis.Expire(ctx, KeyUsers, TTLUsers).Err()
 }
 
-func (c *Cache) GetUserClusterIDs(ctx context.Context, userID uint, db *gorm.DB) ([]uint, error) {
+func (c *Cache) GetUserClusterIDs(ctx context.Context, userID datatypes.UUID, db *gorm.DB) ([]datatypes.UUID, error) {
 
-	cacheKey := FormatKey(KeyUserClusters, strconv.Itoa(int(userID)))
+	cacheKey := FormatKey(KeyUserClusters, userID)
 
 	// 1. Try to get from Redis
 	result, err := c.redis.SMembers(ctx, cacheKey).Result()
@@ -55,7 +55,7 @@ func (c *Cache) GetUserClusterIDs(ctx context.Context, userID uint, db *gorm.DB)
 
 	// 2. If Cache Hit: Parse and return
 	if len(result) > 0 {
-		return parseUintSlice(result), nil
+		return parseUUIDSlice(result), nil
 	}
 
 	// 3. If Cache Miss: Fallback to Database
@@ -80,22 +80,22 @@ func (c *Cache) GetUserClusterIDs(ctx context.Context, userID uint, db *gorm.DB)
 	return clusterIDs, nil
 }
 
-func (c *Cache) AddUserCluster(ctx context.Context, userID uint, clusterID uint) error {
-	cacheKey := FormatKey(KeyUserClusters, strconv.Itoa(int(userID)))
+func (c *Cache) AddUserCluster(ctx context.Context, userID datatypes.UUID, clusterID datatypes.UUID) error {
+	cacheKey := FormatKey(KeyUserClusters, userID)
 	c.redis.SAdd(ctx, cacheKey, clusterID).Err()
 	return c.SetExpirationUserClusters(ctx, userID)
 }
 
-func (c *Cache) RemoveUserCluster(ctx context.Context, userID uint, clusterID uint) error {
-	cacheKey := FormatKey(KeyUserClusters, strconv.Itoa(int(userID)))
+func (c *Cache) RemoveUserCluster(ctx context.Context, userID datatypes.UUID, clusterID datatypes.UUID) error {
+	cacheKey := FormatKey(KeyUserClusters, userID)
 	c.redis.SRem(ctx, cacheKey, clusterID).Err()
 	return c.SetExpirationUserClusters(ctx, userID)
 }
 
-func (c *Cache) DeleteUserClusters(ctx context.Context, userID uint) error {
-	return c.redis.Del(ctx, FormatKey(KeyUserClusters, strconv.Itoa(int(userID)))).Err()
+func (c *Cache) DeleteUserClusters(ctx context.Context, userID datatypes.UUID) error {
+	return c.redis.Del(ctx, FormatKey(KeyUserClusters, userID)).Err()
 }
 
-func (c *Cache) SetExpirationUserClusters(ctx context.Context, userID uint) error {
-	return c.redis.Expire(ctx, FormatKey(KeyUserClusters, strconv.Itoa(int(userID))), TTLUserCoursesLinked).Err()
+func (c *Cache) SetExpirationUserClusters(ctx context.Context, userID datatypes.UUID) error {
+	return c.redis.Expire(ctx, FormatKey(KeyUserClusters, userID), TTLUserCoursesLinked).Err()
 }

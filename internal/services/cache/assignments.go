@@ -3,11 +3,11 @@ package cache
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -18,7 +18,7 @@ func (c *Cache) SetAssignments(ctx context.Context, assignments []*models.Assign
 
 	pipe := c.redis.Pipeline()
 	for _, assignment := range assignments {
-		cacheKey := FormatKey(KeyAssignment, strconv.Itoa(int(assignment.ID)))
+		cacheKey := FormatKey(KeyAssignment, assignment.ID)
 		assignmentJSON, err := json.Marshal(assignment)
 		if err != nil {
 			continue
@@ -32,7 +32,7 @@ func (c *Cache) SetAssignments(ctx context.Context, assignments []*models.Assign
 	return nil
 }
 
-func (c *Cache) GetAssignmentsByIDs(ctx context.Context, assignmentIDs []uint, db *gorm.DB) ([]*models.Assignment, error) {
+func (c *Cache) GetAssignmentsByIDs(ctx context.Context, assignmentIDs []datatypes.UUID, db *gorm.DB) ([]*models.Assignment, error) {
 
 	if len(assignmentIDs) == 0 {
 		return []*models.Assignment{}, nil
@@ -41,7 +41,7 @@ func (c *Cache) GetAssignmentsByIDs(ctx context.Context, assignmentIDs []uint, d
 	// Build keys: ["course:1", "course:5", "course:10"]
 	keys := make([]string, len(assignmentIDs))
 	for i, id := range assignmentIDs {
-		keys[i] = FormatKey(KeyAssignment, strconv.Itoa(int(id)))
+		keys[i] = FormatKey(KeyAssignment, id)
 	}
 
 	// Fetch all courses in a single round trip
@@ -51,7 +51,7 @@ func (c *Cache) GetAssignmentsByIDs(ctx context.Context, assignmentIDs []uint, d
 	}
 
 	assignments := make([]*models.Assignment, 0, len(assignmentIDs))
-	missingIDs := make([]uint, 0)
+	missingIDs := make([]datatypes.UUID, 0)
 
 	// Parse results
 	for i, result := range results {
@@ -84,10 +84,10 @@ func (c *Cache) GetAssignmentsByIDs(ctx context.Context, assignmentIDs []uint, d
 	return assignments, nil
 
 }
-func (c *Cache) DeleteAssignment(ctx context.Context, assignmentID uint) error {
-	return c.redis.Del(ctx, FormatKey(KeyAssignment, strconv.Itoa(int(assignmentID)))).Err()
+func (c *Cache) DeleteAssignment(ctx context.Context, assignmentID datatypes.UUID) error {
+	return c.redis.Del(ctx, FormatKey(KeyAssignment, assignmentID)).Err()
 }
 
-func (c *Cache) SetExpirationAssignment(ctx context.Context, assignmentID uint) error {
-	return c.redis.Expire(ctx, FormatKey(KeyAssignment, strconv.Itoa(int(assignmentID))), TTLAssignment).Err()
+func (c *Cache) SetExpirationAssignment(ctx context.Context, assignmentID datatypes.UUID) error {
+	return c.redis.Expire(ctx, FormatKey(KeyAssignment, assignmentID), TTLAssignment).Err()
 }

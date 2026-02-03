@@ -11,30 +11,31 @@ import (
 	"unipilot/internal/errors"
 
 	"github.com/go-playground/validator/v10"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 type BaseCourse struct {
-	Code            string    `validate:"required,min=1,max=12"`
-	Name            string    `gorm:"not null" validate:"required,min=3,max=100"`
-	Color           string    `gorm:"default:bg-blue-500" validate:"required"`
-	Location        string    `validate:"required,min=3,max=100"`
-	StartDate       time.Time `validate:"required"`
-	EndDate         time.Time `validate:"required,gtfield=StartDate"`
-	Schedule        string    `validate:"required,min=3,max=100"`
-	Credits         int       `validate:"required,min=1,max=10"`
-	Semester        string    `validate:"required,min=1,max=20"`
-	Instructor      string    `validate:"required,min=3,max=100"`
-	InstructorEmail string    `validate:"required,email"`
-	ParentID        uint      `gorm:"default:null"`
+	Code            string          `validate:"required,min=1,max=12"`
+	Name            string          `gorm:"not null" validate:"required,min=3,max=100"`
+	Color           string          `gorm:"default:bg-blue-500" validate:"required"`
+	Location        string          `validate:"required,min=3,max=100"`
+	StartDate       time.Time       `validate:"required"`
+	EndDate         time.Time       `validate:"required,gtfield=StartDate"`
+	Schedule        string          `validate:"required,min=3,max=100"`
+	Credits         int             `validate:"required,min=1,max=10"`
+	Semester        string          `validate:"required,min=1,max=20"`
+	Instructor      string          `validate:"required,min=3,max=100"`
+	InstructorEmail string          `validate:"required,email"`
+	ClusterID       *datatypes.UUID `gorm:"default:null"`
 }
 
 // Course represents a school course
 type Course struct {
-	gorm.Model
+	Base
 	BaseCourse
 
-	UserID uint `gorm:"not null;index" validate:"required"`
+	UserID datatypes.UUID `gorm:"not null;index" validate:"required"`
 	// Common fields
 
 	// Relationships
@@ -49,55 +50,26 @@ type Course struct {
 // LocalCourse represents a course in the local database
 // This is for local operations and caching remote metadata
 type LocalCourse struct {
-	gorm.Model
+	Base
 	BaseCourse
-
-	RemoteID uint `gorm:"unique;default:null"`
+	SyncedAt *time.Time `gorm:"default:null"`
 
 	Assignments []*LocalAssignment `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
 	Notes       []*LocalNote       `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
 }
 
-func (c *BaseCourse) ToMap() map[string]string {
-	return map[string]string{
-		"name":             c.Name,
-		"code":             c.Code,
-		"color":            c.Color,
-		"location":         c.Location,
-		"start_date":       c.StartDate.Format(time.DateOnly),
-		"end_date":         c.EndDate.Format(time.DateOnly),
-		"schedule":         c.Schedule,
-		"semester":         c.Semester,
-		"instructor":       c.Instructor,
-		"instructor_email": c.InstructorEmail,
-		"credits":          strconv.Itoa(int(c.Credits)),
-	}
-}
-
-func (c *Course) ToMap() map[string]string {
-	cMap := c.BaseCourse.ToMap()
-	cMap["user_id"] = strconv.Itoa(int(c.UserID))
-	return cMap
-}
-
-func (c *LocalCourse) ToMap() map[string]string {
-	cMap := c.BaseCourse.ToMap()
-	cMap["remote_id"] = strconv.Itoa(int(c.RemoteID))
-	return cMap
-}
-
 func (c *Course) ToLocal() *LocalCourse {
 	localCourse := &LocalCourse{
 		BaseCourse: c.BaseCourse,
-		RemoteID:   c.ID,
 	}
 	return localCourse
 }
 
-func (lc *LocalCourse) ToRemote() *Course {
+func (lc *LocalCourse) ToRemote(userID datatypes.UUID) *Course {
 
 	c := &Course{
 		BaseCourse: lc.BaseCourse,
+		UserID:     userID,
 	}
 
 	return c
@@ -239,7 +211,7 @@ func isValidCode(code string) error {
 
 // GET Operations
 
-func GetCourse(id uint, db *gorm.DB) (*Course, error) {
+func GetCourse(id datatypes.UUID, db *gorm.DB) (*Course, error) {
 	course := &Course{}
 	err := db.First(&course, id).Error
 	if err != nil {
@@ -248,7 +220,7 @@ func GetCourse(id uint, db *gorm.DB) (*Course, error) {
 	return course, nil
 }
 
-func GetLCourse(id uint, db *gorm.DB) (*LocalCourse, error) {
+func GetLCourse(id datatypes.UUID, db *gorm.DB) (*LocalCourse, error) {
 	course := &LocalCourse{}
 	err := db.First(&course, id).Error
 	if err != nil {
@@ -257,7 +229,7 @@ func GetLCourse(id uint, db *gorm.DB) (*LocalCourse, error) {
 	return course, nil
 }
 
-func GetCourses(userID uint, db *gorm.DB) ([]Course, error) {
+func GetCourses(userID datatypes.UUID, db *gorm.DB) ([]Course, error) {
 	var courses []Course
 	err := db.Where("user_id = ?", userID).Find(&courses).Error
 	if err != nil {
@@ -275,7 +247,7 @@ func GetLCourses(db *gorm.DB) ([]LocalCourse, error) {
 	return courses, nil
 }
 
-func GetCoursesByIDs(courseIDs []uint, db *gorm.DB) ([]*Course, error) {
+func GetCoursesByIDs(courseIDs []datatypes.UUID, db *gorm.DB) ([]*Course, error) {
 	var courses []*Course
 	err := db.Where(courseIDs).Find(&courses).Error
 	if err != nil {
@@ -284,7 +256,7 @@ func GetCoursesByIDs(courseIDs []uint, db *gorm.DB) ([]*Course, error) {
 	return courses, nil
 }
 
-func GetCoursesLinked(courseID uint, db *gorm.DB) ([]Course, error) {
+func GetCoursesLinked(courseID datatypes.UUID, db *gorm.DB) ([]Course, error) {
 	var courses []Course
 	err := db.Where("id = ? AND EXISTS (SELECT 1 FROM courses AS c WHERE c.parent_id = courses.id)", courseID).
 		Find(&courses).Error
@@ -294,8 +266,8 @@ func GetCoursesLinked(courseID uint, db *gorm.DB) ([]Course, error) {
 	return courses, err
 }
 
-func GetClusterCourses(rootID uint, db *gorm.DB) ([]uint, error) {
-	var courseIDs []uint
+func GetClusterCourses(rootID datatypes.UUID, db *gorm.DB) ([]datatypes.UUID, error) {
+	var courseIDs []datatypes.UUID
 
 	// Find the Root itself and all its Children
 	err := db.Model(&Course{}).
@@ -305,8 +277,8 @@ func GetClusterCourses(rootID uint, db *gorm.DB) ([]uint, error) {
 	return courseIDs, err
 }
 
-func GetClusterUserIDs(rootID uint, db *gorm.DB) ([]uint, error) {
-	var userIDs []uint
+func GetClusterUserIDs(rootID datatypes.UUID, db *gorm.DB) ([]datatypes.UUID, error) {
+	var userIDs []datatypes.UUID
 
 	err := db.Raw(`
         SELECT DISTINCT user_id FROM (
@@ -326,12 +298,12 @@ func GetClusterUserIDs(rootID uint, db *gorm.DB) ([]uint, error) {
 
 func (c *Course) IsInCluster(db *gorm.DB) bool {
 	// If the course is a parent, it is in a cluster
-	if c.ParentID != 0 {
+	if c.ClusterID != nil {
 		return true
 	}
-	// Check if the course is a parent of a cluster
+	// Check if the course is a cluster root
 	var courses []Course
-	err := db.Model(&Course{}).Where("parent_id = ?", c.ID).Find(&courses).Error
+	err := db.Model(&Course{}).Where("cluster_id = ?", c.ID).Find(&courses).Error
 	if err != nil {
 		return false
 	}
@@ -455,10 +427,10 @@ const (
 // Course Link Request
 type CourseInvitation struct {
 	gorm.Model
-	OwnerID    uint             `gorm:"not null;index" validate:"required,min=1"`
-	ReceiverID uint             `gorm:"not null;index;uniqueIndex:idx_invitations,where:deleted_at IS NULL" validate:"required,min=1"`
-	SenderID   uint             `gorm:"not null;index;uniqueIndex:idx_invitations,where:deleted_at IS NULL" validate:"required,min=1"`
-	CourseID   uint             `gorm:"not null;index;uniqueIndex:idx_invitations,where:deleted_at IS NULL" validate:"required,min=1"`
+	OwnerID    datatypes.UUID   `gorm:"not null;index" validate:"required,min=1"`
+	ReceiverID datatypes.UUID   `gorm:"not null;index;uniqueIndex:idx_invitations,where:deleted_at IS NULL" validate:"required,min=1"`
+	SenderID   datatypes.UUID   `gorm:"not null;index;uniqueIndex:idx_invitations,where:deleted_at IS NULL" validate:"required,min=1"`
+	CourseID   datatypes.UUID   `gorm:"not null;index;uniqueIndex:idx_invitations,where:deleted_at IS NULL" validate:"required,min=1"`
 	CourseCode string           `gorm:"not null" validate:"required,min=3,max=12"`
 	Status     InvitationStatus `gorm:"not null;default:pending" validate:"required,oneof=pending accepted"`
 
@@ -474,7 +446,7 @@ func (ci *CourseInvitation) BeforeCreate(tx *gorm.DB) error {
 		return err
 	}
 
-	if course.ParentID != 0 {
+	if course.ClusterID != nil {
 		return errors.NewAppError(errors.ValidationInvalid,
 			"CourseID must be a parent course, not a child", nil)
 	}
@@ -495,7 +467,7 @@ func (ci *CourseInvitation) Validate() error {
 	return nil
 }
 
-func GetCourseInvitation(id uint, db *gorm.DB) (*CourseInvitation, error) {
+func GetCourseInvitation(id datatypes.UUID, db *gorm.DB) (*CourseInvitation, error) {
 	invitation := &CourseInvitation{}
 	err := db.First(&invitation, id).Error
 	if err != nil {
@@ -504,7 +476,7 @@ func GetCourseInvitation(id uint, db *gorm.DB) (*CourseInvitation, error) {
 	return invitation, nil
 }
 
-func InvitationExists(ownerID, receiverID, courseID uint, db *gorm.DB) bool {
+func InvitationExists(ownerID, receiverID, courseID datatypes.UUID, db *gorm.DB) bool {
 	threshold := time.Now().Add(-48 * time.Hour)
 	var invitation CourseInvitation
 	err := db.Model(&CourseInvitation{}).

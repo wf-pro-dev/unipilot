@@ -9,6 +9,7 @@ import (
 	"unipilot/internal/services/fileops/progress"
 
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/datatypes"
 )
 
 // GetUploadProgressHandler returns the current progress of an upload
@@ -16,14 +17,14 @@ import (
 // GetUploadProgressHandler returns the current progress of an upload
 func GetUploadProgressHandler(c *fiber.Ctx) error {
 
-	uploadID := c.Params("upload_id")
-	if uploadID == "" {
-		return errors.WrapServer(
-			fmt.Errorf("upload_id parameter required"),
-			errors.ReqParamMissing,
-			"Upload ID required",
-			fiber.StatusBadRequest,
-		)
+	var progressID datatypes.UUID
+	idStr := c.Params("upload_id")
+	if idStr == "" {
+		return errors.WrapServer(fmt.Errorf("progress ID required"), errors.ReqParamMissing, "Progress ID required", fiber.StatusBadRequest)
+	}
+	err := progressID.Scan(idStr)
+	if err != nil {
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting progress ID to UUID", fiber.StatusBadRequest)
 	}
 
 	// Set SSE headers
@@ -34,7 +35,7 @@ func GetUploadProgressHandler(c *fiber.Ctx) error {
 	c.Set("X-Accel-Buffering", "no")
 
 	// Get progress from Redis
-	redisPubSub, err := CacheService.GetProgressChannel(c.UserContext(), uploadID)
+	redisPubSub, err := CacheService.GetProgressChannel(c.UserContext(), progressID)
 	if err != nil {
 		return errors.WrapServer(
 			err,
@@ -45,14 +46,14 @@ func GetUploadProgressHandler(c *fiber.Ctx) error {
 	}
 
 	initialProgress := &progress.TrackerSnapshot{
-		ID:         uploadID,
+		ID:         progressID.String(),
 		Status:     "stopped",
 		Current:    0,
 		Total:      0, // Unknown at this point
 		Error:      nil,
 		Percentage: 0,
 	}
-	CacheService.PublishProgress(c.UserContext(), uploadID, initialProgress)
+	CacheService.PublishProgress(c.UserContext(), progressID, initialProgress)
 
 	// Use c.Context() directly for Done() channel
 	ctx := c.Context()
@@ -87,7 +88,7 @@ func GetUploadProgressHandler(c *fiber.Ctx) error {
 			case <-timeout.C:
 				// Send timeout message after 5 minutes
 				timeoutProgress := &progress.TrackerSnapshot{
-					ID:         uploadID,
+					ID:         progressID.String(),
 					Status:     "error",
 					Error:      fmt.Errorf("Upload did not complete within timeout period"),
 					Current:    0,

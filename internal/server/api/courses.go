@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	Errors "errors"
 	"fmt"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -15,6 +14,7 @@ import (
 
 	"unipilot/internal/errors"
 
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -36,14 +36,12 @@ func GetCoursesHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
-	var userID uint
+	var userID datatypes.UUID
 	if id := c.Query("id"); id != "" {
-		idInt, err := strconv.Atoi(id)
+		err = userID.Scan(id)
 		if err != nil {
-			return errors.WrapServer(err, errors.ReqParamInvalid, "Invalid course ID", fiber.StatusBadRequest)
-
+			return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting user ID to UUID", fiber.StatusBadRequest)
 		}
-		userID = uint(idInt)
 	}
 
 	// Step 2: Query database for user's courses using parameterized query for security
@@ -101,9 +99,9 @@ func CreateCourseHandler(c *fiber.Ctx) error {
 	}
 	userID := currentUser.ID
 
-	var input models.Course
+	var newCourse models.Course
 	// Parse JSON request body into input struct
-	if err := c.BodyParser(&input); err != nil {
+	if err := c.BodyParser(&newCourse); err != nil {
 		return errors.WrapServer(
 			err,
 			errors.ReqBodyInvalid,
@@ -112,15 +110,15 @@ func CreateCourseHandler(c *fiber.Ctx) error {
 		)
 	}
 	// Add user id to the input struct
-	input.UserID = userID
+	newCourse.UserID = userID
 
 	// Step 3: Validate business-critical required fields
-	if err := input.Validate(); err != nil {
+	if err := newCourse.Validate(); err != nil {
 		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
 	}
 
 	// Step 7: Persist course to database within transaction
-	if result := db.Create(&input); result.Error != nil {
+	if result := db.Create(&newCourse); result.Error != nil {
 		if Errors.Is(result.Error, gorm.ErrDuplicatedKey) {
 			return errors.WrapServer(
 				result.Error,
@@ -137,13 +135,13 @@ func CreateCourseHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	if input.ParentID != 0 {
-		go CacheService.AddClusterCourse(context.Background(), input.ParentID, input.ID)
+	if newCourse.ClusterID != nil {
+		go CacheService.AddClusterCourse(context.Background(), *newCourse.ClusterID, newCourse.ID)
 	}
 
 	// Step 11: Send successful response with created course data
 	return c.JSON(fiber.Map{
-		"remote_id": input.ID,
+		"remote_id": newCourse.ID,
 	})
 }
 
@@ -173,15 +171,15 @@ func UpdateCourseHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
+	var courseID datatypes.UUID
 	idStr := c.Params("id")
 	if idStr == "" {
 		return errors.WrapServer(fmt.Errorf("course ID required"), errors.ReqParamMissing, "Course ID required", fiber.StatusBadRequest)
 	}
-	int_id, err := strconv.Atoi(idStr)
+	err = courseID.Scan(idStr)
 	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting course ID to int", fiber.StatusBadRequest)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting course ID to UUID", fiber.StatusBadRequest)
 	}
-	courseID := uint(int_id)
 
 	// Step 3: Define and parse assignment update request structure
 	var updateData struct {
@@ -204,16 +202,6 @@ func UpdateCourseHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error updating course in database", fiber.StatusInternalServerError)
 	}
 
-	// If parent ID is changed, add course to cluster cache
-	if updateData.Column == "parent_id" && updateData.Value != "0" {
-		int_value, err := strconv.Atoi(updateData.Value)
-		if err != nil {
-			return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting parent ID to int", fiber.StatusBadRequest)
-		}
-		parentID := uint(int_value)
-		go CacheService.AddClusterCourse(context.Background(), parentID, courseID)
-	}
-
 	// Step 8: Course update completed (logged by middleware)
 	return nil
 }
@@ -226,21 +214,15 @@ func DeleteCourseHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
-	var courseID uint
+	var courseID datatypes.UUID
 	idStr := c.Params("id")
 	if idStr == "" {
 		return errors.WrapServer(fmt.Errorf("course ID required"), errors.ReqParamMissing, "Course ID required", fiber.StatusBadRequest)
 	}
-	int_id, err := strconv.Atoi(idStr)
+	err = courseID.Scan(idStr)
 	if err != nil {
-		return errors.WrapServer(
-			err,
-			errors.ReqParamInvalid,
-			"Error converting course ID to int",
-			fiber.StatusBadRequest,
-		)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting course ID to UUID", fiber.StatusBadRequest)
 	}
-	courseID = uint(int_id)
 
 	if err := db.Set("qdrantClient", QdrantClient).Delete(&models.Course{}, courseID).Error; err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error deleting course from database", fiber.StatusInternalServerError)
@@ -254,9 +236,9 @@ func DeleteCourseHandler(c *fiber.Ctx) error {
 		}
 
 		// If course in cluster
-		if course.ParentID != 0 {
-			go CacheService.RemoveClusterCourse(context.Background(), course.ParentID, courseID)
-			go CacheService.RemoveClusterUser(context.Background(), course.ParentID, course.UserID)
+		if course.ClusterID != nil {
+			go CacheService.RemoveClusterCourse(context.Background(), *course.ClusterID, courseID)
+			go CacheService.RemoveClusterUser(context.Background(), *course.ClusterID, course.UserID)
 		}
 	}()
 
@@ -276,18 +258,18 @@ func ClusterShareHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
+	var courseID datatypes.UUID
 	idStr := c.Params("id")
 	if idStr == "" {
 		return errors.WrapServer(fmt.Errorf("course ID required"), errors.ReqParamMissing, "Course ID required", fiber.StatusBadRequest)
 	}
-	int_id, err := strconv.Atoi(idStr)
+	err = courseID.Scan(idStr)
 	if err != nil {
 		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting course ID to int", fiber.StatusBadRequest)
 	}
-	courseID := uint(int_id)
 
 	var linkRequestData struct {
-		UsersID []uint `json:"users_id"`
+		UsersID []datatypes.UUID `json:"users_id"`
 	}
 
 	if err := c.BodyParser(&linkRequestData); err != nil {
@@ -326,8 +308,8 @@ func ClusterShareHandler(c *fiber.Ctx) error {
 		if GrpcClient != nil {
 			_, err = (*GrpcClient).SendMessage(context.Background(),
 				&messages.Message{
-					ReceiverId: uint32(userID),
-					SenderId:   uint32(currentUser.ID),
+					ReceiverId: userID.String(),
+					SenderId:   currentUser.ID.String(),
 					Title:      fmt.Sprintf("New Course Invitation: %s", course.Code),
 					Message:    fmt.Sprintf("%s invited you to join their course", currentUser.Username),
 					Data:       []byte(""),
@@ -358,14 +340,15 @@ func ClusterRequestHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
+	var clusterID datatypes.UUID
 	idStr := c.Params("id")
 	if idStr == "" {
 		return errors.WrapServer(fmt.Errorf("course ID required"), errors.ReqParamMissing, "Course ID required", fiber.StatusBadRequest)
 	}
-
-	int_id, err := strconv.Atoi(idStr)
-
-	clusterID := uint(int_id)
+	err = clusterID.Scan(idStr)
+	if err != nil {
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting cluster ID to UUID", fiber.StatusBadRequest)
+	}
 
 	cluster, err := models.GetCourse(clusterID, db)
 	if err != nil {
@@ -408,15 +391,15 @@ func AcceptInvitationHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
+	var invitationID datatypes.UUID
 	idStr := c.Params("id")
 	if idStr == "" {
 		return errors.WrapServer(fmt.Errorf("invitation ID required"), errors.ReqParamMissing, "Invitation ID required", fiber.StatusBadRequest)
 	}
-	int_id, err := strconv.Atoi(idStr)
+	err = invitationID.Scan(idStr)
 	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting invitation ID to int", fiber.StatusBadRequest)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting invitation ID to UUID", fiber.StatusBadRequest)
 	}
-	invitationID := uint(int_id)
 
 	// Get invitation from database
 	invitation, err := models.GetCourseInvitation(invitationID, db.Preload("Course"))
@@ -456,8 +439,8 @@ func AcceptInvitationHandler(c *fiber.Ctx) error {
 			// Send message to the course owner
 			_, err = (*GrpcClient).SendMessage(context.Background(),
 				&messages.Message{
-					ReceiverId: uint32(invitation.SenderID),   // Original course owner receives the notification
-					SenderId:   uint32(invitation.ReceiverID), // Current user (accepter) is the sender
+					ReceiverId: invitation.SenderID.String(),   // Original course owner receives the notification
+					SenderId:   invitation.ReceiverID.String(), // Current user (accepter) is the sender
 					Title:      invitation.Course.Name,
 					Message:    ownerMessage,
 					Data:       []byte(courseJSON),
@@ -469,8 +452,8 @@ func AcceptInvitationHandler(c *fiber.Ctx) error {
 			// Send message to the course owner
 			_, err = (*GrpcClient).SendMessage(context.Background(),
 				&messages.Message{
-					ReceiverId: uint32(invitation.SenderID),   // Original course owner receives the notification
-					SenderId:   uint32(invitation.ReceiverID), // Current user (accepter) is the sender
+					ReceiverId: invitation.SenderID.String(),   // Original course owner receives the notification
+					SenderId:   invitation.ReceiverID.String(), // Current user (accepter) is the sender
 					Title:      invitation.Course.Name,
 					Message:    receiverMessage,
 					Data:       []byte(courseJSON),
@@ -502,15 +485,15 @@ func DeclineInvitationHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
+	var invitationID datatypes.UUID
 	idStr := c.Params("id")
 	if idStr == "" {
 		return errors.WrapServer(fmt.Errorf("invitation ID required"), errors.ReqParamMissing, "Invitation ID required", fiber.StatusBadRequest)
 	}
-	int_id, err := strconv.Atoi(idStr)
+	err = invitationID.Scan(idStr)
 	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting invitation ID to int", fiber.StatusBadRequest)
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting invitation ID to UUID", fiber.StatusBadRequest)
 	}
-	invitationID := uint(int_id)
 
 	invitation, err := models.GetCourseInvitation(invitationID, db.Preload("Course"))
 	if err != nil {
@@ -536,14 +519,14 @@ func GetCoursesLinkedHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
-	var courseClusters []uint
+	var courseClusters []datatypes.UUID
 
 	courseClusters, err = CacheService.GetUserClusterIDs(ctx, currentUser.ID, db)
 	if err != nil {
 		return errors.WrapServer(err, errors.CacheOperationFailed, "Error getting user courses linked from redis", fiber.StatusInternalServerError)
 	}
 
-	var courseIDs []uint
+	var courseIDs []datatypes.UUID
 	for _, clusterID := range courseClusters {
 		clusterCourseIDs, err := CacheService.GetClusterCourses(ctx, clusterID, db)
 		if err != nil {
