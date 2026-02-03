@@ -332,9 +332,8 @@ func LogWarn(ctx context.Context, err *errors.ServerError) {
 	logWithLevel(ctx, zapcore.WarnLevel)
 }
 
-func LogError(ctx context.Context, err *errors.ServerError) error {
+func LogError(ctx context.Context, err *errors.ServerError) {
 	logWithLevel(ctx, zapcore.ErrorLevel)
-	return err
 }
 
 func LogFatal(ctx context.Context, err *errors.ServerError) error {
@@ -451,8 +450,13 @@ func extractFileFields(ctx context.Context) []interface{} {
 	}
 
 	if root := ctx.Value("root"); root != nil {
-		if root, ok := root.(*errors.AppError); ok {
-			fields = append(fields, "root", root)
+
+		if serverErr, ok := root.(*errors.ServerError); ok {
+			fields = append(fields, "root", serverErr)
+		} else if appErr, ok := root.(*errors.AppError); ok {
+			fields = append(fields, "root", appErr)
+		} else if err, ok := root.(error); ok {
+			fields = append(fields, "root", err)
 		}
 	}
 

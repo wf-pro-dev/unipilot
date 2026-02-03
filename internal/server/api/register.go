@@ -62,12 +62,6 @@ func RegisterHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
-	// Extract database connection from middleware context
-	db, ok := c.Locals("db").(*gorm.DB)
-	if !ok {
-		return errors.WrapServer(fmt.Errorf("database connection not found"), errors.DBConnectionFailed, "Database connection not found", fiber.StatusInternalServerError)
-	}
-
 	// Step 3: Validate all required fields are present (business rule enforcement)
 	if err := registrationData.Validate(); err != nil {
 		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
@@ -137,10 +131,8 @@ func RegisterHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.AuthTokenGeneration, "Error creating refresh token", fiber.StatusInternalServerError)
 	}
 
-	// Convert user struct to map for safe JSON response (removes sensitive fields)
-	userMap := newUser.ToMap()
 	// Option 1: Marshal once, reuse for both
-	userJSON, err := json.Marshal(userMap)
+	userJSON, err := json.Marshal(newUser)
 	if err != nil {
 		return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Error marshalling user to json", fiber.StatusInternalServerError)
 	}
@@ -152,8 +144,7 @@ func RegisterHandler(c *fiber.Ctx) error {
 
 	// Use for response (Fiber will handle it, but you could also send raw JSON)
 	return c.JSON(fiber.Map{
-		"message":       c.Locals("message").(string),
-		"user":          userMap, // Fiber auto-marshals this
+		"user":          newUser, // Fiber auto-marshals this
 		"token":         accessToken,
 		"refresh_token": refreshToken,
 	})

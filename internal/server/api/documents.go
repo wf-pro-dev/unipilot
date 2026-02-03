@@ -45,23 +45,19 @@ func GetDocumentsHandler(c *fiber.Ctx) error {
 	var documents []models.Document
 	if err := db.Where("user_id = ?", currentUserID).Find(&documents).Error; err != nil {
 		if Errors.Is(err, gorm.ErrRecordNotFound) {
-			return server.LogError(
-				context.Background(),
-				errors.WrapServer(
-					err,
-					errors.DBRecordNotFound,
-					"Documents not found",
-					fiber.StatusNotFound,
-				))
-		}
-		return server.LogError(
-			context.Background(),
-			errors.WrapServer(
+			return errors.WrapServer(
 				err,
-				errors.DBQueryFailed,
-				"Error getting documents from database",
-				fiber.StatusInternalServerError,
-			))
+				errors.DBRecordNotFound,
+				"Documents not found",
+				fiber.StatusNotFound,
+			)
+		}
+		return errors.WrapServer(
+			err,
+			errors.DBQueryFailed,
+			"Error getting documents from database",
+			fiber.StatusInternalServerError,
+		)
 	}
 
 	return c.JSON(documents)
@@ -744,14 +740,12 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 	// Step 4: Remove document record from database
 	if err := db.Set("qdrantClient", QdrantClient).Delete(&doc).Error; err != nil {
 		if Errors.Is(err, gorm.ErrRecordNotFound) {
-			return server.LogError(
-				c.Context(),
-				errors.WrapServer(
-					err,
-					errors.DBRecordNotFound,
-					"Document not found",
-					fiber.StatusNotFound,
-				))
+			return errors.WrapServer(
+				err,
+				errors.DBRecordNotFound,
+				"Document not found",
+				fiber.StatusNotFound,
+			)
 		}
 		if Errors.Is(err, gorm.ErrForeignKeyViolated) {
 			return errors.WrapServer(

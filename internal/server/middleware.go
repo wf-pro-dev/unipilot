@@ -4,7 +4,6 @@ import (
 	"context"
 	Errors "errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -450,7 +449,6 @@ func ErrorHandlerMiddleware(c *fiber.Ctx) error {
 			LogError(ctx, serverErr)
 		} else {
 			// 4xx errors are client errors, log as WARN
-			log.Println("serverErr", serverErr)
 			LogWarn(ctx, serverErr)
 		}
 

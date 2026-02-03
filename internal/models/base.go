@@ -13,3 +13,10 @@ type Base struct {
 	UpdatedAt time.Time      `json:"updated_at"`
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 }
+
+func (b *Base) BeforeCreate(tx *gorm.DB) error {
+	if b.ID.IsNil() {
+		b.ID = datatypes.NewUUIDv4()
+	}
+	return nil
+}
