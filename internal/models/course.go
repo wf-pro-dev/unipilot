@@ -39,8 +39,8 @@ type Course struct {
 	// Common fields
 
 	// Relationships
-	Parent   *Course   `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
-	Children []*Course `gorm:"foreignKey:ParentID"`
+	Cluster  *Course   `gorm:"foreignKey:ClusterID;references:ID" validate:"-"`
+	Children []*Course `gorm:"foreignKey:ClusterID"`
 
 	User        *User         `gorm:"foreignKey:UserID;references:ID" validate:"-"`
 	Assignments []*Assignment `gorm:"foreignKey:CourseID;references:ID"`

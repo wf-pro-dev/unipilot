@@ -41,7 +41,7 @@ func UploadFile(filePath, fileName, key string, progressTracker *progress.Tracke
 	progressReader := progress.NewReader(file, progressTracker)
 	// Upload file
 	_, err = svc.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: aws.String(Bucket),
+		Bucket: aws.String(PrivateBucket),
 		Key:    aws.String(key), // format : user_id/assignment_id/file_name
 		Body:   progressReader,
 		Metadata: map[string]string{
@@ -113,7 +113,7 @@ func UploadProfilePicture(filePath, fileName, key string) (string, error) {
 	}
 
 	// Construct and return the public URL
-	publicURL := fmt.Sprintf("https://assets.wwwill.xyz/%s", key)
+	publicURL := fmt.Sprintf("%s/%s", BucketURL, key)
 
 	return publicURL, nil
 }
@@ -128,7 +128,7 @@ func DeleteFile(key string) error {
 
 	// Upload file
 	_, err = svc.DeleteObject(context.TODO(), &s3.DeleteObjectInput{
-		Bucket: aws.String(Bucket),
+		Bucket: aws.String(PrivateBucket),
 		Key:    aws.String(key),
 	})
 
@@ -159,8 +159,8 @@ func CopyFile(oldKey, newKey string) error {
 	}
 
 	_, err = svc.CopyObject(context.TODO(), &s3.CopyObjectInput{
-		CopySource: aws.String(fmt.Sprintf("%s/%s", Bucket, oldKey)),
-		Bucket:     aws.String(Bucket),
+		CopySource: aws.String(fmt.Sprintf("%s/%s", PrivateBucket, oldKey)),
+		Bucket:     aws.String(PrivateBucket),
 		Key:        aws.String(newKey),
 	})
 	if err != nil {
@@ -192,7 +192,7 @@ func DownloadFile(key string) (io.Reader, error) {
 
 	// Download object
 	result, err := svc.GetObject(context.TODO(), &s3.GetObjectInput{
-		Bucket: aws.String(Bucket),
+		Bucket: aws.String(PrivateBucket),
 		Key:    aws.String(key),
 	})
 	if err != nil {
@@ -243,7 +243,7 @@ func DownloadFileWithProgress(key string, progressTracker *progress.Tracker) (*o
 	// Download object
 	// 5. Download the object
 	_, err = downloader.Download(context.TODO(), file, &s3.GetObjectInput{
-		Bucket: aws.String(Bucket),
+		Bucket: aws.String(PrivateBucket),
 		Key:    aws.String(key),
 	})
 	if err != nil {

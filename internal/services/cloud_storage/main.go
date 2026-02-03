@@ -11,8 +11,11 @@ import (
 )
 
 const (
-	Region = "us-west-2"
-	Bucket = "unipilot"
+	Region    = "us-west-2"
+	Bucket    = "unipilot"
+	BucketURL = "https://assets.wwwill.xyz"
+
+	PrivateBucket = "unipilot-private"
 )
 
 func S3Client() (*s3.Client, error) {

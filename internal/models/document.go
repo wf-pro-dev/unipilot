@@ -88,8 +88,8 @@ type Document struct {
 	// Relationships
 	User       *User       `gorm:"foreignKey:UserID;references:ID" validate:"-"`
 	Assignment *Assignment `gorm:"foreignKey:AssignmentID;references:ID" validate:"-"`
-	Parent     *Document   `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
-	Versions   []Document  `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
+	Parent     *Document   `gorm:"foreignKey:ParentDocID;references:ID" validate:"-"`
+	Versions   []Document  `gorm:"foreignKey:ParentDocID;references:ID" validate:"-"`
 }
 
 // LocalDocument represents a document in the local database
@@ -100,8 +100,8 @@ type LocalDocument struct {
 
 	// Local relationships
 	Assignment LocalAssignment `gorm:"foreignKey:AssignmentID;references:ID" validate:"-"`
-	Parent     *LocalDocument  `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
-	Versions   []LocalDocument `gorm:"foreignKey:ParentID;references:ID" validate:"-"`
+	Parent     *LocalDocument  `gorm:"foreignKey:ParentDocID;references:ID" validate:"-"`
+	Versions   []LocalDocument `gorm:"foreignKey:ParentDocID;references:ID" validate:"-"`
 }
 
 // Hooks

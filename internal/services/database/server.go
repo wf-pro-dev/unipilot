@@ -25,7 +25,7 @@ func NewServerMigrator() *ServerMigrator {
 		&models.Note{},
 		&models.Document{},
 		&models.DocumentStorage{},
-		&models.Follow{},
+		&models.Friendship{},
 		&models.Device{},
 		&models.CourseInvitation{},
 	}
