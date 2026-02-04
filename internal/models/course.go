@@ -59,6 +59,7 @@ type LocalCourse struct {
 
 func (c *Course) ToLocal() *LocalCourse {
 	localCourse := &LocalCourse{
+		Base:       c.Base,
 		BaseCourse: c.BaseCourse,
 	}
 	return localCourse
@@ -67,6 +68,7 @@ func (c *Course) ToLocal() *LocalCourse {
 func (lc *LocalCourse) ToRemote(userID string) *Course {
 
 	c := &Course{
+		Base:       lc.Base,
 		BaseCourse: lc.BaseCourse,
 		UserID:     userID,
 	}

@@ -51,6 +51,7 @@ type LocalAssignment struct {
 
 func (a *Assignment) ToLocal() *LocalAssignment {
 	return &LocalAssignment{
+		Base:           a.Base,
 		BaseAssignment: a.BaseAssignment,
 	}
 }
@@ -60,6 +61,7 @@ func (a *LocalAssignment) ToRemote(userID string) *Assignment {
 	baseAssignment := a.BaseAssignment
 
 	assignment := &Assignment{
+		Base:           a.Base,
 		BaseAssignment: baseAssignment,
 		UserID:         userID,
 	}

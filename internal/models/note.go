@@ -43,6 +43,7 @@ type LocalNote struct {
 func (n *Note) ToLocal() *LocalNote {
 
 	return &LocalNote{
+		Base:     n.Base,
 		BaseNote: n.BaseNote,
 	}
 }
@@ -50,6 +51,7 @@ func (n *Note) ToLocal() *LocalNote {
 func (n *LocalNote) ToRemote(userID string) *Note {
 
 	return &Note{
+		Base:     n.Base,
 		BaseNote: n.BaseNote,
 	}
 }

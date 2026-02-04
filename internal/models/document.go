@@ -137,6 +137,7 @@ func (d *Document) BeforeDelete(tx *gorm.DB) error {
 func (d *Document) ToLocal() *LocalDocument {
 
 	localDocument := &LocalDocument{
+		Base:         d.Base,
 		BaseDocument: d.BaseDocument,
 	}
 	return localDocument
@@ -146,6 +147,7 @@ func (d *Document) ToLocal() *LocalDocument {
 func (ld *LocalDocument) ToRemote(userID string) *Document {
 	baseDocument := ld.BaseDocument
 	return &Document{
+		Base:         ld.Base,
 		BaseDocument: baseDocument,
 		UserID:       userID,
 	}
