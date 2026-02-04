@@ -13,7 +13,6 @@ import (
 
 	"github.com/gen2brain/beeep"
 	"github.com/robfig/cron/v3"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -25,7 +24,7 @@ type Scheduler struct {
 	cancel        context.CancelFunc
 	isRunning     bool
 	mu            sync.RWMutex
-	courseEntries map[datatypes.UUID]*CourseEntry
+	courseEntries map[string]*CourseEntry
 }
 
 // NewScheduler creates a new notification scheduler
@@ -45,7 +44,7 @@ func NewScheduler() (*Scheduler, error) {
 		ctx:           ctx,
 		cancel:        cancel,
 		isRunning:     false,
-		courseEntries: make(map[datatypes.UUID]*CourseEntry),
+		courseEntries: make(map[string]*CourseEntry),
 	}
 
 	return scheduler, nil
@@ -138,7 +137,7 @@ type CourseEntry struct {
 }
 
 func (s *Scheduler) GetCourseEntries() error {
-	var entries map[datatypes.UUID]*CourseEntry = make(map[datatypes.UUID]*CourseEntry)
+	var entries map[string]*CourseEntry = make(map[string]*CourseEntry)
 
 	courses, err := models.GetActiveCourses(s.db)
 	if err != nil {
@@ -167,7 +166,7 @@ func (s *Scheduler) GetCourseEntries() error {
 	return nil
 }
 
-func (s *Scheduler) ScheduleCourseNotifications(entries map[datatypes.UUID]*CourseEntry) error {
+func (s *Scheduler) ScheduleCourseNotifications(entries map[string]*CourseEntry) error {
 	for _, entry := range entries {
 
 		entryID, err := s.cron.AddFunc(entry.pattern, func() {
@@ -254,7 +253,7 @@ func (s *Scheduler) CleanUp() error {
 	for _, entry := range s.courseEntries {
 		s.RemoveCourseEntry(entry.ID)
 	}
-	s.courseEntries = make(map[datatypes.UUID]*CourseEntry)
+	s.courseEntries = make(map[string]*CourseEntry)
 	return nil
 }
 

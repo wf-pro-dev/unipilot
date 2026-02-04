@@ -171,7 +171,7 @@ func DBMiddleware(db *gorm.DB) fiber.Handler {
 func LoggerMiddleware(c *fiber.Ctx) error {
 	// Generate unique request ID and capture start time for tracking
 	startTime := time.Now()
-	requestID := uuid.New().String()
+	requestID := uuid.New()
 
 	ctx := c.UserContext()
 

@@ -9,7 +9,6 @@ import (
 	"unipilot/internal/errors"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/datatypes"
 )
 
 func GetCourses() ([]models.Course, error) {
@@ -73,7 +72,7 @@ func CreateCourse(c *models.Course) error {
 	return nil
 }
 
-func UpdateCourse(id datatypes.UUID, column, value string) error {
+func UpdateCourse(id string, column, value string) error {
 
 	updateData := map[string]interface{}{
 		"value":  value,
@@ -81,7 +80,7 @@ func UpdateCourse(id datatypes.UUID, column, value string) error {
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Put(fmt.Sprintf("%s/courses/%s", api_url, id.String()))
+	agent := fiber.Put(fmt.Sprintf("%s/courses/%s", api_url, id))
 	agent.JSON(updateData)
 
 	if err := SetAuthHeader(agent); err != nil {
@@ -101,10 +100,10 @@ func UpdateCourse(id datatypes.UUID, column, value string) error {
 	return nil
 }
 
-func DeleteCourse(id datatypes.UUID) error {
+func DeleteCourse(id string) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Delete(fmt.Sprintf("%s/courses/%s", api_url, id.String()))
+	agent := fiber.Delete(fmt.Sprintf("%s/courses/%s", api_url, id))
 
 	if err := SetAuthHeader(agent); err != nil {
 		return err
@@ -123,14 +122,14 @@ func DeleteCourse(id datatypes.UUID) error {
 	return nil
 }
 
-func CourseShare(c *models.LocalCourse, usersID []datatypes.UUID) error {
+func CourseShare(c *models.LocalCourse, usersID []string) error {
 
 	linkData := map[string]interface{}{
 		"users_id": usersID,
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Post(fmt.Sprintf("%s/courses/%s/share", api_url, c.ID.String()))
+	agent := fiber.Post(fmt.Sprintf("%s/courses/%s/share", api_url, c.ID))
 	agent.JSON(linkData)
 
 	if err := SetAuthHeader(agent); err != nil {

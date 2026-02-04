@@ -9,19 +9,17 @@ import (
 	"unipilot/internal/models"
 	"unipilot/internal/services/fileops"
 	"unipilot/internal/services/utils"
-
-	"gorm.io/datatypes"
 )
 
 // GetUser retrieves a user by ID
-func (h *Database) GetUser(id datatypes.UUID) (*models.User, error) {
+func (h *Database) GetUser(id string) (*models.User, error) {
 	var u models.User
 	err := h.db.First(&u, id).Error
 	return &u, err
 }
 
 // GetLAssignment retrieves an assignment by ID
-func (h *Database) GetLAssignment(id datatypes.UUID) (*models.LocalAssignment, error) {
+func (h *Database) GetLAssignment(id string) (*models.LocalAssignment, error) {
 	assignment, err := models.GetLAssignment(id, h.db)
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
@@ -183,7 +181,7 @@ func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUpl
 }
 
 // Saving a message from AI SDK
-func (h *Database) SaveUIMessage(assignmentID datatypes.UUID, vercelMessage map[string]interface{}) error {
+func (h *Database) SaveUIMessage(assignmentID string, vercelMessage map[string]interface{}) error {
 	message, err := models.FromUIMessage(assignmentID, vercelMessage)
 	if err != nil {
 		return errors.Wrap(err, errors.ValidationInvalid, "Failed to create message from UI message")
@@ -196,7 +194,7 @@ func (h *Database) SaveUIMessage(assignmentID datatypes.UUID, vercelMessage map[
 }
 
 // Retrieving conversation history
-func (h *Database) GetConversationHistory(assignmentID datatypes.UUID) ([]models.LocalAiMessage, error) {
+func (h *Database) GetConversationHistory(assignmentID string) ([]models.LocalAiMessage, error) {
 	var dbMessages []models.LocalAiMessage
 	err := h.db.Where("assignment_id = ?", assignmentID).
 		Order("created_at ASC").

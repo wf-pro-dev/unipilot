@@ -130,7 +130,7 @@ func RunDaemon() {
 	}
 
 	// Validate that the user ID from file matches the flag
-	if user.ID.String() != *userID {
+	if user.ID != *userID {
 		log.Fatalf("User ID mismatch: flag=%d, file=%d. The daemon was started for user %d but the stored user is %d",
 			*userID, user.ID, *userID, user.ID)
 	}

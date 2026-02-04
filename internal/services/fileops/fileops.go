@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
@@ -19,9 +18,9 @@ import (
 
 // FileUploadRequest represents a file upload request
 type FileUploadRequest struct {
-	DocumentID   datatypes.UUID
-	AssignmentID datatypes.UUID
-	UserID       datatypes.UUID
+	DocumentID   string
+	AssignmentID string
+	UserID       string
 	Type         models.DocumentType
 	FileName     string
 	FilePath     string
@@ -124,7 +123,7 @@ func WriteDocument(document *models.LocalDocument, fileContent io.Reader, db *go
 }
 
 // UploadNewVersion creates a new version of an existing document
-func UploadNewVersion(existingDocumentID datatypes.UUID, req FileUploadRequest, db *gorm.DB) (*FileUploadResponse, error) {
+func UploadNewVersion(existingDocumentID string, req FileUploadRequest, db *gorm.DB) (*FileUploadResponse, error) {
 	// Get existing document
 	var existingDoc models.LocalDocument
 	if err := db.First(&existingDoc, existingDocumentID).Error; err != nil {
@@ -214,7 +213,7 @@ func UploadNewVersion(existingDocumentID datatypes.UUID, req FileUploadRequest, 
 }
 
 // DeleteDocument removes a document and its file
-func DeleteDocument(docID, userID datatypes.UUID, db *gorm.DB) error {
+func DeleteDocument(docID, userID string, db *gorm.DB) error {
 	// Get document record
 	var doc models.Document
 	if err := db.Where("id = ? AND user_id = ?", docID, userID).First(&doc).Error; err != nil {

@@ -7,7 +7,6 @@ import (
 	"unipilot/internal/secrets"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/datatypes"
 )
 
 func GetNotes() ([]models.Note, error) {
@@ -62,7 +61,7 @@ func CreateNote(n *models.Note) error {
 	return nil
 }
 
-func UpdateNote(id datatypes.UUID, column, value string) error {
+func UpdateNote(id string, column, value string) error {
 
 	updateData := map[string]interface{}{
 		"value":  value,
@@ -70,7 +69,7 @@ func UpdateNote(id datatypes.UUID, column, value string) error {
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent, err := GetAuthAgent(fiber.Put(fmt.Sprintf("%s/notes/%s", api_url, id.String())).JSON(updateData))
+	agent, err := GetAuthAgent(fiber.Put(fmt.Sprintf("%s/notes/%s", api_url, id)).JSON(updateData))
 	if err != nil {
 		return err
 	}
@@ -87,10 +86,10 @@ func UpdateNote(id datatypes.UUID, column, value string) error {
 	return nil
 }
 
-func DeleteNote(id datatypes.UUID) error {
+func DeleteNote(id string) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent, err := GetAuthAgent(fiber.Delete(fmt.Sprintf("%s/notes/%s", api_url, id.String())))
+	agent, err := GetAuthAgent(fiber.Delete(fmt.Sprintf("%s/notes/%s", api_url, id)))
 	if err != nil {
 		return err
 	}

@@ -9,7 +9,6 @@ import (
 	"unipilot/internal/errors"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/datatypes"
 )
 
 func GetAssignments() ([]models.Assignment, error) {
@@ -62,7 +61,7 @@ func CreateAssignment(a *models.Assignment) error {
 	return nil
 }
 
-func UpdateAssignment(id datatypes.UUID, column, value string) error {
+func UpdateAssignment(id string, column, value string) error {
 
 	updateData := map[string]string{
 		"value":  value,
@@ -70,7 +69,7 @@ func UpdateAssignment(id datatypes.UUID, column, value string) error {
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent, err := GetAuthAgent(fiber.Put(fmt.Sprintf("%s/assignments/%s", api_url, id.String())).JSON(updateData))
+	agent, err := GetAuthAgent(fiber.Put(fmt.Sprintf("%s/assignments/%s", api_url, id)).JSON(updateData))
 	if err != nil {
 		return err
 	}
@@ -87,10 +86,10 @@ func UpdateAssignment(id datatypes.UUID, column, value string) error {
 
 }
 
-func DeleteAssignment(id datatypes.UUID) error {
+func DeleteAssignment(id string) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent, err := GetAuthAgent(fiber.Delete(fmt.Sprintf("%s/assignments/%s", api_url, id.String())))
+	agent, err := GetAuthAgent(fiber.Delete(fmt.Sprintf("%s/assignments/%s", api_url, id)))
 	if err != nil {
 		return err
 	}

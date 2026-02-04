@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 
 	"unipilot/internal/errors"
-
-	"gorm.io/datatypes"
 )
 
 const (
@@ -50,14 +48,14 @@ func GetUserDir() (string, error) {
 	return userDir, nil
 }
 
-func getUserDirWithID(userID datatypes.UUID) (string, error) {
+func getUserDirWithID(userID string) (string, error) {
 
 	mainDir, err := getMainDir()
 	if err != nil {
 		return "", errors.Wrap(err, errors.FSFileNotFound, "Failed to get main directory")
 	}
 
-	userDir := filepath.Join(mainDir, fmt.Sprintf("user_%s", userID.String()))
+	userDir := filepath.Join(mainDir, fmt.Sprintf("user_%s", userID))
 
 	if err := os.MkdirAll(userDir, 0755); err != nil {
 		return "", errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create user directory")
@@ -99,7 +97,7 @@ func GetDBPath() (string, error) {
 	return dbPath, nil
 }
 
-func GetDBPathWithID(userID datatypes.UUID) (string, error) {
+func GetDBPathWithID(userID string) (string, error) {
 
 	userDir, err := getUserDirWithID(userID)
 	if err != nil {

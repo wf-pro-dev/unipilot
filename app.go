@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -299,7 +298,7 @@ func (a *App) PickFile() (string, error) {
 }
 
 // UploadDocument opens a file dialog and uploads a document to an assignment
-func (a *App) UploadDocument(documentID, assignmentID datatypes.UUID, documentType, filePath string) (*models.LocalDocument, error) {
+func (a *App) UploadDocument(documentID, assignmentID string, documentType, filePath string) (*models.LocalDocument, error) {
 
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
@@ -487,7 +486,7 @@ func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse)
 	progressManager := progress.GetManager()
 
 	// Create progress tracker
-	tracker := progressManager.Create(document.ID.String(), document.FileSize)
+	tracker := progressManager.Create(document.ID, document.FileSize)
 	tracker.SetStatus("starting")
 
 	// Register progress callback to emit events to frontend
@@ -495,27 +494,27 @@ func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse)
 		snapshot := t.Snapshot()
 
 		if snapshot.Error != nil {
-			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:error:%s", document.ID.String()), map[string]interface{}{
-				"upload_id": document.ID.String(),
+			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:error:%s", document.ID), map[string]interface{}{
+				"upload_id": document.ID,
 				"error":     snapshot.Error.Error(),
 			})
 		} else {
 			snapshot.Percentage = snapshot.Percentage * 0.2
-			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:progress:%s", document.ID.String()), snapshot)
+			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:progress:%s", document.ID), snapshot)
 		}
 
 	})
 
 	// Emit started event
-	runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:started:%s", document.ID.String()), map[string]string{
-		"upload_id": document.ID.String(),
+	runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:started:%s", document.ID), map[string]string{
+		"upload_id": document.ID,
 		"file_name": document.FileName,
 	})
 
 	// Create cancellable context
 	ctx, cancel := context.WithCancel(a.ctx)
-	progress.StoreCancelFunc(document.ID.String(), cancel)
-	defer progress.RemoveCancelFunc(document.ID.String())
+	progress.StoreCancelFunc(document.ID, cancel)
+	defer progress.RemoveCancelFunc(document.ID)
 
 	// Perform upload with progress tracking
 	response, err := a.sendDocumentWithProgress(ctx, uploadResp, tracker)
@@ -646,7 +645,7 @@ func (a *App) UploadDocumentRAG(doc *models.LocalDocument) error {
 
 }
 
-func (a *App) DeleteDocumentRAG(assignmentID, documentID datatypes.UUID) error {
+func (a *App) DeleteDocumentRAG(assignmentID, documentID string) error {
 
 	if a.DB == nil {
 		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
@@ -659,7 +658,7 @@ func (a *App) DeleteDocumentRAG(assignmentID, documentID datatypes.UUID) error {
 	return nil
 }
 
-func (a *App) GetAssignmentDocumentIDsRAG(assignmentID datatypes.UUID) ([]datatypes.UUID, error) {
+func (a *App) GetAssignmentDocumentIDsRAG(assignmentID string) ([]string, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -755,7 +754,7 @@ func (a *App) UpdateNote(LocalNote *models.LocalNote, column, value string) erro
 }
 
 // UploadNewDocumentVersion uploads a new version of an existing document
-func (a *App) UploadNewDocumentVersion(existingDocumentID datatypes.UUID) (*models.LocalDocument, error) {
+func (a *App) UploadNewDocumentVersion(existingDocumentID string) (*models.LocalDocument, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -966,7 +965,7 @@ func (a *App) DeleteCourse(course *models.LocalCourse) error {
 }
 
 // DeleteDocument removes a document and its file
-func (a *App) DeleteDocument(documentID datatypes.UUID) error {
+func (a *App) DeleteDocument(documentID string) error {
 	if a.DB == nil {
 		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1052,7 +1051,7 @@ func (a *App) Register(userData *models.User) (*models.User, error) {
 	user := authService.User
 
 	// Initialize daemon manager for the newly registered user
-	if user != nil && !user.ID.IsEmpty() {
+	if user != nil && user.ID != "" {
 		daemonMgr, err := daemon.NewManager(user.ID, a.ctx)
 		if err != nil {
 			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to initialize daemon manager").Error())
@@ -1101,7 +1100,7 @@ func (a *App) Login(username, password string) (*models.User, error) {
 	user := authService.User
 
 	// Initialize daemon manager for the logged-in user
-	if user != nil && !user.ID.IsEmpty() {
+	if user != nil && user.ID != "" {
 		daemonMgr, err := daemon.NewManager(user.ID, a.ctx)
 		if err != nil {
 			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to initialize daemon manager").Error())
@@ -1202,7 +1201,7 @@ func (a *App) GetAuthToken() (string, error) {
 }
 
 // GetLAssignment returns an assignment by ID
-func (a *App) GetLAssignment(id datatypes.UUID) (*models.LocalAssignment, error) {
+func (a *App) GetLAssignment(id string) (*models.LocalAssignment, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1210,7 +1209,7 @@ func (a *App) GetLAssignment(id datatypes.UUID) (*models.LocalAssignment, error)
 }
 
 // GetCourse returns a course by ID
-func (a *App) GetCourse(id datatypes.UUID) (*models.LocalCourse, error) {
+func (a *App) GetCourse(id string) (*models.LocalCourse, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1218,7 +1217,7 @@ func (a *App) GetCourse(id datatypes.UUID) (*models.LocalCourse, error) {
 }
 
 // GetUser returns a user by ID
-func (a *App) GetUser(id datatypes.UUID) (*models.User, error) {
+func (a *App) GetUser(id string) (*models.User, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1279,7 +1278,7 @@ func (a *App) GetNotes() ([]models.LocalNote, error) {
 }
 
 // GetSupportDocuments retrieves only support documents for an assignment
-func (a *App) GetSupportDocuments(assignmentID datatypes.UUID) ([]models.LocalDocument, error) {
+func (a *App) GetSupportDocuments(assignmentID string) ([]models.LocalDocument, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1298,7 +1297,7 @@ func (a *App) GetSupportDocuments(assignmentID datatypes.UUID) ([]models.LocalDo
 }
 
 // GetSubmissionDocuments retrieves only submission documents for an assignment
-func (a *App) GetSubmissionDocuments(assignmentID datatypes.UUID) ([]models.LocalDocument, error) {
+func (a *App) GetSubmissionDocuments(assignmentID string) ([]models.LocalDocument, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1316,14 +1315,14 @@ func (a *App) GetSubmissionDocuments(assignmentID datatypes.UUID) ([]models.Loca
 	return documents, err
 }
 
-func (a *App) SaveUIMessage(assignmentID datatypes.UUID, vercelMessage map[string]interface{}) error {
+func (a *App) SaveUIMessage(assignmentID string, vercelMessage map[string]interface{}) error {
 	if a.DB == nil {
 		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 	return a.DB.SaveUIMessage(assignmentID, vercelMessage)
 }
 
-func (a *App) GetConversationHistory(assignmentID datatypes.UUID) ([]models.LocalAiMessage, error) {
+func (a *App) GetConversationHistory(assignmentID string) ([]models.LocalAiMessage, error) {
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1331,7 +1330,7 @@ func (a *App) GetConversationHistory(assignmentID datatypes.UUID) ([]models.Loca
 }
 
 // OpenDocument opens a document file with the system default application
-func (a *App) OpenDocument(documentID datatypes.UUID) error {
+func (a *App) OpenDocument(documentID string) error {
 	if a.DB == nil {
 		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1364,7 +1363,7 @@ func (a *App) OpenDocument(documentID datatypes.UUID) error {
 }
 
 // SaveDocumentAs opens a save dialog and copies the document to chosen location
-func (a *App) SaveDocumentAs(documentID datatypes.UUID) error {
+func (a *App) SaveDocumentAs(documentID string) error {
 	if a.DB == nil {
 		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -1441,7 +1440,7 @@ func (a *App) GetUserStorageInfo() (*models.DocumentStorage, error) {
 	return storageInfo, nil
 }
 
-func (a *App) GetAssignmentStorageInfo(assignmentID datatypes.UUID) (*models.LocalAssignmentStorage, error) {
+func (a *App) GetAssignmentStorageInfo(assignmentID string) (*models.LocalAssignmentStorage, error) {
 
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
@@ -1479,41 +1478,6 @@ func (a *App) GetRemoteUsers() ([]client.RemoteUser, error) {
 		return []client.RemoteUser{}, err
 	}
 	return users, nil
-}
-
-// Follow a user
-func (a *App) Follow(followedID datatypes.UUID) (bool, error) {
-	return client.Follow(followedID)
-}
-
-// FollowResponse represents the response for follow-related queries
-type FollowResponse struct {
-	Users []models.User `json:"users"`
-	Count int           `json:"count"`
-}
-
-// GetFollowers returns all followers for the current user
-func (a *App) GetFollowers(userID datatypes.UUID) (*FollowResponse, error) {
-	followers, count, err := client.GetFollowers(userID)
-	if err != nil {
-		return nil, err
-	}
-	return &FollowResponse{
-		Users: followers,
-		Count: count,
-	}, nil
-}
-
-// GetFollowing returns all following for the current user
-func (a *App) GetFollowing(userID datatypes.UUID) (*FollowResponse, error) {
-	following, count, err := client.GetFollowing(userID)
-	if err != nil {
-		return nil, err
-	}
-	return &FollowResponse{
-		Users: following,
-		Count: count,
-	}, nil
 }
 
 // GetNetworkStatus returns the current network connectivity status
@@ -1601,7 +1565,7 @@ func (a *App) RebuildNotificationDaemon() error {
 }
 
 // LinkCourse links a course to a list of users
-func (a *App) CourseShare(c *models.LocalCourse, usersID []datatypes.UUID) error {
+func (a *App) CourseShare(c *models.LocalCourse, usersID []string) error {
 	if err := client.CourseShare(c, usersID); err != nil {
 		return err
 	}
