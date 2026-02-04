@@ -11,7 +11,6 @@ import { BookOpen, FileText } from "lucide-react"
 
 interface CoursesScheduleProps {
     courses: models.LocalCourse[]
-    onCourseClick: (course: models.LocalCourse) => void
     selectedSemester: string
 }
 
@@ -34,7 +33,7 @@ function formatTime(hour: number): string {
     return `${hour - 12}:00 PM`
 }
 
-function CoursesSchedule({ courses, selectedSemester, onCourseClick }: CoursesScheduleProps) {
+function CoursesSchedule({ courses, selectedSemester }: CoursesScheduleProps) {
     const { user } = useAuthContext()
     if (!user) return null
 

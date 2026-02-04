@@ -1,15 +1,13 @@
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useCourse, useCourseAssignments } from "@/hooks/use-courses"
+import { useCourse, useCourseAssignments, useDeleteCourse } from "@/hooks/use-courses"
 import { models } from "@/wailsjs/go/models"
 
 interface CourseDeleteDialogProps {
-    courseId: number
+    courseId: string
     isOpen: boolean
     onClose: () => void
-    onDelete: (course: models.LocalCourse) => void
 }
-
 /**
  * Confirmation dialog component for course deletion.
  * 
@@ -31,12 +29,14 @@ interface CourseDeleteDialogProps {
  * @param {(course: course.LocalCourse) => void} props.onDelete - Callback to execute deletion
  * @returns {JSX.Element | null} The delete confirmation dialog or null if course not found
  */
-export function CourseDeleteDialog({ isOpen, onClose, courseId, onDelete }: CourseDeleteDialogProps) {
+export function CourseDeleteDialog({ isOpen, onClose, courseId }: CourseDeleteDialogProps) {
     // Locate the course to delete from the courses array
     const { data: course } = useCourse(courseId)
     if (!course) return null
     const { data: course_assignments } = useCourseAssignments(courseId)
     const course_assignments_count = course_assignments?.length || 0
+
+    const deleteCourse = useDeleteCourse()
 
     /**
      * Handles the delete confirmation action.
@@ -46,7 +46,7 @@ export function CourseDeleteDialog({ isOpen, onClose, courseId, onDelete }: Cour
      */
     const handleDelete = () => {
     if (course) {
-        onDelete(course)
+        deleteCourse.mutate(course)
         onClose()
     }
 }

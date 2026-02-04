@@ -152,13 +152,13 @@ func (c *Course) GetCourseNoteIDs(db *gorm.DB) ([]string, error) {
 	return noteIDs, nil
 }
 
-func (lc *LocalCourse) GetNotesByCourse(db *gorm.DB) ([]LocalNote, error) {
-	var notes []LocalNote
-	err := db.Where("course_id = ?", lc.ID).Find(&notes).Error
+func (lc *LocalCourse) GetCourseNotes(db *gorm.DB) ([]*LocalNote, error) {
+	var notes []*LocalNote
+	err := db.Model(&lc).Association("Notes").Find(&notes)
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
-	return notes, nil
+	return notes, err
 }
 
 func DeleteNote(id string, db *gorm.DB) error {

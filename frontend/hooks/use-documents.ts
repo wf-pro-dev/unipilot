@@ -20,15 +20,14 @@ import {
   GetAssignmentStorageInfo
 } from "@/wailsjs/go/main/App"
 import { toast } from 'sonner'
-import { uuidv4 } from 'zod/v4'
 import { assignmentKeys } from './use-assignments'
 
 
 // Query keys for consistent cache management
 export const documentKeys = {
   storage: () => ['document-storage'] as const,
-  assignmentStorage: (id: number) => ['assignment-storage', id] as const,
-  rag: (assignmentId: number) => ['document-rag', assignmentId] as const,
+  assignmentStorage: (id: string) => ['assignment-storage', id] as const,
+  rag: (assignmentId: string) => ['document-rag', assignmentId] as const,
 }
 
 
@@ -58,37 +57,34 @@ export function useUploadDocument() {
 
   return useMutation({
     mutationFn: async ({
+      documentId,
       assignmentId,
-      remoteAssignmentId,
       documentType,
       filePath,
-      uploadId
     }: {
-      assignmentId: number
-      remoteAssignmentId: number
+      documentId: string
+      assignmentId: string
       documentType: string
       filePath: string
       uploadId: string
     }) => {
       // Generate a unique upload ID
-      return await UploadDocument(assignmentId, remoteAssignmentId, documentType, filePath, uploadId)
+      return await UploadDocument(documentId, assignmentId, documentType, filePath)
     },
 
     // Optimistically update the cache
-    onMutate: async ({ assignmentId, remoteAssignmentId, documentType, filePath, uploadId }) => {
+    onMutate: async ({ documentId, assignmentId, documentType, filePath }) => {
       // Cancel any outgoing refetches
 
       const fileInfo = await GetFileInfo(filePath)
 
       var newDocument = new models.LocalDocument({
-        ID: 0,
+        ID: documentId,
         AssignmentID: assignmentId,
-        RemoteAssignmentID: remoteAssignmentId,
         Type: documentType,
         FilePath: filePath,
         FileName: fileInfo.FileName,
         FileSize: fileInfo.FileSize,
-        UploadID: uploadId,
       })
 
       const previousAssignments = queryClient.getQueryData<models.LocalAssignment[]>(
@@ -317,7 +313,7 @@ export function useUpload() {
 // Hook for opening documents
 export function useOpenDocument() {
   return useMutation({
-    mutationFn: async (documentId: number) => {
+    mutationFn: async (documentId: string) => {
       return await OpenDocument(documentId)
     },
 
@@ -330,7 +326,7 @@ export function useOpenDocument() {
 // Hook for saving documents
 export function useSaveDocumentAs() {
   return useMutation({
-    mutationFn: async (documentId: number) => {
+    mutationFn: async (documentId: string) => {
       return await SaveDocumentAs(documentId)
     },
 
@@ -346,12 +342,12 @@ export function useUploadDocumentRAG() {
 
   return useMutation({
     onMutate: async (document) => {
-      await queryClient.cancelQueries({ queryKey: documentKeys.rag(document.RemoteAssignmentID) })
+      await queryClient.cancelQueries({ queryKey: documentKeys.rag(document.AssignmentID) })
 
       // Update all queries that match the base key
-      queryClient.setQueriesData<number[]>({ queryKey: documentKeys.rag(document.RemoteAssignmentID) }, (old) => {
-        if (!old) return [document.RemoteID]
-        return old.includes(document.RemoteID) ? old : [...old, document.RemoteID]
+      queryClient.setQueriesData<string[]>({ queryKey: documentKeys.rag(document.AssignmentID) }, (old) => {
+        if (!old) return [document.ID]
+        return old.includes(document.ID) ? old : [...old, document.ID]
       })
     },
     mutationFn: async (document: models.LocalDocument) => {
@@ -359,12 +355,12 @@ export function useUploadDocumentRAG() {
     },
     onError: (err, variables, context) => {
       // Since we updated multiple queries potentially, invalidation is the safest rollback
-      queryClient.invalidateQueries({ queryKey: documentKeys.rag(variables.RemoteAssignmentID) })
+      queryClient.invalidateQueries({ queryKey: documentKeys.rag(variables.AssignmentID) })
       LogError("Failed to upload document to RAG: " + err)
     },
     onSettled: (data, error, variables, context) => {
       if (!error) {
-        queryClient.invalidateQueries({ queryKey: documentKeys.rag(variables.RemoteAssignmentID) })
+        queryClient.invalidateQueries({ queryKey: documentKeys.rag(variables.AssignmentID) })
       }
     },
   })
@@ -375,35 +371,35 @@ export function useDeleteDocumentRAG() {
   const queryClient = useQueryClient()
   return useMutation({
     onMutate: async (document) => {
-      await queryClient.cancelQueries({ queryKey: documentKeys.rag(document.RemoteAssignmentID) })
+      await queryClient.cancelQueries({ queryKey: documentKeys.rag(document.AssignmentID) })
 
       // Update all queries that match the base key
-      queryClient.setQueriesData<number[]>({ queryKey: documentKeys.rag(document.RemoteAssignmentID) }, (old) => {
+      queryClient.setQueriesData<string[]>({ queryKey: documentKeys.rag(document.AssignmentID) }, (old) => {
         if (!old) return []
-        return old.filter(id => id !== document.RemoteID)
+        return old.filter(id => id !== document.ID)
       })
     },
     mutationFn: async (document: models.LocalDocument) => {
-      return await DeleteDocumentRAG(document.RemoteAssignmentID, document.RemoteID)
+      return await DeleteDocumentRAG(document.AssignmentID, document.ID)
     },
     onError: (err, variables, context) => {
-      queryClient.invalidateQueries({ queryKey: documentKeys.rag(variables.RemoteAssignmentID) })
+      queryClient.invalidateQueries({ queryKey: documentKeys.rag(variables.AssignmentID) })
       LogError("Failed to delete document from RAG: " + err)
     },
     onSettled: (data, error, variables, context) => {
       if (!error) {
-        queryClient.invalidateQueries({ queryKey: documentKeys.rag(variables.RemoteAssignmentID) })
+        queryClient.invalidateQueries({ queryKey: documentKeys.rag(variables.AssignmentID) })
       }
     },
   })
 }
 
 // Hook for fetching all documents for an assignment
-export function useAssignmentDocumentIDsRAG(assignmentId: number) {
-  const queryClient = useQueryClient()
+export function useAssignmentDocumentIDsRAG(assignmentId: string) {
+
   return useQuery({
     queryKey: [...documentKeys.rag(assignmentId)],
-    queryFn: async (): Promise<number[]> => {
+    queryFn: async (): Promise<string[]> => {
       try {
         const docIds = await GetAssignmentDocumentIDsRAG(assignmentId)
         return docIds
@@ -437,7 +433,7 @@ export function useUserStorageInfo() {
   })
 }
 
-export function useAssignmentStorageInfo(assignmentID: number) {
+export function useAssignmentStorageInfo(assignmentID: string) {
   return useQuery({
     queryKey: documentKeys.assignmentStorage(assignmentID),
     queryFn: async (): Promise<models.LocalAssignmentStorage> => {

@@ -25,6 +25,7 @@ import {
 } from "./shema"
 import { FormErrorMessage } from "../auth/form-error-message"
 import { useCreateCourse } from "@/hooks/use-courses"
+import { uuidv4 } from "zod/v4"
 
 interface CourseAddDialogProps {
   isOpen: boolean
@@ -101,7 +102,9 @@ export function CourseAddDialog({ isOpen, onClose }: CourseAddDialogProps) {
   const onSubmit = async (data: CourseValues) => {
     setIsSubmitting(true)
     try {
+      const id = crypto.randomUUID()
       const courseData: models.LocalCourse = {
+        ID: id,
         Name: data.name,
         Code: data.code,
         Color: data.color,
@@ -116,10 +119,8 @@ export function CourseAddDialog({ isOpen, onClose }: CourseAddDialogProps) {
       } as models.LocalCourse
 
       createMutation.mutate(courseData)
-      toast.success("Course added successfully")
       onClose()
     } catch (error) {
-      toast.error("Failed to add course")
     } finally {
       setIsSubmitting(false)
     }

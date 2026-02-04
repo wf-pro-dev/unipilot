@@ -18,7 +18,7 @@ import { useDialogContext } from "../provider/dialog-provider"
 
 
 interface CourseItemProps {
-    courseId: number
+    courseId: string
     disabled?: boolean
     variant?: GlassCardVariants
     size?: "default" | "sm"
@@ -27,7 +27,7 @@ interface CourseItemProps {
     timeSlots?: number[]
     day?: string
 
-    courseRO?: models.Course
+    courseRO?: models.Course | models.LocalCourse
     user?: models.User
     onClick?: () => void
     onAccept?: () => void
@@ -142,13 +142,13 @@ function BaseCourseItem({
 
     function DefaultCourseItem({
         courseId,
-        variant,
-        size
+        size,
     }: CourseItemProps) {
 
         const { data: course } = useCourse(courseId)
 
         if (!course) return null
+
 
         const { data: course_assignments } = useCourseAssignments(courseId)
 
@@ -319,14 +319,14 @@ function BaseCourseItem({
         onAccept,
         onDecline
     }: CourseItemProps) {
-        
+
         if (!courseRO) return null
 
         if (size === "sm") {
             return (
                 <div
                     key={courseRO.ID}
-                    onClick={onClick ? onClick : () => SetDialogState({ modelType: "course", dialogType: "details", id: courseRO.ID, item: courseRO, viewMode: "readonly" })}
+                    onClick={onClick ? onClick : () => SetDialogState({ modelType: "course", dialogType: "details", id: courseRO.ID, item: courseRO as models.Course, viewMode: "readonly" })}
                     className="flex flex-1 justify-between items-center border border-white/5  shadow-lg shadow-black/60 rounded-xl py-2 px-4 overflow-hidden relative group/item">
 
                     <div className={`absolute inset-0 z-0 ${getCourseGradientClasses(courseRO.Color, true).bg} ${getCourseGradientClasses(courseRO.Color, true).hover} transition-colors duration-300`} />
@@ -373,7 +373,7 @@ function BaseCourseItem({
                 <GlassCard
                     variant={"outline"}
                     className={`${disabled ? 'opacity-50' : ''}`}
-                    onClick={onClick ? onClick : () => SetDialogState({ modelType: "course", dialogType: "details", id: courseRO.ID, item: courseRO, viewMode: "readonly" })}
+                    onClick={onClick ? onClick : () => SetDialogState({ modelType: "course", dialogType: "details", id: courseRO.ID, item: courseRO as models.Course, viewMode: "readonly" })}
                     key={courseRO.ID}
                 >
                     <CardContent className="p-5">
@@ -502,7 +502,7 @@ function BaseCourseItem({
 
     switch (mode) {
         case "default":
-            return <DefaultCourseItem courseId={courseId} variant={variant} size={size} />
+            return <DefaultCourseItem courseId={courseId}  variant={variant} size={size} />
         case "readonly":
             return <UserCourseItem courseId={courseRO?.ID!} courseRO={courseRO} size={size} onAccept={onAccept} onDecline={onDecline} />
         case "schedule":

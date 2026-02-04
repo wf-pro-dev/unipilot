@@ -291,13 +291,13 @@ func (c *Course) GetCourseAssignmentIDs(db *gorm.DB) ([]string, error) {
 	return assignmentIDs, nil
 }
 
-func (lc *LocalCourse) GetAssignmentsByCourse(db *gorm.DB) ([]LocalAssignment, error) {
-	var assignments []LocalAssignment
-	err := db.Where("course_code = ?", lc.Code).Find(&assignments).Error
+func (lc *LocalCourse) GetCourseAssignments(db *gorm.DB) ([]*LocalAssignment, error) {
+	var assignments []*LocalAssignment
+	err := db.Model(&lc).Association("Assignments").Find(&assignments)
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
-	return assignments, nil
+	return assignments, err
 }
 
 // DELETE Operations

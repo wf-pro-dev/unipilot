@@ -8,10 +8,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useRouter, useSearchParams } from "next/navigation"
 import CoursesSchedule from "@/components/courses/courses-schedule"
 import CoursesTable from "@/components/courses/courses-table"
-import { LogInfo } from "@/wailsjs/runtime/runtime"
-import { format } from "date-fns"
-import { models } from "@/wailsjs/go/models"
-import { LinkRequestModal } from "@/components/community/link-request-modal"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { useAuthContext } from "@/components/provider/auth-provider"
 import { Button } from "@/components/ui/button"
@@ -45,9 +41,7 @@ export default function CoursesPage() {
   // Fetch courses data with default empty array to prevent undefined errors
   const { user } = useAuthContext()
   const { data: courses = [], isLoading, error } = useCourses()
-  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null)
-  const [selectedDeleteCourseId, setSelectedDeleteCourseId] = useState<number | null>(null)
-  const [isLinkRequestModalOpen, setIsLinkRequestModalOpen] = useState(false)
+  console.log("page ourses", courses)
   const [selectedSemester, setSelectedSemester] = useState<string>(user?.Semester || "")
   const { SetDialogState } = useDialogContext()
 
@@ -111,7 +105,7 @@ export default function CoursesPage() {
     if (currentCourse) {
       const course = courses.find((course) => course.Code === currentCourse)
       if (course) {
-        setSelectedCourseId(course.ID)
+        SetDialogState({ modelType: "course", dialogType: "details", id: course.ID })
       }
     }
   }, [currentCourse, courses])
@@ -124,43 +118,6 @@ export default function CoursesPage() {
 
   const semester = searchParams.get("semester") || null
   const instructor = searchParams.get("instructor") || null
-
-  const createMutation = useCreateCourse()
-
-
-
-  /**
-   * Handles course creation with optimistic UI updates.
-   * 
-   * Creates a new course and provides immediate UI feedback. Logs the creation
-   * for audit purposes.
-   * 
-   * @param {course.LocalCourse} course - The course to create
-   * @returns {Promise<void>}
-   */
-  const handleAddCourse = async (course: models.LocalCourse) => {
-    const message = "course " + course.Code + " added"
-    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-    createMutation.mutate(course)
-  }
-
-  /**
-   * Handles course card click to open details modal.
-   * 
-   * @param {course.LocalCourse} course - The course that was clicked
-   */
-  const handleCourseClick = (course: models.LocalCourse) => {
-    setSelectedCourseId(course.ID)
-  }
-
-  /**
-   * Handles delete button click to open delete confirmation dialog.
-   * 
-   * @param {course.LocalCourse} course - The course to delete
-   */
-  const handleDeleteCourseClick = (course: models.LocalCourse) => {
-    setSelectedDeleteCourseId(course.ID)
-  }
 
   /**
    * Handles tab change and synchronizes the active view with URL query parameters.
@@ -218,7 +175,7 @@ export default function CoursesPage() {
             type="button"
             variant="default"
             className="text-body text-black"
-            onClick={() => SetDialogState({ modelType: "course", dialogType: "add" })}
+            onClick={() => SetDialogState({ modelType: "course", dialogType: "add", id: "" })}
           >
             <Plus className="h-4 w-4" strokeWidth={2} />
             Add Course
@@ -271,7 +228,6 @@ export default function CoursesPage() {
             <CoursesSchedule
               selectedSemester={selectedSemester}
               courses={courses || []}
-              onCourseClick={handleCourseClick}
             />
           </TabsContent>
 

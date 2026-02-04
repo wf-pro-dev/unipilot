@@ -39,7 +39,7 @@ func GetUserDir() (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, errors.FSFileFailed, "Failed to get main directory")
 	}
-	userDir := filepath.Join(mainDir, fmt.Sprintf("user_%d", credentials.ID))
+	userDir := filepath.Join(mainDir, fmt.Sprintf("user_%s", credentials.ID))
 
 	if err := os.MkdirAll(userDir, 0755); err != nil {
 		return "", errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create user directory")

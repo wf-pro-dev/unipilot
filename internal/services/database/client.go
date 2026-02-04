@@ -38,7 +38,7 @@ func InitializeClient(userID string, config *DatabaseConfig) (*gorm.DB, error) {
 		config = DefaultClientConfig()
 	}
 
-	log.Printf("[ClientDB] Initializing client database for user ID: %d...", userID)
+	log.Printf("[ClientDB] Initializing client database for user ID: %s...", userID)
 
 	// Get database connection for specific user
 	db, err := utils.GetUserDBWithID(userID)
@@ -69,7 +69,7 @@ func InitializeClient(userID string, config *DatabaseConfig) (*gorm.DB, error) {
 		}
 	}
 
-	log.Printf("[ClientDB] ✅ Client database initialized successfully for user ID: %d", userID)
+	log.Printf("[ClientDB] ✅ Client database initialized successfully for user ID: %s", userID)
 	return db, nil
 }
 
@@ -107,7 +107,7 @@ func CheckClientMigrationNeeded(db *gorm.DB) (bool, []string) {
 
 // EnsureClientDBInitializedWithUser ensures the client database is initialized for a specific user
 func EnsureClientDBInitialized(userID string) (*gorm.DB, error) {
-	log.Printf("[ClientDB] Ensuring client database is initialized for user ID: %d...", userID)
+	log.Printf("[ClientDB] Ensuring client database is initialized for user ID: %s...", userID)
 
 	// Initialize database for the user (creates DB file and runs migrations if needed)
 	db, err := InitializeClient(userID, nil)
@@ -115,6 +115,6 @@ func EnsureClientDBInitialized(userID string) (*gorm.DB, error) {
 		return nil, errors.Wrap(err, errors.DBConnectionFailed, "Failed to ensure client database is initialized")
 	}
 
-	log.Printf("[ClientDB] ✅ Client database ready for user ID: %d", userID)
+	log.Printf("[ClientDB] ✅ Client database ready for user ID: %s", userID)
 	return db, nil
 }

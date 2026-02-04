@@ -59,18 +59,18 @@ func NewManager(userID string, ctx context.Context) (*Manager, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, errors.FSDirFailed, "Failed to get logs directory")
 	}
-	daemonPath := filepath.Join(userDir, fmt.Sprintf("unipilot-notification_%d", userID))
-	logPath := filepath.Join(logsDir, fmt.Sprintf("unipilot-notification_%d.log", userID))
-	errorLogPath := filepath.Join(logsDir, fmt.Sprintf("unipilot-notification_%d-error.log", userID))
+	daemonPath := filepath.Join(userDir, fmt.Sprintf("unipilot-notification_%s", userID))
+	logPath := filepath.Join(logsDir, fmt.Sprintf("unipilot-notification_%s.log", userID))
+	errorLogPath := filepath.Join(logsDir, fmt.Sprintf("unipilot-notification_%s-error.log", userID))
 
 	// Create a dummy program for service configuration
 	prg := &dummyProgram{}
 
 	// Configure service with logging
 	svcConfig := &service.Config{
-		Name:        fmt.Sprintf("com.unipilot.notifications.%d", userID),
-		DisplayName: fmt.Sprintf("UniPilot Notification Service for User %d", userID),
-		Description: fmt.Sprintf("Background notification service for UniPilot for user %d", userID),
+		Name:        fmt.Sprintf("com.unipilot.notifications.%s", userID),
+		DisplayName: fmt.Sprintf("UniPilot Notification Service for User %s", userID),
+		Description: fmt.Sprintf("Background notification service for UniPilot for user %s", userID),
 		Arguments: []string{
 			"-user", userID,
 			"-log", logPath,

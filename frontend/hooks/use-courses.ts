@@ -15,7 +15,7 @@ export const courseKeys = {
   lists: () => [...courseKeys.all, 'list'] as const,
   list: (filters: string) => [...courseKeys.lists(), { filters }] as const,
   details: () => [...courseKeys.all, 'detail'] as const,
-  detail: (id: number) => [...courseKeys.details(), id] as const,
+  detail: (id: string) => [...courseKeys.details(), id] as const,
   linked: () => [...courseKeys.all, 'linked'] as const,
 }
 
@@ -36,7 +36,7 @@ export function useCourses() {
   })
 }
 
-export function useCourse(id: number) {
+export function useCourse(id: string) {
   
   // Directly subscribe to assignment cache changes
   const { data: courses } = useQuery({
@@ -52,7 +52,7 @@ export function useCourse(id: number) {
   }
 }
 
-export function useCourseAssignments(courseId: number) {
+export function useCourseAssignments(courseId: string) {
   const { data: assignments } = useQuery({
     queryKey: assignmentKeys.lists(),
     enabled: false,
@@ -113,6 +113,13 @@ export function useCreateCourse() {
         queryClient.setQueryData(courseKeys.lists(), context.previousCourses)
       }
       LogError("Failed to create course: " + err)
+      toast.error("Failed to create course")
+    },
+
+    onSuccess: () => {
+      const currentCourses = queryClient.getQueryData<models.LocalCourse[]>(courseKeys.lists())
+      console.log("currentCourses", currentCourses)
+      toast.success("Course created successfully")
     },
     
     onSettled: () => {
@@ -208,6 +215,9 @@ export function useDeleteCourse() {
       }
       LogError("Failed to delete course: " + err)
     },
+    onSuccess: () => {
+      toast.success("Course deleted successfully")
+    },
     
     onSettled: () => {
       // Invalidate all related caches to ensure consistency
@@ -223,7 +233,7 @@ export function useDeleteCourse() {
 // Hook for requesting to link a course to a list of users
 export function useCourseShare() {
   return useMutation({
-    mutationFn: async ({ c, usersID }: { c: models.LocalCourse, usersID: number[] }) => {
+    mutationFn: async ({ c, usersID }: { c: models.LocalCourse, usersID: string[] }) => {
       return await CourseShare(c, usersID)
     },
     onSuccess: () => {
@@ -252,15 +262,14 @@ export function useAcceptCourseInvitation() {
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
       const previousCourses = queryClient.getQueryData<models.LocalCourse[]>(courseKeys.lists())
 
-      const targetiD = invitation.Course?.ParentID || invitation.Course?.ID || 0
+      const targetiD = invitation.Course?.ClusterID || invitation.Course?.ID || ""
 
       var existingCourse = previousCourses?.find(c => c.Code === invitation.CourseCode)
       if (existingCourse) {
-         await updateCourse.mutate({ course: existingCourse, column: "parent_id", value: targetiD.toString() })
+         await updateCourse.mutate({ course: existingCourse, column: "cluster_id", value: targetiD })
       } else {
         const newCourse = models.LocalCourse.createFrom(invitation.Course)
-        newCourse.ParentID = targetiD
-        console.log("newCourse", newCourse)
+        newCourse.ClusterID = targetiD
         await createCourse.mutate(newCourse)
       }
      

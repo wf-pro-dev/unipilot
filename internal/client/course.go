@@ -49,24 +49,10 @@ func CreateCourse(c *models.Course) error {
 		return err
 	}
 
-	statusCode, body, errs := agent.Bytes()
-	if len(errs) > 0 {
-		return errs[0]
-	}
-
-	if statusCode != 200 {
-		var serverError *errors.ServerError
-		if err := json.Unmarshal(body, &serverError); err != nil {
-			return errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
-		}
+	statusCode, body, _ := agent.Bytes()
+	if statusCode != fiber.StatusCreated {
+		serverError := errors.ParseServerError(body, statusCode)
 		return serverError
-	}
-
-	var response struct {
-		RemoteID uint `json:"remote_id"`
-	}
-	if err := json.Unmarshal(body, &response); err != nil {
-		return errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 	}
 
 	return nil
@@ -87,12 +73,8 @@ func UpdateCourse(id string, column, value string) error {
 		return err
 	}
 
-	statusCode, body, errs := agent.Bytes()
-	if len(errs) > 0 {
-		return errs[0]
-	}
-
-	if statusCode != 200 {
+	statusCode, body, _ := agent.Bytes()
+	if statusCode != fiber.StatusNoContent {
 		serverError := errors.ParseServerError(body, statusCode)
 		return serverError
 	}
@@ -109,12 +91,8 @@ func DeleteCourse(id string) error {
 		return err
 	}
 
-	statusCode, body, errs := agent.Bytes()
-	if len(errs) > 0 {
-		return errs[0]
-	}
-
-	if statusCode != 200 {
+	statusCode, body, _ := agent.Bytes()
+	if statusCode != fiber.StatusNoContent {
 		serverError := errors.ParseServerError(body, statusCode)
 		return serverError
 	}
@@ -136,11 +114,7 @@ func CourseShare(c *models.LocalCourse, usersID []string) error {
 		return err
 	}
 
-	statusCode, body, errs := agent.Bytes()
-	if len(errs) > 0 {
-		return errs[0]
-	}
-
+	statusCode, body, _ := agent.Bytes()
 	if statusCode != fiber.StatusNoContent {
 		serverError := errors.ParseServerError(body, statusCode)
 		return serverError
@@ -162,11 +136,7 @@ func AcceptCourseInvitation(invitation *models.CourseInvitation) error {
 		return err
 	}
 
-	statusCode, body, errs := agent.Bytes()
-	if len(errs) > 0 {
-		return errs[0]
-	}
-
+	statusCode, body, _ := agent.Bytes()
 	if statusCode != fiber.StatusNoContent {
 		serverError := errors.ParseServerError(body, statusCode)
 		return serverError
@@ -183,10 +153,7 @@ func DeclineCourseInvitation(invitation *models.CourseInvitation) error {
 		return err
 	}
 
-	statusCode, body, errs := agent.Bytes()
-	if len(errs) > 0 {
-		return errs[0]
-	}
+	statusCode, body, _ := agent.Bytes()
 	if statusCode != fiber.StatusNoContent {
 		serverError := errors.ParseServerError(body, statusCode)
 		return serverError

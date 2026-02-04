@@ -21,7 +21,7 @@ type ViewMode = "default" | "readonly"
 interface DialogProps {
     modelType: ModelTypes
     dialogType: DialogTypes
-    id: number
+    id: string
     item?: DialogItemTypes
     open?: boolean
     viewMode?: ViewMode
@@ -33,23 +33,23 @@ interface DialogContextType {
 const DialogContext = createContext<DialogContextType | undefined>(undefined)
 
 export function DialogProvider({ children }: DialogProviderProps) {
-    const [assignmentDetailsID, setAssignmentDetailsID] = useState<number | undefined>(undefined)
+    const [assignmentDetailsID, setAssignmentDetailsID] = useState<string | undefined>(undefined)
     const [assignmentDetailsItem, setAssignmentDetailsItem] = useState<models.Assignment | undefined>(undefined)
-    const [assignmentEditID, setAssignmentEditID] = useState<number | undefined>(undefined)
+    const [assignmentEditID, setAssignmentEditID] = useState<string | undefined>(undefined)
     const [assignmentAdd, setAssignmentAdd] = useState<boolean>(false)
 
-    const [courseDetailsID, setCourseDetailsID] = useState<number | undefined>(undefined)
+    const [courseDetailsID, setCourseDetailsID] = useState<string | undefined>(undefined)
     const [courseDetailsItem, setCourseDetailsItem] = useState<models.Course | undefined>(undefined)
-    const [courseEditID, setCourseEditID] = useState<number | undefined>(undefined)
+    const [courseEditID, setCourseEditID] = useState<string | undefined>(undefined)
     const [courseAdd, setCourseAdd] = useState<boolean>(false)
-    const [courseDeleteID, setCourseDeleteID] = useState<number | undefined>(undefined)
-    const [courseLinkRequestID, setCourseLinkRequestID] = useState<number | undefined>(undefined)
+    const [courseDeleteID, setCourseDeleteID] = useState<string | undefined>(undefined)
+    const [courseLinkRequestID, setCourseLinkRequestID] = useState<string | undefined>(undefined)
 
     const [noteAdd, setNoteAdd] = useState<boolean>(false)
-    const [noteDetailsID, setNoteDetailsID] = useState<number | undefined>(undefined)
-    const [noteEditID, setNoteEditID] = useState<number | undefined>(undefined)
+    const [noteDetailsID, setNoteDetailsID] = useState<string | undefined>(undefined)
+    const [noteEditID, setNoteEditID] = useState<string | undefined>(undefined)
 
-    const [userDetailsID, setUserDetailsID] = useState<number | undefined>(undefined)
+    const [userDetailsID, setUserDetailsID] = useState<string | undefined>(undefined)
 
     const [viewMode, setViewMode] = useState<ViewMode>("default")
 
@@ -186,7 +186,6 @@ export function DialogProvider({ children }: DialogProviderProps) {
                 courseId={courseDeleteID!}
                 isOpen={courseDeleteID !== undefined}
                 onClose={() => setCourseDeleteID(undefined)}
-                onDelete={() => setCourseDeleteID(courseDeleteID)}
             />
 
             <LinkRequestModal

@@ -123,12 +123,12 @@ func (c *Course) BeforeDelete(tx *gorm.DB) error {
 }
 
 func (lc *LocalCourse) BeforeDelete(tx *gorm.DB) error {
-	assignments, err := lc.GetAssignmentsByCourse(tx)
+	assignments, err := lc.GetCourseAssignments(tx)
 	if err != nil {
 		return errors.Wrap(err, errors.DBQueryFailed, "Error getting assignments by course")
 	}
 
-	notes, err := lc.GetNotesByCourse(tx)
+	notes, err := lc.GetCourseNotes(tx)
 	if err != nil {
 		return errors.Wrap(err, errors.DBQueryFailed, "Error getting notes by course")
 	}
