@@ -16,7 +16,7 @@ export function AcceptNote(arg1:string):Promise<void>;
 
 export function CopyAssignment(arg1:models.LocalAssignment,arg2:boolean):Promise<void>;
 
-export function CourseShare(arg1:models.LocalCourse,arg2:Array<number>):Promise<void>;
+export function CourseShare(arg1:models.LocalCourse,arg2:Array<string>):Promise<void>;
 
 export function CreateAssignment(arg1:models.LocalAssignment):Promise<models.LocalAssignment>;
 
@@ -32,29 +32,27 @@ export function DeleteAssignment(arg1:models.LocalAssignment):Promise<void>;
 
 export function DeleteCourse(arg1:models.LocalCourse):Promise<void>;
 
-export function DeleteDocument(arg1:number):Promise<void>;
+export function DeleteDocument(arg1:string):Promise<void>;
 
-export function DeleteDocumentRAG(arg1:number,arg2:number):Promise<void>;
+export function DeleteDocumentRAG(arg1:string,arg2:string):Promise<void>;
 
 export function DeleteNote(arg1:models.LocalNote):Promise<void>;
 
 export function DownloadDocument(arg1:models.LocalDocument):Promise<void>;
 
-export function Follow(arg1:number):Promise<boolean>;
-
 export function GetActiveUploads():Promise<Array<progress.TrackerSnapshot>>;
 
-export function GetAssignmentDocumentIDsRAG(arg1:number):Promise<Array<number>>;
+export function GetAssignmentDocumentIDsRAG(arg1:string):Promise<Array<string>>;
 
-export function GetAssignmentStorageInfo(arg1:number):Promise<models.LocalAssignmentStorage>;
+export function GetAssignmentStorageInfo(arg1:string):Promise<models.LocalAssignmentStorage>;
 
 export function GetAssignments():Promise<Array<models.LocalAssignment>>;
 
 export function GetAuthToken():Promise<string>;
 
-export function GetConversationHistory(arg1:number):Promise<Array<models.LocalAiMessage>>;
+export function GetConversationHistory(arg1:string):Promise<Array<models.LocalAiMessage>>;
 
-export function GetCourse(arg1:number):Promise<models.LocalCourse>;
+export function GetCourse(arg1:string):Promise<models.LocalCourse>;
 
 export function GetCourseAssignments(arg1:models.LocalCourse):Promise<Array<models.LocalAssignment>>;
 
@@ -68,11 +66,7 @@ export function GetFileAsDataURL(arg1:string):Promise<string>;
 
 export function GetFileInfo(arg1:string):Promise<main.FileInfo>;
 
-export function GetFollowers(arg1:number):Promise<main.FollowResponse>;
-
-export function GetFollowing(arg1:number):Promise<main.FollowResponse>;
-
-export function GetLAssignment(arg1:number):Promise<models.LocalAssignment>;
+export function GetLAssignment(arg1:string):Promise<models.LocalAssignment>;
 
 export function GetNetworkStatus():Promise<Record<string, any>>;
 
@@ -82,13 +76,13 @@ export function GetNotificationDaemonStatus():Promise<Record<string, any>>;
 
 export function GetRemoteUsers():Promise<Array<client.RemoteUser>>;
 
-export function GetSubmissionDocuments(arg1:number):Promise<Array<models.LocalDocument>>;
+export function GetSubmissionDocuments(arg1:string):Promise<Array<models.LocalDocument>>;
 
-export function GetSupportDocuments(arg1:number):Promise<Array<models.LocalDocument>>;
+export function GetSupportDocuments(arg1:string):Promise<Array<models.LocalDocument>>;
 
 export function GetUploadProgress(arg1:string):Promise<progress.TrackerSnapshot>;
 
-export function GetUser(arg1:number):Promise<models.User>;
+export function GetUser(arg1:string):Promise<models.User>;
 
 export function GetUserCourseInvitations():Promise<Array<models.CourseInvitation>>;
 
@@ -104,7 +98,7 @@ export function Login(arg1:string,arg2:string):Promise<models.User>;
 
 export function Logout():Promise<void>;
 
-export function OpenDocument(arg1:number):Promise<void>;
+export function OpenDocument(arg1:string):Promise<void>;
 
 export function PickFile():Promise<string>;
 
@@ -112,17 +106,15 @@ export function RebuildNotificationDaemon():Promise<void>;
 
 export function Register(arg1:models.User):Promise<models.User>;
 
-export function SaveDocumentAs(arg1:number):Promise<void>;
+export function SaveDocumentAs(arg1:string):Promise<void>;
 
-export function SaveUIMessage(arg1:number,arg2:Record<string, any>):Promise<void>;
+export function SaveUIMessage(arg1:string,arg2:Record<string, any>):Promise<void>;
 
 export function SendDocument(arg1:fileops.FileUploadResponse):Promise<models.LocalDocument>;
 
 export function StartNotificationDaemon():Promise<void>;
 
 export function StopNotificationDaemon():Promise<void>;
-
-export function Sync():Promise<void>;
 
 export function UninstallNotificationDaemon():Promise<void>;
 
@@ -134,10 +126,10 @@ export function UpdateNote(arg1:models.LocalNote,arg2:string,arg3:string):Promis
 
 export function UpdateUser(arg1:string,arg2:string):Promise<models.User>;
 
-export function UploadDocument(arg1:number,arg2:number,arg3:string,arg4:string,arg5:string):Promise<models.LocalDocument>;
+export function UploadDocument(arg1:string,arg2:string,arg3:string,arg4:string):Promise<models.LocalDocument>;
 
 export function UploadDocumentRAG(arg1:models.LocalDocument):Promise<void>;
 
-export function UploadNewDocumentVersion(arg1:number):Promise<models.LocalDocument>;
+export function UploadNewDocumentVersion(arg1:string):Promise<models.LocalDocument>;
 
 export function UploadProfilePicture():Promise<string>;

@@ -393,8 +393,8 @@ func (d *Document) GenerateFilePath() (string, error) {
 
 	// Create subdirectories: user_id/assignment_id/document_type/
 	subDir := filepath.Join(
-		fmt.Sprintf("user_%d", d.UserID),
-		fmt.Sprintf("assignment_%d", d.AssignmentID),
+		fmt.Sprintf("user_%s", d.UserID),
+		fmt.Sprintf("assignment_%s", d.AssignmentID),
 		string(d.Type),
 	)
 
@@ -405,7 +405,7 @@ func (d *Document) GenerateFilePath() (string, error) {
 
 	// Generate unique filename with timestamp to avoid conflicts
 	timestamp := time.Now().Unix()
-	fileName := fmt.Sprintf("%d_%s", timestamp, d.FileName)
+	fileName := fmt.Sprintf("%s_%s", timestamp, d.FileName)
 
 	// Return relative path for storage in DB
 	return filepath.Join(subDir, fileName), nil

@@ -65,7 +65,7 @@ func GetAssignmentDocuments(assignmentID string) ([]models.Document, error) {
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Get(fmt.Sprintf("%s/documents/assignments/%d", api_url, assignmentID))
+	agent := fiber.Get(fmt.Sprintf("%s/documents/assignments/%s", api_url, assignmentID))
 
 	if err := SetAuthHeader(agent); err != nil {
 		return nil, err
@@ -462,7 +462,7 @@ func UploadDocumentRAG(document *models.LocalDocument) error {
 func DeleteDocumentRAG(assignmentID, documentID string) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Delete(fmt.Sprintf("%s/documents/%d/%d/rag", api_url, documentID, assignmentID))
+	agent := fiber.Delete(fmt.Sprintf("%s/documents/%s/%s/rag", api_url, documentID, assignmentID))
 
 	if err := SetAuthHeader(agent); err != nil {
 		return err
@@ -483,7 +483,7 @@ func DeleteDocumentRAG(assignmentID, documentID string) error {
 func GetAssignmentDocumentIDsRAG(assignmentID string) ([]string, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Get(fmt.Sprintf("%s/documents/assignments/%d/rag", api_url, assignmentID))
+	agent := fiber.Get(fmt.Sprintf("%s/documents/assignments/%s/rag", api_url, assignmentID))
 
 	if err := SetAuthHeader(agent); err != nil {
 		return nil, err

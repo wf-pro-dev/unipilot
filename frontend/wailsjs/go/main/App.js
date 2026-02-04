@@ -70,10 +70,6 @@ export function DownloadDocument(arg1) {
   return window['go']['main']['App']['DownloadDocument'](arg1);
 }
 
-export function Follow(arg1) {
-  return window['go']['main']['App']['Follow'](arg1);
-}
-
 export function GetActiveUploads() {
   return window['go']['main']['App']['GetActiveUploads']();
 }
@@ -124,14 +120,6 @@ export function GetFileAsDataURL(arg1) {
 
 export function GetFileInfo(arg1) {
   return window['go']['main']['App']['GetFileInfo'](arg1);
-}
-
-export function GetFollowers(arg1) {
-  return window['go']['main']['App']['GetFollowers'](arg1);
-}
-
-export function GetFollowing(arg1) {
-  return window['go']['main']['App']['GetFollowing'](arg1);
 }
 
 export function GetLAssignment(arg1) {
@@ -234,10 +222,6 @@ export function StopNotificationDaemon() {
   return window['go']['main']['App']['StopNotificationDaemon']();
 }
 
-export function Sync() {
-  return window['go']['main']['App']['Sync']();
-}
-
 export function UninstallNotificationDaemon() {
   return window['go']['main']['App']['UninstallNotificationDaemon']();
 }
@@ -258,8 +242,8 @@ export function UpdateUser(arg1, arg2) {
   return window['go']['main']['App']['UpdateUser'](arg1, arg2);
 }
 
-export function UploadDocument(arg1, arg2, arg3, arg4, arg5) {
-  return window['go']['main']['App']['UploadDocument'](arg1, arg2, arg3, arg4, arg5);
+export function UploadDocument(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['UploadDocument'](arg1, arg2, arg3, arg4);
 }
 
 export function UploadDocumentRAG(arg1) {

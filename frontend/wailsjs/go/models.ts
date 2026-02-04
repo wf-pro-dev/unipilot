@@ -1,7 +1,7 @@
 export namespace client {
 	
 	export class RemoteUser {
-	    ID: number;
+	    ID: string;
 	    // Go type: time
 	    CreatedAt: any;
 	    // Go type: time
@@ -25,8 +25,8 @@ export namespace client {
 	    Notes: models.Note[];
 	    OwnerRequests: models.CourseInvitation[];
 	    ReceiverRequests: models.CourseInvitation[];
-	    Followers: models.User[];
-	    Following: models.User[];
+	    SentFriendRequests: models.Friendship[];
+	    ReceivedFriendRequests: models.Friendship[];
 	    CoursesCode: string[];
 	
 	    static createFrom(source: any = {}) {
@@ -56,8 +56,8 @@ export namespace client {
 	        this.Notes = this.convertValues(source["Notes"], models.Note);
 	        this.OwnerRequests = this.convertValues(source["OwnerRequests"], models.CourseInvitation);
 	        this.ReceiverRequests = this.convertValues(source["ReceiverRequests"], models.CourseInvitation);
-	        this.Followers = this.convertValues(source["Followers"], models.User);
-	        this.Following = this.convertValues(source["Following"], models.User);
+	        this.SentFriendRequests = this.convertValues(source["SentFriendRequests"], models.Friendship);
+	        this.ReceivedFriendRequests = this.convertValues(source["ReceivedFriendRequests"], models.Friendship);
 	        this.CoursesCode = source["CoursesCode"];
 	    }
 	
@@ -85,10 +85,9 @@ export namespace client {
 export namespace fileops {
 	
 	export class FileUploadRequest {
-	    UploadID?: string;
-	    AssignmentID: number;
-	    RemoteAssignmentID: number;
-	    UserID: number;
+	    DocumentID: string;
+	    AssignmentID: string;
+	    UserID: string;
 	    Type: string;
 	    FileName: string;
 	    FilePath: string;
@@ -102,9 +101,8 @@ export namespace fileops {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.UploadID = source["UploadID"];
+	        this.DocumentID = source["DocumentID"];
 	        this.AssignmentID = source["AssignmentID"];
-	        this.RemoteAssignmentID = source["RemoteAssignmentID"];
 	        this.UserID = source["UserID"];
 	        this.Type = source["Type"];
 	        this.FileName = source["FileName"];
@@ -205,45 +203,13 @@ export namespace main {
 	        this.FileSize = source["FileSize"];
 	    }
 	}
-	export class FollowResponse {
-	    users: models.User[];
-	    count: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new FollowResponse(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.users = this.convertValues(source["users"], models.User);
-	        this.count = source["count"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
 
 }
 
 export namespace models {
 	
 	export class Document {
-	    ID: number;
+	    ID: string;
 	    // Go type: time
 	    CreatedAt: any;
 	    // Go type: time
@@ -253,19 +219,16 @@ export namespace models {
 	    FileName: string;
 	    FilePath: string;
 	    FileSize: number;
-	    StorageKey: string;
+	    StorageKey?: string;
 	    Version: number;
-	    ParentID: number;
-	    ParentDocID?: number;
+	    ParentDocID?: string;
 	    IsOriginal: boolean;
 	    HasLocalFile: boolean;
-	    AssignmentID: number;
-	    StorageKey: string;
-	    UserID: number;
+	    AssignmentID: string;
+	    UserID: string;
 	    User?: User;
 	    Assignment?: Assignment;
 	    Parent?: Document;
-	    ParentDoc?: Document;
 	    Versions: Document[];
 	
 	    static createFrom(source: any = {}) {
@@ -284,17 +247,14 @@ export namespace models {
 	        this.FileSize = source["FileSize"];
 	        this.StorageKey = source["StorageKey"];
 	        this.Version = source["Version"];
-	        this.ParentID = source["ParentID"];
 	        this.ParentDocID = source["ParentDocID"];
 	        this.IsOriginal = source["IsOriginal"];
 	        this.HasLocalFile = source["HasLocalFile"];
 	        this.AssignmentID = source["AssignmentID"];
-	        this.StorageKey = source["StorageKey"];
 	        this.UserID = source["UserID"];
 	        this.User = this.convertValues(source["User"], User);
 	        this.Assignment = this.convertValues(source["Assignment"], Assignment);
 	        this.Parent = this.convertValues(source["Parent"], Document);
-	        this.ParentDoc = this.convertValues(source["ParentDoc"], Document);
 	        this.Versions = this.convertValues(source["Versions"], Document);
 	    }
 	
@@ -316,17 +276,65 @@ export namespace models {
 		    return a;
 		}
 	}
-	export class CourseInvitation {
-	    ID: number;
+	export class Friendship {
+	    ID: string;
 	    // Go type: time
 	    CreatedAt: any;
 	    // Go type: time
 	    UpdatedAt: any;
 	    DeletedAt: gorm.DeletedAt;
-	    OwnerID: number;
-	    ReceiverID: number;
-	    SenderID: number;
-	    CourseID: number;
+	    RequesterID: string;
+	    AddresseeID: string;
+	    Status: string;
+	    Requester: User;
+	    Addressee: User;
+	
+	    static createFrom(source: any = {}) {
+	        return new Friendship(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ID = source["ID"];
+	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
+	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
+	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
+	        this.RequesterID = source["RequesterID"];
+	        this.AddresseeID = source["AddresseeID"];
+	        this.Status = source["Status"];
+	        this.Requester = this.convertValues(source["Requester"], User);
+	        this.Addressee = this.convertValues(source["Addressee"], User);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class CourseInvitation {
+	    ID: string;
+	    // Go type: time
+	    CreatedAt: any;
+	    // Go type: time
+	    UpdatedAt: any;
+	    DeletedAt: gorm.DeletedAt;
+	    OwnerID: string;
+	    ReceiverID: string;
+	    SenderID: string;
+	    CourseID: string;
 	    CourseCode: string;
 	    Status: string;
 	    Owner?: User;
@@ -375,7 +383,7 @@ export namespace models {
 		}
 	}
 	export class Note {
-	    ID: number;
+	    ID: string;
 	    // Go type: time
 	    CreatedAt: any;
 	    // Go type: time
@@ -384,13 +392,12 @@ export namespace models {
 	    Title: string;
 	    Subject: string;
 	    Content: string;
-	    ParentID: number;
 	    Videos: string;
-	    CourseID: number;
-	    CourseCode: string;
-	    UserID: number;
-	    User: User;
-	    Course: Course;
+	    ParentID?: string;
+	    CourseID: string;
+	    UserID: string;
+	    User?: User;
+	    Course?: Course;
 	    Parent?: Note;
 	    Children: Note[];
 	
@@ -407,10 +414,9 @@ export namespace models {
 	        this.Title = source["Title"];
 	        this.Subject = source["Subject"];
 	        this.Content = source["Content"];
-	        this.ParentID = source["ParentID"];
 	        this.Videos = source["Videos"];
+	        this.ParentID = source["ParentID"];
 	        this.CourseID = source["CourseID"];
-	        this.CourseCode = source["CourseCode"];
 	        this.UserID = source["UserID"];
 	        this.User = this.convertValues(source["User"], User);
 	        this.Course = this.convertValues(source["Course"], Course);
@@ -437,7 +443,7 @@ export namespace models {
 		}
 	}
 	export class Course {
-	    ID: number;
+	    ID: string;
 	    // Go type: time
 	    CreatedAt: any;
 	    // Go type: time
@@ -456,9 +462,9 @@ export namespace models {
 	    Semester: string;
 	    Instructor: string;
 	    InstructorEmail: string;
-	    ParentID: number;
-	    UserID: number;
-	    Parent?: Course;
+	    ClusterID?: string;
+	    UserID: string;
+	    Cluster?: Course;
 	    Children: Course[];
 	    User?: User;
 	    Assignments: Assignment[];
@@ -485,9 +491,9 @@ export namespace models {
 	        this.Semester = source["Semester"];
 	        this.Instructor = source["Instructor"];
 	        this.InstructorEmail = source["InstructorEmail"];
-	        this.ParentID = source["ParentID"];
+	        this.ClusterID = source["ClusterID"];
 	        this.UserID = source["UserID"];
-	        this.Parent = this.convertValues(source["Parent"], Course);
+	        this.Cluster = this.convertValues(source["Cluster"], Course);
 	        this.Children = this.convertValues(source["Children"], Course);
 	        this.User = this.convertValues(source["User"], User);
 	        this.Assignments = this.convertValues(source["Assignments"], Assignment);
@@ -513,7 +519,7 @@ export namespace models {
 		}
 	}
 	export class User {
-	    ID: number;
+	    ID: string;
 	    // Go type: time
 	    CreatedAt: any;
 	    // Go type: time
@@ -537,8 +543,8 @@ export namespace models {
 	    Notes: Note[];
 	    OwnerRequests: CourseInvitation[];
 	    ReceiverRequests: CourseInvitation[];
-	    Followers: User[];
-	    Following: User[];
+	    SentFriendRequests: Friendship[];
+	    ReceivedFriendRequests: Friendship[];
 	
 	    static createFrom(source: any = {}) {
 	        return new User(source);
@@ -567,8 +573,8 @@ export namespace models {
 	        this.Notes = this.convertValues(source["Notes"], Note);
 	        this.OwnerRequests = this.convertValues(source["OwnerRequests"], CourseInvitation);
 	        this.ReceiverRequests = this.convertValues(source["ReceiverRequests"], CourseInvitation);
-	        this.Followers = this.convertValues(source["Followers"], User);
-	        this.Following = this.convertValues(source["Following"], User);
+	        this.SentFriendRequests = this.convertValues(source["SentFriendRequests"], Friendship);
+	        this.ReceivedFriendRequests = this.convertValues(source["ReceivedFriendRequests"], Friendship);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -590,7 +596,7 @@ export namespace models {
 		}
 	}
 	export class Assignment {
-	    ID: number;
+	    ID: string;
 	    // Go type: time
 	    CreatedAt: any;
 	    // Go type: time
@@ -603,11 +609,10 @@ export namespace models {
 	    // Go type: time
 	    Deadline: any;
 	    Link: string;
-	    CourseID: number;
-	    CourseCode: string;
+	    CourseID: string;
 	    Priority: string;
-	    ParentID: number;
-	    UserID: number;
+	    ParentID?: string;
+	    UserID: string;
 	    User?: User;
 	    Course?: Course;
 	    Documents: Document[];
@@ -631,7 +636,6 @@ export namespace models {
 	        this.Deadline = this.convertValues(source["Deadline"], null);
 	        this.Link = source["Link"];
 	        this.CourseID = source["CourseID"];
-	        this.CourseCode = source["CourseCode"];
 	        this.Priority = source["Priority"];
 	        this.ParentID = source["ParentID"];
 	        this.UserID = source["UserID"];
@@ -664,12 +668,12 @@ export namespace models {
 	
 	
 	export class DocumentStorage {
-	    UserID: number;
+	    UserID: string;
 	    TotalSize: number;
 	    DocumentCount: number;
 	    // Go type: time
 	    LastCalculatedAt: any;
-	    User: User;
+	    User?: User;
 	
 	    static createFrom(source: any = {}) {
 	        return new DocumentStorage(source);
@@ -702,9 +706,10 @@ export namespace models {
 		    return a;
 		}
 	}
+	
 	export class LocalAiMessage {
 	    ID: string;
-	    AssignmentID: number;
+	    AssignmentID: string;
 	    Role: string;
 	    Parts: number[];
 	    Metadata: number[];
@@ -749,7 +754,7 @@ export namespace models {
 		}
 	}
 	export class LocalDocument {
-	    ID: number;
+	    ID: string;
 	    // Go type: time
 	    CreatedAt: any;
 	    // Go type: time
@@ -759,19 +764,16 @@ export namespace models {
 	    FileName: string;
 	    FilePath: string;
 	    FileSize: number;
-	    StorageKey: string;
+	    StorageKey?: string;
 	    Version: number;
-	    ParentID: number;
-	    ParentDocID?: number;
+	    ParentDocID?: string;
 	    IsOriginal: boolean;
 	    HasLocalFile: boolean;
-	    AssignmentID: number;
-	    RemoteID: number;
-	    RemoteAssignmentID: number;
-	    UploadID?: string;
+	    AssignmentID: string;
+	    // Go type: time
+	    SyncedAt?: any;
 	    Assignment: LocalAssignment;
 	    Parent?: LocalDocument;
-	    ParentDoc?: LocalDocument;
 	    Versions: LocalDocument[];
 	
 	    static createFrom(source: any = {}) {
@@ -790,17 +792,13 @@ export namespace models {
 	        this.FileSize = source["FileSize"];
 	        this.StorageKey = source["StorageKey"];
 	        this.Version = source["Version"];
-	        this.ParentID = source["ParentID"];
 	        this.ParentDocID = source["ParentDocID"];
 	        this.IsOriginal = source["IsOriginal"];
 	        this.HasLocalFile = source["HasLocalFile"];
 	        this.AssignmentID = source["AssignmentID"];
-	        this.RemoteID = source["RemoteID"];
-	        this.RemoteAssignmentID = source["RemoteAssignmentID"];
-	        this.UploadID = source["UploadID"];
+	        this.SyncedAt = this.convertValues(source["SyncedAt"], null);
 	        this.Assignment = this.convertValues(source["Assignment"], LocalAssignment);
 	        this.Parent = this.convertValues(source["Parent"], LocalDocument);
-	        this.ParentDoc = this.convertValues(source["ParentDoc"], LocalDocument);
 	        this.Versions = this.convertValues(source["Versions"], LocalDocument);
 	    }
 	
@@ -823,7 +821,7 @@ export namespace models {
 		}
 	}
 	export class LocalNote {
-	    ID: number;
+	    ID: string;
 	    // Go type: time
 	    CreatedAt: any;
 	    // Go type: time
@@ -832,13 +830,12 @@ export namespace models {
 	    Title: string;
 	    Subject: string;
 	    Content: string;
-	    ParentID: number;
 	    Videos: string;
-	    CourseID: number;
-	    CourseCode: string;
-	    RemoteID: number;
-	    RemoteCourseID: number;
-	    Course: LocalCourse;
+	    ParentID?: string;
+	    CourseID: string;
+	    // Go type: time
+	    SyncedAt?: any;
+	    Course?: LocalCourse;
 	
 	    static createFrom(source: any = {}) {
 	        return new LocalNote(source);
@@ -853,12 +850,10 @@ export namespace models {
 	        this.Title = source["Title"];
 	        this.Subject = source["Subject"];
 	        this.Content = source["Content"];
-	        this.ParentID = source["ParentID"];
 	        this.Videos = source["Videos"];
+	        this.ParentID = source["ParentID"];
 	        this.CourseID = source["CourseID"];
-	        this.CourseCode = source["CourseCode"];
-	        this.RemoteID = source["RemoteID"];
-	        this.RemoteCourseID = source["RemoteCourseID"];
+	        this.SyncedAt = this.convertValues(source["SyncedAt"], null);
 	        this.Course = this.convertValues(source["Course"], LocalCourse);
 	    }
 	
@@ -881,7 +876,7 @@ export namespace models {
 		}
 	}
 	export class LocalCourse {
-	    ID: number;
+	    ID: string;
 	    // Go type: time
 	    CreatedAt: any;
 	    // Go type: time
@@ -900,8 +895,9 @@ export namespace models {
 	    Semester: string;
 	    Instructor: string;
 	    InstructorEmail: string;
-	    ParentID: number;
-	    RemoteID: number;
+	    ClusterID?: string;
+	    // Go type: time
+	    SyncedAt?: any;
 	    Assignments: LocalAssignment[];
 	    Notes: LocalNote[];
 	
@@ -926,8 +922,8 @@ export namespace models {
 	        this.Semester = source["Semester"];
 	        this.Instructor = source["Instructor"];
 	        this.InstructorEmail = source["InstructorEmail"];
-	        this.ParentID = source["ParentID"];
-	        this.RemoteID = source["RemoteID"];
+	        this.ClusterID = source["ClusterID"];
+	        this.SyncedAt = this.convertValues(source["SyncedAt"], null);
 	        this.Assignments = this.convertValues(source["Assignments"], LocalAssignment);
 	        this.Notes = this.convertValues(source["Notes"], LocalNote);
 	    }
@@ -951,7 +947,7 @@ export namespace models {
 		}
 	}
 	export class LocalAssignment {
-	    ID: number;
+	    ID: string;
 	    // Go type: time
 	    CreatedAt: any;
 	    // Go type: time
@@ -964,12 +960,11 @@ export namespace models {
 	    // Go type: time
 	    Deadline: any;
 	    Link: string;
-	    CourseID: number;
-	    CourseCode: string;
+	    CourseID: string;
 	    Priority: string;
-	    ParentID: number;
-	    RemoteID: number;
-	    RemoteCourseID: number;
+	    ParentID?: string;
+	    // Go type: time
+	    SyncedAt?: any;
 	    Course?: LocalCourse;
 	    Documents: LocalDocument[];
 	
@@ -990,11 +985,9 @@ export namespace models {
 	        this.Deadline = this.convertValues(source["Deadline"], null);
 	        this.Link = source["Link"];
 	        this.CourseID = source["CourseID"];
-	        this.CourseCode = source["CourseCode"];
 	        this.Priority = source["Priority"];
 	        this.ParentID = source["ParentID"];
-	        this.RemoteID = source["RemoteID"];
-	        this.RemoteCourseID = source["RemoteCourseID"];
+	        this.SyncedAt = this.convertValues(source["SyncedAt"], null);
 	        this.Course = this.convertValues(source["Course"], LocalCourse);
 	        this.Documents = this.convertValues(source["Documents"], LocalDocument);
 	    }
@@ -1018,7 +1011,7 @@ export namespace models {
 		}
 	}
 	export class LocalAssignmentStorage {
-	    AssignmentID: number;
+	    AssignmentID: string;
 	    TotalCount: number;
 	    DocumentCount: number;
 	    TotalSize: number;

@@ -315,7 +315,7 @@ func (a *Assignment) IsCopy() bool       { return a.ParentID != nil }
 func (la *LocalAssignment) IsRoot() bool { return la.ParentID == nil }
 
 func GetQdrantCollectionName(assignmentID string) string {
-	return fmt.Sprintf("unipilot-qdrant-db-%d", assignmentID)
+	return fmt.Sprintf("unipilot-qdrant-db-%s", assignmentID)
 }
 
 func GetAssignmentDocumentIDsRAG(assignmentID string, qdrantClient *qdrant.Client) ([]string, error) {
@@ -331,7 +331,7 @@ func GetAssignmentDocumentIDsRAG(assignmentID string, qdrantClient *qdrant.Clien
 	}
 	// Retrive All Qdrant Points for that assignment
 	points, err := qdrantClient.Scroll(context.Background(), &qdrant.ScrollPoints{
-		CollectionName: fmt.Sprintf("unipilot-qdrant-db-%d", assignmentID),
+		CollectionName: collectionName,
 		WithPayload:    qdrant.NewWithPayload(true),
 	})
 	if err != nil {

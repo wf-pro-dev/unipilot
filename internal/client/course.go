@@ -156,7 +156,7 @@ type AcceptLinkCourseResponse struct {
 func AcceptCourseInvitation(invitation *models.CourseInvitation) error {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Post(fmt.Sprintf("%s/courses/%d/accept", api_url, invitation.ID))
+	agent := fiber.Post(fmt.Sprintf("%s/courses/%s/accept", api_url, invitation.ID))
 
 	if err := SetAuthHeader(agent); err != nil {
 		return err
@@ -177,7 +177,7 @@ func AcceptCourseInvitation(invitation *models.CourseInvitation) error {
 
 func DeclineCourseInvitation(invitation *models.CourseInvitation) error {
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Post(fmt.Sprintf("%s/courses/%d/decline", api_url, invitation.ID))
+	agent := fiber.Post(fmt.Sprintf("%s/courses/%s/decline", api_url, invitation.ID))
 
 	if err := SetAuthHeader(agent); err != nil {
 		return err
