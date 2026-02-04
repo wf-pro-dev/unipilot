@@ -16,7 +16,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/qdrant/go-client/qdrant"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"unipilot/internal/models"
@@ -258,8 +257,8 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 
 				_, err := (*GrpcClient).SendMessage(context.Background(),
 					&messages.Message{
-						ReceiverId: sendeeID.String(),
-						SenderId:   userID.String(),
+						ReceiverId: sendeeID,
+						SenderId:   userID,
 						Title:      doc.Assignment.Title,
 						Message:    fmt.Sprintf("%s shared a new document for %s", currentUser.Username, doc.Assignment.Course.Code),
 						Data:       []byte(""),
@@ -435,7 +434,7 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 	documentID := localDoc.ID
 	progressManager := progress.GetManager()
 
-	progressTracker := progressManager.Create(documentID.String(), localDoc.FileSize)
+	progressTracker := progressManager.Create(documentID, localDoc.FileSize)
 	progressTracker.SetStatus("Uploading file to cloud storage")
 	snapshot := progressTracker.Snapshot()
 
@@ -520,7 +519,7 @@ func DownloadDocumentHandler(c *fiber.Ctx) error {
 	documentID := localDoc.ID
 	progressManager := progress.GetManager()
 
-	progressTracker := progressManager.Create(documentID.String(), localDoc.FileSize)
+	progressTracker := progressManager.Create(documentID, localDoc.FileSize)
 	progressTracker.SetStatus("Downloading file from cloud storage")
 	snapshot := progressTracker.Snapshot()
 
@@ -622,20 +621,15 @@ func GetAssignmentDocumentsHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
-	var assignmentID datatypes.UUID
+	var assignmentID string
 	// Step 2: Extract and validate assignment ID from query parameters
-	assignmentIDStr := c.Query("assignment_id")
-	if assignmentIDStr == "" {
+	if assignmentID = c.Query("assignment_id"); assignmentID != "" {
 		return errors.WrapServer(
 			fmt.Errorf("assignment ID required"),
 			errors.ReqParamMissing,
 			"Assignment ID required",
 			fiber.StatusBadRequest,
 		)
-	}
-	err = assignmentID.Scan(assignmentIDStr)
-	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to UUID", fiber.StatusBadRequest)
 	}
 
 	assignment := models.Assignment{Base: models.Base{ID: assignmentID}}
@@ -709,19 +703,14 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 	// Step 2: Extract document ID from path parameter
-	var docID datatypes.UUID
-	idStr := c.Params("id")
-	if idStr == "" {
+	var docID string
+	if docID = c.Params("id"); docID != "" {
 		return errors.WrapServer(
 			fmt.Errorf("document ID required"),
 			errors.ReqParamMissing,
 			"Document ID required",
 			fiber.StatusBadRequest,
 		)
-	}
-	err = docID.Scan(idStr)
-	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting document ID to UUID", fiber.StatusBadRequest)
 	}
 
 	var doc *models.Document
@@ -984,9 +973,8 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 
 func DeleteDocumentRAG(c *fiber.Ctx) error {
 
-	var docID datatypes.UUID
-	strDocID := c.Params("id")
-	if strDocID == "" {
+	var docID string
+	if docID = c.Params("id"); docID != "" {
 		return errors.WrapServer(
 			fmt.Errorf("document ID required"),
 			errors.ReqParamMissing,
@@ -994,24 +982,15 @@ func DeleteDocumentRAG(c *fiber.Ctx) error {
 			fiber.StatusBadRequest,
 		)
 	}
-	err := docID.Scan(strDocID)
-	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting document ID to UUID", fiber.StatusBadRequest)
-	}
 
-	var assignmentID datatypes.UUID
-	assignmentIDStr := c.Params("assignment_id")
-	if assignmentIDStr == "" {
+	var assignmentID string
+	if assignmentID = c.Params("assignment_id"); assignmentID != "" {
 		return errors.WrapServer(
 			fmt.Errorf("assignment ID required"),
 			errors.ReqParamMissing,
 			"Assignment ID required",
 			fiber.StatusBadRequest,
 		)
-	}
-	err = assignmentID.Scan(assignmentIDStr)
-	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to UUID", fiber.StatusBadRequest)
 	}
 
 	var doc = models.Document{
@@ -1041,9 +1020,8 @@ func DeleteDocumentRAG(c *fiber.Ctx) error {
 
 func GetAssignmentDocumentIDsRAG(c *fiber.Ctx) error {
 	// Step 1: Extract assignment ID from path parameter
-	var assignmentID datatypes.UUID
-	idStr := c.Params("id")
-	if idStr == "" {
+	var assignmentID string
+	if assignmentID = c.Params("id"); assignmentID != "" {
 
 		return errors.WrapServer(
 			fmt.Errorf("assignment ID required"),
@@ -1051,11 +1029,6 @@ func GetAssignmentDocumentIDsRAG(c *fiber.Ctx) error {
 			"Assignment ID required",
 			fiber.StatusBadRequest,
 		)
-	}
-
-	err := assignmentID.Scan(idStr)
-	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to UUID", fiber.StatusBadRequest)
 	}
 
 	documentIDs, err := models.GetAssignmentDocumentIDsRAG(assignmentID, QdrantClient)

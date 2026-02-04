@@ -145,7 +145,7 @@ func UpdateUserHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Error marshalling user to json", fiber.StatusInternalServerError)
 	}
 	// Cache update is non-blocking - failure is logged but doesn't stop the response
-	if err := RedisClient.HSet(context.Background(), "users", userID.String(), userJSON).Err(); err != nil {
+	if err := RedisClient.HSet(context.Background(), "users", userID, userJSON).Err(); err != nil {
 		server.LogWarn(c.Context(), errors.WrapServer(err, errors.CacheOperationFailed, "Failed to cache user in Redis", fiber.StatusInternalServerError))
 	}
 
@@ -214,7 +214,7 @@ func UpdateProfilePictureHandler(c *fiber.Ctx) error {
 	if userMap != nil {
 		userJSON, err := json.Marshal(userMap)
 		if err == nil {
-			if err := RedisClient.HSet(context.Background(), "users", userID.String(), userJSON).Err(); err != nil {
+			if err := RedisClient.HSet(context.Background(), "users", userID, userJSON).Err(); err != nil {
 				server.LogWarn(c.Context(), errors.WrapServer(err, errors.CacheOperationFailed, "Failed to cache user in Redis after profile picture update", fiber.StatusInternalServerError))
 			}
 		}

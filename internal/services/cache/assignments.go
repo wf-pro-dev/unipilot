@@ -7,7 +7,6 @@ import (
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
 
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -32,7 +31,7 @@ func (c *Cache) SetAssignments(ctx context.Context, assignments []*models.Assign
 	return nil
 }
 
-func (c *Cache) GetAssignmentsByIDs(ctx context.Context, assignmentIDs []datatypes.UUID, db *gorm.DB) ([]*models.Assignment, error) {
+func (c *Cache) GetAssignmentsByIDs(ctx context.Context, assignmentIDs []string, db *gorm.DB) ([]*models.Assignment, error) {
 
 	if len(assignmentIDs) == 0 {
 		return []*models.Assignment{}, nil
@@ -51,7 +50,7 @@ func (c *Cache) GetAssignmentsByIDs(ctx context.Context, assignmentIDs []datatyp
 	}
 
 	assignments := make([]*models.Assignment, 0, len(assignmentIDs))
-	missingIDs := make([]datatypes.UUID, 0)
+	missingIDs := make([]string, 0)
 
 	// Parse results
 	for i, result := range results {
@@ -84,10 +83,10 @@ func (c *Cache) GetAssignmentsByIDs(ctx context.Context, assignmentIDs []datatyp
 	return assignments, nil
 
 }
-func (c *Cache) DeleteAssignment(ctx context.Context, assignmentID datatypes.UUID) error {
+func (c *Cache) DeleteAssignment(ctx context.Context, assignmentID string) error {
 	return c.redis.Del(ctx, FormatKey(KeyAssignment, assignmentID)).Err()
 }
 
-func (c *Cache) SetExpirationAssignment(ctx context.Context, assignmentID datatypes.UUID) error {
+func (c *Cache) SetExpirationAssignment(ctx context.Context, assignmentID string) error {
 	return c.redis.Expire(ctx, FormatKey(KeyAssignment, assignmentID), TTLAssignment).Err()
 }

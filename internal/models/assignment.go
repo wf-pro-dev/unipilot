@@ -11,27 +11,26 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/qdrant/go-client/qdrant"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 type BaseAssignment struct {
-	Title    string          `gorm:"not null" validate:"required,min=3,max=100"`
-	Type     string          `gorm:"not null" validate:"required,oneof=HW 'Group project' Exam Quiz Lab"`
-	Status   string          `gorm:"not null" validate:"required,oneof='Not started' 'In progress' 'Done'"`
-	Todo     string          `gorm:"not null" validate:"max=1000"`
-	Deadline time.Time       `gorm:"not null" validate:"required"`
-	Link     string          `gorm:"default:https://acconline.austincc.edu/ultra/stream" validate:"url"`
-	CourseID datatypes.UUID  `gorm:"not null;index" validate:"required"`
-	Priority string          `gorm:"default:low" validate:"required,oneof=low medium high"`
-	ParentID *datatypes.UUID `gorm:"index"`
+	Title    string    `gorm:"not null" validate:"required,min=3,max=100"`
+	Type     string    `gorm:"not null" validate:"required,oneof=HW 'Group project' Exam Quiz Lab"`
+	Status   string    `gorm:"not null" validate:"required,oneof='Not started' 'In progress' 'Done'"`
+	Todo     string    `gorm:"not null" validate:"max=1000"`
+	Deadline time.Time `gorm:"not null" validate:"required"`
+	Link     string    `gorm:"default:https://acconline.austincc.edu/ultra/stream" validate:"url"`
+	CourseID string    `gorm:"not null;index" validate:"required"`
+	Priority string    `gorm:"default:low" validate:"required,oneof=low medium high"`
+	ParentID *string   `gorm:"index"`
 }
 
 // Assignment represents a homework or exam assignment
 type Assignment struct {
 	Base
 	BaseAssignment
-	UserID datatypes.UUID `gorm:"not null" validate:"required"`
+	UserID string `gorm:"not null" validate:"required"`
 
 	// Relationships
 	User      *User        `gorm:"foreignKey:UserID;references:ID" validate:"-"`
@@ -56,7 +55,7 @@ func (a *Assignment) ToLocal() *LocalAssignment {
 	}
 }
 
-func (a *LocalAssignment) ToRemote(userID datatypes.UUID) *Assignment {
+func (a *LocalAssignment) ToRemote(userID string) *Assignment {
 
 	baseAssignment := a.BaseAssignment
 
@@ -223,7 +222,7 @@ func isValidTodo(todo string) error {
 
 // GET Operation
 
-func GetAssignment(id datatypes.UUID, db *gorm.DB) (*Assignment, error) {
+func GetAssignment(id string, db *gorm.DB) (*Assignment, error) {
 	assignment := &Assignment{}
 	err := db.First(&assignment, id).Error
 	if err != nil {
@@ -232,7 +231,7 @@ func GetAssignment(id datatypes.UUID, db *gorm.DB) (*Assignment, error) {
 	return assignment, nil
 }
 
-func GetLAssignment(id datatypes.UUID, db *gorm.DB) (*LocalAssignment, error) {
+func GetLAssignment(id string, db *gorm.DB) (*LocalAssignment, error) {
 	assignment := &LocalAssignment{}
 	err := db.First(&assignment, id).Error
 	if err != nil {
@@ -241,7 +240,7 @@ func GetLAssignment(id datatypes.UUID, db *gorm.DB) (*LocalAssignment, error) {
 	return assignment, nil
 }
 
-func GetAssignments(userID datatypes.UUID, db *gorm.DB) ([]Assignment, error) {
+func GetAssignments(userID string, db *gorm.DB) ([]Assignment, error) {
 	var assignments []Assignment
 	err := db.Where("user_id = ?", userID).Find(&assignments).Error
 	if err != nil {
@@ -259,7 +258,7 @@ func GetLAssignments(db *gorm.DB) ([]LocalAssignment, error) {
 	return assignments, nil
 }
 
-func GetAssignmentsByIDs(assignmentIDs []datatypes.UUID, db *gorm.DB) ([]*Assignment, error) {
+func GetAssignmentsByIDs(assignmentIDs []string, db *gorm.DB) ([]*Assignment, error) {
 	var assignments []*Assignment
 	err := db.Where(assignmentIDs).Find(&assignments).Error
 	if err != nil {
@@ -277,8 +276,8 @@ func (c *Course) GetCourseAssignments(db *gorm.DB) ([]*Assignment, error) {
 	return assignments, nil
 }
 
-func (c *Course) GetCourseAssignmentIDs(db *gorm.DB) ([]datatypes.UUID, error) {
-	var assignmentIDs []datatypes.UUID
+func (c *Course) GetCourseAssignmentIDs(db *gorm.DB) ([]string, error) {
+	var assignmentIDs []string
 	// Pluck extracts a single column
 	err := db.Model(&Assignment{}).
 		Where("course_id = ?", c.ID).
@@ -303,7 +302,7 @@ func (lc *LocalCourse) GetAssignmentsByCourse(db *gorm.DB) ([]LocalAssignment, e
 
 // CHECK Operations
 
-func (a *Assignment) ClusterRoot() datatypes.UUID {
+func (a *Assignment) ClusterRoot() string {
 	if a.Course.ClusterID != nil {
 		return *a.Course.ClusterID
 	}
@@ -313,11 +312,11 @@ func (a *Assignment) ClusterRoot() datatypes.UUID {
 func (a *Assignment) IsCopy() bool       { return a.ParentID != nil }
 func (la *LocalAssignment) IsRoot() bool { return la.ParentID == nil }
 
-func GetQdrantCollectionName(assignmentID datatypes.UUID) string {
+func GetQdrantCollectionName(assignmentID string) string {
 	return fmt.Sprintf("unipilot-qdrant-db-%d", assignmentID)
 }
 
-func GetAssignmentDocumentIDsRAG(assignmentID datatypes.UUID, qdrantClient *qdrant.Client) ([]datatypes.UUID, error) {
+func GetAssignmentDocumentIDsRAG(assignmentID string, qdrantClient *qdrant.Client) ([]string, error) {
 	ctx := context.Background()
 	collectionName := GetQdrantCollectionName(assignmentID)
 
@@ -326,7 +325,7 @@ func GetAssignmentDocumentIDsRAG(assignmentID datatypes.UUID, qdrantClient *qdra
 		return nil, errors.Wrap(err, errors.QdrantCollectionNotFound, "Assignment collection could not be found")
 	}
 	if !exists {
-		return []datatypes.UUID{}, nil
+		return []string{}, nil
 	}
 	// Retrive All Qdrant Points for that assignment
 	points, err := qdrantClient.Scroll(context.Background(), &qdrant.ScrollPoints{
@@ -345,13 +344,9 @@ func GetAssignmentDocumentIDsRAG(assignmentID datatypes.UUID, qdrantClient *qdra
 	}
 
 	// Step 4: Flatten the set of uploaded document IDs
-	uploadedDocumentIDsList := make([]datatypes.UUID, 0, len(uploadedDocumentIDs))
+	uploadedDocumentIDsList := make([]string, 0, len(uploadedDocumentIDs))
 	for id := range uploadedDocumentIDs {
-		var uuid datatypes.UUID
-		if err := uuid.Scan(id); err != nil {
-			return nil, errors.Wrap(err, errors.ValidationInvalid, "Error converting document ID to UUID")
-		}
-		uploadedDocumentIDsList = append(uploadedDocumentIDsList, uuid)
+		uploadedDocumentIDsList = append(uploadedDocumentIDsList, id)
 	}
 	return uploadedDocumentIDsList, nil
 }

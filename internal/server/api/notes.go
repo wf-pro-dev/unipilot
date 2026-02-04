@@ -8,7 +8,6 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
@@ -174,8 +173,8 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 				}
 				_, err := (*GrpcClient).SendMessage(context.Background(),
 					&messages.Message{
-						ReceiverId: sendeeID.String(),
-						SenderId:   userID.String(),
+						ReceiverId: sendeeID,
+						SenderId:   userID,
 						Title:      newNote.Title,
 						Message:    fmt.Sprintf("%s shared a new note on %s", currentUser.Username, newNote.Course.Code),
 						Data:       []byte(""),
@@ -320,14 +319,9 @@ func UpdateNoteHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
-	var noteID datatypes.UUID
-	idStr := c.Params("id")
-	if idStr == "" {
+	var noteID string
+	if noteID = c.Params("id"); noteID != "" {
 		return errors.WrapServer(fmt.Errorf("note ID required"), errors.ReqParamMissing, "Note ID required", fiber.StatusBadRequest)
-	}
-	err = noteID.Scan(idStr)
-	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting note ID to UUID", fiber.StatusBadRequest)
 	}
 
 	// Step 3: Define and parse note update request structure
@@ -374,14 +368,9 @@ func DeleteNoteHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
-	var noteID datatypes.UUID
-	idStr := c.Params("id")
-	if idStr == "" {
+	var noteID string
+	if noteID = c.Params("id"); noteID != "" {
 		return errors.WrapServer(fmt.Errorf("note ID required"), errors.ReqParamMissing, "Note ID required", fiber.StatusBadRequest)
-	}
-	err = noteID.Scan(idStr)
-	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting note ID to int", fiber.StatusBadRequest)
 	}
 
 	note := models.Note{Base: models.Base{ID: noteID}}

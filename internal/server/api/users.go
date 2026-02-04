@@ -8,8 +8,6 @@ import (
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/server"
-
-	"gorm.io/datatypes"
 )
 
 // GetUsersHandler retrieves all users in the system except the current authenticated models.
@@ -92,7 +90,7 @@ func GetUsersHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 5: Batch load course codes for all users
-	userIDs := make([]datatypes.UUID, len(users))
+	userIDs := make([]string, len(users))
 	for i, u := range users {
 		userIDs[i] = u.ID
 	}
@@ -103,7 +101,7 @@ func GetUsersHandler(c *fiber.Ctx) error {
 	}
 
 	// Build map
-	courseCodeMap := make(map[datatypes.UUID][]string)
+	courseCodeMap := make(map[string][]string)
 	for _, cc := range courseCodes {
 		courseCodeMap[cc.UserID] = append(courseCodeMap[cc.UserID], cc.Code)
 	}

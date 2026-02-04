@@ -7,11 +7,10 @@ import (
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
 
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
-func (c *Cache) GetNote(ctx context.Context, noteID datatypes.UUID, db *gorm.DB) (*models.Note, error) {
+func (c *Cache) GetNote(ctx context.Context, noteID string, db *gorm.DB) (*models.Note, error) {
 	cacheKey := FormatKey(KeyNote, noteID)
 	noteJSON, err := c.redis.Get(ctx, cacheKey).Result()
 	if err != nil {
@@ -54,7 +53,7 @@ func (c *Cache) SetNotes(ctx context.Context, notes []*models.Note) error {
 	return nil
 }
 
-func (c *Cache) GetNotesByIDs(ctx context.Context, noteIDs []datatypes.UUID, db *gorm.DB) ([]*models.Note, error) {
+func (c *Cache) GetNotesByIDs(ctx context.Context, noteIDs []string, db *gorm.DB) ([]*models.Note, error) {
 	if len(noteIDs) == 0 {
 		return []*models.Note{}, nil
 	}
@@ -70,7 +69,7 @@ func (c *Cache) GetNotesByIDs(ctx context.Context, noteIDs []datatypes.UUID, db 
 	}
 
 	notes := make([]*models.Note, 0, len(noteIDs))
-	missingIDs := make([]datatypes.UUID, 0)
+	missingIDs := make([]string, 0)
 
 	for i, result := range results {
 		if result == nil {
@@ -104,10 +103,10 @@ func (c *Cache) GetNotesByIDs(ctx context.Context, noteIDs []datatypes.UUID, db 
 	return notes, nil
 }
 
-func (c *Cache) DeleteNote(ctx context.Context, noteID datatypes.UUID) error {
+func (c *Cache) DeleteNote(ctx context.Context, noteID string) error {
 	return c.redis.Del(ctx, FormatKey(KeyNote, noteID)).Err()
 }
 
-func (c *Cache) SetExpirationNote(ctx context.Context, noteID datatypes.UUID) error {
+func (c *Cache) SetExpirationNote(ctx context.Context, noteID string) error {
 	return c.redis.Expire(ctx, FormatKey(KeyNote, noteID), TTLNote).Err()
 }

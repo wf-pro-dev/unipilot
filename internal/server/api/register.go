@@ -138,7 +138,7 @@ func RegisterHandler(c *fiber.Ctx) error {
 	}
 
 	// Use for Redis
-	if err := RedisClient.HSet(context.Background(), "users", newUser.ID.String(), userJSON).Err(); err != nil {
+	if err := RedisClient.HSet(context.Background(), "users", newUser.ID, userJSON).Err(); err != nil {
 		server.LogWarn(c.Context(), errors.WrapServer(err, errors.CacheOperationFailed, "Failed to cache user in Redis", fiber.StatusInternalServerError))
 	}
 

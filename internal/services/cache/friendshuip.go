@@ -6,14 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"gorm.io/datatypes"
-
 	"unipilot/internal/models"
 )
 
 // GetUserFriends retrieves cached friends for a user
-func (c *Cache) GetUserFriends(ctx context.Context, userID datatypes.UUID) ([]models.User, error) {
-	key := fmt.Sprintf("friends:%s", userID.String())
+func (c *Cache) GetUserFriends(ctx context.Context, userID string) ([]models.User, error) {
+	key := fmt.Sprintf("friends:%s", userID)
 
 	// Get all friends from hash
 	friendsMap, err := c.redis.HGetAll(ctx, key).Result()
@@ -38,9 +36,9 @@ func (c *Cache) GetUserFriends(ctx context.Context, userID datatypes.UUID) ([]mo
 }
 
 // SetUserFriends caches a single friend for a user
-func (c *Cache) SetUserFriends(ctx context.Context, userID, friendID datatypes.UUID, user *models.User) error {
-	key := fmt.Sprintf("friends:%s", userID.String())
-	field := friendID.String()
+func (c *Cache) SetUserFriends(ctx context.Context, userID, friendID string, user *models.User) error {
+	key := fmt.Sprintf("friends:%s", userID)
+	field := friendID
 
 	userJSON, err := json.Marshal(user)
 	if err != nil {
@@ -51,13 +49,13 @@ func (c *Cache) SetUserFriends(ctx context.Context, userID, friendID datatypes.U
 }
 
 // DeleteUserFriends clears the entire friends cache for a user
-func (c *Cache) DeleteUserFriends(ctx context.Context, userID datatypes.UUID) error {
-	key := fmt.Sprintf("friends:%s", userID.String())
+func (c *Cache) DeleteUserFriends(ctx context.Context, userID string) error {
+	key := fmt.Sprintf("friends:%s", userID)
 	return c.redis.Del(ctx, key).Err()
 }
 
 // SetExpirationUserFriends sets TTL on friends cache
-func (c *Cache) SetExpirationUserFriends(ctx context.Context, userID datatypes.UUID) error {
-	key := fmt.Sprintf("friends:%s", userID.String())
+func (c *Cache) SetExpirationUserFriends(ctx context.Context, userID string) error {
+	key := fmt.Sprintf("friends:%s", userID)
 	return c.redis.Expire(ctx, key, 30*time.Minute).Err()
 }

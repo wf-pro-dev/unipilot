@@ -2,8 +2,6 @@ package cache
 
 import (
 	"fmt"
-
-	"gorm.io/datatypes"
 )
 
 // Cache key patterns following model hierarchy: resource1:resource2:...:id
@@ -54,6 +52,6 @@ const (
 )
 
 // FormatKey formats a cache key with the given identifier (string).
-func FormatKey(pattern string, id datatypes.UUID) string {
-	return fmt.Sprintf(pattern, id.String())
+func FormatKey(pattern string, id string) string {
+	return fmt.Sprintf(pattern, id)
 }

@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/datatypes"
 
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
@@ -62,25 +61,9 @@ func HandleSendFriendRequest(c *fiber.Ctx) error {
 	}
 
 	// Extract target user ID from path parameter
-	userIDStr := c.Params("id")
-	if userIDStr == "" {
-		return errors.WrapServer(
-			fmt.Errorf("user ID required"),
-			errors.ReqParamMissing,
-			"User ID required",
-			fiber.StatusBadRequest,
-		)
-	}
-
-	// Parse UUID
-	var addresseeID datatypes.UUID
-	if err := addresseeID.Scan(userIDStr); err != nil {
-		return errors.WrapServer(
-			err,
-			errors.ReqParamInvalid,
-			"Invalid user ID format",
-			fiber.StatusBadRequest,
-		)
+	var addresseeID string
+	if addresseeID = c.Params("id"); addresseeID != "" {
+		return errors.WrapServer(fmt.Errorf("user ID required"), errors.ReqParamMissing, "User ID required", fiber.StatusBadRequest)
 	}
 
 	// Prevent self-friending
@@ -139,23 +122,9 @@ func HandleAcceptFriendRequest(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
-	var friendshipID datatypes.UUID
-	requestID := c.Params("id")
-	if requestID == "" {
-		return errors.WrapServer(
-			fmt.Errorf("request ID required"),
-			errors.ReqParamMissing,
-			"Request ID required",
-			fiber.StatusBadRequest,
-		)
-	}
-	if err := friendshipID.Scan(requestID); err != nil {
-		return errors.WrapServer(
-			err,
-			errors.ReqParamInvalid,
-			"Invalid request ID format",
-			fiber.StatusBadRequest,
-		)
+	var friendshipID string
+	if friendshipID = c.Params("id"); friendshipID != "" {
+		return errors.WrapServer(fmt.Errorf("request ID required"), errors.ReqParamMissing, "Request ID required", fiber.StatusBadRequest)
 	}
 
 	friendship, err := models.GetFriendshipByID(friendshipID, db)
@@ -210,23 +179,9 @@ func HandleRejectFriendRequest(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
-	var friendshipID datatypes.UUID
-	requestID := c.Params("id")
-	if requestID == "" {
-		return errors.WrapServer(
-			fmt.Errorf("request ID required"),
-			errors.ReqParamMissing,
-			"Request ID required",
-			fiber.StatusBadRequest,
-		)
-	}
-	if err := friendshipID.Scan(requestID); err != nil {
-		return errors.WrapServer(
-			err,
-			errors.ReqParamInvalid,
-			"Invalid request ID format",
-			fiber.StatusBadRequest,
-		)
+	var friendshipID string
+	if friendshipID = c.Params("id"); friendshipID != "" {
+		return errors.WrapServer(fmt.Errorf("request ID required"), errors.ReqParamMissing, "Request ID required", fiber.StatusBadRequest)
 	}
 
 	// Reject the friend request
@@ -265,25 +220,14 @@ func HandleCancelFriendRequest(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
-	userIDStr := c.Params("id")
-	if userIDStr == "" {
-		return errors.WrapServer(
-			fmt.Errorf("user ID required"),
-			errors.ReqParamMissing,
-			"User ID required",
-			fiber.StatusBadRequest,
-		)
+	var requesterID string
+	if requesterID = c.Params("id"); requesterID != "" {
+		return errors.WrapServer(fmt.Errorf("user ID required"), errors.ReqParamMissing, "User ID required", fiber.StatusBadRequest)
 	}
 
-	// Parse UUID
-	var addresseeID datatypes.UUID
-	if err := addresseeID.Scan(userIDStr); err != nil {
-		return errors.WrapServer(
-			err,
-			errors.ReqParamInvalid,
-			"Invalid user ID format",
-			fiber.StatusBadRequest,
-		)
+	var addresseeID string
+	if addresseeID = c.Params("id"); addresseeID != "" {
+		return errors.WrapServer(fmt.Errorf("user ID required"), errors.ReqParamMissing, "User ID required", fiber.StatusBadRequest)
 	}
 
 	// Cancel the friend request
@@ -319,19 +263,9 @@ func HandleRemoveFriend(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
-	userIDStr := c.Params("id")
-	if userIDStr == "" {
-		return errors.WrapServer(
-			fmt.Errorf("user ID required"),
-			errors.ReqParamMissing,
-			"User ID required",
-			fiber.StatusBadRequest,
-		)
-	}
-
 	// Parse UUID
-	var friendID datatypes.UUID
-	if err := friendID.Scan(userIDStr); err != nil {
+	var friendID string
+	if friendID = c.Params("id"); friendID != "" {
 		return errors.WrapServer(
 			err,
 			errors.ReqParamInvalid,
@@ -382,19 +316,9 @@ func HandleGetFriends(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
-	userIDStr := c.Params("id")
-	if userIDStr == "" {
-		return errors.WrapServer(
-			fmt.Errorf("user_id parameter required"),
-			errors.ReqParamMissing,
-			"User ID parameter required",
-			fiber.StatusBadRequest,
-		)
-	}
-
 	// Parse UUID
-	var userID datatypes.UUID
-	if err := userID.Scan(userIDStr); err != nil {
+	var userID string
+	if userID = c.Params("id"); userID != "" {
 		return errors.WrapServer(
 			err,
 			errors.ReqParamInvalid,
@@ -584,19 +508,9 @@ func HandleGetFriendStatus(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
-	userIDStr := c.Params("id")
-	if userIDStr == "" {
-		return errors.WrapServer(
-			fmt.Errorf("user ID required"),
-			errors.ReqParamMissing,
-			"User ID required",
-			fiber.StatusBadRequest,
-		)
-	}
-
 	// Parse UUID
-	var otherUserID datatypes.UUID
-	if err := otherUserID.Scan(userIDStr); err != nil {
+	var otherUserID string
+	if otherUserID = c.Params("id"); otherUserID != "" {
 		return errors.WrapServer(
 			err,
 			errors.ReqParamInvalid,
@@ -664,20 +578,9 @@ func HandleBlockUser(c *fiber.Ctx) error {
 	if err != nil {
 		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
-
-	userIDStr := c.Params("id")
-	if userIDStr == "" {
-		return errors.WrapServer(
-			fmt.Errorf("user ID required"),
-			errors.ReqParamMissing,
-			"User ID required",
-			fiber.StatusBadRequest,
-		)
-	}
-
 	// Parse UUID
-	var blockedID datatypes.UUID
-	if err := blockedID.Scan(userIDStr); err != nil {
+	var blockedID string
+	if blockedID = c.Params("id"); blockedID != "" {
 		return errors.WrapServer(
 			err,
 			errors.ReqParamInvalid,
@@ -734,19 +637,9 @@ func HandleUnblockUser(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
-	userIDStr := c.Params("id")
-	if userIDStr == "" {
-		return errors.WrapServer(
-			fmt.Errorf("user ID required"),
-			errors.ReqParamMissing,
-			"User ID required",
-			fiber.StatusBadRequest,
-		)
-	}
-
 	// Parse UUID
-	var blockedID datatypes.UUID
-	if err := blockedID.Scan(userIDStr); err != nil {
+	var blockedID string
+	if blockedID = c.Params("id"); blockedID != "" {
 		return errors.WrapServer(
 			err,
 			errors.ReqParamInvalid,

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
@@ -73,7 +72,7 @@ func (u *User) ToMap() map[string]interface{} {
 
 // START; GET FUNCTIONS
 
-func GetUser(id datatypes.UUID, db *gorm.DB) (*User, error) {
+func GetUser(id string, db *gorm.DB) (*User, error) {
 	var user User
 	err := db.Where("id = ?", id).First(&user).Error
 	if err != nil {
@@ -92,11 +91,11 @@ func GetUsers(db *gorm.DB) ([]User, error) {
 }
 
 type UserCourseCodes struct {
-	UserID datatypes.UUID `gorm:"column:user_id"`
-	Code   string         `gorm:"column:code"`
+	UserID string `gorm:"column:user_id"`
+	Code   string `gorm:"column:code"`
 }
 
-func GetUsersCourseCodes(userIDs []datatypes.UUID, db *gorm.DB) ([]UserCourseCodes, error) {
+func GetUsersCourseCodes(userIDs []string, db *gorm.DB) ([]UserCourseCodes, error) {
 	var courseCodes []UserCourseCodes
 	if err := db.Model(&Course{}).
 		Select("user_id, code").
@@ -107,8 +106,8 @@ func GetUsersCourseCodes(userIDs []datatypes.UUID, db *gorm.DB) ([]UserCourseCod
 	return courseCodes, nil
 }
 
-func GetCourseUsers(courseID datatypes.UUID, db *gorm.DB) ([]datatypes.UUID, error) {
-	var userIDs []datatypes.UUID
+func GetCourseUsers(courseID string, db *gorm.DB) ([]string, error) {
+	var userIDs []string
 
 	var parentCourse Course
 	if err := db.Select("user_id").First(&parentCourse, courseID).Error; err != nil {
@@ -127,8 +126,8 @@ func GetCourseUsers(courseID datatypes.UUID, db *gorm.DB) ([]datatypes.UUID, err
 	return userIDs, nil
 }
 
-func GetUserClusterIDs(userID datatypes.UUID, db *gorm.DB) ([]datatypes.UUID, error) {
-	var clusterIDs []datatypes.UUID
+func GetUserClusterIDs(userID string, db *gorm.DB) ([]string, error) {
+	var clusterIDs []string
 
 	// The CourseID in the invitation is ALWAYS the Root IDs
 	err := db.Model(&CourseInvitation{}).
@@ -231,8 +230,8 @@ const (
 // Uses a request/accept model where one user initiates and another responds
 type Friendship struct {
 	Base
-	RequesterID datatypes.UUID   `gorm:"not null;index:idx_friendship_users"` // User who sent the friend request
-	AddresseeID datatypes.UUID   `gorm:"not null;index:idx_friendship_users"` // User who received the friend request
+	RequesterID string           `gorm:"not null;index:idx_friendship_users"` // User who sent the friend request
+	AddresseeID string           `gorm:"not null;index:idx_friendship_users"` // User who received the friend request
 	Status      FriendshipStatus `gorm:"type:varchar(20);not null;default:'pending';index:idx_friendship_status"`
 
 	// Foreign key relationships with cascade delete
@@ -255,7 +254,7 @@ func (f *Friendship) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-func GetFriendshipByID(friendshipID datatypes.UUID, db *gorm.DB) (*Friendship, error) {
+func GetFriendshipByID(friendshipID string, db *gorm.DB) (*Friendship, error) {
 	var friendship Friendship
 	err := db.Where("id = ?", friendshipID).First(&friendship).Error
 	if err != nil {
@@ -265,7 +264,7 @@ func GetFriendshipByID(friendshipID datatypes.UUID, db *gorm.DB) (*Friendship, e
 }
 
 // GetFriendship retrieves a friendship between two users (regardless of who initiated)
-func GetFriendship(userID1, userID2 datatypes.UUID, db *gorm.DB) (*Friendship, error) {
+func GetFriendship(userID1, userID2 string, db *gorm.DB) (*Friendship, error) {
 	var friendship Friendship
 	err := db.Where(
 		"(requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)",
@@ -282,7 +281,7 @@ func GetFriendship(userID1, userID2 datatypes.UUID, db *gorm.DB) (*Friendship, e
 }
 
 // AreFriends checks if two users are friends (accepted status)
-func AreFriends(userID1, userID2 datatypes.UUID, db *gorm.DB) (bool, error) {
+func AreFriends(userID1, userID2 string, db *gorm.DB) (bool, error) {
 	var count int64
 	err := db.Model(&Friendship{}).Where(
 		"((requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)) AND status = ?",
@@ -297,7 +296,7 @@ func AreFriends(userID1, userID2 datatypes.UUID, db *gorm.DB) (bool, error) {
 
 // GetFriendshipStatus returns the status between two users
 // Returns: status, isPending (waiting for current user to respond), error
-func GetFriendshipStatus(currentUserID, otherUserID datatypes.UUID, db *gorm.DB) (*FriendshipStatus, bool, error) {
+func GetFriendshipStatus(currentUserID, otherUserID string, db *gorm.DB) (*FriendshipStatus, bool, error) {
 	friendship, err := GetFriendship(currentUserID, otherUserID, db)
 	if err != nil {
 		return nil, false, err
@@ -313,7 +312,7 @@ func GetFriendshipStatus(currentUserID, otherUserID datatypes.UUID, db *gorm.DB)
 }
 
 // GetFriendsCount returns the number of accepted friends for a user
-func GetFriendsCount(userID datatypes.UUID, db *gorm.DB) (int, error) {
+func GetFriendsCount(userID string, db *gorm.DB) (int, error) {
 	var count int64
 	err := db.Model(&Friendship{}).Where(
 		"(requester_id = ? OR addressee_id = ?) AND status = ?",
@@ -327,7 +326,7 @@ func GetFriendsCount(userID datatypes.UUID, db *gorm.DB) (int, error) {
 }
 
 // GetPendingRequestsCount returns the number of pending friend requests for a user
-func GetPendingRequestsCount(userID datatypes.UUID, db *gorm.DB) (int, error) {
+func GetPendingRequestsCount(userID string, db *gorm.DB) (int, error) {
 	var count int64
 	err := db.Model(&Friendship{}).Where(
 		"addressee_id = ? AND status = ?",
@@ -341,7 +340,7 @@ func GetPendingRequestsCount(userID datatypes.UUID, db *gorm.DB) (int, error) {
 }
 
 // SendFriendRequest creates a new friend request
-func SendFriendRequest(requesterID, addresseeID datatypes.UUID, db *gorm.DB) error {
+func SendFriendRequest(requesterID, addresseeID string, db *gorm.DB) error {
 	// Check if a friendship already exists
 	existing, err := GetFriendship(requesterID, addresseeID, db)
 	if err != nil {
@@ -402,7 +401,7 @@ func AcceptFriendRequest(friendship *Friendship, db *gorm.DB) error {
 }
 
 // RejectFriendRequest rejects a pending friend request
-func RejectFriendRequest(friendshipID datatypes.UUID, db *gorm.DB) error {
+func RejectFriendRequest(friendshipID string, db *gorm.DB) error {
 	var friendship Friendship
 	err := db.Where("id = ?", friendshipID).First(&friendship).Error
 
@@ -421,7 +420,7 @@ func RejectFriendRequest(friendshipID datatypes.UUID, db *gorm.DB) error {
 }
 
 // RemoveFriend removes a friendship (unfriend)
-func RemoveFriend(userID1, userID2 datatypes.UUID, db *gorm.DB) error {
+func RemoveFriend(userID1, userID2 string, db *gorm.DB) error {
 	err := db.Where(
 		"((requester_id = ? AND addressee_id = ?) OR (requester_id = ? AND addressee_id = ?)) AND status = ?",
 		userID1, userID2, userID2, userID1, FriendshipAccepted,
@@ -434,7 +433,7 @@ func RemoveFriend(userID1, userID2 datatypes.UUID, db *gorm.DB) error {
 }
 
 // CancelFriendRequest cancels a pending friend request that the current user sent
-func CancelFriendRequest(requesterID, addresseeID datatypes.UUID, db *gorm.DB) error {
+func CancelFriendRequest(requesterID, addresseeID string, db *gorm.DB) error {
 	err := db.Where("requester_id = ? AND addressee_id = ? AND status = ?",
 		requesterID, addresseeID, FriendshipPending).Delete(&Friendship{}).Error
 
@@ -445,7 +444,7 @@ func CancelFriendRequest(requesterID, addresseeID datatypes.UUID, db *gorm.DB) e
 }
 
 // BlockUser blocks another user
-func BlockUser(blockerID, blockedID datatypes.UUID, db *gorm.DB) error {
+func BlockUser(blockerID, blockedID string, db *gorm.DB) error {
 	// Remove any existing friendship
 	existing, err := GetFriendship(blockerID, blockedID, db)
 	if err != nil {
@@ -473,7 +472,7 @@ func BlockUser(blockerID, blockedID datatypes.UUID, db *gorm.DB) error {
 }
 
 // UnblockUser unblocks a user
-func UnblockUser(blockerID, blockedID datatypes.UUID, db *gorm.DB) error {
+func UnblockUser(blockerID, blockedID string, db *gorm.DB) error {
 	err := db.Where("requester_id = ? AND addressee_id = ? AND status = ?",
 		blockerID, blockedID, FriendshipBlocked).Delete(&Friendship{}).Error
 
@@ -484,7 +483,7 @@ func UnblockUser(blockerID, blockedID datatypes.UUID, db *gorm.DB) error {
 }
 
 // GetFriends retrieves the list of accepted friends for a user
-func GetFriends(userID datatypes.UUID, limit, offset int, db *gorm.DB) ([]User, error) {
+func GetFriends(userID string, limit, offset int, db *gorm.DB) ([]User, error) {
 	var friends []User
 
 	// Get friendships where user is either requester or addressee with accepted status
@@ -505,7 +504,7 @@ func GetFriends(userID datatypes.UUID, limit, offset int, db *gorm.DB) ([]User, 
 }
 
 // GetPendingRequests retrieves pending friend requests received by the user
-func GetPendingRequests(userID datatypes.UUID, limit, offset int, db *gorm.DB) ([]User, error) {
+func GetPendingRequests(userID string, limit, offset int, db *gorm.DB) ([]User, error) {
 	var users []User
 
 	err := db.Table("users").
@@ -525,7 +524,7 @@ func GetPendingRequests(userID datatypes.UUID, limit, offset int, db *gorm.DB) (
 }
 
 // GetSentRequests retrieves pending friend requests sent by the user
-func GetSentRequests(userID datatypes.UUID, limit, offset int, db *gorm.DB) ([]User, error) {
+func GetSentRequests(userID string, limit, offset int, db *gorm.DB) ([]User, error) {
 	var users []User
 
 	err := db.Table("users").
@@ -545,7 +544,7 @@ func GetSentRequests(userID datatypes.UUID, limit, offset int, db *gorm.DB) ([]U
 }
 
 // GetMutualFriends retrieves mutual friends between two users
-func GetMutualFriends(userID1, userID2 datatypes.UUID, db *gorm.DB) ([]User, error) {
+func GetMutualFriends(userID1, userID2 string, db *gorm.DB) ([]User, error) {
 	var mutualFriends []User
 
 	// Subquery to get user1's friends
@@ -572,7 +571,7 @@ func GetMutualFriends(userID1, userID2 datatypes.UUID, db *gorm.DB) ([]User, err
 	return mutualFriends, nil
 }
 
-func GetUserCourseInvitations(userID datatypes.UUID, db *gorm.DB) ([]CourseInvitation, error) {
+func GetUserCourseInvitations(userID string, db *gorm.DB) ([]CourseInvitation, error) {
 	var invitations []CourseInvitation
 	err := db.Preload("Course").Where("receiver_id = ? OR owner_id = ?", userID, userID).Find(&invitations).Error
 	if err != nil {

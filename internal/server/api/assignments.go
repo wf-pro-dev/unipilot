@@ -13,7 +13,6 @@ import (
 
 	"unipilot/internal/server"
 
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -58,20 +57,10 @@ func GetAssignmentHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
-	var userID datatypes.UUID
-	if id := c.Query("id"); id != "" {
-		err := userID.Scan(id)
-		if err != nil {
-			return errors.WrapServer(err, errors.ReqParamInvalid, "Invalid assignment ID", fiber.StatusBadRequest)
-		}
-	} else {
-		currentUser, ok := c.Locals("user").(models.User)
-		if !ok {
-			return errors.WrapServer(fmt.Errorf("user not found"), errors.ValidationInvalid, "User not found", fiber.StatusInternalServerError)
-		}
-		userID = currentUser.ID
+	var userID string
+	if userID = c.Query("id"); userID != "" {
+		return errors.WrapServer(fmt.Errorf("user ID required"), errors.ReqParamMissing, "User ID required", fiber.StatusBadRequest)
 	}
-
 	// Step 2: Query user's assignments from database
 	assignments, err := models.GetAssignments(userID, db.Preload("User").Omit("password_hash").Preload("Course"))
 	if err != nil {
@@ -190,8 +179,8 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 
 				_, err := (*GrpcClient).SendMessage(context.Background(),
 					&messages.Message{
-						ReceiverId: sendeeID.String(),
-						SenderId:   userID.String(),
+						ReceiverId: sendeeID,
+						SenderId:   userID,
 						Title:      newA.Title,
 						Message:    fmt.Sprintf("%s shared a new assignment on %s", currentUser.Username, newA.Course.Code),
 						Data:       []byte(""),
@@ -264,14 +253,9 @@ func UpdateAssignmentHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
-	var assignmentID datatypes.UUID
-	idStr := c.Params("id")
-	if idStr == "" {
+	var assignmentID string
+	if assignmentID = c.Params("id"); assignmentID != "" {
 		return errors.WrapServer(fmt.Errorf("assignment ID required"), errors.ReqParamMissing, "Assignment ID required", fiber.StatusBadRequest)
-	}
-	err = assignmentID.Scan(idStr)
-	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to UUID", fiber.StatusBadRequest)
 	}
 
 	// Step 3: Define and parse assignment update request structure
@@ -318,14 +302,9 @@ func DeleteAssignmentHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 2: Extract assignment ID from path parameter
-	var assignmentID datatypes.UUID
-	idStr := c.Params("id")
-	if idStr == "" {
+	var assignmentID string
+	if assignmentID = c.Params("id"); assignmentID != "" {
 		return errors.WrapServer(fmt.Errorf("assignment ID required"), errors.ReqParamMissing, "Assignment ID required", fiber.StatusBadRequest)
-	}
-	err = assignmentID.Scan(idStr)
-	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting assignment ID to UUID", fiber.StatusBadRequest)
 	}
 
 	assignment, err := models.GetAssignment(assignmentID, db.Preload("Course"))

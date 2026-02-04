@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"unipilot/internal/errors"
@@ -15,16 +14,16 @@ type BaseNote struct {
 	Subject  string `gorm:"not null" validate:"required,min=3,max=100"`
 	Content  string `gorm:"not null" validate:"max=50000"`
 	Videos   string
-	ParentID *datatypes.UUID `gorm:"index;default:null"`
+	ParentID *string `gorm:"index;default:null"`
 
-	CourseID datatypes.UUID `gorm:"not null;index" validate:"required"`
+	CourseID string `gorm:"not null;index" validate:"required"`
 }
 
 // Note represents the note stored in the remote database
 type Note struct {
 	Base
 	BaseNote
-	UserID datatypes.UUID `gorm:"not null;index" validate:"required"`
+	UserID string `gorm:"not null;index" validate:"required"`
 
 	User     *User   `gorm:"foreignKey:UserID;references:ID" validate:"-"`
 	Course   *Course `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
@@ -48,7 +47,7 @@ func (n *Note) ToLocal() *LocalNote {
 	}
 }
 
-func (n *LocalNote) ToRemote(userID datatypes.UUID) *Note {
+func (n *LocalNote) ToRemote(userID string) *Note {
 
 	return &Note{
 		BaseNote: n.BaseNote,
@@ -76,7 +75,7 @@ func (n *LocalNote) Validate() error {
 
 // END : VALIDATION FUNCTIONS
 
-func GetNote(id datatypes.UUID, db *gorm.DB) (*Note, error) {
+func GetNote(id string, db *gorm.DB) (*Note, error) {
 	var note Note
 	err := db.First(&note, id).Error
 	if err != nil {
@@ -85,7 +84,7 @@ func GetNote(id datatypes.UUID, db *gorm.DB) (*Note, error) {
 	return &note, nil
 }
 
-func GetLNote(id datatypes.UUID, db *gorm.DB) (*LocalNote, error) {
+func GetLNote(id string, db *gorm.DB) (*LocalNote, error) {
 	var note LocalNote
 	err := db.First(&note, id).Error
 	if err != nil {
@@ -94,7 +93,7 @@ func GetLNote(id datatypes.UUID, db *gorm.DB) (*LocalNote, error) {
 	return &note, nil
 }
 
-func GetNotes(userID datatypes.UUID, db *gorm.DB) ([]Note, error) {
+func GetNotes(userID string, db *gorm.DB) ([]Note, error) {
 	var notes []Note
 	err := db.Where("user_id = ?", userID).Find(&notes).Error
 	if err != nil {
@@ -103,7 +102,7 @@ func GetNotes(userID datatypes.UUID, db *gorm.DB) ([]Note, error) {
 	return notes, nil
 }
 
-func GetLNotes(userID datatypes.UUID, db *gorm.DB) ([]LocalNote, error) {
+func GetLNotes(userID string, db *gorm.DB) ([]LocalNote, error) {
 	var notes []LocalNote
 	err := db.Where("user_id = ?", userID).Find(&notes).Error
 	if err != nil {
@@ -112,7 +111,7 @@ func GetLNotes(userID datatypes.UUID, db *gorm.DB) ([]LocalNote, error) {
 	return notes, nil
 }
 
-func GetNotesByIDs(noteIDs []datatypes.UUID, db *gorm.DB) ([]*Note, error) {
+func GetNotesByIDs(noteIDs []string, db *gorm.DB) ([]*Note, error) {
 	var notes []*Note
 	err := db.Where(noteIDs).Find(&notes).Error
 	if err != nil {
@@ -121,7 +120,7 @@ func GetNotesByIDs(noteIDs []datatypes.UUID, db *gorm.DB) ([]*Note, error) {
 	return notes, nil
 }
 
-func GetNoteContent(noteID datatypes.UUID, db *gorm.DB) (string, error) {
+func GetNoteContent(noteID string, db *gorm.DB) (string, error) {
 	var content string
 	err := db.Select("content").First(&content, noteID).Error
 	if err != nil {
@@ -139,8 +138,8 @@ func (c *Course) GetCourseNotes(db *gorm.DB) ([]Note, error) {
 	return notes, nil
 }
 
-func (c *Course) GetCourseNoteIDs(db *gorm.DB) ([]datatypes.UUID, error) {
-	var noteIDs []datatypes.UUID
+func (c *Course) GetCourseNoteIDs(db *gorm.DB) ([]string, error) {
+	var noteIDs []string
 	// Pluck extracts a single column
 	err := db.Model(&Note{}).
 		Where("course_id = ?", c.ID).
@@ -160,7 +159,7 @@ func (lc *LocalCourse) GetNotesByCourse(db *gorm.DB) ([]LocalNote, error) {
 	return notes, nil
 }
 
-func DeleteNote(id datatypes.UUID, db *gorm.DB) error {
+func DeleteNote(id string, db *gorm.DB) error {
 	err := db.Delete(&Note{}, "id = ?", id).Error
 	if err != nil {
 		return errors.HandleDBWriteError(err)
@@ -168,7 +167,7 @@ func DeleteNote(id datatypes.UUID, db *gorm.DB) error {
 	return nil
 }
 
-func (n *Note) ClusterRoot() datatypes.UUID {
+func (n *Note) ClusterRoot() string {
 	if n.Course.ClusterID != nil {
 		return *n.Course.ClusterID
 	}

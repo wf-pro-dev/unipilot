@@ -21,7 +21,7 @@ const (
 // LocalAiMessage maps to the UIMessage interface
 type LocalAiMessage struct {
 	ID           string         `gorm:"primaryKey"`
-	AssignmentID datatypes.UUID `gorm:"not null;index"`
+	AssignmentID string         `gorm:"not null;index"`
 	Role         Roles          `gorm:"not null;type:varchar(20)"`
 	Parts        datatypes.JSON `gorm:"type:jsonb"` // Store entire parts array as JSON
 	Metadata     datatypes.JSON `gorm:"type:jsonb"` // Store optional metadata as JSON
@@ -51,7 +51,7 @@ func (m *LocalAiMessage) ToUIMessage() (map[string]interface{}, error) {
 }
 
 // FromUIMessage creates from AI SDK message
-func FromUIMessage(assignmentID datatypes.UUID, uiMessage map[string]interface{}) (*LocalAiMessage, error) {
+func FromUIMessage(assignmentID string, uiMessage map[string]interface{}) (*LocalAiMessage, error) {
 	message := &LocalAiMessage{
 		AssignmentID: assignmentID,
 	}

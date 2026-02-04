@@ -11,7 +11,6 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/redis/go-redis/v9"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -91,12 +90,12 @@ func (c *Cache) SetCourses(ctx context.Context, courses []*models.Course) error 
 	return nil
 }
 
-func (c *Cache) DeleteCourse(ctx context.Context, courseID datatypes.UUID) error {
+func (c *Cache) DeleteCourse(ctx context.Context, courseID string) error {
 	return c.redis.Del(ctx, FormatKey(KeyCourse, courseID)).Err()
 }
 
 // GetClusterCourses retrieves all Course IDs in a cluster by the Root ID
-func (c *Cache) GetClusterCourses(ctx context.Context, rootID datatypes.UUID, db *gorm.DB) ([]datatypes.UUID, error) {
+func (c *Cache) GetClusterCourses(ctx context.Context, rootID string, db *gorm.DB) ([]string, error) {
 	cacheKey := FormatKey(KeyClusterCourses, rootID)
 
 	// 1. Fetch from Redis
@@ -107,7 +106,7 @@ func (c *Cache) GetClusterCourses(ctx context.Context, rootID datatypes.UUID, db
 
 	// 2. Cache Hit: Return the Course IDs
 	if len(result) > 0 {
-		return parseUUIDSlice(result), nil
+		return result, nil
 	}
 
 	// 3. Cache Miss: Fallback to DB
@@ -125,7 +124,7 @@ func (c *Cache) GetClusterCourses(ctx context.Context, rootID datatypes.UUID, db
 }
 
 // SetClusterCourses warms the cluster cache
-func (c *Cache) SetClusterCourses(ctx context.Context, rootID datatypes.UUID, courseIDs []datatypes.UUID) error {
+func (c *Cache) SetClusterCourses(ctx context.Context, rootID string, courseIDs []string) error {
 	cacheKey := FormatKey(KeyClusterCourses, rootID)
 
 	interfaces := make([]interface{}, len(courseIDs))
@@ -141,24 +140,24 @@ func (c *Cache) SetClusterCourses(ctx context.Context, rootID datatypes.UUID, co
 }
 
 // AddCourseToCluster adds a single Course ID to a cluster (used on Link Accept)
-func (c *Cache) AddClusterCourse(ctx context.Context, rootID datatypes.UUID, courseID datatypes.UUID) error {
+func (c *Cache) AddClusterCourse(ctx context.Context, rootID string, courseID string) error {
 	cacheKey := FormatKey(KeyClusterCourses, rootID)
 	c.redis.SAdd(ctx, cacheKey, courseID).Err()
 	return c.SetExpirationClusterCourses(ctx, rootID)
 }
 
 // RemoveCourseFromCluster removes a Course ID (used on Course Delete/Link Break)
-func (c *Cache) RemoveClusterCourse(ctx context.Context, rootID datatypes.UUID, courseID datatypes.UUID) error {
+func (c *Cache) RemoveClusterCourse(ctx context.Context, rootID string, courseID string) error {
 	cacheKey := FormatKey(KeyClusterCourses, rootID)
 	c.redis.SRem(ctx, cacheKey, courseID).Err()
 	return c.SetExpirationClusterCourses(ctx, rootID)
 }
 
-func (c *Cache) SetExpirationClusterCourses(ctx context.Context, rootID datatypes.UUID) error {
+func (c *Cache) SetExpirationClusterCourses(ctx context.Context, rootID string) error {
 	return c.redis.Expire(ctx, FormatKey(KeyClusterCourses, rootID), TTLCourseLinks).Err()
 }
 
-func (c *Cache) GetClusterUsers(ctx context.Context, rootID datatypes.UUID, db *gorm.DB) ([]datatypes.UUID, error) {
+func (c *Cache) GetClusterUsers(ctx context.Context, rootID string, db *gorm.DB) ([]string, error) {
 	cacheKey := FormatKey(KeyClusterUsers, rootID)
 
 	// 1. Fetch from Redis
@@ -169,7 +168,7 @@ func (c *Cache) GetClusterUsers(ctx context.Context, rootID datatypes.UUID, db *
 
 	// 2. Cache Hit: Return the User IDs
 	if len(result) > 0 {
-		return parseUUIDSlice(result), nil
+		return result, nil
 	}
 
 	// 3. Cache Miss: Fallback to DB
@@ -185,7 +184,7 @@ func (c *Cache) GetClusterUsers(ctx context.Context, rootID datatypes.UUID, db *
 	return userIDs, nil
 }
 
-func (c *Cache) SetClusterUsers(ctx context.Context, rootID datatypes.UUID, userIDs []datatypes.UUID) error {
+func (c *Cache) SetClusterUsers(ctx context.Context, rootID string, userIDs []string) error {
 	cacheKey := FormatKey(KeyClusterUsers, rootID)
 	interfaces := make([]interface{}, len(userIDs))
 	for i, v := range userIDs {
@@ -194,27 +193,27 @@ func (c *Cache) SetClusterUsers(ctx context.Context, rootID datatypes.UUID, user
 	return c.redis.SAdd(ctx, cacheKey, interfaces...).Err()
 }
 
-func (c *Cache) AddClusterUser(ctx context.Context, rootID datatypes.UUID, userID datatypes.UUID) error {
+func (c *Cache) AddClusterUser(ctx context.Context, rootID string, userID string) error {
 	cacheKey := FormatKey(KeyClusterUsers, rootID)
 	c.redis.SAdd(ctx, cacheKey, userID).Err()
 	return c.SetExpirationClusterUsers(ctx, rootID)
 }
 
-func (c *Cache) RemoveClusterUser(ctx context.Context, rootID datatypes.UUID, userID datatypes.UUID) error {
+func (c *Cache) RemoveClusterUser(ctx context.Context, rootID string, userID string) error {
 	cacheKey := FormatKey(KeyClusterUsers, rootID)
 	c.redis.SRem(ctx, cacheKey, userID).Err()
 	return c.SetExpirationClusterUsers(ctx, rootID)
 }
 
-func (c *Cache) DeleteClusterUsers(ctx context.Context, rootID datatypes.UUID) error {
+func (c *Cache) DeleteClusterUsers(ctx context.Context, rootID string) error {
 	return c.redis.Del(ctx, FormatKey(KeyClusterUsers, rootID)).Err()
 }
 
-func (c *Cache) SetExpirationClusterUsers(ctx context.Context, rootID datatypes.UUID) error {
+func (c *Cache) SetExpirationClusterUsers(ctx context.Context, rootID string) error {
 	return c.redis.Expire(ctx, FormatKey(KeyClusterUsers, rootID), TTLClusterUsers).Err()
 }
 
-func (cache *Cache) GetCoursesByIDs(ctx context.Context, courseIDs []datatypes.UUID, db *gorm.DB) ([]*models.Course, error) {
+func (cache *Cache) GetCoursesByIDs(ctx context.Context, courseIDs []string, db *gorm.DB) ([]*models.Course, error) {
 	if len(courseIDs) == 0 {
 		return []*models.Course{}, nil
 	}
@@ -241,11 +240,11 @@ func (cache *Cache) GetCoursesByIDs(ctx context.Context, courseIDs []datatypes.U
 	// Step 2: Parse course objects and collect dependency IDs
 	var (
 		courses             []*models.Course
-		missingCourseIDs    []datatypes.UUID
-		allAssignmentIDs    []datatypes.UUID
-		allNoteIDs          []datatypes.UUID
-		courseAssignmentMap = make(map[datatypes.UUID][]datatypes.UUID)
-		courseNoteMap       = make(map[datatypes.UUID][]datatypes.UUID)
+		missingCourseIDs    []string
+		allAssignmentIDs    []string
+		allNoteIDs          []string
+		courseAssignmentMap = make(map[string][]string)
+		courseNoteMap       = make(map[string][]string)
 	)
 
 	expPipe := cache.redis.Pipeline()
@@ -261,7 +260,7 @@ func (cache *Cache) GetCoursesByIDs(ctx context.Context, courseIDs []datatypes.U
 			// Log only real errors (not cache misses)
 			if err != redis.Nil {
 				server.LogWarn(ctx, errors.Wrap(err, errors.CacheOperationFailed,
-					fmt.Sprintf("Redis error fetching course:%d", courseID)).ToServerError(fiber.StatusInternalServerError))
+					fmt.Sprintf("Redis error fetching course:%s", courseID)).ToServerError(fiber.StatusInternalServerError))
 			}
 			continue
 		}
@@ -272,24 +271,22 @@ func (cache *Cache) GetCoursesByIDs(ctx context.Context, courseIDs []datatypes.U
 			// Corrupted cache - treat as miss
 			missingCourseIDs = append(missingCourseIDs, courseID)
 			server.LogWarn(ctx, errors.Wrap(err, errors.ProcJSONUnmarshalFailed,
-				fmt.Sprintf("Corrupted cache data for course:%d", courseID)).ToServerError(fiber.StatusInternalServerError))
+				fmt.Sprintf("Corrupted cache data for course:%s", courseID)).ToServerError(fiber.StatusInternalServerError))
 			continue
 		}
 
 		// Course found - collect its dependency IDs
 		// Note: SMEMBERS never returns error for missing sets, just empty slice
-		assignmentIDStrs, _ := assignmentCmds[i].Result()
-		noteIDStrs, _ := noteCmds[i].Result()
+		assignmentIDs, _ := assignmentCmds[i].Result()
+		noteIDs, _ := noteCmds[i].Result()
 
 		// Store assignment IDs
-		assignmentIDs := parseUUIDSlice(assignmentIDStrs)
 		courseAssignmentMap[courseID] = assignmentIDs
 		allAssignmentIDs = append(allAssignmentIDs, assignmentIDs...)
 
 		expCmds[i] = expPipe.Expire(ctx, FormatKey(KeyCourseAssignments, courseID), TTLCourseAssignments)
 
 		// Store note IDs
-		noteIDs := parseUUIDSlice(noteIDStrs)
 		courseNoteMap[courseID] = noteIDs
 		allNoteIDs = append(allNoteIDs, noteIDs...)
 
@@ -315,8 +312,8 @@ func (cache *Cache) GetCoursesByIDs(ctx context.Context, courseIDs []datatypes.U
 		return nil, errors.Wrap(err, errors.CacheOperationFailed, "Error getting notes from redis")
 	}
 
-	assignmentsMap := buildMap(assignments, func(a *models.Assignment) datatypes.UUID { return a.ID })
-	notesMap := buildMap(notes, func(n *models.Note) datatypes.UUID { return n.ID })
+	assignmentsMap := buildMap(assignments, func(a *models.Assignment) string { return a.ID })
+	notesMap := buildMap(notes, func(n *models.Note) string { return n.ID })
 
 	// Step 5: Attach dependencies to courses
 	for _, course := range courses {
@@ -344,20 +341,7 @@ func (cache *Cache) GetCoursesByIDs(ctx context.Context, courseIDs []datatypes.U
 	return courses, nil
 }
 
-func parseUUIDSlice(strs []string) []datatypes.UUID {
-	ids := make([]datatypes.UUID, len(strs))
-	for i, s := range strs {
-		var id datatypes.UUID
-		err := id.Scan(s)
-		if err != nil {
-			continue
-		}
-		ids[i] = id
-	}
-	return ids
-}
-
-func buildList[T any](ids []datatypes.UUID, items map[datatypes.UUID]*T) []*T {
+func buildList[T any](ids []string, items map[string]*T) []*T {
 	itemsList := make([]*T, 0, len(ids))
 	for _, id := range ids {
 		if item, found := items[id]; found {
@@ -376,40 +360,40 @@ func buildMap[T any, K comparable](items []*T, keyFunc func(*T) K) map[K]*T {
 	return m
 }
 
-func (c *Cache) SetExpirationCourse(ctx context.Context, courseID datatypes.UUID) error {
+func (c *Cache) SetExpirationCourse(ctx context.Context, courseID string) error {
 	return c.redis.Expire(ctx, FormatKey(KeyCourse, courseID), TTLCourse).Err()
 }
 
-func (c *Cache) AddCourseAssignment(ctx context.Context, courseID datatypes.UUID, assignmentID datatypes.UUID) error {
+func (c *Cache) AddCourseAssignment(ctx context.Context, courseID string, assignmentID string) error {
 	cacheKey := FormatKey(KeyCourseAssignments, courseID)
 	c.redis.SAdd(ctx, cacheKey, assignmentID).Err()
 	return c.SetExpirationCourseAssignments(ctx, courseID)
 }
 
-func (c *Cache) RemoveCourseAssignment(ctx context.Context, courseID datatypes.UUID, assignmentID datatypes.UUID) error {
+func (c *Cache) RemoveCourseAssignment(ctx context.Context, courseID string, assignmentID string) error {
 	return c.redis.SRem(ctx, FormatKey(KeyCourseAssignments, courseID), assignmentID).Err()
 }
 
-func (c *Cache) DeleteCourseAssignments(ctx context.Context, courseID datatypes.UUID) error {
+func (c *Cache) DeleteCourseAssignments(ctx context.Context, courseID string) error {
 	return c.redis.Del(ctx, FormatKey(KeyCourseAssignments, courseID)).Err()
 }
 
-func (c *Cache) SetExpirationCourseAssignments(ctx context.Context, courseID datatypes.UUID) error {
+func (c *Cache) SetExpirationCourseAssignments(ctx context.Context, courseID string) error {
 	return c.redis.Expire(ctx, FormatKey(KeyCourseAssignments, courseID), TTLCourseAssignments).Err()
 }
 
-func (c *Cache) AddCourseNote(ctx context.Context, courseID datatypes.UUID, noteID datatypes.UUID) error {
+func (c *Cache) AddCourseNote(ctx context.Context, courseID string, noteID string) error {
 	return c.redis.SAdd(ctx, FormatKey(KeyCourseNotes, courseID), noteID).Err()
 }
 
-func (c *Cache) RemoveCourseNote(ctx context.Context, courseID datatypes.UUID, noteID datatypes.UUID) error {
+func (c *Cache) RemoveCourseNote(ctx context.Context, courseID string, noteID string) error {
 	return c.redis.SRem(ctx, FormatKey(KeyCourseNotes, courseID), noteID).Err()
 }
 
-func (c *Cache) DeleteCourseNotes(ctx context.Context, courseID datatypes.UUID) error {
+func (c *Cache) DeleteCourseNotes(ctx context.Context, courseID string) error {
 	return c.redis.Del(ctx, FormatKey(KeyCourseNotes, courseID)).Err()
 }
 
-func (c *Cache) SetExpirationCourseNotes(ctx context.Context, courseID datatypes.UUID) error {
+func (c *Cache) SetExpirationCourseNotes(ctx context.Context, courseID string) error {
 	return c.redis.Expire(ctx, FormatKey(KeyCourseNotes, courseID), TTLCourseNotes).Err()
 }

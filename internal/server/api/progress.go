@@ -9,7 +9,6 @@ import (
 	"unipilot/internal/services/fileops/progress"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/datatypes"
 )
 
 // GetUploadProgressHandler returns the current progress of an upload
@@ -17,14 +16,9 @@ import (
 // GetUploadProgressHandler returns the current progress of an upload
 func GetUploadProgressHandler(c *fiber.Ctx) error {
 
-	var progressID datatypes.UUID
-	idStr := c.Params("upload_id")
-	if idStr == "" {
+	var progressID string
+	if progressID = c.Params("id"); progressID != "" {
 		return errors.WrapServer(fmt.Errorf("progress ID required"), errors.ReqParamMissing, "Progress ID required", fiber.StatusBadRequest)
-	}
-	err := progressID.Scan(idStr)
-	if err != nil {
-		return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting progress ID to UUID", fiber.StatusBadRequest)
 	}
 
 	// Set SSE headers
@@ -46,7 +40,7 @@ func GetUploadProgressHandler(c *fiber.Ctx) error {
 	}
 
 	initialProgress := &progress.TrackerSnapshot{
-		ID:         progressID.String(),
+		ID:         progressID,
 		Status:     "stopped",
 		Current:    0,
 		Total:      0, // Unknown at this point
@@ -88,7 +82,7 @@ func GetUploadProgressHandler(c *fiber.Ctx) error {
 			case <-timeout.C:
 				// Send timeout message after 5 minutes
 				timeoutProgress := &progress.TrackerSnapshot{
-					ID:         progressID.String(),
+					ID:         progressID,
 					Status:     "error",
 					Error:      fmt.Errorf("Upload did not complete within timeout period"),
 					Current:    0,

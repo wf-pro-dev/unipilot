@@ -392,7 +392,7 @@ func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
 	c.Set("X-Accel-Buffering", "no")           // Disable proxy buffering
 
 	// Step 3: Register client connection and setup cleanup
-	client := s.AddClient(userID.String()) // Cleanup ticker on exit
+	client := s.AddClient(userID) // Cleanup ticker on exit
 
 	// Step 6: Capture context before entering SetBodyStreamWriter
 	// The context may not be accessible inside the callback
@@ -405,7 +405,7 @@ func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
 			// Step 4: Cleanup client connection on function exit
 			ctx := context.WithValue(context.Background(), "component", "sse")
 			server.LogDebug(ctx, "sse client removed", userID)
-			s.RemoveClient(userID.String())
+			s.RemoveClient(userID)
 		}()
 
 		// Step 5: Setup heartbeat system for connection maintenance
