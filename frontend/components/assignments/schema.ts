@@ -56,23 +56,11 @@ export const assignmentStep1Schema = z.object({
       (val) => isValidAssignmentTitle(val),
       {
         message: "Title contains unsafe characters or patterns",
-      }
-    ),
-  course_code: z
-    .string()
-    .min(2, "Course code must be at least 2 characters")
-    .max(20, "Course code must be at most 20 characters")
-    .refine(
-      (val) => isValidCourseCode(val),
-      {
-        message: "Course code can only contain letters, numbers, spaces, and hyphens",
-      }
+      } 
     ),
   course_id: z
-    .number()
-    .min(1, "Course ID is required"),
-  remote_course_id: z
-    .number().optional(),
+    .string()
+    .min(1, "Course is required"),
   type: z
     .string()
     .min(1, "Please select an assignment type")

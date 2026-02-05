@@ -15,7 +15,6 @@ import { GlassCard } from "../ui/glass-card"
 interface CoursesSelectProps {
   value: string
   onValueChange: (value: string) => void
-  onCourseChange: (course: models.LocalCourse | undefined) => void
   selectedCourse: models.LocalCourse | undefined
   placeholder?: string
 }
@@ -23,7 +22,6 @@ interface CoursesSelectProps {
 export function CoursesSelect({
   value,
   onValueChange,
-  onCourseChange,
   selectedCourse,
   placeholder = "Select course"
 }: CoursesSelectProps) {
@@ -39,20 +37,10 @@ export function CoursesSelect({
 
   const coursesBySemester = getCoursesBySemester()
 
-  const handleValueChange = (newValue: string) => {
-    const course = courses?.find((c) => c.Code === newValue)
-    console.log("course", course)
-    if (course) {
-      onCourseChange(course)
-      onValueChange(newValue)
-    } else {
-      onCourseChange(undefined)
-      onValueChange("")
-    }
-  }
+
 
   return (
-    <Select value={value} onValueChange={handleValueChange}>
+    <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger className="bg-white/5 border-white/10 text-gray-400 h-10 rounded-xl">
         {selectedCourse && ( 
           <div className="flex items-center gap-2">
@@ -64,7 +52,7 @@ export function CoursesSelect({
         )}
 
         {!selectedCourse && (
-          <SelectValue  placeholder="Select course" />
+          <SelectValue placeholder={placeholder} />
         )}
       </SelectTrigger>
 
@@ -78,8 +66,8 @@ export function CoursesSelect({
               </SelectLabel>
               {coursesBySemester[semester].map((course) => (
                 <SelectItem
-                  key={course.Code}
-                  value={course.Code}
+                  key={course.ID}
+                  value={course.ID}
                   className="focus:bg-white/10 focus:text-white cursor-pointer rounded-lg py-2 px-3"
                 >
                   <div className="flex items-center gap-3">

@@ -67,9 +67,7 @@ export function AssignmentAddDialog({ isOpen, onClose }: AssignmentAddDialogProp
     mode: "onChange",
     defaultValues: {
       title: "",
-      course_code: "",
-      course_id: 0,
-      remote_course_id: 0,
+      course_id: "",
       type: "",
       deadline: new Date(),
       priority: "medium",
@@ -82,7 +80,7 @@ export function AssignmentAddDialog({ isOpen, onClose }: AssignmentAddDialogProp
   const handleNext = async () => {
     if (step === 1) {
       setStep1Attempted(true)
-      const step1Valid = await form.trigger(["title", "course_code", "course_id", "remote_course_id", "type", "deadline"])
+      const step1Valid = await form.trigger(["title", "course_id", "type", "deadline"])
       if (step1Valid) setStep(2)
     }
   }
@@ -94,17 +92,16 @@ export function AssignmentAddDialog({ isOpen, onClose }: AssignmentAddDialogProp
   const onSubmit = async (data: AssignmentValues) => {
     setIsSubmitting(true)
     try {
-
+      const id = crypto.randomUUID()
       const assignmentData: models.LocalAssignment = {
+        ID: id,
         Title: data.title,
         Todo: data.todo || "",
         Deadline: data.deadline,
         CourseID: data.course_id,
-        CourseCode: data.course_code,
         Type: data.type,
         Status: data.status,
         Priority: data.priority,
-        RemoteCourseID: data.remote_course_id,
         Link: data.link || "https://acconline.austincc.edu/ultra/stream",
       } as unknown as models.LocalAssignment
 
@@ -126,12 +123,6 @@ export function AssignmentAddDialog({ isOpen, onClose }: AssignmentAddDialogProp
     onClose()
   }
 
-  const handleCourseChange = (course: models.LocalCourse | undefined) => {
-    if (!course) return
-    setSelectedCourse(course)
-    form.setValue("course_id", course.ID)
-    form.setValue("remote_course_id", course.RemoteID)
-  }
 
   const handleErrorResolved = () => {
     if (step === 1) {
@@ -205,7 +196,7 @@ export function AssignmentAddDialog({ isOpen, onClose }: AssignmentAddDialogProp
 
                     <FormField
                       control={form.control}
-                      name="course_code"
+                      name="course_id"
                       render={({ field, fieldState }) => (
                         <FormItem className="space-y-1 group">
                           <FormLabel className="text-xs font-medium uppercase tracking-wider text-gray-400 group-focus-within:text-white ml-1 transition-colors duration-300">
@@ -214,7 +205,6 @@ export function AssignmentAddDialog({ isOpen, onClose }: AssignmentAddDialogProp
                           <CoursesSelect
                             value={field.value}
                             onValueChange={field.onChange}
-                            onCourseChange={handleCourseChange}
                             selectedCourse={selectedCourse}
                           />
                           <FormErrorMessage

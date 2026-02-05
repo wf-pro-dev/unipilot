@@ -46,18 +46,12 @@ func CreateAssignment(a *models.Assignment) error {
 		return err
 	}
 
-	statusCode, body, errs := agent.Bytes()
-	if len(errs) > 0 {
-		return errs[0]
-	}
-
-	if statusCode != fiber.StatusNoContent {
-		var serverError *errors.ServerError
-		if err := json.Unmarshal(body, &serverError); err != nil {
-			return errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
-		}
+	statusCode, body, _ := agent.Bytes()
+	if statusCode != fiber.StatusCreated {
+		serverError := errors.ParseServerError(body, statusCode)
 		return serverError
 	}
+
 	return nil
 }
 
@@ -69,17 +63,16 @@ func UpdateAssignment(id string, column, value string) error {
 	}
 
 	api_url := secrets.CONSTANTS["API_URL"]
+
 	agent, err := GetAuthAgent(fiber.Put(fmt.Sprintf("%s/assignments/%s", api_url, id)).JSON(updateData))
 	if err != nil {
 		return err
 	}
 
-	statusCode, _, errs := agent.Bytes()
-	if len(errs) > 0 {
-		return errs[0]
-	}
-	if statusCode != 200 {
-		return fmt.Errorf("server returned status %d", statusCode)
+	statusCode, body, _ := agent.Bytes()
+	if statusCode != fiber.StatusNoContent {
+		serverError := errors.ParseServerError(body, statusCode)
+		return serverError
 	}
 
 	return nil
@@ -94,12 +87,10 @@ func DeleteAssignment(id string) error {
 		return err
 	}
 
-	statusCode, _, errs := agent.Bytes()
-	if len(errs) > 0 {
-		return errs[0]
-	}
-	if statusCode != 200 {
-		return fmt.Errorf("server returned status %d", statusCode)
+	statusCode, body, _ := agent.Bytes()
+	if statusCode != fiber.StatusNoContent {
+		serverError := errors.ParseServerError(body, statusCode)
+		return serverError
 	}
 
 	return nil

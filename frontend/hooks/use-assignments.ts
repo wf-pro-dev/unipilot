@@ -12,10 +12,10 @@ import { CreateAssignment, UpdateAssignment, CopyAssignment } from '@/wailsjs/go
 export const assignmentKeys = {
   all: ['assignments'] as const,
   lists: () => [...assignmentKeys.all, 'list'] as const,
-  single: (id: number) => [...assignmentKeys.all, 'single', id] as const,
+  single: (id: string) => [...assignmentKeys.all, 'single', id] as const,
   list: (filters: string) => [...assignmentKeys.lists(), { filters }] as const,
   details: () => [...assignmentKeys.all, 'detail'] as const,
-  detail: (id: number) => [...assignmentKeys.details(), id] as const,
+  detail: (id: string) => [...assignmentKeys.details(), id] as const,
 }
 
 // Main hook for fetching assignments with caching
@@ -35,7 +35,7 @@ export function useAssignments() {
   })
 }
 
-export function useAssignment(id: number) {
+export function useAssignment(id: string) {
   
   // Directly subscribe to assignment cache changes
   const { data: assignments } = useQuery({
