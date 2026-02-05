@@ -2,7 +2,6 @@ package fileops
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"mime"
 	"os"
@@ -15,26 +14,6 @@ import (
 	"unipilot/internal/models"
 	"unipilot/internal/services/utils"
 )
-
-// FileUploadRequest represents a file upload request
-type FileUploadRequest struct {
-	DocumentID   string
-	AssignmentID string
-	UserID       string
-	Type         models.DocumentType
-	FileName     string
-	FilePath     string
-	FileSize     int64
-	FileContent  io.Reader
-	StorageKey   string
-}
-
-// FileUploadResponse represents the result of a file upload
-type FileUploadResponse struct {
-	LocalDocument *models.LocalDocument
-	Success       bool
-	Message       string
-}
 
 func PickFile(ctx context.Context) (string, error) {
 
@@ -70,6 +49,16 @@ func GetFileName(filePath string) string {
 	return filepath.Base(filePath)
 }
 
+func GetFilePath(doc *models.LocalDocument) string {
+	userDir, err := utils.GetUserDir()
+	if err != nil {
+		return ""
+	}
+	assignmentDir := filepath.Join(userDir, "assignments", doc.AssignmentID)
+	documentDir := filepath.Join(assignmentDir, "documents", doc.FileName)
+	return filepath.Join(documentDir, doc.FileName)
+}
+
 // GetMimeType returns the MIME type for a file extension
 func GetMimeType(fileName string) string {
 	ext := filepath.Ext(fileName)
@@ -81,25 +70,19 @@ func GetMimeType(fileName string) string {
 }
 
 // WriteDocument writes a document to the local file system
-func WriteDocument(document *models.LocalDocument, fileContent io.Reader, db *gorm.DB) (*FileUploadResponse, error) {
+func WriteDocument(document *models.LocalDocument, db *gorm.DB) error {
 
 	// Create directory if it doesn't exist
 	if err := os.MkdirAll(filepath.Dir(document.FilePath), 0755); err != nil {
 
-		return &FileUploadResponse{
-			Success: false,
-			Message: "Failed to create directory",
-		}, errors.Wrap(err, errors.FSDirFailed, "Failed to create directory")
+		return errors.Wrap(err, errors.FSDirFailed, "Failed to create directory")
 	}
 
 	// Write file to disk
-	if err := WriteFile(document.FilePath, fileContent); err != nil {
+	if err := WriteFile(document.FilePath, document.FileContent); err != nil {
 		// Clean up database record
 		db.Delete(&document)
-		return &FileUploadResponse{
-			Success: false,
-			Message: "Failed to write file",
-		}, errors.Wrap(err, errors.FSWriteFailed, "Failed to write file")
+		return errors.Wrap(err, errors.FSWriteFailed, "Failed to write file")
 	}
 
 	// Update HasLocalFile to true after successful write
@@ -107,109 +90,10 @@ func WriteDocument(document *models.LocalDocument, fileContent io.Reader, db *go
 	if err := db.Model(&document).Updates(map[string]interface{}{
 		"has_local_file": true,
 	}).Error; err != nil {
-		return &FileUploadResponse{
-			Success: false,
-			Message: "Failed to update document",
-		}, errors.Wrap(err, errors.DBQueryFailed, "Failed to update HasLocalFile")
+		return errors.Wrap(err, errors.DBQueryFailed, "Failed to update HasLocalFile")
 	}
 
-	// Storage info is now calculated on-demand, no need to update cache
-
-	return &FileUploadResponse{
-		LocalDocument: document,
-		Success:       true,
-		Message:       "Upload successful",
-	}, nil
-}
-
-// UploadNewVersion creates a new version of an existing document
-func UploadNewVersion(existingDocumentID string, req FileUploadRequest, db *gorm.DB) (*FileUploadResponse, error) {
-	// Get existing document
-	var existingDoc models.LocalDocument
-	if err := db.First(&existingDoc, existingDocumentID).Error; err != nil {
-		return &FileUploadResponse{
-			Success: false,
-			Message: "Original document not found",
-		}, errors.Wrap(err, errors.DBRecordNotFound, "Original document not found")
-	}
-
-	// Create new version
-	newVersion := models.LocalDocument{
-		BaseDocument: models.BaseDocument{
-			AssignmentID: existingDoc.AssignmentID,
-			Type:         existingDoc.Type,
-			FileName:     req.FileName,
-			FileSize:     req.FileSize,
-			Version:      existingDoc.Version + 1,
-			ParentDocID:  &existingDoc.ID,
-			IsOriginal:   false,
-			HasLocalFile: false,
-		},
-	}
-
-	// Generate file path
-	documentDir, err := utils.GetDocumentDir()
-	if err != nil {
-		return &FileUploadResponse{
-			Success: false,
-			Message: "Failed to get app data path",
-		}, errors.Wrap(err, errors.FSFileNotFound, "Failed to get app data path")
-	}
-
-	fileName := fmt.Sprintf("doc_%d_%d_v%d_%s", req.AssignmentID, req.UserID, newVersion.Version, req.FileName)
-	filePath := filepath.Join(documentDir, fileName)
-	newVersion.FilePath = filePath
-
-	// Save to database
-	if err := db.Create(&newVersion).Error; err != nil {
-		return &FileUploadResponse{
-			Success: false,
-			Message: "Failed to save new version",
-		}, errors.Wrap(err, errors.DBQueryFailed, "Failed to save new version")
-	}
-
-	// Create directory if needed
-	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-		db.Delete(&newVersion)
-		return &FileUploadResponse{
-			Success: false,
-			Message: "Failed to create directory",
-		}, errors.Wrap(err, errors.FSDirFailed, "Failed to create directory")
-	}
-
-	// Write file
-	fileContent, err := os.Open(req.FilePath)
-	if err != nil {
-		return &FileUploadResponse{
-			Success: false,
-			Message: "Failed to open file",
-		}, errors.Wrap(err, errors.FSOpenFailed, "Failed to open file")
-	}
-	defer fileContent.Close()
-	if err := WriteFile(filePath, fileContent); err != nil {
-		db.Delete(&newVersion)
-		return &FileUploadResponse{
-			Success: false,
-			Message: "Failed to write file",
-		}, errors.Wrap(err, errors.FSWriteFailed, "Failed to write file")
-	}
-
-	// Update HasLocalFile after successful write
-	newVersion.HasLocalFile = true
-	if err := db.Save(&newVersion).Error; err != nil {
-		return &FileUploadResponse{
-			Success: false,
-			Message: "Failed to update HasLocalFile",
-		}, errors.Wrap(err, errors.DBQueryFailed, "Failed to update HasLocalFile")
-	}
-
-	// Storage info is now calculated on-demand, no need to update cache
-
-	return &FileUploadResponse{
-		LocalDocument: &newVersion,
-		Success:       true,
-		Message:       "New version uploaded successfully",
-	}, nil
+	return nil
 }
 
 // DeleteDocument removes a document and its file

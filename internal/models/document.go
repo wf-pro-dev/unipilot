@@ -3,6 +3,7 @@ package models
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -96,6 +97,8 @@ type LocalDocument struct {
 	Base
 	BaseDocument
 	SyncedAt *time.Time `gorm:"default:null"`
+
+	FileContent io.Reader `gorm:"-"`
 
 	// Local relationships
 	Assignment LocalAssignment `gorm:"foreignKey:AssignmentID;references:ID" validate:"-"`

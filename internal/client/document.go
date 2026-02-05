@@ -186,7 +186,7 @@ func SendDocument(localDocument *models.LocalDocument) (*DocCreateResp, error) {
 }
 
 // SendDocumentWithProgress sends document with progress tracking
-func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDocument, tracker *progress.Tracker) (*DocCreateResp, error) {
+func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDocument, fileProgress *progress.Progress) (*DocCreateResp, error) {
 	api_url := secrets.CONSTANTS["API_URL"]
 	url := fmt.Sprintf("%s/documents", api_url)
 
@@ -209,7 +209,7 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 		defer fileContent.Close()
 
 		// Wrap with progress reader
-		progressReader := progress.NewReader(fileContent, tracker)
+		progressReader := progress.NewReader(fileContent, fileProgress)
 
 		// Copy file content with progress tracking
 		_, err = io.Copy(fileWriter, progressReader)
@@ -249,22 +249,19 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 	}
 
 	// Initialize progress manager (reuse if exists, or create new)
-	progressManager := progress.GetManager()
+	progressManager := progress.GetManager(ctx)
 
 	// Create progress tracker
-	connTracker := progressManager.Create(localDocument.ID, localDocument.FileSize)
-	connTracker.SetStatus("Connecting to server")
-	connTracker.OnProgress(func(t *progress.Tracker) {
-		snapshot := t.Snapshot()
+	connProgress := progressManager.Create(localDocument.ID, localDocument.FileSize)
+	connProgress.SetStatus("Connecting to server")
+	connProgress.OnProgress(func(p *progress.Progress) {
+		snapshot := p.Snapshot()
 		// 40% of the total progress
 
 		if snapshot.Error != nil {
-			runtime.EventsEmit(ctx, fmt.Sprintf("upload:error:%s", localDocument.ID), map[string]interface{}{
-				"upload_id": localDocument.ID,
-				"error":     snapshot.Error.Error(),
-			})
+			runtime.EventsEmit(ctx, fmt.Sprintf("upload:error:%s", localDocument.ID), snapshot.Error.Error())
 		} else {
-			snapshot.Percentage = 20 + t.Percentage()*0.4
+			snapshot.Percentage = 20 + p.Percentage()*0.4
 			runtime.EventsEmit(ctx, fmt.Sprintf("upload:progress:%s", localDocument.ID), snapshot)
 		}
 
@@ -279,12 +276,13 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 				}
 				return &progress.ConnReader{
 					Conn:    conn,
-					OnWrite: connTracker.Increment,
+					OnWrite: connProgress.Increment,
 				}, nil
 			},
 		},
 	}
-	go GetProgress(ctx, localDocument.ID, 60)
+	serverCtx, serverCancel := context.WithCancel(ctx)
+	go GetProgress(serverCtx, localDocument.ID, 60)
 	resp, err := httpClient.Do(req)
 	if err != nil {
 
@@ -293,7 +291,7 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 			return nil, fmt.Errorf("upload cancelled")
 		}
 
-		progress.GetManager().Remove(localDocument.ID)
+		progress.GetManager(ctx).Remove(localDocument.ID)
 		return nil, fmt.Errorf("error sending request: %v", err)
 	}
 	defer resp.Body.Close()

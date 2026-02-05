@@ -7,10 +7,10 @@ import (
 )
 
 // ProgressCallback is called when progress updates
-type ProgressCallback func(tracker *Tracker)
+type ProgressCallback func(progress *Progress)
 
-// Tracker represents a single trackable operation
-type Tracker struct {
+// Progress represents a single operation
+type Progress struct {
 	ID        string
 	Total     int64
 	Current   int64
@@ -19,10 +19,11 @@ type Tracker struct {
 	Error     error
 	mu        sync.RWMutex
 	callbacks []ProgressCallback
+	cancel    context.CancelFunc
 }
 
-type TrackerSnapshot struct {
-	ID         string    `json:"upload_id"`
+type ProgressSnapshot struct {
+	ID         string    `json:"progress_id"`
 	Total      int64     `json:"total"`
 	Current    int64     `json:"current"`
 	Status     string    `json:"status"`
@@ -32,19 +33,23 @@ type TrackerSnapshot struct {
 }
 
 // NewTracker creates a new progress tracker
-func NewTracker(id string, total int64) *Tracker {
-	return &Tracker{
+func NewProgress(id string, total int64, ctx context.Context) *Progress {
+	_, cancel := context.WithCancel(ctx)
+
+	return &Progress{
+
 		ID:        id,
 		Total:     total,
 		Current:   0,
-		Status:    "pending",
+		Status:    "starting",
 		StartTime: time.Now(),
 		callbacks: make([]ProgressCallback, 0),
+		cancel:    cancel,
 	}
 }
 
 // Update progress
-func (t *Tracker) Update(current int64) {
+func (t *Progress) Update(current int64) {
 	t.mu.Lock()
 	t.Current = current
 	t.mu.Unlock()
@@ -53,7 +58,7 @@ func (t *Tracker) Update(current int64) {
 }
 
 // Increment progress by delta
-func (t *Tracker) Increment(delta int64) {
+func (t *Progress) Increment(delta int64) {
 	t.mu.Lock()
 	t.Current += delta
 	t.mu.Unlock()
@@ -62,7 +67,7 @@ func (t *Tracker) Increment(delta int64) {
 }
 
 // SetStatus updates the status message
-func (t *Tracker) SetStatus(status string) {
+func (t *Progress) SetStatus(status string) {
 	t.mu.Lock()
 	t.Status = status
 	t.mu.Unlock()
@@ -71,7 +76,7 @@ func (t *Tracker) SetStatus(status string) {
 }
 
 // SetError marks the tracker as failed
-func (t *Tracker) SetError(err error) {
+func (t *Progress) SetError(err error) {
 	t.mu.Lock()
 	t.Error = err
 	t.Status = "error"
@@ -81,7 +86,7 @@ func (t *Tracker) SetError(err error) {
 }
 
 // Complete marks the tracker as finished
-func (t *Tracker) Complete() {
+func (t *Progress) Complete() {
 	t.mu.Lock()
 	t.Current = t.Total
 	t.Status = "completed"
@@ -91,7 +96,7 @@ func (t *Tracker) Complete() {
 }
 
 // Percentage returns current progress as percentage (0-100)
-func (t *Tracker) Percentage() float64 {
+func (t *Progress) Percentage() float64 {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
@@ -102,18 +107,18 @@ func (t *Tracker) Percentage() float64 {
 }
 
 // IsComplete returns true if progress is 100%
-func (t *Tracker) IsComplete() bool {
+func (t *Progress) IsComplete() bool {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return t.Current >= t.Total && t.Total > 0
 }
 
 // Snapshot returns a thread-safe copy of the tracker state
-func (t *Tracker) Snapshot() TrackerSnapshot {
+func (t *Progress) Snapshot() ProgressSnapshot {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	return TrackerSnapshot{
+	return ProgressSnapshot{
 		ID:         t.ID,
 		Total:      t.Total,
 		Current:    t.Current,
@@ -125,13 +130,13 @@ func (t *Tracker) Snapshot() TrackerSnapshot {
 }
 
 // OnProgress registers a callback for progress updates
-func (t *Tracker) OnProgress(callback ProgressCallback) {
+func (t *Progress) OnProgress(callback ProgressCallback) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.callbacks = append(t.callbacks, callback)
 }
 
-func (t *Tracker) notifyCallbacks() {
+func (t *Progress) notifyCallbacks() {
 	t.mu.RLock()
 	callbacks := make([]ProgressCallback, len(t.callbacks))
 	copy(callbacks, t.callbacks)

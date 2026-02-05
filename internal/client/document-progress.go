@@ -9,73 +9,12 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 	"unipilot/internal/errors"
 	"unipilot/internal/secrets"
 	"unipilot/internal/services/fileops/progress"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
-
-// PollServerProgress polls the server for R2 upload progress
-func PollServerProgress(ctx context.Context, progressID string, tracker *progress.Tracker) {
-	api_url := secrets.CONSTANTS["API_URL"]
-
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			tracker.SetError(ctx.Err())
-			return
-
-		case <-ticker.C:
-			url := fmt.Sprintf("%s/progress/%s", api_url, progressID)
-			req, err := http.NewRequest("GET", url, nil)
-			if err != nil {
-				tracker.SetError(err)
-			}
-			if err := SetAuthHeaderRequest(req); err != nil {
-				tracker.SetError(err)
-			}
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
-				// Continue polling on error
-				tracker.SetError(err)
-			}
-
-			var progressData progress.TrackerSnapshot
-			if err := json.NewDecoder(resp.Body).Decode(&progressData); err != nil {
-				tracker.SetError(err)
-			}
-			resp.Body.Close()
-
-			switch progressData.Status {
-			case "completed":
-				runtime.EventsEmit(ctx, fmt.Sprintf("upload:complete:%s", progressID), map[string]interface{}{
-					"upload_id": progressID,
-				})
-				return
-			case "error":
-				runtime.EventsEmit(ctx, fmt.Sprintf("upload:error:%s", progressID), map[string]interface{}{
-					"upload_id": progressID,
-					"error":     "server upload error",
-				})
-				tracker.SetError(fmt.Errorf("server upload error"))
-				return
-			default:
-				progressData.Percentage = 60 + progressData.Percentage*0.4 // 40% of the total progress
-				runtime.EventsEmit(ctx, fmt.Sprintf("upload:progress:%s", progressID), progressData)
-
-			}
-
-		case <-time.After(60 * time.Second):
-			tracker.SetError(fmt.Errorf("server upload timeout"))
-			return
-		}
-	}
-}
 
 // CancelUpload cancels an upload on the server
 // GetProgress listens for upload progress via SSE
@@ -164,29 +103,23 @@ func GetProgress(ctx context.Context, progressID string, currentPercentage float
 				default:
 
 					// Parse progress data
-					var progressData progress.TrackerSnapshot
+					var progressData progress.ProgressSnapshot
 					if err := json.Unmarshal([]byte(data), &progressData); err != nil {
-						log.Printf("Failed to unmarshal progress data: %v %s", err, data)
 						return errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to unmarshal progress data")
 					}
 
 					// Check for completion
 					if progressData.Status == "completed" {
-						runtime.EventsEmit(ctx, fmt.Sprintf("upload:complete:%s", progressID), map[string]interface{}{
-							"upload_id": progressID,
-						})
+						runtime.EventsEmit(ctx, fmt.Sprintf("upload:complete:%s", progressID))
 						return nil
-					}
-					if progressData.Status == "error" {
-						log.Println("Server upload error:", progressData.Error)
-						return fmt.Errorf("server upload error: %s", progressData.Error)
-					}
+					} else if progressData.Status == "error" {
+						runtime.EventsEmit(ctx, fmt.Sprintf("upload:error:%s", progressID))
+						return errors.Wrap(progressData.Error, errors.ClientRequestFailed, "Server upload error")
+					} else {
 
-					if progressData.Status != "stopped" {
-						// Adjust percentage if needed
 						progressData.Percentage = currentPercentage + progressData.Percentage*(100-currentPercentage)/100
-						// Emit progress
 						runtime.EventsEmit(ctx, fmt.Sprintf("upload:progress:%s", progressID), progressData)
+
 					}
 
 				}

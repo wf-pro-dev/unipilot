@@ -157,15 +157,19 @@ func (a *App) CopyAssignment(assignment *models.LocalAssignment, includeDocument
 
 	if includeDocuments {
 		for _, document := range assignment.Documents {
-			_, err := a.CreateDocument(fileops.FileUploadRequest{
-				DocumentID:   document.ID,
-				AssignmentID: newAssignment.ID,
-				UserID:       a.Auth.User.ID,
-				Type:         document.Type,
-				FileName:     document.FileName,
-				FileSize:     document.FileSize,
-				StorageKey:   *document.StorageKey,
-			}, false)
+			err := a.CreateDocument(&models.LocalDocument{
+				Base: models.Base{
+					ID: "",
+				},
+				BaseDocument: models.BaseDocument{
+					AssignmentID: newAssignment.ID,
+					Type:         document.Type,
+					FileName:     document.FileName,
+					FileSize:     document.FileSize,
+					StorageKey:   document.StorageKey,
+					HasLocalFile: false,
+				},
+			})
 			if err != nil {
 				return Errors.Wrap(err, Errors.InternalError, "Failed to create document")
 			}
@@ -298,7 +302,7 @@ func (a *App) PickFile() (string, error) {
 }
 
 // UploadDocument opens a file dialog and uploads a document to an assignment
-func (a *App) UploadDocument(documentID, assignmentID, documentType, filePath string) (*models.LocalDocument, error) {
+func (a *App) UploadDocument(documentID, assignmentID, documentType, filePath string, version int) (*models.LocalDocument, error) {
 
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
@@ -325,32 +329,128 @@ func (a *App) UploadDocument(documentID, assignmentID, documentType, filePath st
 		return nil, Errors.Wrap(err, Errors.FSFileNotFound, "File not found")
 	}
 
-	fileContent, err := os.Open(filePath)
-	if err != nil {
-		return nil, Errors.Wrap(err, Errors.FSOpenFailed, "Failed to open file")
-	}
-	defer fileContent.Close()
-
 	// Create upload request
-	uploadReq := fileops.FileUploadRequest{
-		DocumentID:   documentID,
-		AssignmentID: assignmentID,
-		UserID:       a.Auth.User.ID,
-		Type:         models.DocumentType(documentType),
-		FileName:     filepath.Base(filePath),
-		FilePath:     filePath,
-		FileSize:     fileInfo.Size(),
-		FileContent:  fileContent,
-		StorageKey:   "",
+	document := &models.LocalDocument{
+		Base: models.Base{
+			ID: documentID,
+		},
+		BaseDocument: models.BaseDocument{
+			AssignmentID: assignmentID,
+			Type:         models.DocumentType(documentType),
+			FileName:     fileops.GetFileName(filePath),
+			FilePath:     filePath,
+			FileSize:     fileInfo.Size(),
+			Version:      version,
+			HasLocalFile: true,
+		},
 	}
 
-	document, err := a.CreateDocument(uploadReq, true)
+	err = a.CreateDocument(document)
 	if err != nil {
 		return nil, err
 	}
 
 	return document, nil
 
+}
+
+func (a *App) CreateDocument(document *models.LocalDocument) error {
+
+	var err error
+
+	err = a.DB.CreateDocument(a.ctx, document)
+	if err != nil {
+		return err
+	}
+
+	if document.HasLocalFile {
+		return a.uploadDocumentWithProgress(document)
+	}
+
+	err = a.SendDocument(document)
+	if err != nil {
+		return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to send document")
+	}
+
+	return nil
+}
+
+func (a *App) uploadDocumentWithProgress(doc *models.LocalDocument) error {
+
+	// Initialize progress manager (reuse if exists, or create new)
+	progressManager := progress.GetManager(a.ctx)
+
+	// Create progress tracker
+	fileProgress := progressManager.Create(doc.ID, doc.FileSize)
+
+	// Register progress callback to emit events to frontend
+	fileProgress.OnProgress(func(p *progress.Progress) {
+		snapshot := p.Snapshot()
+
+		if snapshot.Error != nil {
+			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:error:%s", doc.ID), map[string]interface{}{
+				"upload_id": doc.ID,
+				"error":     snapshot.Error.Error(),
+			})
+		} else {
+			snapshot.Percentage = snapshot.Percentage * 0.2
+			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:progress:%s", doc.ID), snapshot)
+		}
+
+	})
+
+	// Emit started event
+	runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:started:%s", doc.ID), map[string]string{
+		"upload_id": doc.ID,
+		"file_name": doc.FileName,
+	})
+
+	// Create cancellable context
+	ctx, cancel := context.WithCancel(a.ctx)
+	progress.StoreCancelFunc(doc.ID, cancel)
+	defer progress.RemoveCancelFunc(doc.ID)
+
+	// Perform upload with progress tracking
+	err := a.sendDocumentWithProgress(ctx, doc, fileProgress)
+	if err != nil {
+		fileProgress.SetError(err)
+		return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to send document")
+	}
+	return nil
+}
+
+// sendDocumentWithProgress sends document to server with progress tracking
+func (a *App) sendDocumentWithProgress(ctx context.Context, document *models.LocalDocument, fileProgress *progress.Progress) error {
+
+	if a.DB == nil {
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
+	}
+
+	if !a.Auth.IsAuthenticated() {
+		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
+	}
+
+	db := a.DB.GetDB()
+	// Upload to server
+
+	// Send document with progress tracking
+	serverResponse, clientErr := client.SendDocumentWithProgress(ctx, document, fileProgress)
+	if clientErr != nil {
+		return Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
+	}
+
+	if err := db.Model(document).
+		Update("synced_at", time.Now()).
+		Update("storage_key", &serverResponse.StorageKey).Error; err != nil {
+		return Errors.HandleDBWriteError(err)
+	}
+
+	return nil
+}
+
+// GetActiveUploads returns all active uploads
+func (a *App) GetActiveUploads() []progress.ProgressSnapshot {
+	return progress.GetManager(a.ctx).List()
 }
 
 func (a *App) UploadProfilePicture() (string, error) {
@@ -456,144 +556,30 @@ func (a *App) GetFileAsDataURL(filePath string) (string, error) {
 	return fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data), nil
 }
 
-func (a *App) CreateDocument(uploadReq fileops.FileUploadRequest, hasLocalFile bool) (*models.LocalDocument, error) {
-
-	var response *models.LocalDocument
-	var err error
-
-	uploadResp, err := a.DB.CreateDocument(a.ctx, uploadReq, hasLocalFile)
-	if err != nil {
-		return nil, Errors.HandleDBWriteError(err)
-	}
-
-	if hasLocalFile {
-		return a.uploadDocumentWithProgress(uploadResp)
-	}
-
-	response, err = a.SendDocument(uploadResp)
-	if err != nil {
-		return nil, Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to send document")
-	}
-
-	return response, err
-}
-
-func (a *App) uploadDocumentWithProgress(uploadResp *fileops.FileUploadResponse) (*models.LocalDocument, error) {
-
-	document := uploadResp.LocalDocument
-
-	// Initialize progress manager (reuse if exists, or create new)
-	progressManager := progress.GetManager()
-
-	// Create progress tracker
-	tracker := progressManager.Create(document.ID, document.FileSize)
-	tracker.SetStatus("starting")
-
-	// Register progress callback to emit events to frontend
-	tracker.OnProgress(func(t *progress.Tracker) {
-		snapshot := t.Snapshot()
-
-		if snapshot.Error != nil {
-			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:error:%s", document.ID), map[string]interface{}{
-				"upload_id": document.ID,
-				"error":     snapshot.Error.Error(),
-			})
-		} else {
-			snapshot.Percentage = snapshot.Percentage * 0.2
-			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:progress:%s", document.ID), snapshot)
-		}
-
-	})
-
-	// Emit started event
-	runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:started:%s", document.ID), map[string]string{
-		"upload_id": document.ID,
-		"file_name": document.FileName,
-	})
-
-	// Create cancellable context
-	ctx, cancel := context.WithCancel(a.ctx)
-	progress.StoreCancelFunc(document.ID, cancel)
-	defer progress.RemoveCancelFunc(document.ID)
-
-	// Perform upload with progress tracking
-	response, err := a.sendDocumentWithProgress(ctx, uploadResp, tracker)
-	if err != nil {
-		tracker.SetError(err)
-		return nil, Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to send document")
-	}
-	return response, nil
-}
-
-// sendDocumentWithProgress sends document to server with progress tracking
-func (a *App) sendDocumentWithProgress(ctx context.Context, uploadResp *fileops.FileUploadResponse, tracker *progress.Tracker) (*models.LocalDocument, error) {
+func (a *App) SendDocument(document *models.LocalDocument) error {
 
 	if a.DB == nil {
-		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
-	}
-
-	if !a.Auth.IsAuthenticated() {
-		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
-	}
-
-	document := uploadResp.LocalDocument
-
-	db := a.DB.GetDB()
-	// Upload to server
-
-	// Send document with progress tracking
-	serverResponse, clientErr := client.SendDocumentWithProgress(ctx, document, tracker)
-	if clientErr != nil {
-		return nil, Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
-	}
-
-	if err := db.Model(document).
-		Update("synced_at", time.Now()).
-		Update("storage_key", &serverResponse.StorageKey).Error; err != nil {
-		return nil, Errors.HandleDBWriteError(err)
-	}
-
-	return document, nil
-}
-
-// GetActiveUploads returns all active uploads
-func (a *App) GetActiveUploads() []progress.TrackerSnapshot {
-	return progress.GetManager().List()
-}
-
-// GetUploadProgress gets progress for a specific upload
-func (a *App) GetUploadProgress(uploadID string) (progress.TrackerSnapshot, error) {
-	snapshot, exists := progress.GetManager().GetSnapshot(uploadID)
-	if !exists {
-		return progress.TrackerSnapshot{}, fmt.Errorf("upload not found")
-	}
-	return snapshot, nil
-}
-
-func (a *App) SendDocument(uploadResp *fileops.FileUploadResponse) (*models.LocalDocument, error) {
-
-	if a.DB == nil {
-		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
 
 	if a.Auth.IsAuthenticated() {
 
 		db := a.DB.GetDB()
 
-		serverResponse, clientErr := client.SendDocument(uploadResp.LocalDocument)
+		serverResponse, clientErr := client.SendDocument(document)
 		if clientErr != nil {
-			return nil, Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
+			return Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
 		}
 
-		if err := db.Model(uploadResp.LocalDocument).
+		if err := db.Model(document).
 			Update("synced_at", time.Now()).
 			Update("storage_key", &serverResponse.StorageKey).Error; err != nil {
-			return nil, Errors.HandleDBWriteError(err)
+			return Errors.HandleDBWriteError(err)
 		}
 
 	}
 
-	return uploadResp.LocalDocument, nil
+	return nil
 
 }
 
@@ -618,7 +604,7 @@ func (a *App) DownloadDocument(document *models.LocalDocument) error {
 	}
 
 	// write file to disk
-	if _, err := fileops.WriteDocument(document, downloadResp, db); err != nil {
+	if err := fileops.WriteDocument(document, db); err != nil {
 		return Errors.Wrap(err, Errors.FSWriteFailed, "Failed to write file")
 	}
 
@@ -751,114 +737,6 @@ func (a *App) UpdateNote(LocalNote *models.LocalNote, column, value string) erro
 	}
 
 	return nil
-}
-
-// UploadNewDocumentVersion uploads a new version of an existing document
-func (a *App) UploadNewDocumentVersion(existingDocumentID string) (*models.LocalDocument, error) {
-	if a.DB == nil {
-		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
-	}
-
-	if !a.Auth.IsAuthenticated() {
-		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
-	}
-
-	userID := a.Auth.User.ID
-
-	// Verify the existing document belongs to the user
-	var existingDoc models.LocalDocument
-	if err := a.DB.GetDB().Where("id = ? AND user_id = ?", existingDocumentID, userID).First(&existingDoc).Error; err != nil {
-		return nil, Errors.Wrap(err, Errors.DBRecordNotFound, "Document not found or access denied")
-	}
-
-	// Open file dialog
-	filters := []runtime.FileFilter{
-		{
-			DisplayName: "Documents",
-			Pattern:     "*.pdf;*.doc;*.docx;*.ppt;*.pptx;*.xls;*.xlsx;*.txt;*.md",
-		},
-		{
-			DisplayName: "Images",
-			Pattern:     "*.png;*.jpg;*.jpeg;*.gif;*.bmp;*.svg",
-		},
-		{
-			DisplayName: "All Files",
-			Pattern:     "*",
-		},
-	}
-
-	filePath, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title:   "Select New Version of Document",
-		Filters: filters,
-	})
-
-	if err != nil {
-		return nil, Errors.Wrap(err, Errors.FSOpenFailed, "Failed to open file dialog")
-	}
-
-	if filePath == "" {
-		return nil, Errors.Wrap(fmt.Errorf("no file selected"), Errors.ValidationRequired, "No file selected")
-	}
-
-	// Get file info
-	fileInfo, err := os.Stat(filePath)
-	if err != nil {
-		return nil, Errors.Wrap(err, Errors.FSFileNotFound, "Failed to get file info")
-	}
-
-	// Open the file
-	fileContent, err := os.Open(filePath)
-	if err != nil {
-		return nil, Errors.Wrap(err, Errors.FSOpenFailed, "Failed to open file")
-	}
-	defer fileContent.Close()
-
-	// Create new version request
-	uploadReq := fileops.FileUploadRequest{
-		DocumentID:   existingDoc.ID,
-		AssignmentID: existingDoc.AssignmentID,
-		UserID:       userID,
-		Type:         existingDoc.Type,
-		FileName:     filepath.Base(filePath),
-		FilePath:     filePath,
-		FileSize:     fileInfo.Size(),
-	}
-
-	// Upload new version locally
-	response, err := fileops.UploadNewVersion(existingDocumentID, uploadReq, a.DB.GetDB())
-	if err != nil {
-		return nil, Errors.Wrap(err, Errors.StorageUploadFailed, "Version upload failed")
-	}
-
-	if !response.Success {
-		return nil, Errors.Wrap(fmt.Errorf("%s", response.Message), Errors.StorageUploadFailed, "Version upload failed")
-	}
-
-	// // Also update metadata remotely for sharing (async)
-	// if a.Auth.IsAuthenticated() {
-	// 	metadataReq := map[string]interface{}{
-	// 		"assignment_id": existingDoc.AssignmentID,
-	// 		"local_id":      existingDoc.ID,
-	// 		"type":          string(existingDoc.Type),
-	// 		"file_name":     filepath.Base(filePath),
-	// 		"file_type":     fileops.GetMimeType(filepath.Base(filePath)),
-	// 		"file_size":     fileInfo.Size(),
-	// 		"version":       response.LocalDocument.Version,
-	// 	}
-
-	// 	api_url := secrets.CONSTANTS["API_URL"]
-
-	// 	go func() {
-	// 		jsonData, _ := json.Marshal(metadataReq)
-	// 		resp, err := http.Post(fmt.Sprintf("%s/documents/metadata", api_url),
-	// 			"application/json", strings.NewReader(string(jsonData)))
-	// 		if err == nil {
-	// 			defer resp.Body.Close()
-	// 		}
-	// 	}()
-	// }
-
-	return response.LocalDocument, nil
 }
 
 func (a *App) UpdateUser(column, value string) (*models.User, error) {
@@ -1623,17 +1501,12 @@ func (a *App) AcceptDocument(documentData string) error {
 		return err
 	}
 
-	uploadReq := fileops.FileUploadRequest{
-		DocumentID:   remoteDocument.ID,
-		AssignmentID: assignment.ID,
-		UserID:       a.Auth.User.ID,
-		Type:         localDoc.Type,
-		FileName:     localDoc.FileName,
-		FileSize:     localDoc.FileSize,
-		StorageKey:   *localDoc.StorageKey,
-	}
+	localDoc.ID = ""                      // will be set by the database
+	localDoc.AssignmentID = assignment.ID // Link to the assignment
+	localDoc.Version = 1                  // New document
+	localDoc.HasLocalFile = false         // No local file yet
 
-	if _, err := a.CreateDocument(uploadReq, false); err != nil {
+	if err := a.CreateDocument(localDoc); err != nil {
 		return err
 	}
 

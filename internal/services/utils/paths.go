@@ -39,7 +39,7 @@ func GetUserDir() (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, errors.FSFileFailed, "Failed to get main directory")
 	}
-	userDir := filepath.Join(mainDir, fmt.Sprintf("user_%s", credentials.ID))
+	userDir := filepath.Join(mainDir, "users", credentials.ID)
 
 	if err := os.MkdirAll(userDir, 0755); err != nil {
 		return "", errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create user directory")
@@ -62,22 +62,6 @@ func getUserDirWithID(userID string) (string, error) {
 	}
 
 	return userDir, nil
-}
-
-func GetDocumentDir() (string, error) {
-
-	userDir, err := GetUserDir()
-	if err != nil {
-		return "", err
-	}
-
-	documentDir := filepath.Join(userDir, "documents")
-	// Create directory if it doesn't exist
-	if err := os.MkdirAll(documentDir, 0755); err != nil {
-		return "", errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create document directory")
-	}
-
-	return documentDir, nil
 }
 
 func GetDBPath() (string, error) {

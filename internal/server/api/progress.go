@@ -39,7 +39,7 @@ func GetUploadProgressHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	initialProgress := &progress.TrackerSnapshot{
+	initialProgress := &progress.ProgressSnapshot{
 		ID:         progressID,
 		Status:     "stopped",
 		Current:    0,

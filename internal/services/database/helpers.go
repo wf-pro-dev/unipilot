@@ -3,12 +3,10 @@ package database
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/services/fileops"
-	"unipilot/internal/services/utils"
 )
 
 // GetUser retrieves a user by ID
@@ -122,64 +120,29 @@ func (h *Database) DeleteNote(note *models.LocalNote) error {
 	return nil
 }
 
-func (h *Database) CreateDocument(ctx context.Context, uploadReq fileops.FileUploadRequest, hasLocalFile bool) (*fileops.FileUploadResponse, error) {
+func (h *Database) CreateDocument(ctx context.Context, document *models.LocalDocument) error {
 
-	// Create LocalDocument record
-	localDoc := &models.LocalDocument{
-		Base: models.Base{
-			ID: uploadReq.DocumentID,
-		},
-		BaseDocument: models.BaseDocument{
-			AssignmentID: uploadReq.AssignmentID,
-			Type:         uploadReq.Type,
-			FileName:     uploadReq.FileName,
-			FileSize:     uploadReq.FileSize,
-			StorageKey:   &uploadReq.StorageKey,
-			Version:      1,
-			HasLocalFile: hasLocalFile, // Will be set to true after successful file write
-		},
+	var err error
+
+	document.FilePath = fileops.GetFilePath(document) // Reset the file path
+
+	if err = document.Validate(h.db); err != nil {
+		return err
 	}
 
-	// Generate file path
-	documentDir, err := utils.GetDocumentDir()
-	if err != nil {
-		return nil, errors.NewAppError(errors.ValidationInvalid, "Failed to get app data path", err)
+	if err = h.db.Create(&document).Error; err != nil {
+		return errors.HandleDBCreateError(err)
 	}
 
-	// Create unique filename with assignment and user info
-	fileName := fmt.Sprintf("doc_%d_%d_%s", uploadReq.AssignmentID, uploadReq.UserID, uploadReq.FileName)
-	filePath := filepath.Join(documentDir, fileName)
-	localDoc.FilePath = filePath
-
-	var response *fileops.FileUploadResponse
-
-	if err := localDoc.Validate(h.db); err != nil {
-		return nil, err
-	}
-
-	if err := h.db.Create(&localDoc).Error; err != nil {
-		return nil, errors.HandleDBCreateError(err)
-	}
-
-	if hasLocalFile {
+	if document.HasLocalFile {
 		// Upload the document locally
-		response, err = fileops.WriteDocument(localDoc, uploadReq.FileContent, h.db)
+		err = fileops.WriteDocument(document, h.db)
 		if err != nil {
-			return nil, errors.Wrap(err, errors.FSWriteFailed, "Failed to write document on disk")
-		}
-	} else {
-		response = &fileops.FileUploadResponse{
-			LocalDocument: localDoc,
-			Success:       true,
-			Message:       "Upload successful",
+			return errors.Wrap(err, errors.FSWriteFailed, "Failed to write document on disk")
 		}
 	}
 
-	if err != nil {
-		return nil, errors.Wrap(err, errors.DBTransactionFailed, "Failed to create document")
-	}
-
-	return response, nil
+	return nil
 }
 
 // Saving a message from AI SDK
