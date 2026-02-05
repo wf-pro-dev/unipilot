@@ -281,8 +281,8 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 			},
 		},
 	}
-	serverCtx, serverCancel := context.WithCancel(ctx)
-	go GetProgress(serverCtx, localDocument.ID, 60)
+
+	go GetProgress(ctx, localDocument.ID, 60)
 	resp, err := httpClient.Do(req)
 	if err != nil {
 

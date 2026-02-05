@@ -79,7 +79,7 @@ func GetProgressHandler(c *fiber.Ctx) error {
 				w.Flush()
 			case <-timeout.C:
 				// Send timeout message after 5 minutes
-				timeoutProgress := &progress.TrackerSnapshot{
+				timeoutProgress := &progress.ProgressSnapshot{
 					ID:         progressID,
 					Status:     "error",
 					Error:      fmt.Errorf("Upload did not complete within timeout period"),

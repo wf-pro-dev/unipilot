@@ -178,7 +178,7 @@ func UpdateProfilePictureHandler(c *fiber.Ctx) error {
 
 	// Step 3: Generate unique storage paths and file names for cloud storage
 	// Organize files by user ID to enable easy cleanup and access control
-	profilePictureDir := fmt.Sprintf("users_data/user_%d", userID)
+	profilePictureDir := fmt.Sprintf("users_data/user_%s", userID)
 
 	// Use Unix timestamp to ensure uniqueness and prevent filename collisions
 	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().Unix(), "profile_picture.jpg")

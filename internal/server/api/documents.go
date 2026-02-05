@@ -421,6 +421,7 @@ func WriteFile(key string, file io.Reader, c *fiber.Ctx) (string, int64, error) 
 
 // UploadFileToS3Fiber handles the complete file upload pipeline from Fiber multipart form to AWS S3.
 func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart.FileHeader, c *fiber.Ctx) error {
+	var ctx = c.UserContext()
 	filePath, _, err := WriteMultipartFile(key, fileHeader, c)
 	if err != nil {
 		return errors.Wrap(
@@ -432,21 +433,21 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 	defer os.Remove(filePath)
 
 	documentID := localDoc.ID
-	progressManager := progress.GetManager()
+	progressManager := progress.GetManager(ctx)
 
 	progressTracker := progressManager.Create(documentID, localDoc.FileSize)
 	progressTracker.SetStatus("Uploading file to cloud storage")
 	snapshot := progressTracker.Snapshot()
 
-	CacheService.PublishProgress(c.Context(), documentID, &snapshot)
+	CacheService.PublishProgress(ctx, documentID, &snapshot)
 
-	progressTracker.OnProgress(func(t *progress.Tracker) {
+	progressTracker.OnProgress(func(t *progress.Progress) {
 		snapshot := t.Snapshot()
 		// Calculate progress pe
 		progress := float64(snapshot.Current) / float64(snapshot.Total) * 100
 		snapshot.Percentage = progress
 		// Store in cache
-		CacheService.PublishProgress(c.Context(), documentID, &snapshot)
+		CacheService.PublishProgress(ctx, documentID, &snapshot)
 	})
 
 	// Upload to aws S3
@@ -461,7 +462,7 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 	// Complete upload
 	progressTracker.Complete()
 	snapshot = progressTracker.Snapshot()
-	CacheService.PublishProgress(c.Context(), documentID, &snapshot)
+	CacheService.PublishProgress(ctx, documentID, &snapshot)
 
 	return nil
 }
@@ -505,6 +506,8 @@ func UploadFile(localDoc models.LocalDocument, key string, fileHeader *multipart
 //   - No local file storage or cleanup required
 func DownloadDocumentHandler(c *fiber.Ctx) error {
 
+	var ctx = c.UserContext()
+
 	// Step 1: Parse document download request from JSON body
 	var localDoc models.LocalDocument
 	if err := c.BodyParser(&localDoc); err != nil {
@@ -517,21 +520,21 @@ func DownloadDocumentHandler(c *fiber.Ctx) error {
 	}
 
 	documentID := localDoc.ID
-	progressManager := progress.GetManager()
+	progressManager := progress.GetManager(ctx)
 
 	progressTracker := progressManager.Create(documentID, localDoc.FileSize)
 	progressTracker.SetStatus("Downloading file from cloud storage")
 	snapshot := progressTracker.Snapshot()
 
-	CacheService.PublishProgress(c.Context(), documentID, &snapshot)
+	CacheService.PublishProgress(ctx, documentID, &snapshot)
 
-	progressTracker.OnProgress(func(t *progress.Tracker) {
+	progressTracker.OnProgress(func(t *progress.Progress) {
 		snapshot := t.Snapshot()
 		// Calculate progress pe
 		progress := float64(snapshot.Current) / float64(snapshot.Total) * 100
 		snapshot.Percentage = progress
 		// Store in cache
-		CacheService.PublishProgress(c.Context(), documentID, &snapshot)
+		CacheService.PublishProgress(ctx, documentID, &snapshot)
 	})
 
 	// Step 2: Download file from AWS S3 using storage key
@@ -566,7 +569,7 @@ func DownloadDocumentHandler(c *fiber.Ctx) error {
 
 	progressTracker.Complete()
 	snapshot = progressTracker.Snapshot()
-	CacheService.PublishProgress(c.Context(), documentID, &snapshot)
+	CacheService.PublishProgress(ctx, documentID, &snapshot)
 
 	return nil
 }
@@ -932,7 +935,7 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 		)
 	}
 
-	collectionName := fmt.Sprintf("unipilot-qdrant-db-%d", localDoc.AssignmentID)
+	collectionName := fmt.Sprintf("unipilot-qdrant-db-%s", localDoc.AssignmentID)
 
 	if !slices.Contains(collections, collectionName) {
 		err = QdrantClient.CreateCollection(context.Background(), &qdrant.CreateCollection{

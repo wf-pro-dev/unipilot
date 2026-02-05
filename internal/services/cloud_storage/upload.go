@@ -21,7 +21,7 @@ import (
 	"github.com/aws/smithy-go"
 )
 
-func UploadFile(filePath, fileName, key string, progressTracker *progress.Tracker) error {
+func UploadFile(filePath, fileName, key string, progressTracker *progress.Progress) error {
 
 	// Get S3 client
 	svc, err := S3Client()
@@ -214,7 +214,7 @@ func DownloadFile(key string) (io.Reader, error) {
 
 }
 
-func DownloadFileWithProgress(key string, progressTracker *progress.Tracker) (*os.File, error) {
+func DownloadFileWithProgress(key string, progressTracker *progress.Progress) (*os.File, error) {
 	// Get S3 client
 	svc, err := S3Client()
 	if err != nil {
@@ -236,9 +236,6 @@ func DownloadFileWithProgress(key string, progressTracker *progress.Tracker) (*o
 	}
 
 	_ = progress.NewReader(file, progressTracker)
-	if err != nil {
-		return nil, errors.Wrap(err, errors.InternalError, "Unable to create progress reader")
-	}
 
 	// Download object
 	// 5. Download the object
@@ -246,9 +243,6 @@ func DownloadFileWithProgress(key string, progressTracker *progress.Tracker) (*o
 		Bucket: aws.String(PrivateBucket),
 		Key:    aws.String(key),
 	})
-	if err != nil {
-		return nil, errors.Wrap(err, errors.StorageApiFailed, "Failed to download object")
-	}
 
 	if err != nil {
 		var noKey *types.NoSuchKey
