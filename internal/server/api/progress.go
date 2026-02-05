@@ -11,13 +11,11 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// GetUploadProgressHandler returns the current progress of an upload
-// GetUploadProgressHandler returns the current progress of an upload
-// GetUploadProgressHandler returns the current progress of an upload
-func GetUploadProgressHandler(c *fiber.Ctx) error {
+// GetProgressHandler returns the current progress of an upload
+func GetProgressHandler(c *fiber.Ctx) error {
 
 	var progressID string
-	if progressID = c.Params("id"); progressID != "" {
+	if progressID = c.Params("id"); progressID == "" {
 		return errors.WrapServer(fmt.Errorf("progress ID required"), errors.ReqParamMissing, "Progress ID required", fiber.StatusBadRequest)
 	}
 

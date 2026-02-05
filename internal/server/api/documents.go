@@ -164,7 +164,7 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 	}
 	// Step 5: Generate unique storage paths and file names for cloud storage
 	// Create user, assignment  directory
-	assignmentDir := fmt.Sprintf("users_data/user_%d/documents/assign_%d", userID, localDoc.AssignmentID)
+	assignmentDir := fmt.Sprintf("users/%s/assignments/%s/documents", userID, localDoc.AssignmentID)
 
 	// Generate unique filename
 	uniqueFileName := fmt.Sprintf("%d_%s", time.Now().Unix(), localDoc.FileName)
@@ -704,7 +704,7 @@ func DeleteDocumentHandler(c *fiber.Ctx) error {
 	}
 	// Step 2: Extract document ID from path parameter
 	var docID string
-	if docID = c.Params("id"); docID != "" {
+	if docID = c.Params("id"); docID == "" {
 		return errors.WrapServer(
 			fmt.Errorf("document ID required"),
 			errors.ReqParamMissing,
@@ -974,7 +974,7 @@ func UploadDocumentForRAGHandler(c *fiber.Ctx) error {
 func DeleteDocumentRAG(c *fiber.Ctx) error {
 
 	var docID string
-	if docID = c.Params("id"); docID != "" {
+	if docID = c.Params("id"); docID == "" {
 		return errors.WrapServer(
 			fmt.Errorf("document ID required"),
 			errors.ReqParamMissing,
@@ -984,7 +984,7 @@ func DeleteDocumentRAG(c *fiber.Ctx) error {
 	}
 
 	var assignmentID string
-	if assignmentID = c.Params("assignment_id"); assignmentID != "" {
+	if assignmentID = c.Params("assignment_id"); assignmentID == "" {
 		return errors.WrapServer(
 			fmt.Errorf("assignment ID required"),
 			errors.ReqParamMissing,
@@ -1021,7 +1021,7 @@ func DeleteDocumentRAG(c *fiber.Ctx) error {
 func GetAssignmentDocumentIDsRAG(c *fiber.Ctx) error {
 	// Step 1: Extract assignment ID from path parameter
 	var assignmentID string
-	if assignmentID = c.Params("id"); assignmentID != "" {
+	if assignmentID = c.Params("id"); assignmentID == "" {
 
 		return errors.WrapServer(
 			fmt.Errorf("assignment ID required"),

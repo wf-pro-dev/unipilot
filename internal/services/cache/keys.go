@@ -19,7 +19,7 @@ const (
 	KeyUserFollowing = "user:%s:following"
 
 	// Progress cache
-	KeyProgress = "progress:%d"
+	KeyProgress = "progress:%s"
 )
 
 const (
