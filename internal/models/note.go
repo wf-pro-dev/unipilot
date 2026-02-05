@@ -53,6 +53,7 @@ func (n *LocalNote) ToRemote(userID string) *Note {
 	return &Note{
 		Base:     n.Base,
 		BaseNote: n.BaseNote,
+		UserID:   userID,
 	}
 }
 
@@ -78,21 +79,25 @@ func (n *LocalNote) Validate() error {
 // END : VALIDATION FUNCTIONS
 
 func GetNote(id string, db *gorm.DB) (*Note, error) {
-	var note Note
-	err := db.First(&note, id).Error
+	note := &Note{
+		Base: Base{ID: id},
+	}
+	err := db.First(note).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
-	return &note, nil
+	return note, nil
 }
 
 func GetLNote(id string, db *gorm.DB) (*LocalNote, error) {
-	var note LocalNote
-	err := db.First(&note, id).Error
+	note := &LocalNote{
+		Base: Base{ID: id},
+	}
+	err := db.First(note).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
-	return &note, nil
+	return note, nil
 }
 
 func GetNotes(userID string, db *gorm.DB) ([]Note, error) {

@@ -225,8 +225,10 @@ func isValidTodo(todo string) error {
 // GET Operation
 
 func GetAssignment(id string, db *gorm.DB) (*Assignment, error) {
-	assignment := &Assignment{}
-	err := db.First(&assignment, id).Error
+	assignment := &Assignment{
+		Base: Base{ID: id},
+	}
+	err := db.First(assignment).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
@@ -234,8 +236,10 @@ func GetAssignment(id string, db *gorm.DB) (*Assignment, error) {
 }
 
 func GetLAssignment(id string, db *gorm.DB) (*LocalAssignment, error) {
-	assignment := &LocalAssignment{}
-	err := db.First(&assignment, id).Error
+	assignment := &LocalAssignment{
+		Base: Base{ID: id},
+	}
+	err := db.First(assignment).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}

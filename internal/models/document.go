@@ -135,6 +135,16 @@ func (d *Document) BeforeDelete(tx *gorm.DB) error {
 	return nil
 }
 
+func (d *Document) AfterDelete(tx *gorm.DB) error {
+	// Commit the transaction
+	if err := UpdateStorageInfo(d.UserID, tx); err != nil {
+		return errors.HandleDBWriteError(err)
+	}
+	return nil
+}
+
+// END: GORM Hooks
+
 // START: Conversion Functions
 
 func (d *Document) ToLocal() *LocalDocument {
@@ -317,6 +327,46 @@ func ValidateLocalFileSize(doc *LocalDocument, db *gorm.DB) error {
 
 }
 
+func GetDocument(docID string, db *gorm.DB) (*Document, error) {
+	doc := &Document{
+		Base: Base{ID: docID},
+	}
+	err := db.First(doc).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return doc, nil
+}
+
+func GetLDocument(docID string, db *gorm.DB) (*LocalDocument, error) {
+	doc := &LocalDocument{
+		Base: Base{ID: docID},
+	}
+	err := db.First(doc).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return doc, nil
+}
+
+func GetDocuments(userID string, db *gorm.DB) ([]Document, error) {
+	var documents []Document
+	err := db.Where("user_id = ?", userID).Find(&documents).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return documents, nil
+}
+
+func GetLDocuments(userID string, db *gorm.DB) ([]LocalDocument, error) {
+	var documents []LocalDocument
+	err := db.Where("user_id = ?", userID).Find(&documents).Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return documents, nil
+}
+
 // END: Validation Functions
 
 // DocumentStorageInfo holds storage statistics
@@ -344,31 +394,6 @@ const (
 	MaxAssignmentSize = 200 * 1024 * 1024      // 200MB per assignment
 	MaxUserQuota      = 2 * 1024 * 1024 * 1024 // 2GB per user
 )
-
-func (d *Document) AfterDelete(tx *gorm.DB) error {
-	// Commit the transaction
-	if err := UpdateStorageInfo(d.UserID, tx); err != nil {
-		return errors.HandleDBWriteError(err)
-	}
-	return nil
-}
-
-func GetDocument(docID string, db *gorm.DB) (*Document, error) {
-
-	var doc Document
-	if err := db.Where("id = ?", docID).First(&doc).Error; err != nil {
-		return nil, errors.HandleDBReadError(err)
-	}
-	return &doc, nil
-}
-func GetLDocument(docID string, db *gorm.DB) (*LocalDocument, error) {
-
-	var doc LocalDocument
-	if err := db.Where("id = ?", docID).First(&doc).Error; err != nil {
-		return nil, errors.HandleDBReadError(err)
-	}
-	return &doc, nil
-}
 
 // GetAppDataPath returns the application data directory for file storage
 func GetAppDataPath() (string, error) {

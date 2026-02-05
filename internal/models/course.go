@@ -218,8 +218,10 @@ func isValidCode(code string) error {
 // GET Operations
 
 func GetCourse(id string, db *gorm.DB) (*Course, error) {
-	course := &Course{}
-	err := db.First(&course, id).Error
+	course := &Course{
+		Base: Base{ID: id},
+	}
+	err := db.First(course).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
@@ -227,8 +229,10 @@ func GetCourse(id string, db *gorm.DB) (*Course, error) {
 }
 
 func GetLCourse(id string, db *gorm.DB) (*LocalCourse, error) {
-	course := &LocalCourse{}
-	err := db.First(&course, id).Error
+	course := &LocalCourse{
+		Base: Base{ID: id},
+	}
+	err := db.First(course).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}

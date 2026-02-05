@@ -58,7 +58,7 @@ func GetAssignmentHandler(c *fiber.Ctx) error {
 	}
 
 	var userID string
-	if userID = c.Query("id"); userID != "" {
+	if userID = c.Query("id"); userID == "" {
 		return errors.WrapServer(fmt.Errorf("user ID required"), errors.ReqParamMissing, "User ID required", fiber.StatusBadRequest)
 	}
 	// Step 2: Query user's assignments from database
@@ -152,7 +152,7 @@ func CreateAssignmentHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 9: Create assignment record in database within transaction
-	result := db.Preload("Course").Create(newA).First(newA)
+	result := db.Preload("Course").Create(&newA).First(&newA)
 	if result.Error != nil {
 		if Errors.Is(result.Error, gorm.ErrDuplicatedKey) {
 			return errors.WrapServer(result.Error, errors.DBConstraintViolation, "Assignment already exists", fiber.StatusConflict)
@@ -254,7 +254,7 @@ func UpdateAssignmentHandler(c *fiber.Ctx) error {
 	}
 
 	var assignmentID string
-	if assignmentID = c.Params("id"); assignmentID != "" {
+	if assignmentID = c.Params("id"); assignmentID == "" {
 		return errors.WrapServer(fmt.Errorf("assignment ID required"), errors.ReqParamMissing, "Assignment ID required", fiber.StatusBadRequest)
 	}
 
@@ -289,7 +289,7 @@ func UpdateAssignmentHandler(c *fiber.Ctx) error {
 	}()
 
 	// Step 8: Assignment update completed (logged by middleware)
-	return nil
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func DeleteAssignmentHandler(c *fiber.Ctx) error {
@@ -303,7 +303,7 @@ func DeleteAssignmentHandler(c *fiber.Ctx) error {
 
 	// Step 2: Extract assignment ID from path parameter
 	var assignmentID string
-	if assignmentID = c.Params("id"); assignmentID != "" {
+	if assignmentID = c.Params("id"); assignmentID == "" {
 		return errors.WrapServer(fmt.Errorf("assignment ID required"), errors.ReqParamMissing, "Assignment ID required", fiber.StatusBadRequest)
 	}
 
@@ -323,5 +323,5 @@ func DeleteAssignmentHandler(c *fiber.Ctx) error {
 		}
 	}()
 
-	return nil
+	return c.SendStatus(fiber.StatusNoContent)
 }

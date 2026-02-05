@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	Errors "errors"
 	"fmt"
-	"log"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -37,7 +36,7 @@ func GetCoursesHandler(c *fiber.Ctx) error {
 	}
 
 	var userID string
-	if userID = c.Query("id"); userID != "" {
+	if userID = c.Query("id"); userID == "" {
 		return errors.WrapServer(fmt.Errorf("user ID required"), errors.ReqParamMissing, "User ID required", fiber.StatusBadRequest)
 	}
 
@@ -107,8 +106,6 @@ func CreateCourseHandler(c *fiber.Ctx) error {
 		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
 	}
 
-	log.Println("newCourse before create", newCourse)
-
 	// Step 7: Persist course to database
 	if result := db.Create(&newCourse); result.Error != nil {
 		if Errors.Is(result.Error, gorm.ErrDuplicatedKey) {
@@ -162,7 +159,7 @@ func UpdateCourseHandler(c *fiber.Ctx) error {
 	}
 
 	var courseID string
-	if courseID = c.Params("id"); courseID != "" {
+	if courseID = c.Params("id"); courseID == "" {
 		return errors.WrapServer(fmt.Errorf("course ID required"), errors.ReqParamMissing, "Course ID required", fiber.StatusBadRequest)
 	}
 
@@ -188,7 +185,7 @@ func UpdateCourseHandler(c *fiber.Ctx) error {
 	}
 
 	// Step 8: Course update completed (logged by middleware)
-	return nil
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func DeleteCourseHandler(c *fiber.Ctx) error {
@@ -200,7 +197,7 @@ func DeleteCourseHandler(c *fiber.Ctx) error {
 	}
 
 	var courseID string
-	if courseID = c.Params("id"); courseID != "" {
+	if courseID = c.Params("id"); courseID == "" {
 		return errors.WrapServer(fmt.Errorf("course ID required"), errors.ReqParamMissing, "Course ID required", fiber.StatusBadRequest)
 	}
 	if err := db.Set("qdrantClient", QdrantClient).Delete(&models.Course{}, courseID).Error; err != nil {
@@ -221,7 +218,7 @@ func DeleteCourseHandler(c *fiber.Ctx) error {
 		}
 	}()
 
-	return nil
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 // ClusterShareCourseHandler shares a course with a cluster of users
@@ -238,7 +235,7 @@ func ClusterShareHandler(c *fiber.Ctx) error {
 	}
 
 	var courseID string
-	if courseID = c.Params("id"); courseID != "" {
+	if courseID = c.Params("id"); courseID == "" {
 		return errors.WrapServer(fmt.Errorf("course ID required"), errors.ReqParamMissing, "Course ID required", fiber.StatusBadRequest)
 	}
 	var linkRequestData struct {
@@ -314,7 +311,7 @@ func ClusterRequestHandler(c *fiber.Ctx) error {
 	}
 
 	var clusterID string
-	if clusterID = c.Params("id"); clusterID != "" {
+	if clusterID = c.Params("id"); clusterID == "" {
 		return errors.WrapServer(fmt.Errorf("course ID required"), errors.ReqParamMissing, "Course ID required", fiber.StatusBadRequest)
 	}
 	cluster, err := models.GetCourse(clusterID, db)
@@ -359,7 +356,7 @@ func AcceptInvitationHandler(c *fiber.Ctx) error {
 	}
 
 	var invitationID string
-	if invitationID = c.Params("id"); invitationID != "" {
+	if invitationID = c.Params("id"); invitationID == "" {
 		return errors.WrapServer(fmt.Errorf("invitation ID required"), errors.ReqParamMissing, "Invitation ID required", fiber.StatusBadRequest)
 	}
 
@@ -441,7 +438,7 @@ func DeclineInvitationHandler(c *fiber.Ctx) error {
 	}
 
 	var invitationID string
-	if invitationID = c.Params("id"); invitationID != "" {
+	if invitationID = c.Params("id"); invitationID == "" {
 		return errors.WrapServer(fmt.Errorf("invitation ID required"), errors.ReqParamMissing, "Invitation ID required", fiber.StatusBadRequest)
 	}
 
