@@ -31,7 +31,7 @@ export const documentKeys = {
 }
 
 
-const uploadKey = ['uploads'] as const
+
 
 // Hook for fetching documents for an assignment
 // Get documents from assignment cache
@@ -66,7 +66,6 @@ export function useUploadDocument() {
       assignmentId: string
       documentType: string
       filePath: string
-      uploadId: string
     }) => {
       // Generate a unique upload ID
       return await UploadDocument(documentId, assignmentId, documentType, filePath)
@@ -270,45 +269,7 @@ export function useDeleteDocument() {
   })
 }
 
-// Hook to get the current upload state
-export function useUpload() {
-  const queryClient = useQueryClient();
 
-  const { data: activeUploads = new Set() } = useQuery({
-    queryKey: uploadKey,
-    queryFn: () => new Set(),
-    staleTime: Infinity,
-    gcTime: Infinity,
-  });
-
-  const addUpload = (uploadId: string) => {
-    queryClient.setQueryData(uploadKey, (old: Set<string> = new Set()) => {
-      const newSet = new Set(old);
-      newSet.add(uploadId);
-      return newSet;
-    });
-  };
-
-  const removeUpload = (uploadId: string) => {
-    queryClient.setQueryData(uploadKey, (old: Set<string> = new Set()) => {
-      const newSet = new Set(old);
-      newSet.delete(uploadId);
-      return newSet;
-    });
-  };
-
-  const isUploading = (uploadId: string) => {
-    return activeUploads.has(uploadId);
-  };
-
-  return {
-    activeUploads,
-    addUpload,
-    removeUpload,
-    isUploading,
-    uploadCount: activeUploads.size,
-  };
-}
 
 // Hook for opening documents
 export function useOpenDocument() {

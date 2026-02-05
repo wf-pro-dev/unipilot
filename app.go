@@ -298,7 +298,7 @@ func (a *App) PickFile() (string, error) {
 }
 
 // UploadDocument opens a file dialog and uploads a document to an assignment
-func (a *App) UploadDocument(documentID, assignmentID string, documentType, filePath string) (*models.LocalDocument, error) {
+func (a *App) UploadDocument(documentID, assignmentID, documentType, filePath string) (*models.LocalDocument, error) {
 
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")

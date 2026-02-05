@@ -15,8 +15,8 @@ import { DocumentItem } from "./documents/document-item";
 import { Select, SelectValue, SelectItem, SelectContent, SelectTrigger } from "./ui/select";
 import { EmptyState } from "./ui/empty-state";
 import { DocumentStorageInfo } from "./documents/document-storage-info";
-import { useUpload } from "@/hooks/use-documents";
 import { Checkbox } from "./ui/checkbox";
+import { useProgress } from "@/hooks/use-progress";
 
 interface FileUploadProps {
   assignment: models.LocalAssignment;
@@ -38,7 +38,7 @@ export default function FileUpload05({ assignment, mode = "default", includeDocu
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [activeTab, setActiveTab] = useState("documents")
   const [selectedType, setSelectedType] = useState<"support" | "submission">("support")
-  const { activeUploads, addUpload, removeUpload, isUploading } = useUpload()
+  const { activeProgress, addProgress, removeProgress, isProgress } = useProgress()
 
 
   const handlePickFile = () => {
@@ -119,23 +119,21 @@ export default function FileUpload05({ assignment, mode = "default", includeDocu
   const handleUpload = async (filePath: string) => {
 
 
-    const uploadId = crypto.randomUUID()
-    addUpload(uploadId)
+    const documentId = crypto.randomUUID()
+    addProgress(documentId)
     setActiveTab("documents")
     
     try {
       
       const result = await uploadDocument.mutateAsync({
+        documentId: documentId,
         assignmentId: assignment.ID,
-        remoteAssignmentId: assignment.RemoteID,
         documentType: uploadType,
         filePath: filePath,
-        uploadId: uploadId,
-
       })
-    } finally {
-      removeUpload(uploadId)
 
+    } finally {
+      removeProgress(documentId)
   }}
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -224,7 +222,7 @@ export default function FileUpload05({ assignment, mode = "default", includeDocu
                       <div className="flex-none w-full min-w-0 px-1" key={pageIndex}>
 
                         {page.map((document) => (
-                          <DocumentItem key={document.ID || document.UploadID} document={document} isUploading={isUploading(document.UploadID!)} mode={mode} />
+                          <DocumentItem key={document.ID} document={document} isUploading={isProgress(document.ID)} mode={mode} />
                         ))}
 
                       </div>

@@ -19,11 +19,10 @@ import {
   useSaveDocumentAs,
   useDeleteDocument,
   useDownloadDocument,
-  useUpload
 } from "@/hooks/use-documents"
-import { toast } from "sonner"
+import { useProgress } from "@/hooks/use-progress"
 import { GlassCard } from "../ui/glass-card"
-import { EventsOn } from "@/wailsjs/runtime/runtime"
+import { EventsOn, LogInfo } from "@/wailsjs/runtime/runtime"
 import { Progress } from "../ui/progress"
 
 
@@ -40,15 +39,15 @@ function BaseDocumentItem({ document: doc, isUploading, mode = "default" }: Docu
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
 
-  const { addUpload, removeUpload } = useUpload()
+  const { addProgress, removeProgress } = useProgress()
 
   useEffect(() => {
 
     if (!isUploading) return
-    var KeyProgress = "upload:progress:" + doc.UploadID
-    var KeyStatus = "upload:status:" + doc.UploadID
-    var KeyComplete = "upload:complete:" + doc.UploadID
-    var KeyError = "upload:error:" + doc.UploadID
+    var KeyProgress = "upload:progress:" + doc.ID 
+    var KeyStatus = "upload:status:" + doc.ID
+    var KeyComplete = "upload:complete:" + doc.ID
+    var KeyError = "upload:error:" + doc.ID
 
 
     EventsOn(KeyProgress, (progressData: progress.TrackerSnapshot) => {
@@ -67,6 +66,7 @@ function BaseDocumentItem({ document: doc, isUploading, mode = "default" }: Docu
     EventsOn(KeyError, (error: string) => {
       setError(error)
     })
+    
   }, [isUploading])
 
   // Document action hooks
@@ -122,17 +122,17 @@ function BaseDocumentItem({ document: doc, isUploading, mode = "default" }: Docu
   }
 
   const handleDownload = async () => {
-    const uploadId = crypto.randomUUID()
-    addUpload(uploadId)
+    const progressId = crypto.randomUUID()
+    addProgress(progressId)
 
     try {
       await downloadDocument.mutateAsync(new models.LocalDocument({
         ...doc,
-        UploadID: uploadId,
+        ID: progressId,
         HasLocalFile: true
       }))
     } finally {
-      removeUpload(uploadId)
+      removeProgress(progressId)
     }
 
   }

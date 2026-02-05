@@ -18,7 +18,7 @@ import (
 )
 
 // PollServerProgress polls the server for R2 upload progress
-func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.Tracker) {
+func PollServerProgress(ctx context.Context, progressID string, tracker *progress.Tracker) {
 	api_url := secrets.CONSTANTS["API_URL"]
 
 	ticker := time.NewTicker(500 * time.Millisecond)
@@ -31,7 +31,7 @@ func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.
 			return
 
 		case <-ticker.C:
-			url := fmt.Sprintf("%s/documents/progress/%s", api_url, uploadID)
+			url := fmt.Sprintf("%s/progress/%s", api_url, progressID)
 			req, err := http.NewRequest("GET", url, nil)
 			if err != nil {
 				tracker.SetError(err)
@@ -53,20 +53,20 @@ func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.
 
 			switch progressData.Status {
 			case "completed":
-				runtime.EventsEmit(ctx, fmt.Sprintf("upload:complete:%s", uploadID), map[string]interface{}{
-					"upload_id": uploadID,
+				runtime.EventsEmit(ctx, fmt.Sprintf("upload:complete:%s", progressID), map[string]interface{}{
+					"upload_id": progressID,
 				})
 				return
 			case "error":
-				runtime.EventsEmit(ctx, fmt.Sprintf("upload:error:%s", uploadID), map[string]interface{}{
-					"upload_id": uploadID,
+				runtime.EventsEmit(ctx, fmt.Sprintf("upload:error:%s", progressID), map[string]interface{}{
+					"upload_id": progressID,
 					"error":     "server upload error",
 				})
 				tracker.SetError(fmt.Errorf("server upload error"))
 				return
 			default:
 				progressData.Percentage = 60 + progressData.Percentage*0.4 // 40% of the total progress
-				runtime.EventsEmit(ctx, fmt.Sprintf("upload:progress:%s", uploadID), progressData)
+				runtime.EventsEmit(ctx, fmt.Sprintf("upload:progress:%s", progressID), progressData)
 
 			}
 
@@ -79,9 +79,9 @@ func PollServerProgress(ctx context.Context, uploadID string, tracker *progress.
 
 // CancelUpload cancels an upload on the server
 // GetProgress listens for upload progress via SSE
-func GetProgress(ctx context.Context, uploadID string, currentPercentage float64) error {
+func GetProgress(ctx context.Context, progressID string, currentPercentage float64) error {
 	api_url := secrets.CONSTANTS["API_URL"]
-	url := fmt.Sprintf("%s/documents/progress/%s", api_url, uploadID)
+	url := fmt.Sprintf("%s/progress/%s", api_url, progressID)
 
 	// Create request with context
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -156,8 +156,8 @@ func GetProgress(ctx context.Context, uploadID string, currentPercentage float64
 					log.Println("Connected to SSE stream")
 				case "error":
 					log.Println("Server error:", data)
-					runtime.EventsEmit(ctx, fmt.Sprintf("upload:error:%s", uploadID), map[string]interface{}{
-						"upload_id": uploadID,
+					runtime.EventsEmit(ctx, fmt.Sprintf("upload:error:%s", progressID), map[string]interface{}{
+						"upload_id": progressID,
 						"error":     data,
 					})
 					return fmt.Errorf("server error: %s", data)
@@ -172,8 +172,8 @@ func GetProgress(ctx context.Context, uploadID string, currentPercentage float64
 
 					// Check for completion
 					if progressData.Status == "completed" {
-						runtime.EventsEmit(ctx, fmt.Sprintf("upload:complete:%s", uploadID), map[string]interface{}{
-							"upload_id": uploadID,
+						runtime.EventsEmit(ctx, fmt.Sprintf("upload:complete:%s", progressID), map[string]interface{}{
+							"upload_id": progressID,
 						})
 						return nil
 					}
@@ -186,10 +186,8 @@ func GetProgress(ctx context.Context, uploadID string, currentPercentage float64
 						// Adjust percentage if needed
 						progressData.Percentage = currentPercentage + progressData.Percentage*(100-currentPercentage)/100
 						// Emit progress
-						runtime.EventsEmit(ctx, fmt.Sprintf("upload:progress:%s", uploadID), progressData)
+						runtime.EventsEmit(ctx, fmt.Sprintf("upload:progress:%s", progressID), progressData)
 					}
-
-					log.Println("Progress data:", progressData.Percentage, progressData.Status)
 
 				}
 

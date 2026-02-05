@@ -13,7 +13,7 @@ import { GlassCard } from "../ui/glass-card"
 import { useAssignmentStorageInfo } from "@/hooks/use-documents"
 
 interface DocumentStorageInfoProps {
-  assignmentID: number
+  assignmentID: string
 }
 
 export function DocumentStorageInfo({ assignmentID }: DocumentStorageInfoProps) {
