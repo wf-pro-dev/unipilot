@@ -193,28 +193,24 @@ func CreateNoteHandler(c *fiber.Ctx) error {
 	}()
 
 	// Step 12: Send successful response with created note data
-	return c.JSON(fiber.Map{
-		"remote_id": newNote.ID,
-	})
+	return c.SendStatus(fiber.StatusCreated)
 }
 
 func CreateNoteStreamHandler(c *fiber.Ctx) error {
 
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
+	}
+
 	// Step 1: Define and parse note creation request structure
-	var input models.LocalNote
-	if err := c.BodyParser(&input); err != nil {
+	var newNote models.LocalNote
+	if err := c.BodyParser(&newNote); err != nil {
 		return errors.WrapServer(err, errors.ReqBodyInvalid, "Invalid request body", fiber.StatusBadRequest)
 	}
 
-	var streamRequiredFields = &models.LocalNote{
-		BaseNote: models.BaseNote{
-			Title:    input.Title,
-			Subject:  input.Subject,
-			CourseID: input.CourseID,
-			Content:  "",
-		},
-	}
-	if err := streamRequiredFields.Validate(); err != nil {
+	if err := newNote.Validate(); err != nil {
 		return errors.Inherit(err, errors.ValidationInvalid).ToServerError(fiber.StatusBadRequest)
 	}
 
@@ -227,10 +223,16 @@ func CreateNoteStreamHandler(c *fiber.Ctx) error {
 
 	// Step 4: Generate AI-powered content using Google Gemini service
 	// Generate content and keywords using Gemini
+
+	course, err := models.GetCourse(newNote.CourseID, db)
+	if err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting course from database", fiber.StatusInternalServerError)
+	}
+
 	geminiRequest := &gemini.GeminiRequest{
-		Title:      input.Title,
-		Subject:    input.Subject,
-		CourseName: input.Course.Code,
+		Title:      newNote.Title,
+		Subject:    newNote.Subject,
+		CourseName: course.Name,
 	}
 
 	var geminiErr error
@@ -320,7 +322,7 @@ func UpdateNoteHandler(c *fiber.Ctx) error {
 	}
 
 	var noteID string
-	if noteID = c.Params("id"); noteID != "" {
+	if noteID = c.Params("id"); noteID == "" {
 		return errors.WrapServer(fmt.Errorf("note ID required"), errors.ReqParamMissing, "Note ID required", fiber.StatusBadRequest)
 	}
 
@@ -357,7 +359,7 @@ func UpdateNoteHandler(c *fiber.Ctx) error {
 	}()
 
 	// Step 8: Note update completed (logged by middleware)
-	return nil
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func DeleteNoteHandler(c *fiber.Ctx) error {
@@ -369,7 +371,7 @@ func DeleteNoteHandler(c *fiber.Ctx) error {
 	}
 
 	var noteID string
-	if noteID = c.Params("id"); noteID != "" {
+	if noteID = c.Params("id"); noteID == "" {
 		return errors.WrapServer(fmt.Errorf("note ID required"), errors.ReqParamMissing, "Note ID required", fiber.StatusBadRequest)
 	}
 
@@ -387,5 +389,5 @@ func DeleteNoteHandler(c *fiber.Ctx) error {
 		}
 	}()
 
-	return nil
+	return c.SendStatus(fiber.StatusNoContent)
 }

@@ -274,11 +274,7 @@ func CreateDocumentHandler(c *fiber.Ctx) error {
 	}()
 
 	// Step 13: Send successful response with document metadata
-	return c.JSON(fiber.Map{
-		"remote_id":            doc.ID,
-		"remote_assignment_id": doc.AssignmentID,
-		"storage_key":          doc.StorageKey,
-	})
+	return c.SendString(newKey)
 }
 
 // (DEPRECATED) WriteFileToDisk extracts file from multipart form and writes it to local disk storage.
