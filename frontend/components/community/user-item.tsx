@@ -1,183 +1,327 @@
 import { CardContent } from "@/components/ui/card"
-import { GlassCard } from "@/components/ui/glass-card"
+import { GlassCard, GlassCardVariants } from "@/components/ui/glass-card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { MessageCircle, UserPlus, UserMinus } from "lucide-react"
-import { useUser } from "@/hooks/use-users"
+import { MessageCircle, UserPlus, UserMinus, Users } from "lucide-react"
 import { Skeleton } from "../ui/skeleton"
 
 import { models } from "@/wailsjs/go/models"
-import { UserDetailsModal } from "./user-details-modal"
-import { useState } from "react"
-import { useAcceptFriendRequest, useCancelFriendRequest, useFriendShipStatus, useRemoveFriend, useSendFriendRequest } from "@/hooks/use-friends"
+import { memo, useCallback, useMemo } from "react"
+import {
+  useAcceptFriendRequest,
+  useCancelFriendRequest,
+  useFriendShipStatus,
+  useRemoveFriend,
+  useSendFriendRequest
+} from "@/hooks/use-friends"
+import { cn } from "@/lib/utils"
+import { LucideIcon } from "lucide-react"
+import { useDialogContext } from "../provider/dialog-provider"
 
 interface UserItemProps {
-  userID: string
-  user?: models.User
+  user: models.User
+  size?: "default" | "compact"
+  variant?: GlassCardVariants
 }
 
-export function UserItem({ userID }: UserItemProps) {
+interface FriendshipActionProps {
+  label: string
+  variant: "default" | "outline"
+  Icon: LucideIcon
+  onClick: (e: React.MouseEvent) => void
+  className: string
+}
 
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+const BaseUserItem = ({
+  user,
+  size = "default",
+  variant = "outline"
+}: UserItemProps) => {
 
-  const { data: user } = useUser(userID)
-  const { data: friendShipStatus, isLoading: friendShipStatusLoading } = useFriendShipStatus(userID)
-  const { mutate: sendFriendRequest } = useSendFriendRequest(userID)
-  const { mutate: cancelFriendRequest } = useCancelFriendRequest(userID)
-  const { mutate: acceptFriendRequest } = useAcceptFriendRequest(userID)
-  const { mutate: removeFriend } = useRemoveFriend(userID)
+  const { SetDialogState } = useDialogContext()
+  const { data: friendShipStatus, isLoading: friendShipStatusLoading } = useFriendShipStatus(user.ID)
+  const { mutate: sendFriendRequest } = useSendFriendRequest(user.ID)
+  const { mutate: cancelFriendRequest } = useCancelFriendRequest(user.ID)
+  const { mutate: acceptFriendRequest } = useAcceptFriendRequest(user.ID)
+  const { mutate: removeFriend } = useRemoveFriend(user.ID)
+
+  const handleOpenDetails = useCallback(() => {
+    SetDialogState({ 
+      modelType: "user", 
+      dialogType: "details", 
+      id: user.ID, 
+      open: true, 
+      item: user,
+      viewMode: "readonly"
+    })
+  }, [])
+
+  const handleMessage = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    // Message functionality
+  }, [])
+
+  // Get friendship action state
+  const getFriendshipAction: FriendshipActionProps = useMemo(() => {
+    if (friendShipStatus?.status === "accepted") {
+      return {
+        label: "Friends",
+        variant: "outline" as const,
+        Icon: Users,
+        onClick: (e: React.MouseEvent) => {
+          e.stopPropagation()
+          removeFriend()
+        },
+        className: "text-emerald-400 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10"
+      }
+    }
+
+    if (friendShipStatus?.status === "pending") {
+      if (friendShipStatus?.is_pending_for_you) {
+        return {
+          label: "Accept",
+          variant: "default" as const,
+          Icon: UserPlus,
+          onClick: (e: React.MouseEvent) => {
+            e.stopPropagation()
+            acceptFriendRequest()
+          },
+          className: "bg-blue-600 hover:bg-blue-500 text-white"
+        }
+      }
+
+      return {
+        label: "Pending",
+        variant: "outline" as const,
+        Icon: UserMinus,
+        onClick: (e: React.MouseEvent) => {
+          e.stopPropagation()
+          cancelFriendRequest()
+        },
+        className: "text-gray-400 border-gray-500/20 bg-gray-500/5"
+      }
+    }
+
+    return {
+      label: "Add Friend",
+      variant: "default" as const,
+      Icon: UserPlus,
+      onClick: (e: React.MouseEvent) => {
+        e.stopPropagation()
+        sendFriendRequest()
+      },
+      className: "bg-blue-600 hover:bg-blue-500 text-white"
+    }
+  }, [friendShipStatus])
+
+  const FriendshipAction = memo(({
+    variant,
+    Icon,
+    onClick,
+    className,
+    label
+  }: FriendshipActionProps) => {
+    return (
+      <Button
+        variant={variant}
+        size="sm"
+        className={cn("flex-1 text-xs font-medium h-9", className)}
+        onClick={onClick}
+      >
+        <Icon className="w-3.5 h-3.5 mr-1.5" />
+        {label}
+      </Button>
+    )
+  })
 
 
 
-  const handleOpenDetails = () => {
-    setIsDetailsOpen(true)
-  }
-
-  return (
-    <GlassCard
-      key={userID}
-      variant="outline"
-      className="cursor-pointer group"
-      onClick={handleOpenDetails}
-    >
-      <CardContent className="p-5">
-        <div className="flex items-start space-x-4 mb-6">
-          <Avatar className="w-14 h-14 shadow-xl flex-shrink-0 shadow-black/80">
-            <AvatarImage src={user?.Avatar || "/placeholder.svg"} alt={user?.Username} />
-            <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white font-bold text-lg">
-              {user?.Username
-                .split(" ")
-                .map((n: string) => n[0])
-                .join("")}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0 space-y-1">
-            <h3 className="text-base font-bold text-white truncate tracking-tight">{user?.Username}</h3>
-            <p className="text-xs text-blue-400 font-medium truncate">{user?.Email}</p>
-            <Badge variant="outline" className="text-[10px] border-white/10 bg-white/5 text-gray-400 uppercase tracking-wider px-2 py-0.5">
-              {user?.University}
-            </Badge>
-
-          </div>
-        </div>
-
-        <div className="space-y-5">
-
-          <div className="grid grid-cols-2 gap-4">
-
-            <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/5 border border-white/5">
-              {friendShipStatusLoading ? (
-                <Skeleton className="w-8 h-5 bg-white/10" />
-              ) : (
-                <span className="text-white font-bold text-lg">{friendShipStatus?.friends_count}</span>
-              )}
-              <span className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mt-0.5">Following</span>
+  // Default size - Modern card with focus on avatar and key info
+  const DefaultUserItem = () => {
+    return (
+      <GlassCard
+        variant={variant}
+        className="group cursor-pointer"
+        onClick={handleOpenDetails}
+      >
+        <CardContent className="p-0">
+          {/* Header Section with gradient background */}
+          <div className="relative h-24 bg-gradient-to-br from-blue-600/20 via-purple-600/20 to-pink-600/20 overflow-hidden">
+            {/* Decorative background pattern */}
+            <div className="absolute inset-0 opacity-10">
+              <div className="absolute top-0 left-0 w-32 h-32 bg-white rounded-full blur-3xl" />
+              <div className="absolute bottom-0 right-0 w-32 h-32 bg-blue-500 rounded-full blur-3xl" />
             </div>
 
-            <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/5 border border-white/5">
-              <span className="text-white font-bold text-lg">{user?.CoursesCode?.length || 0}</span>
-              <span className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mt-0.5">Courses</span>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5 items-center">
-            {user?.CoursesCode && user?.CoursesCode?.length > 0 ? (
-              <>
-                {user?.CoursesCode?.slice(0, 3).map((course: string) => (
-                  <Badge key={course} variant="outline" className="text-[10px] border-white/10 bg-white/5 text-gray-300 font-medium px-2 py-0.5 hover:bg-white/10 transition-colors cursor-default">
-                    {course}
-                  </Badge>
-                ))}
-                {user?.CoursesCode?.length > 3 && (
-                  <Badge variant="outline" className="text-[10px] border-white/10 bg-white/5 text-gray-400 px-2 py-0.5 hover:bg-white/10 transition-colors cursor-default">
-                    +{user?.CoursesCode?.length - 3}
-                  </Badge>
+            {/* Stats overlay */}
+            <div className="absolute top-3 right-3 flex gap-2">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/10">
+                <Users className="w-3 h-3 text-white/80" />
+                {friendShipStatusLoading ? (
+                  <Skeleton className="w-6 h-3 bg-white/20" />
+                ) : (
+                  <span className="text-xs font-semibold text-white">
+                    {friendShipStatus?.friends_count || 0}
+                  </span>
                 )}
-              </>
-            ) : (
-              <span className="text-[10px] text-gray-500 italic">No courses enrolled</span>
-            )}
+              </div>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/10">
+                <div className="w-2 h-2 rounded-full bg-blue-400" />
+                <span className="text-xs font-semibold text-white">
+                  {user.CoursesCode?.length || 0}
+                </span>
+              </div>
+            </div>
           </div>
 
-          <div className="flex gap-2">
-            {friendShipStatus?.status === "accepted" ? (
+          {/* Avatar - overlapping header */}
+          <div className="absolute px-5 -translate-y-1/2">
+            <Avatar className="w-20 h-20 border-4 border-background shadow-2xl shadow-black/50 ring-2 ring-white/10">
+              <AvatarImage src={user.Avatar} alt={user.Username} />
+              <AvatarFallback className="bg-white/10 border border-white/15 text-black text-2xl font-bold">
+                {user.Username
+                  .split(" ")
+                  .map((n: string) => n[0])
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+
+          {/* Main content */}
+          <div className="px-5 pb-5 pt-16 space-y-4">
+            {/* User info */}
+            <div className="space-y-1">
+              <h3 className="text-lg font-bold text-white tracking-tight">
+                {user.Username}
+              </h3>
+              <p className="text-sm text-gray-400">
+                {user.Email}
+              </p>
+            </div>
+
+            {/* University badge */}
+            <div className="flex items-center gap-2">
+              <Badge
+                variant="outline"
+                className="text-xs border-white/10 bg-white/5 text-gray-300 font-normal px-3 py-1"
+              >
+                {user.University}
+              </Badge>
+              {user.Semester && user.Year && (
+                <span className="text-xs text-gray-500">
+                  {user.Semester} • {user.Year}
+                </span>
+              )}
+            </div>
+
+            {/* Courses - Only show if exists */}
+            {user.CoursesCode && user.CoursesCode.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {user.CoursesCode.slice(0, 3).map((course: string) => (
+                  <span
+                    key={course}
+                    className="text-xs px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-300 font-medium"
+                  >
+                    {course}
+                  </span>
+                ))}
+                {user.CoursesCode.length > 3 && (
+                  <span className="text-xs px-2 py-0.5 rounded-md bg-white/5 text-gray-400">
+                    +{user.CoursesCode.length - 3}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2 pt-2">
+
+              <FriendshipAction {...getFriendshipAction} />
+
               <Button
                 variant="outline"
-                size="sm"
-                className="flex-1 text-red-400 bg-red-500/5 border-red-500/20 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/30 transition-all h-9 text-xs font-medium"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  removeFriend()
-                }}
+                size="icon"
+                className="h-9 w-9 bg-white/5 border-white/10 hover:bg-white/10"
+                onClick={handleMessage}
               >
-                <UserMinus className="mr-1.5 w-3.5 h-3.5" />
-                Remove Friend
+                <MessageCircle className="w-4 h-4" />
               </Button>
-            ) : (
-              friendShipStatus?.status === "pending" ? (
-
-                friendShipStatus?.is_pending_for_you ? (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 transition-all h-9 text-xs font-medium"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      acceptFriendRequest()
-                    }}>
-                    Accept Request
-                  </Button>
-
-                ) : (
-
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    className="rounded-md flex-1 font-normal"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      cancelFriendRequest()
-                    }}
-                  >
-                    <UserPlus className="mr-1.5 w-3.5 h-3.5" />
-                    Cancel Request
-                  </Button>
-                )
-
-              ) : (
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="flex-1 bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 transition-all h-9 text-xs font-medium"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    sendFriendRequest()
-                  }}
-
-                >
-                  <UserPlus className="mr-1.5 w-3.5 h-3.5" />
-                  Add Friend
-                </Button>
-              )
-            )}
-
-            <Button
-              variant="outline"
-              size="icon"
-              className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white w-9 h-9 rounded-lg transition-all flex-shrink-0"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MessageCircle className="w-4 h-4" />
-            </Button>
+            </div>
           </div>
-        </div>
-      </CardContent>
-      <UserDetailsModal
-        isOpen={isDetailsOpen}
-        onClose={() => setIsDetailsOpen(false)}
-        user={user!}
-      />
-    </GlassCard>
-  )
+        </CardContent>
+
+       
+      </GlassCard>
+    )
+  }
+
+  // Compact size - Minimal horizontal layout
+  const CompactUserItem = () => {
+    return (
+      <GlassCard
+        variant={variant}
+        className="group cursor-pointer hover:bg-white/10 transition-all"
+        onClick={handleOpenDetails}
+      >
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            {/* Avatar with status indicator */}
+            <div className="relative flex-shrink-0">
+              <Avatar className="w-12 h-12 ring-2 ring-offset-2 ring-offset-background ring-blue-500/20">
+                <AvatarImage src={user.Avatar || "/placeholder.svg"} alt={user.Username} />
+                <AvatarFallback className="bg-white/10 border border-white/15 text-black text-2xl font-bold">
+                  {user.Username
+                    .split(" ")
+                    .map((n: string) => n[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              {/* Online/status indicator */}
+              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-background" />
+            </div>
+
+            {/* User info */}
+            <div className="flex-1 min-w-0">
+              <h4 className="text-sm font-semibold text-white truncate">
+                {user.Username}
+              </h4>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-xs text-gray-400 truncate">
+                  {user.University}
+                </span>
+                {user.CoursesCode && user.CoursesCode.length > 0 && (
+                  <>
+                    <span className="text-xs text-gray-600">•</span>
+                    <span className="text-xs text-gray-500">
+                      {user.CoursesCode.length} {user.CoursesCode.length === 1 ? 'course' : 'courses'}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Action button */}
+            <FriendshipAction {...getFriendshipAction} />
+          </div>
+        </CardContent>
+
+       
+      </GlassCard>
+    )
+  }
+
+  return size === "compact" ? <CompactUserItem /> : <DefaultUserItem />
 }
+
+export const UserItem = memo(BaseUserItem, (prevProps, nextProps) => {
+  return (
+    prevProps.user.ID === nextProps.user.ID &&
+    prevProps.size === nextProps.size &&
+    prevProps.variant === nextProps.variant
+  )
+})

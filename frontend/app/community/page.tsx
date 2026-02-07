@@ -3,9 +3,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
 import { ExploreView } from "@/components/community/explore-view"
 import { Search, Users } from "lucide-react"
-import { useAuthContext } from "@/components/provider/auth-provider"
 import { useRouter, useSearchParams } from "next/navigation"
 import { SocialTab } from "@/components/community/social-tab"
+import { FriendList } from "@/components/community/friend-list"
+import { UserList } from "@/components/community/user-list"
+import { useAuthContext } from "@/components/provider/auth-provider"
 
 
 /**
@@ -28,10 +30,6 @@ import { SocialTab } from "@/components/community/social-tab"
  * @returns {JSX.Element} The community page with tab navigation and user views
  */
 export default function CommunityPage() {
-  // Extract user relationship data from auth context (followers, following, all users)
-  // Context provides pre-fetched data avoiding prop drilling through component tree
-  const { friends, users } = useAuthContext()
-
   const router = useRouter()
   const searchParams = useSearchParams()
   // Get the current view from URL parameters, default to "today"
@@ -42,6 +40,8 @@ export default function CommunityPage() {
 
   // Ensure the current view is valid, otherwise default to "today"
   const activeView = validViews.includes(currentView) ? currentView : "explore"
+
+  const { user } = useAuthContext()
 
 
   /**
@@ -101,13 +101,13 @@ export default function CommunityPage() {
 
           {/* Explore tab: displays all users for discovery and following */}
           <TabsContent value="explore" className="flex flex-col data-[state=active]:flex-1 m-0">
-            <ExploreView users={users} />
+           <ExploreView ListComponent={<UserList userID={user?.ID!} />} />
           </TabsContent>
 
 
           {/* Following tab: displays users the current user is following */}
           <TabsContent value="friends" className="flex flex-col data-[state=active]:flex-1 m-0">
-            <ExploreView users={friends} />
+            <ExploreView ListComponent={<FriendList userID={user?.ID!} />} />
           </TabsContent>
 
           <TabsContent value="social" className="flex flex-col data-[state=active]:flex-1 m-0">

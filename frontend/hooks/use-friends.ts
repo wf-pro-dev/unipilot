@@ -1,6 +1,6 @@
 "use client"
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery, UseInfiniteQueryResult, InfiniteData } from '@tanstack/react-query'
 import { LogError } from "@/wailsjs/runtime/runtime"
 import { models, client } from '@/wailsjs/go/models'
 import {
@@ -12,6 +12,7 @@ import {
     RemoveFriend
 } from '@/wailsjs/go/main/App'
 import { toast } from 'sonner'
+import { PageResponse } from '@/types/models'  
 
 export const friendKeys = {
     all: ['friends'] as const,
@@ -21,13 +22,39 @@ export const friendKeys = {
     status: (userID: string) => [...friendKeys.allStatus, userID] as const,
 }
 
+export function useFriendsScroll({limit = 20, userID}: {limit?: number, userID: string}) {
+    console.log("[Hook] Getting friends for user:", userID)
+    return useInfiniteQuery({
+        queryKey: friendKeys.lists(),
+        queryFn: async ({ pageParam }): Promise<PageResponse<models.User>> => {
+            try {
+                // pageParam will be undefined for first page, then the cursor for subsequent pages
+                var friends =  await GetFriends(userID, pageParam!, limit)
+                console.log("[Hook] Friends:", friends)
+                return friends
+            } catch (error) {
+                LogError("Failed to fetch friends: " + error)
+                throw new Error(error instanceof Error ? error.message : "Failed to fetch friends")
+            }
+        },
+       
+        initialPageParam: undefined as models.Cursor | undefined,
+        getNextPageParam: (lastPage) => {
+            // Return the cursor for the next page, or undefined if no more pages
+            return lastPage.HasMore ? lastPage.Cursor : undefined
+        },
+        staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
+        gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
+    })
+}
+
 // Main hook for fetching assignments with caching
-export function useFriends(userID: string, limit: number, offset: number) {
+export function useFriends(userID: string, limit: number, cursor?: models.Cursor) {
     return useQuery({
         queryKey: friendKeys.lists(),
-        queryFn: async (): Promise<models.User[]> => {
+        queryFn: async (): Promise<PageResponse<models.User>> => {
             try {
-                return await GetFriends(userID, limit, offset)
+                return await GetFriends(userID, cursor!, limit)
             } catch (error) {
                 LogError("Failed to fetch friends: " + error)
                 throw new Error(error instanceof Error ? error.message : "Failed to fetch friends")
@@ -91,11 +118,11 @@ export function useAcceptFriendRequest(userID: string) {
             })
 
             // Optimistically update the friends list
-            const previousFriends = queryClient.getQueryData<models.User[]>(friendKeys.lists())
+            const previousFriends = queryClient.getQueryData<InfiniteData<PageResponse<models.User>, unknown>>(friendKeys.lists())
             
-            queryClient.setQueryData(friendKeys.lists(), (old: models.User[]) => {
-                if (!old) return [userID]
-                return [...old, userID]
+            queryClient.setQueryData(friendKeys.lists(), (old: InfiniteData<PageResponse<models.User>, unknown>) => {
+                if (!old) return { pages: [{ Data: [userID], HasMore: false, Cursor: undefined }], pageParams: undefined }
+                return { ...old, pages: [...old.pages, { Data: [userID], HasMore: false, Cursor: undefined }] }
             })
 
 
@@ -152,10 +179,10 @@ export function useRemoveFriend(userID: string) {
                 return { ...old, friends_count: old.friends_count - 1 }
             })
             // Optimistically update the friends list
-            const previousFriends = queryClient.getQueryData<models.User[]>(friendKeys.lists())
-            queryClient.setQueryData(friendKeys.lists(), (old: models.User[]) => {
-                if (!old) return []
-                return old.filter(f => f.ID !== userID)
+            const previousFriends = queryClient.getQueryData<InfiniteData<PageResponse<models.User>, unknown>>(friendKeys.lists())
+            queryClient.setQueryData(friendKeys.lists(), (old: InfiniteData<PageResponse<models.User>, unknown>) => {
+                if (!old) return { Data: [], HasMore: false, Cursor: undefined }
+                return { ...old, Data: old.pages.flatMap(page => page.Data).filter((f: models.User) => f.ID !== userID) }
             })
             return { previousFriends, previousStatus }
         },

@@ -10,6 +10,7 @@ import { LinkRequestModal } from "../community/link-request-modal"
 import { models } from "@/wailsjs/go/models"
 import { NoteAddDialog } from "../notes/note-add-dialog"
 import { NoteDetailsDialog } from "../notes/note-detail-dialog"
+import { UserDetailsDialog } from "../community/user-details-dialog"
 
 interface DialogProviderProps {
     children: ReactNode
@@ -53,7 +54,8 @@ export function DialogProvider({ children }: DialogProviderProps) {
     const [noteEditID, setNoteEditID] = useState<string | undefined>(undefined)
 
     const [userDetailsID, setUserDetailsID] = useState<string | undefined>(undefined)
-
+    const [userDetailsItem, setUserDetailsItem] = useState<models.User | undefined>(undefined)
+    
     const [viewMode, setViewMode] = useState<ViewMode>("default")
 
 
@@ -122,6 +124,7 @@ export function DialogProvider({ children }: DialogProviderProps) {
                 switch (dialogType) {
                     case "details":
                         open ? setUserDetailsID(id) : setUserDetailsID(undefined)
+                        open ? setUserDetailsItem(item as models.User) : setUserDetailsItem(undefined)
                         break
                 }
                 break
@@ -217,6 +220,15 @@ export function DialogProvider({ children }: DialogProviderProps) {
             <NoteAddDialog
                 isOpen={noteAdd}
                 onClose={() => setNoteAdd(false)}
+            />
+
+            <UserDetailsDialog
+                key={userDetailsID}
+                isOpen={userDetailsItem !== undefined}
+                onClose={() => {
+                    SetDialogState({ modelType: "user", dialogType: "details", id: userDetailsID!, open: false })
+                }}
+                user={userDetailsItem as models.User}
             />
 
         </DialogContext.Provider>

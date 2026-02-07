@@ -1,43 +1,4 @@
-// Assignment type matching the Go struct
-interface Assignment {
-  ID: number
-  RemoteID: number | null
-  NotionID: string
-  Title: string
-  Todo: string
-  Deadline: Date 
-  Link: string
-  Type: string
-  Status: "Not started" | "In progress" | "Done"
-  Priority: "low" | "medium" | "high"
-  Completed: boolean
-  CreatedAt: Date 
-  UpdatedAt: Date
-  DeletedAt?: Date 
-  User?: User
-  Course?: Course
-  Type?: AssignmentType
-  Status?: AssignmentStatus
-  Documents?: LocalDocument[] // Add documents relationship
-}
-
-// Note type for the new AI-generated notes feature
-interface Note {
-  ID: number
-  UserID: number
-  CourseID: number
-  Title: string
-  Subject: string
-  Content: string // Markdown content
-  Keywords: string[] // Array of 5 keywords
-  YouTubeVideos?: YouTubeVideo[]
-  CreatedAt: Date
-  UpdatedAt: Date
-  DeletedAt?: Date
-  User?: User
-  Course?: Course
-}
-
+import { models } from "@/wailsjs/go/models"
 // YouTube video interface
 interface YouTubeVideo {
   ID: string // YouTube video ID
@@ -46,118 +7,14 @@ interface YouTubeVideo {
   Duration?: string
 }
 
-// LocalDocument type matching the Go struct
-interface LocalDocument {
-  ID: number
-  RemoteID: number
-  AssignmentID: number
-  UserID: number
-  Type: string // Changed from union type to string to match Go generated types
-  FileName: string
-  FilePath: string
-  FileSize: number
-  Version: number
-  ParentDocID?: number
-  IsOriginal: boolean
-  HasLocalFile: boolean
-  LastSyncAt?: Date
-  CreatedAt: Date
-  UpdatedAt: Date
-  DeletedAt?: Date
-  ParentDoc?: LocalDocument
-  Versions?: LocalDocument[]
+interface PageResponse<T> {
+  Data: T[]
+  Cursor?: models.Cursor
+  HasMore: boolean
 }
 
-// StorageInfo type matching the Go struct
-interface StorageInfo {
-  total_size: number
-  document_count: number
-  calculated_at: Date
-}
 
-// Course type matching the Go struct
-interface Course {
-  ID: number
-  UserID: number
-  NotionID: string
-  Code: string
-  Name: string
-  Duration: string
-  RoomNumber: string
-  Color: string
-  StartDate: Date
-  EndDate: Date
-  Schedule: string
-  Semester: string
-  Instructor: string
-  InstructorEmail: string
-  Credits: number
-  CreatedAt: Date 
-  UpdatedAt: Date
-  DeletedAt?: Date 
-  User?: User
-}
-
-// User type matching the Go struct
-interface User {
-  ID: number
-  Username: string
-  Email: string
-  PasswordHash: string
-  NotionAPIKey: string
-  AssignmentsDbId: string
-  NotionID: string
-  CoursesDbId: string
-  Avatar?: string
-  University?: string
-  FollowCount: number
-  IsVerified: boolean
-  Language: string
-  CoursesCode: string[]
-  LastSync?: Date 
-  CreatedAt: Date 
-  UpdatedAt: Date 
-  DeletedAt?: Date 
-}
-
-// AssignmentType type matching the Go struct
-interface AssignmentType {
-  ID: number
-  Name: string
-  Color: string
-  NotionID: string
-}
-
-// AssignmentStatus type matching the Go struct
-interface AssignmentStatus {
-  ID: number
-  Name: string
-  Color: string
-  NotionID: string
-}
-
-// Legacy interface for backward compatibility
-interface LegacyAssignment {
-  id: number
-  title: string
-  course: string
-  courseColor: string
-  type: string
-  priority: "low" | "medium" | "high"
-  status: "pending" | "in-progress" | "completed" | "overdue"
-  dueDate: Date
-  description?: string
-  completed: boolean
-}
-
-export type { 
-  Course, 
-  User, 
-  AssignmentType, 
-  AssignmentStatus,
-  LegacyAssignment,
-  LocalDocument,
-  StorageInfo,
-  Note,
+export type {  
+  PageResponse,
   YouTubeVideo
 }

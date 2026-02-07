@@ -1,10 +1,11 @@
 "use client"
 
-import { useQuery } from '@tanstack/react-query'
+import { InfiniteData, useQuery } from '@tanstack/react-query'
 import { LogError } from "@/wailsjs/runtime/runtime"
 import { models } from '@/wailsjs/go/models'
-import { GetRemoteUsers } from '@/wailsjs/go/main/App'
-import { assignmentKeys } from './use-assignments'
+import { GetFriends, GetRemoteUsers } from '@/wailsjs/go/main/App'
+import { useInfiniteQuery } from '@tanstack/react-query'
+import { PageResponse } from '@/types/models'
 
 // Query keys for consistent cache management
 export const userKeys = {
@@ -15,25 +16,29 @@ export const userKeys = {
   detail: (id: number) => [...userKeys.details(), id] as const,
 }
 
-// Main hook for fetching assignments with caching
-export function useUsers() {
-  return useQuery({
-    queryKey: userKeys.lists(),
-    queryFn: async (): Promise<models.User[]> => {
-      try {
-        var users = await GetRemoteUsers()
-        return users
-      } catch (error) {
-        LogError(error as string)
-        throw new Error(error instanceof Error ? error.message : "Failed to fetch users")
-      }
-    },
-
-
-    staleTime: 2 * 60 * 60 * 1000, // Consider fresh for 2 hours
-    gcTime: 10 * 60 * 60 * 1000,   // Keep in cache for 10 hours
+// Main hook for fetching users 
+export function useUsersScroll({limit = 20 }: {limit?: number, userID?: string}) {
+  return useInfiniteQuery({
+      queryKey: userKeys.lists(),
+      queryFn: async ({ pageParam }): Promise<PageResponse<models.User>> => {
+          try {
+              // pageParam will be undefined for first page, then the cursor for subsequent pages
+              return await GetRemoteUsers(pageParam!, limit)
+          } catch (error) {
+              LogError("Failed to fetch friends: " + error)
+              throw new Error(error instanceof Error ? error.message : "Failed to fetch friends")
+          }
+      },
+      initialPageParam: undefined as models.Cursor | undefined,
+      getNextPageParam: (lastPage) => {
+          // Return the cursor for the next page, or undefined if no more pages
+          return lastPage.HasMore ? lastPage.Cursor : undefined
+      },
+      staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
+      gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
   })
 }
+
 
 export function useUser(id: string) { 
   
@@ -43,7 +48,7 @@ export function useUser(id: string) {
     enabled: false,
   })
   
-  const user = (users as models.User[])?.find(u => u.ID === id)
+  const user = (users as InfiniteData<PageResponse<models.User>, unknown>)?.pages.flatMap(page => page.Data)?.find(u => u.ID === id)
   return {
     data: user,
     isLoading: false,
@@ -51,4 +56,4 @@ export function useUser(id: string) {
   }
 }
 // Legacy support - keep the same interface for existing components
-export { useUsers as useUsersLegacy } 
+export { useUsersScroll as useUsersLegacy } 

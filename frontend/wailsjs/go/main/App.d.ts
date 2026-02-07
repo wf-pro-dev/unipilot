@@ -71,7 +71,7 @@ export function GetFileInfo(arg1:string):Promise<main.FileInfo>;
 
 export function GetFriendShipStatus(arg1:string):Promise<client.FriendStatusResponse>;
 
-export function GetFriends(arg1:string,arg2:number,arg3:number):Promise<Array<models.User>>;
+export function GetFriends(arg1:string,arg2:models.Cursor,arg3:number):Promise<models.PageResponse_unipilot_internal_models_User_>;
 
 export function GetLAssignment(arg1:string):Promise<models.LocalAssignment>;
 
@@ -81,7 +81,7 @@ export function GetNotes():Promise<Array<models.LocalNote>>;
 
 export function GetNotificationDaemonStatus():Promise<Record<string, any>>;
 
-export function GetRemoteUsers():Promise<Array<models.User>>;
+export function GetRemoteUsers(arg1:models.Cursor,arg2:number):Promise<models.PageResponse_unipilot_internal_models_User_>;
 
 export function GetSubmissionDocuments(arg1:string):Promise<Array<models.LocalDocument>>;
 

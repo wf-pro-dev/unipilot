@@ -1056,24 +1056,24 @@ func (a *App) Logout() error {
 
 	//Stop and uninstall daemon service before logout
 	//This ensures the service is removed so another user can install their own
-	// if a.Daemon != nil {
-	// 	// Stop the daemon first
-	// 	if err := a.Daemon.StopDaemon(); err != nil {
-	// 		log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to stop notification daemon"))
-	// 	} else {
-	// 		log.Println("Notification daemon stopped successfully")
-	// 	}
+	if a.Daemon != nil {
+		// Stop the daemon first
+		if err := a.Daemon.StopDaemon(); err != nil {
+			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to stop notification daemon"))
+		} else {
+			log.Println("Notification daemon stopped successfully")
+		}
 
-	// 	// Uninstall the daemon service
-	// 	if err := a.Daemon.UninstallDaemon(); err != nil {
-	// 		log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to uninstall notification daemon"))
-	// 	} else {
-	// 		log.Println("Notification daemon uninstalled successfully")
-	// 	}
+		// Uninstall the daemon service
+		if err := a.Daemon.UninstallDaemon(); err != nil {
+			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to uninstall notification daemon"))
+		} else {
+			log.Println("Notification daemon uninstalled successfully")
+		}
 
-	// 	// Clear daemon manager reference
-	// 	a.Daemon = nil
-	// }
+		// Clear daemon manager reference
+		a.Daemon = nil
+	}
 
 	return nil
 
@@ -1365,13 +1365,13 @@ func (a *App) GetCourseAssignments(course *models.LocalCourse) ([]models.LocalAs
 }
 
 // GetRemoteUsers returns all users from the remote server
-func (a *App) GetRemoteUsers() ([]models.User, error) {
+func (a *App) GetRemoteUsers(cursor *models.Cursor, limit int) (*models.PageResponse[models.User], error) {
 	if !a.Auth.IsAuthenticated() {
-		return []models.User{}, nil
+		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
-	users, err := client.GetRemoteUsers()
+	users, err := client.GetRemoteUsers(cursor, limit)
 	if err != nil {
-		return []models.User{}, err
+		return nil, err
 	}
 	return users, nil
 }
@@ -1387,13 +1387,13 @@ func (a *App) GetFriendShipStatus(userID string) (*client.FriendStatusResponse, 
 	return friendshipStatus, nil
 }
 
-func (a *App) GetFriends(userID string, limit, offset int) ([]models.User, error) {
+func (a *App) GetFriends(userID string, cursor *models.Cursor, limit int) (*models.PageResponse[models.User], error) {
 	if !a.Auth.IsAuthenticated() {
-		return []models.User{}, nil
+		return nil, nil
 	}
-	users, err := client.GetFriends(userID, limit, offset)
+	users, err := client.GetFriends(userID, cursor, limit)
 	if err != nil {
-		return []models.User{}, err
+		return nil, err
 	}
 	return users, nil
 }

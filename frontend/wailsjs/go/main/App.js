@@ -154,8 +154,8 @@ export function GetNotificationDaemonStatus() {
   return window['go']['main']['App']['GetNotificationDaemonStatus']();
 }
 
-export function GetRemoteUsers() {
-  return window['go']['main']['App']['GetRemoteUsers']();
+export function GetRemoteUsers(arg1, arg2) {
+  return window['go']['main']['App']['GetRemoteUsers'](arg1, arg2);
 }
 
 export function GetSubmissionDocuments(arg1) {

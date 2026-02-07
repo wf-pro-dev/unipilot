@@ -129,12 +129,6 @@ func RunDaemon() {
 		log.Fatalf("Failed to get current user: %v", wrappedErr)
 	}
 
-	// Validate that the user ID from file matches the flag
-	if user.ID != *userID {
-		log.Fatalf("User ID mismatch: flag=%s, file=%s. The daemon was started for user %s but the stored user is %s",
-			*userID, user.ID, *userID, user.ID)
-	}
-
 	// Create context for cancellation
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

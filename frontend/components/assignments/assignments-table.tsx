@@ -10,13 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Filter, Search } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useCoursesBySemester } from "@/hooks/use-courses"
 import { useAuthContext } from "../provider/auth-provider"
 import { CoursesSelect } from "../courses/courses-select"
 import { EmptyState } from "../ui/empty-state"
-import { AssignmentDetailsDialog } from "./assignment-details-dialog"
-import { AssignmentEditDialog } from "./assignment-edit-dialog"
-import { Scroll } from "../ui/scroll"
+import { Scroll } from "../core/scroll"
 
 interface Filter {
   course: string | null
@@ -37,25 +34,17 @@ export function AssignmentsTable({
 }: AssignmentsTableProps) {
   const router = useRouter()
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCourseData, setSelectedCourseData] = useState<models.LocalCourse | undefined>(undefined)
   const [selectedCourse, setSelectedCourse] = useState(filter.course || "all")
   const [selectedStatus, setSelectedStatus] = useState(filter.status || "all")
   const [selectedPriority, setSelectedPriority] = useState(filter.priority || "all")
-  const [DetailsID, setDetailsID] = useState<number | undefined>(undefined)
-  const [EditID, setEditID] = useState<number | undefined>(undefined)
 
   const { user } = useAuthContext()
-  const { data: courses } = useCoursesBySemester(user?.Semester || "FALL 2025")
 
   const searchParams = useSearchParams()
   const currentView = searchParams.get("view") || "week"
 
-  const courseCodes = Array.from(new Set(courses?.map((course) => course.Code) || []))
   const statuses = Array.from(new Set((assignments || []).map((assignment) => assignment.Status)))
   const priorities = Array.from(new Set((assignments || []).map((assignment) => assignment.Priority)))
-
-  const hasActiveFilters = selectedCourse !== "all" || selectedStatus !== "all" || selectedPriority !== "all" || searchTerm !== ""
-
 
   // Apply basic filters (simplified for now)
   const filteredAssignments = useMemo(() => (assignments || []).filter((assignment) => {
@@ -98,7 +87,6 @@ export function AssignmentsTable({
     setSelectedCourse("all")
     setSelectedStatus("all")
     setSelectedPriority("all")
-    setSelectedCourseData(undefined)
     router.push(`/assignments?view=${currentView}`)
   }
 
@@ -125,8 +113,6 @@ export function AssignmentsTable({
                 <CoursesSelect
                   value={selectedCourse}
                   onValueChange={onCourseChange}
-                  onCourseChange={setSelectedCourseData}
-                  selectedCourse={selectedCourseData}
                 />
               </div>
 
@@ -174,7 +160,7 @@ export function AssignmentsTable({
       <div className="flex h-full min-h-0">
         {filteredAssignments.length > 0 ? (
           <Scroll
-            data={filteredAssignments}
+            data={{ Data: filteredAssignments, HasMore: false }}
             renderItem={(assignment: models.LocalAssignment) => (
               <AssignmentItem
                 key={assignment.ID}
@@ -185,7 +171,7 @@ export function AssignmentsTable({
             )}
             keyExtractor={(item: models.LocalAssignment) => item.ID}
             numColumns={3}
-            containerClassName="grid grid-cols-3 gap-4"
+            containerClassName="gap-4"
           />
         ) : (
           <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
@@ -204,20 +190,7 @@ export function AssignmentsTable({
 
 
 
-      <AssignmentDetailsDialog
-        key={DetailsID}
-        assignmentId={DetailsID!}
-        isOpen={DetailsID !== undefined}
-        onClose={() => setDetailsID(undefined)}
-        handleEditOpen={() => setEditID(DetailsID)}
-      />
-
-      <AssignmentEditDialog
-        key={EditID}
-        assignmentId={EditID!}
-        isOpen={EditID !== undefined}
-        onClose={() => setEditID(undefined)}
-      />
+     
 
     </div >
   )

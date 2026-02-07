@@ -18,10 +18,12 @@ type FriendStatusResponse struct {
 	MutualFriendsCount  int                      `json:"mutual_friends_count"`  // Number of mutual friends
 }
 
-func GetFriends(userID string, limit, offset int) ([]models.User, error) {
+func GetFriends(userID string, cursor *models.Cursor, limit int) (*models.PageResponse[models.User], error) {
+
+	fmt.Println("[Client] Getting friends for user:", userID)
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent, err := GetAuthAgent(fiber.Get(fmt.Sprintf("%s/users/%s/friends?limit=%d&offset=%d", api_url, userID, limit, offset)))
+	agent, err := GetAuthAgent(fiber.Get(fmt.Sprintf("%s/users/%s/friends?limit=%d", api_url, userID, limit)).JSON(cursor))
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +34,7 @@ func GetFriends(userID string, limit, offset int) ([]models.User, error) {
 		return nil, serverError
 	}
 
-	var response []models.User
+	var response *models.PageResponse[models.User]
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 	}
