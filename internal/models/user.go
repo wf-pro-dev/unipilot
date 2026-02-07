@@ -81,13 +81,44 @@ func GetUser(id string, db *gorm.DB) (*User, error) {
 	return &user, nil
 }
 
-func GetUsers(db *gorm.DB) ([]User, error) {
+func GetUsers(cursor *Cursor, limit int, db *gorm.DB) (*PageResponse[User], error) {
 	var users []User
-	err := db.Find(&users).Error
-	if err != nil {
-		return nil, errors.HandleDBReadError(err)
+	query := db.Table("users").
+		Select("users.*").
+		Order("username ASC").
+		Limit(limit + 1)
+
+	if cursor != nil {
+		query = query.Where(
+			"(created_at > ?) OR (created_at = ? AND id > ?)",
+			cursor.CreatedAt, cursor.CreatedAt, cursor.ID,
+		)
 	}
-	return users, nil
+
+	if err := query.Scan(&users).Error; err != nil {
+		return nil, err
+	}
+
+	hasMore := len(users) > limit
+	if hasMore {
+		users = users[:limit]
+	}
+
+	var nextCursor *Cursor
+	if hasMore && len(users) > 0 {
+		last := users[len(users)-1]
+		nextCursor = &Cursor{
+			CreatedAt: last.UpdatedAt,
+			ID:        last.ID,
+		}
+	}
+
+	return &PageResponse[User]{
+		Data:    users,
+		Cursor:  nextCursor,
+		HasMore: hasMore,
+	}, nil
+
 }
 
 type UserCourseCodes struct {

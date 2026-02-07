@@ -84,7 +84,7 @@ func StartServer() error {
 	// Protected routes
 
 	app.Get("/users", server.AuthMiddleware, GetUsersHandler)
-	app.Get("/users/me", server.AuthMiddleware, GetUserHandler)
+	app.Get("/users/:id", server.AuthMiddleware, GetUserHandler)
 	app.Post("/users/me", server.AuthMiddleware, UpdateUserHandler)
 	app.Post("/users/me/profile-picture", server.AuthMiddleware, UpdateProfilePictureHandler)
 	app.Get("/users/me/invitations", server.AuthMiddleware, GetUserCourseInvitationsHandler)
@@ -102,7 +102,7 @@ func StartServer() error {
 	app.Put("/assignments/:id", server.AuthMiddleware, UpdateAssignmentHandler)
 	app.Delete("/assignments/:id", server.AuthMiddleware, DeleteAssignmentHandler)
 
-	app.Get("/courses", server.AuthMiddleware, GetCoursesHandler)
+	app.Get("/courses/:id", server.AuthMiddleware, GetCoursesHandler)
 	app.Post("/courses", server.AuthMiddleware, CreateCourseHandler)
 	app.Put("/courses/:id", server.AuthMiddleware, UpdateCourseHandler)
 	app.Get("/courses/linked", server.AuthMiddleware, GetCoursesLinkedHandler)

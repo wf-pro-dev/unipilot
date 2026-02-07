@@ -42,12 +42,7 @@ func GetCoursesHandler(c *fiber.Ctx) error {
 
 	// Step 2: Query database for user's courses using parameterized query for security
 	var courses []models.Course
-	if err := db.Where("user_id = ?", userID).Find(&courses).Error; err != nil {
-
-		if Errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.WrapServer(err, errors.DBRecordNotFound, "Courses not found", fiber.StatusNotFound)
-		}
-
+	if courses, err = models.GetCourses(userID, db); err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting courses from database", fiber.StatusInternalServerError)
 	}
 

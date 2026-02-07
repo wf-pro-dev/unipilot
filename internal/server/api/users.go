@@ -1,8 +1,6 @@
 package server
 
 import (
-	"encoding/json"
-
 	"github.com/gofiber/fiber/v2"
 
 	"unipilot/internal/errors"
@@ -58,79 +56,15 @@ func GetUsersHandler(c *fiber.Ctx) error {
 	if err != nil {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
-	currentUser, err := server.GetUser(ctx)
-	if err != nil {
-		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
+	var cursor *models.Cursor
+	if err := c.BodyParser(&cursor); err != nil {
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error unmarshalling cursor", fiber.StatusBadRequest)
 	}
 
-	// Step 2: Attempt to retrieve users from Redis cache first (performance optimization)
-	usersHash, err := CacheService.GetUsers(ctx)
+	results, err := models.GetUsers(cursor, 20, db.Debug().Omit("password_hash"))
 	if err != nil {
-		return errors.WrapServer(err, errors.CacheOperationFailed, "Error getting users from redis", fiber.StatusInternalServerError)
-	}
-	if len(usersHash) > 0 {
-		// Step 3: Cache hit - Convert Redis hash to user array and exclude current user
-		var cachedUsers []models.User
-		for _, userJSON := range usersHash {
-			var user models.User
-			if err := json.Unmarshal([]byte(userJSON), &user); err == nil {
-				if user.ID == currentUser.ID {
-					continue
-				}
-				cachedUsers = append(cachedUsers, user)
-			}
-		}
-		return c.JSON(cachedUsers)
-	}
-
-	// Step 4: Cache miss - Query users from database and enrich with course data
-	var users []models.User
-	if err := db.Omit("password_hash").Find(&users).Order("username ASC").Error; err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users from database", fiber.StatusInternalServerError)
 	}
 
-	// Step 5: Batch load course codes for all users
-	userIDs := make([]string, len(users))
-	for i, u := range users {
-		userIDs[i] = u.ID
-	}
-
-	courseCodes, err := models.GetUsersCourseCodes(userIDs, db)
-	if err != nil {
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting course codes from database", fiber.StatusInternalServerError)
-	}
-
-	// Build map
-	courseCodeMap := make(map[string][]string)
-	for _, cc := range courseCodes {
-		courseCodeMap[cc.UserID] = append(courseCodeMap[cc.UserID], cc.Code)
-	}
-
-	// Attach to users
-	var usersWithCourses []models.User
-	for i := range users {
-		users[i].CoursesCode = courseCodeMap[users[i].ID]
-		if users[i].CoursesCode == nil {
-			users[i].CoursesCode = []string{} // Ensure non-nil slice
-		}
-
-		// Cache individual user in Redis for future requests (non-blocking)
-		if err := CacheService.SetUsers(ctx, users[i].ID, &users[i]); err != nil {
-			return errors.WrapServer(err, errors.CacheOperationFailed, "Failed to cache user in Redis", fiber.StatusInternalServerError)
-		}
-
-		if users[i].ID == currentUser.ID {
-			continue
-		}
-		usersWithCourses = append(usersWithCourses, users[i])
-
-	}
-
-	// Step 7: Set cache expiration to 3 hours for optimal balance of freshness and performance
-	if err := CacheService.SetExpirationUsers(ctx); err != nil {
-		return errors.WrapServer(err, errors.CacheOperationFailed, "Failed to set cache expiration", fiber.StatusInternalServerError)
-	}
-
-	// Step 8: Send successful response with enriched user data
-	return c.JSON(usersWithCourses)
+	return c.JSON(results)
 }

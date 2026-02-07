@@ -321,6 +321,15 @@ func (c *Course) IsInCluster(db *gorm.DB) bool {
 	return len(courses) > 0
 }
 
+func GetCoursesCount(userID string, db *gorm.DB) (int, error) {
+	var count int64
+	err := db.Model(&Course{}).Where("user_id = ?", userID).Count(&count).Error
+	if err != nil {
+		return 0, errors.HandleDBReadError(err)
+	}
+	return int(count), nil
+}
+
 // Other Operations
 
 // ParsedSchedule represents a parsed course schedule

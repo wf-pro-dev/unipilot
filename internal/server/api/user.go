@@ -45,13 +45,24 @@ import (
 //   - No database or cache modifications
 func GetUserHandler(c *fiber.Ctx) error {
 	// Step 1: Extract user context from JWT token (validated by AuthMiddleware)
-	currentUser, err := server.GetUser(c.UserContext())
+
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
 	if err != nil {
-		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
 
+	var userID string
+	if userID = c.Params("id"); userID == "" {
+		return errors.WrapServer(fmt.Errorf("user ID required"), errors.ReqParamMissing, "User ID required", fiber.StatusBadRequest)
+	}
+
+	user, err := models.GetUser(userID, db.Debug().Omit("password_hash"))
+	if err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting user from database", fiber.StatusInternalServerError)
+	}
 	// Step 3: Send successful response with sanitized user data
-	return c.JSON(currentUser)
+	return c.JSON(user)
 }
 
 // UpdateUserHandler updates a specific field of the authenticated user's profile.

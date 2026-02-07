@@ -24,7 +24,7 @@ func (c *Cache) GetUsers(ctx context.Context) (map[string]string, error) {
 }
 
 // SetUsers stores a user in cache (hash structure).
-func (c *Cache) SetUsers(ctx context.Context, userID string, user *models.User) error {
+func (c *Cache) SetUser(ctx context.Context, userID string, user *models.User) error {
 	userJSON, err := json.Marshal(user)
 	if err != nil {
 		return errors.Wrap(err, errors.ProcJSONMarshalFailed, "Error marshalling user to json")

@@ -21,6 +21,7 @@ type FriendStatusResponse struct {
 	FriendsCount        int                      `json:"friends_count"`         // Number of friends the user has
 	PendingRequestCount int                      `json:"pending_request_count"` // Number of pending requests for current user
 	MutualFriendsCount  int                      `json:"mutual_friends_count"`  // Number of mutual friends
+	CoursesCount        int                      `json:"courses_count"`         // Number of courses the user has
 }
 
 // HandleSendFriendRequest sends a friend request to another user
@@ -533,12 +534,19 @@ func HandleGetFriendStatus(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting mutual friends", fiber.StatusInternalServerError)
 	}
 
+	// Get courses count for the other user
+	coursesCount, err := models.GetCoursesCount(otherUserID, db)
+	if err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting courses count", fiber.StatusInternalServerError)
+	}
+
 	response := FriendStatusResponse{
 		Status:              status,
 		IsPendingForYou:     isPending,
 		FriendsCount:        friendsCount,
 		PendingRequestCount: pendingCount,
 		MutualFriendsCount:  len(mutualFriends),
+		CoursesCount:        coursesCount,
 	}
 
 	return c.JSON(response)
