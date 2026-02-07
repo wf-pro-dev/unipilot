@@ -2,8 +2,6 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
 import { ExploreView } from "@/components/community/explore-view"
-import { FollowersView } from "@/components/community/followers-view"
-import { FollowingView } from "@/components/community/following-view"
 import { Search, Users } from "lucide-react"
 import { useAuthContext } from "@/components/provider/auth-provider"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -32,7 +30,7 @@ import { SocialTab } from "@/components/community/social-tab"
 export default function CommunityPage() {
   // Extract user relationship data from auth context (followers, following, all users)
   // Context provides pre-fetched data avoiding prop drilling through component tree
-  const { followers, following, users } = useAuthContext()
+  const { friends, users } = useAuthContext()
 
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -40,7 +38,7 @@ export default function CommunityPage() {
   const currentView = searchParams.get("view") || "explore"
 
   // Valid view values
-  const validViews = ["explore", "followers", "following", "social"]
+  const validViews = ["explore", "friends", "social"]
 
   // Ensure the current view is valid, otherwise default to "today"
   const activeView = validViews.includes(currentView) ? currentView : "explore"
@@ -85,19 +83,13 @@ export default function CommunityPage() {
               <span className="hidden sm:inline text-sm font-medium">Explore</span>
             </TabsTrigger>
             <TabsTrigger
-              value="followers"
+              value="friends"
               className="flex w-48 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
             >
               <Users className="h-4 w-4" />
-              <span className="hidden sm:inline text-sm font-medium">Followers</span>
+              <span className="hidden sm:inline text-sm font-medium">Friends</span>
             </TabsTrigger>
-            <TabsTrigger
-              value="following"
-              className="flex w-48 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
-            >
-              <Users className="h-4 w-4" />
-              <span className="hidden sm:inline text-sm font-medium">Following</span>
-            </TabsTrigger>
+            
             <TabsTrigger
               value="social"
               className="flex w-48 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
@@ -112,14 +104,10 @@ export default function CommunityPage() {
             <ExploreView users={users} />
           </TabsContent>
 
-          {/* Followers tab: shows users who follow the current user */}
-          <TabsContent value="followers" className="flex flex-col data-[state=active]:flex-1 m-0">
-            <FollowersView followers={followers} />
-          </TabsContent>
 
           {/* Following tab: displays users the current user is following */}
-          <TabsContent value="following" className="flex flex-col data-[state=active]:flex-1 m-0">
-            <FollowingView following={following} />
+          <TabsContent value="friends" className="flex flex-col data-[state=active]:flex-1 m-0">
+            <ExploreView users={friends} />
           </TabsContent>
 
           <TabsContent value="social" className="flex flex-col data-[state=active]:flex-1 m-0">

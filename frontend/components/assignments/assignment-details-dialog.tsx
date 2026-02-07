@@ -21,7 +21,7 @@ import { AnimatePresence, motion } from "framer-motion"
 interface AssignmentDetailsDialogProps {
   isOpen: boolean
   onClose: () => void
-  assignmentId: number
+  assignmentId: string
   assignmentRO?: models.Assignment
   handleEditOpen?: () => void
   onCopy?: (assignment: models.Assignment, includeDocuments: boolean) => void

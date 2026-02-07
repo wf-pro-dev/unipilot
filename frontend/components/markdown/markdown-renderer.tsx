@@ -80,9 +80,9 @@ function MermaidDiagram({ children }: { children: string }) {
       {/* Portal the modal to document.body to escape parent constraints */}
       {typeof document !== 'undefined' && createPortal(
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-auto">
+          <DialogContent className="glass border-white/10 text-white p-0 gap-0 max-w-6xl h-[90vh] overflow-auto">
             <div
-              className="p-4"
+              className="flex items-center justify-center p-4"
               dangerouslySetInnerHTML={{ __html: ref.current?.innerHTML || '' }}
             />
           </DialogContent>
@@ -177,27 +177,40 @@ export function MarkdownRenderer({
   }
 
   const components: Components = {
-    h1: ({ children, id }) => (
-      <h1 id={id} className={cn("font-bold tracking-tight text-foreground border-b border-border pb-2 first:mt-0",
-        variant === 'compact' ? "text-xl mt-4 mb-2" : "text-3xl mt-10 mb-6"
-      )}>
-        {children}
-      </h1>
-    ),
-    h2: ({ children, id }) => (
-      <h2 id={id} className={cn("font-semibold tracking-tight text-foreground pb-1",
-        variant === 'compact' ? "text-lg mt-4 mb-2" : "text-2xl mt-10 mb-4"
-      )}>
-        {children}
-      </h2>
-    ),
-    h3: ({ children, id }) => (
+    h1: ({ children}) => {
+      
+      const id = children?.toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      console.log("h1", id, children)
+      return (
+        <h1 id={id} className={cn("font-bold tracking-tight text-foreground border-b border-border pb-2 first:mt-0",
+          variant === 'compact' ? "text-xl mt-4 mb-2" : "text-3xl mt-10 mb-6"
+        )}>
+          {children}
+        </h1>
+      )
+    },
+    h2: ({ children }) => {
+      const id = children?.toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      console.log("h2", id, children)
+      return (
+        <h2 id={id} className={cn("font-semibold tracking-tight text-foreground pb-1",
+          variant === 'compact' ? "text-lg mt-4 mb-2" : "text-2xl mt-10 mb-4"
+        )}>
+          {children}
+        </h2>
+      )
+    },
+    h3: ({ children }) => {
+      const id = children?.toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      console.log("h3", id, children)
+      return (
       <h3 id={id} className={cn("font-semibold tracking-tight text-foreground",
         variant === 'compact' ? "text-base mt-3 mb-2" : "text-xl mt-8 mb-3"
       )}>
         {children}
       </h3>
-    ),
+    )
+  },
     h4: ({ children, id }) => (
       <h4 id={id} className={cn("font-medium text-foreground",
         variant === 'compact' ? "text-sm mt-2 mb-1" : "text-lg mt-6 mb-2"

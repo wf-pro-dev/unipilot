@@ -12,11 +12,9 @@ interface UserDetailsModalProps {
   isOpen: boolean
   onClose: () => void
   user: models.User
-  followers: models.User[]
-  following: models.User[]
 }
 
-export function UserDetailsModal({ isOpen, onClose, user, followers, following }: UserDetailsModalProps) {
+export function UserDetailsModal({ isOpen, onClose, user }: UserDetailsModalProps) {
   if (!user) return null
 
   const formatDate = (dateString: string) => {
@@ -68,14 +66,7 @@ export function UserDetailsModal({ isOpen, onClose, user, followers, following }
 
           {/* User Stats */}
           <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-4 rounded-xl bg-white/5 border border-white/5">
-              <div className="text-2xl font-bold text-blue-400 mb-1">{followers.length}</div>
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider">Followers</div>
-            </div>
-            <div className="text-center p-4 rounded-xl bg-white/5 border border-white/5">
-              <div className="text-2xl font-bold text-green-400 mb-1">{following.length}</div>
-              <div className="text-xs font-medium text-gray-400 uppercase tracking-wider">Following</div>
-            </div>
+            
             <div className="text-center p-4 rounded-xl bg-white/5 border border-white/5">
               <div className="text-2xl font-bold text-purple-400 mb-1">{0}</div>
               <div className="text-xs font-medium text-gray-400 uppercase tracking-wider">Posts</div>
@@ -115,12 +106,12 @@ export function UserDetailsModal({ isOpen, onClose, user, followers, following }
           </div>
 
           {/* Mutual Followers (if available) */}
-          {followers.length > 0 && (
+          {/*followers.length > 0 && (
             <div className="flex items-center space-x-2 text-sm text-gray-400 bg-white/5 p-3 rounded-lg border border-white/5 w-fit">
               <Users className="h-4 w-4 text-purple-400" />
               <span><span className="text-white font-medium">{followers.length}</span> mutual connections</span>
             </div>
-          )}
+          )*/}
 
           <div className="h-px bg-white/5 w-full" />
 

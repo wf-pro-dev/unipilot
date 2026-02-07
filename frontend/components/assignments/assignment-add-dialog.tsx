@@ -60,7 +60,6 @@ export function AssignmentAddDialog({ isOpen, onClose }: AssignmentAddDialogProp
   const [step, setStep] = useState(1)
   const [step1Attempted, setStep1Attempted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedCourse, setSelectedCourse] = useState<models.LocalCourse | undefined>(undefined)
 
   const form = useForm<AssignmentValues>({
     resolver: zodResolver(assignmentSchema),
@@ -205,7 +204,6 @@ export function AssignmentAddDialog({ isOpen, onClose }: AssignmentAddDialogProp
                           <CoursesSelect
                             value={field.value}
                             onValueChange={field.onChange}
-                            selectedCourse={selectedCourse}
                           />
                           <FormErrorMessage
                             fieldState={fieldState}

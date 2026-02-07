@@ -10,12 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type RemoteUser struct {
-	models.User
-	CoursesCode []string
-}
-
-func GetRemoteUsers() ([]RemoteUser, error) {
+func GetRemoteUsers() ([]models.User, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	agent := fiber.Get(fmt.Sprintf("%s/users", api_url))
@@ -33,7 +28,7 @@ func GetRemoteUsers() ([]RemoteUser, error) {
 		return nil, serverError.ToServerError(statusCode)
 	}
 
-	var response []RemoteUser
+	var response []models.User
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse response")
 	}

@@ -236,7 +236,7 @@ func (a *App) CreateCourse(courseData *models.LocalCourse) error {
 	return nil
 }
 
-func (a *App) CreateNote(noteData *models.LocalNote) error {
+func (a *App) CreateNote(noteData models.LocalNote) error {
 
 	if !network.IsOnline() {
 		return Errors.Wrap(fmt.Errorf("no network connection"), Errors.NetworkOffline, "No network connection")
@@ -256,19 +256,39 @@ func (a *App) CreateNote(noteData *models.LocalNote) error {
 
 	db := a.DB.GetDB()
 
-	// Create the note within the transaction
-	if err := db.Create(noteData).Error; err != nil {
-		return Errors.HandleDBWriteError(err)
-	}
+	err := db.Transaction(func(tx *gorm.DB) error {
 
-	remoteNote := noteData.ToRemote(a.Auth.User.ID)
+		newNote := &noteData
 
-	if err := client.CreateNote(remoteNote); err != nil {
-		return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to create note")
-	}
+		log.Println("note Before Create", newNote.ID)
 
-	if err := db.Model(noteData).Update("synced_at", time.Now()).Error; err != nil {
-		return Errors.HandleDBWriteError(err)
+		if err := tx.Create(newNote).Error; err != nil {
+			log.Println("note Create Error", err)
+			return Errors.HandleDBWriteError(err)
+		}
+
+		log.Println("note After Create", newNote.ID)
+
+		remoteNote := newNote.ToRemote(a.Auth.User.ID)
+
+		isOnline := network.IsOnline()
+		if isOnline {
+
+			if err := client.CreateNote(remoteNote); err != nil {
+				return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to create note")
+			}
+
+			if err := tx.Model(newNote).Update("synced_at", time.Now()).Error; err != nil {
+				return Errors.HandleDBWriteError(err)
+			}
+
+			log.Println("note After Update", newNote.ID)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return Errors.Wrap(err, Errors.DBTransactionFailed, "Failed to create note")
 	}
 
 	return nil
@@ -302,7 +322,7 @@ func (a *App) PickFile() (string, error) {
 }
 
 // UploadDocument opens a file dialog and uploads a document to an assignment
-func (a *App) UploadDocument(documentID, assignmentID, documentType, filePath string, version int) (*models.LocalDocument, error) {
+func (a *App) UploadDocument(documentID, assignmentID, documentType, filePath string) (*models.LocalDocument, error) {
 
 	if a.DB == nil {
 		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
@@ -340,10 +360,12 @@ func (a *App) UploadDocument(documentID, assignmentID, documentType, filePath st
 			FileName:     fileops.GetFileName(filePath),
 			FilePath:     filePath,
 			FileSize:     fileInfo.Size(),
-			Version:      version,
+			Version:      1,
 			HasLocalFile: true,
 		},
 	}
+
+	log.Println("Uploading document", document.ID, document.FileSize)
 
 	err = a.CreateDocument(document)
 	if err != nil {
@@ -356,6 +378,8 @@ func (a *App) UploadDocument(documentID, assignmentID, documentType, filePath st
 
 func (a *App) CreateDocument(document *models.LocalDocument) error {
 
+	log.Println("Creating document (app)", document.ID, document.FileSize)
+
 	var err error
 
 	err = a.DB.CreateDocument(a.ctx, document)
@@ -363,55 +387,47 @@ func (a *App) CreateDocument(document *models.LocalDocument) error {
 		return err
 	}
 
+	log.Println("Document created (app)", document.ID, document.FileSize, document.HasLocalFile)
+
 	if document.HasLocalFile {
 		return a.uploadDocumentWithProgress(document)
-	}
-
-	err = a.SendDocument(document)
-	if err != nil {
-		return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to send document")
+	} else {
+		err = a.SendDocument(document)
+		if err != nil {
+			return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to send document")
+		}
 	}
 
 	return nil
 }
 
-func (a *App) uploadDocumentWithProgress(doc *models.LocalDocument) error {
+func (a *App) uploadDocumentWithProgress(document *models.LocalDocument) error {
 
+	log.Println("Uploading document with progress", document.ID, document.FileSize)
 	// Initialize progress manager (reuse if exists, or create new)
 	progressManager := progress.GetManager(a.ctx)
 
 	// Create progress tracker
-	fileProgress := progressManager.Create(doc.ID, doc.FileSize)
+	fileProgress := progressManager.Create(document.ID, document.FileSize)
 
 	// Register progress callback to emit events to frontend
 	fileProgress.OnProgress(func(p *progress.Progress) {
 		snapshot := p.Snapshot()
 
 		if snapshot.Error != nil {
-			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:error:%s", doc.ID), map[string]interface{}{
-				"upload_id": doc.ID,
+			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:error:%s", document.ID), map[string]interface{}{
+				"upload_id": document.ID,
 				"error":     snapshot.Error.Error(),
 			})
 		} else {
 			snapshot.Percentage = snapshot.Percentage * 0.2
-			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:progress:%s", doc.ID), snapshot)
+			runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:progress:%s", document.ID), snapshot)
 		}
 
 	})
 
-	// Emit started event
-	runtime.EventsEmit(a.ctx, fmt.Sprintf("upload:started:%s", doc.ID), map[string]string{
-		"upload_id": doc.ID,
-		"file_name": doc.FileName,
-	})
-
-	// Create cancellable context
-	ctx, cancel := context.WithCancel(a.ctx)
-	progress.StoreCancelFunc(doc.ID, cancel)
-	defer progress.RemoveCancelFunc(doc.ID)
-
 	// Perform upload with progress tracking
-	err := a.sendDocumentWithProgress(ctx, doc, fileProgress)
+	err := a.sendDocumentWithProgress(a.ctx, document, fileProgress)
 	if err != nil {
 		fileProgress.SetError(err)
 		return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to send document")
@@ -422,6 +438,7 @@ func (a *App) uploadDocumentWithProgress(doc *models.LocalDocument) error {
 // sendDocumentWithProgress sends document to server with progress tracking
 func (a *App) sendDocumentWithProgress(ctx context.Context, document *models.LocalDocument, fileProgress *progress.Progress) error {
 
+	log.Println("Sending document with progress", document.ID, document.FileSize)
 	if a.DB == nil {
 		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
 	}
@@ -434,14 +451,14 @@ func (a *App) sendDocumentWithProgress(ctx context.Context, document *models.Loc
 	// Upload to server
 
 	// Send document with progress tracking
-	serverResponse, clientErr := client.SendDocumentWithProgress(ctx, document, fileProgress)
+	storageKey, clientErr := client.SendDocumentWithProgress(ctx, document, fileProgress)
 	if clientErr != nil {
 		return Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
 	}
 
 	if err := db.Model(document).
 		Update("synced_at", time.Now()).
-		Update("storage_key", &serverResponse.StorageKey).Error; err != nil {
+		Update("storage_key", storageKey).Error; err != nil {
 		return Errors.HandleDBWriteError(err)
 	}
 
@@ -566,14 +583,14 @@ func (a *App) SendDocument(document *models.LocalDocument) error {
 
 		db := a.DB.GetDB()
 
-		serverResponse, clientErr := client.SendDocument(document)
+		storageKey, clientErr := client.SendDocument(document)
 		if clientErr != nil {
 			return Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
 		}
 
 		if err := db.Model(document).
 			Update("synced_at", time.Now()).
-			Update("storage_key", &serverResponse.StorageKey).Error; err != nil {
+			Update("storage_key", storageKey).Error; err != nil {
 			return Errors.HandleDBWriteError(err)
 		}
 
@@ -987,6 +1004,7 @@ func (a *App) Login(username, password string) (*models.User, error) {
 
 			// Install daemon service only if not already installed
 			// This ensures each user gets their own service instance
+			fmt.Println("Checking if daemon is installed for user", daemonMgr.IsDaemonInstalled())
 			if !daemonMgr.IsDaemonInstalled() {
 				if err := daemonMgr.InstallDaemon(); err != nil {
 					log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to install notification daemon").Error())
@@ -1038,24 +1056,24 @@ func (a *App) Logout() error {
 
 	//Stop and uninstall daemon service before logout
 	//This ensures the service is removed so another user can install their own
-	if a.Daemon != nil {
-		// Stop the daemon first
-		if err := a.Daemon.StopDaemon(); err != nil {
-			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to stop notification daemon"))
-		} else {
-			log.Println("Notification daemon stopped successfully")
-		}
+	// if a.Daemon != nil {
+	// 	// Stop the daemon first
+	// 	if err := a.Daemon.StopDaemon(); err != nil {
+	// 		log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to stop notification daemon"))
+	// 	} else {
+	// 		log.Println("Notification daemon stopped successfully")
+	// 	}
 
-		// Uninstall the daemon service
-		if err := a.Daemon.UninstallDaemon(); err != nil {
-			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to uninstall notification daemon"))
-		} else {
-			log.Println("Notification daemon uninstalled successfully")
-		}
+	// 	// Uninstall the daemon service
+	// 	if err := a.Daemon.UninstallDaemon(); err != nil {
+	// 		log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to uninstall notification daemon"))
+	// 	} else {
+	// 		log.Println("Notification daemon uninstalled successfully")
+	// 	}
 
-		// Clear daemon manager reference
-		a.Daemon = nil
-	}
+	// 	// Clear daemon manager reference
+	// 	a.Daemon = nil
+	// }
 
 	return nil
 
@@ -1347,15 +1365,81 @@ func (a *App) GetCourseAssignments(course *models.LocalCourse) ([]models.LocalAs
 }
 
 // GetRemoteUsers returns all users from the remote server
-func (a *App) GetRemoteUsers() ([]client.RemoteUser, error) {
+func (a *App) GetRemoteUsers() ([]models.User, error) {
 	if !a.Auth.IsAuthenticated() {
-		return []client.RemoteUser{}, nil
+		return []models.User{}, nil
 	}
 	users, err := client.GetRemoteUsers()
 	if err != nil {
-		return []client.RemoteUser{}, err
+		return []models.User{}, err
 	}
 	return users, nil
+}
+
+func (a *App) GetFriendShipStatus(userID string) (*client.FriendStatusResponse, error) {
+	if !a.Auth.IsAuthenticated() {
+		return nil, nil
+	}
+	friendshipStatus, err := client.GetFriendShipStatus(userID)
+	if err != nil {
+		return nil, err
+	}
+	return friendshipStatus, nil
+}
+
+func (a *App) GetFriends(userID string, limit, offset int) ([]models.User, error) {
+	if !a.Auth.IsAuthenticated() {
+		return []models.User{}, nil
+	}
+	users, err := client.GetFriends(userID, limit, offset)
+	if err != nil {
+		return []models.User{}, err
+	}
+	return users, nil
+}
+
+func (a *App) SendFriendRequest(userID string) error {
+	if !a.Auth.IsAuthenticated() {
+		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
+	}
+	err := client.SendFriendRequest(userID)
+	if err != nil {
+		return Errors.Wrap(err, Errors.SysExecFailed, "Failed to send friend request")
+	}
+	return nil
+}
+
+func (a *App) AcceptFriendRequest(userID string) error {
+	if !a.Auth.IsAuthenticated() {
+		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
+	}
+	err := client.AcceptFriendRequest(userID)
+	if err != nil {
+		return Errors.Wrap(err, Errors.SysExecFailed, "Failed to accept friend request")
+	}
+	return nil
+}
+
+func (a *App) CancelFriendRequest(userID string) error {
+	if !a.Auth.IsAuthenticated() {
+		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
+	}
+	err := client.CancelFriendRequest(userID)
+	if err != nil {
+		return Errors.Wrap(err, Errors.SysExecFailed, "Failed to cancel friend request")
+	}
+	return nil
+}
+
+func (a *App) RemoveFriend(userID string) error {
+	if !a.Auth.IsAuthenticated() {
+		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
+	}
+	err := client.RemoveFriend(userID)
+	if err != nil {
+		return Errors.Wrap(err, Errors.SysExecFailed, "Failed to remove friend")
+	}
+	return nil
 }
 
 // GetNetworkStatus returns the current network connectivity status
@@ -1524,7 +1608,7 @@ func (a *App) AcceptNote(noteData string) error {
 	// Convert Base Note to LocalNote
 	localNote := remoteNote.ToLocal()
 
-	if err := a.CreateNote(localNote); err != nil {
+	if err := a.CreateNote(*localNote); err != nil {
 		return Errors.Wrap(err, Errors.DBQueryFailed, "Failed to create note")
 	}
 

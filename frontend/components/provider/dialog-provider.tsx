@@ -8,6 +8,8 @@ import { AssignmentAddDialog } from "../assignments/assignment-add-dialog"
 import { CourseAddDialog } from "../courses/course-add-dialog"
 import { LinkRequestModal } from "../community/link-request-modal"
 import { models } from "@/wailsjs/go/models"
+import { NoteAddDialog } from "../notes/note-add-dialog"
+import { NoteDetailsDialog } from "../notes/note-detail-dialog"
 
 interface DialogProviderProps {
     children: ReactNode
@@ -47,6 +49,7 @@ export function DialogProvider({ children }: DialogProviderProps) {
 
     const [noteAdd, setNoteAdd] = useState<boolean>(false)
     const [noteDetailsID, setNoteDetailsID] = useState<string | undefined>(undefined)
+    const [noteDetailsItem, setNoteDetailsItem] = useState<models.Note | undefined>(undefined)
     const [noteEditID, setNoteEditID] = useState<string | undefined>(undefined)
 
     const [userDetailsID, setUserDetailsID] = useState<string | undefined>(undefined)
@@ -62,18 +65,18 @@ export function DialogProvider({ children }: DialogProviderProps) {
         item = undefined,
         viewMode = "default"
     }: DialogProps) {
-        
+
         setViewMode(viewMode)
         switch (modelType) {
             case "assignment":
                 switch (dialogType) {
                     case "details":
-                       
-                        open ? setAssignmentDetailsID(id) : setAssignmentDetailsID(undefined) 
+
+                        open ? setAssignmentDetailsID(id) : setAssignmentDetailsID(undefined)
                         if (viewMode == "readonly" && item) setAssignmentDetailsItem(item as models.Assignment)
                         break
                     case "edit":
-                            open ? setAssignmentEditID(id) : setAssignmentEditID(undefined)
+                        open ? setAssignmentEditID(id) : setAssignmentEditID(undefined)
                         break
                     case "add":
                         open ? setAssignmentAdd(true) : setAssignmentAdd(false)
@@ -83,7 +86,7 @@ export function DialogProvider({ children }: DialogProviderProps) {
             case "course":
                 switch (dialogType) {
                     case "details":
-                    
+
                         open ? setCourseDetailsID(id) : setCourseDetailsID(undefined)
                         if (viewMode == "readonly" && item) setCourseDetailsItem(item as models.Course)
                         break
@@ -105,9 +108,13 @@ export function DialogProvider({ children }: DialogProviderProps) {
                 switch (dialogType) {
                     case "details":
                         open ? setNoteDetailsID(id) : setNoteDetailsID(undefined)
+                        if (viewMode == "readonly" && item) setNoteDetailsItem(item as models.Note)
                         break
                     case "edit":
                         open ? setNoteEditID(id) : setNoteEditID(undefined)
+                        break
+                    case "add":
+                        open ? setNoteAdd(true) : setNoteAdd(false)
                         break
                 }
                 break
@@ -123,7 +130,7 @@ export function DialogProvider({ children }: DialogProviderProps) {
         }
     }
 
-   
+
 
     return (
         <DialogContext.Provider value={{ SetDialogState }}>
@@ -192,6 +199,24 @@ export function DialogProvider({ children }: DialogProviderProps) {
                 courseID={courseLinkRequestID!}
                 isOpen={courseLinkRequestID !== undefined}
                 onClose={() => setCourseLinkRequestID(undefined)}
+            />
+
+            <NoteDetailsDialog
+                key={noteDetailsID}
+                noteId={noteDetailsID!}
+                noteRO={noteDetailsItem as models.Note}
+                isOpen={noteDetailsID !== undefined || noteDetailsItem !== undefined}
+                onClose={() => {
+                    setNoteDetailsID(undefined)
+                    setNoteDetailsItem(undefined)
+                    setViewMode("default")
+                }}
+                mode={viewMode}
+            />
+
+            <NoteAddDialog
+                isOpen={noteAdd}
+                onClose={() => setNoteAdd(false)}
             />
 
         </DialogContext.Provider>

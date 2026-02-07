@@ -3,6 +3,7 @@ package fileops
 import (
 	"context"
 	"io"
+	"log"
 	"mime"
 	"os"
 	"path/filepath"
@@ -72,26 +73,33 @@ func GetMimeType(fileName string) string {
 // WriteDocument writes a document to the local file system
 func WriteDocument(document *models.LocalDocument, db *gorm.DB) error {
 
+	log.Println("Writing document", document.ID, document.FileSize)
+
+	// Open file content
+	fileContent, err := os.Open(document.FilePath)
+	if err != nil {
+		return errors.Wrap(err, errors.FSOpenFailed, "Failed to open file")
+	}
+	defer fileContent.Close()
+
+	// Get new file path
+	filePath := GetFilePath(document)
 	// Create directory if it doesn't exist
-	if err := os.MkdirAll(filepath.Dir(document.FilePath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 
 		return errors.Wrap(err, errors.FSDirFailed, "Failed to create directory")
 	}
 
 	// Write file to disk
-	if err := WriteFile(document.FilePath, document.FileContent); err != nil {
+	if err := WriteFile(filePath, fileContent); err != nil {
 		// Clean up database record
 		db.Delete(&document)
 		return errors.Wrap(err, errors.FSWriteFailed, "Failed to write file")
 	}
 
-	// Update HasLocalFile to true after successful write
-	document.HasLocalFile = true
-	if err := db.Model(&document).Updates(map[string]interface{}{
-		"has_local_file": true,
-	}).Error; err != nil {
-		return errors.Wrap(err, errors.DBQueryFailed, "Failed to update HasLocalFile")
-	}
+	document.FilePath = filePath // Update file path
+
+	log.Println("Document written", document.ID, document.FileSize)
 
 	return nil
 }

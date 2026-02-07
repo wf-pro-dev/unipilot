@@ -1,7 +1,7 @@
 "use client"
 import { NoteAddDialog } from "@/components/notes/note-add-dialog"
 import { NoteView } from "@/components/notes/note-view"
-import { NoteDetailModal } from "@/components/notes/note-detail-modal"
+import { NoteDetailModal } from "@/components/notes/note-detail-dialog"
 import { useNotes, useDeleteNote, useUpdateNote, useCreateNote } from "@/hooks/use-notes"
 import { models } from "@/wailsjs/go/models"
 import { useState } from "react"
@@ -89,7 +89,7 @@ export default function NotesPage() {
             type="button"
             variant="default"
             className="text-body text-black"
-            onClick={() => SetDialogState({ modelType: "note", dialogType: "add" })}
+            onClick={() => SetDialogState({ modelType: "note", dialogType: "add", id: "add-note" })}
           >
             <Plus className="h-4 w-4" strokeWidth={2} />
             Add Note

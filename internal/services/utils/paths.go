@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -55,7 +54,7 @@ func getUserDirWithID(userID string) (string, error) {
 		return "", errors.Wrap(err, errors.FSFileNotFound, "Failed to get main directory")
 	}
 
-	userDir := filepath.Join(mainDir, fmt.Sprintf("user_%s", userID))
+	userDir := filepath.Join(mainDir, "users", userID)
 
 	if err := os.MkdirAll(userDir, 0755); err != nil {
 		return "", errors.Wrap(err, errors.FSDirCreateFailed, "Failed to create user directory")

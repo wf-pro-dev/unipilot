@@ -9,11 +9,11 @@ import { useUsers } from "@/hooks/use-users"
 import { useCourses } from "@/hooks/use-courses"
 import { useAssignments } from "@/hooks/use-assignments"
 import { useNotes } from "@/hooks/use-notes"
+import { useFriends } from "@/hooks/use-friends"
 
 interface AuthContextType {
   user: models.User | null | undefined
-  followers: models.User[] | undefined
-  following: models.User[] | undefined
+  friends: models.User[] | undefined
   users: models.User[] | undefined
   courses: models.LocalCourse[] | undefined
   assignments: models.LocalAssignment[] | undefined
@@ -37,8 +37,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
 
   const { data: user, isLoading: isLoadingUser } = useCurrentUser()
-  const { data: followers, refetch: refetchFollowers } = useFollowers(user?.ID ?? 0)
-  const { data: following, refetch: refetchFollowing } = useFollowing(user?.ID ?? 0)
+  const { data: friends, refetch: refetchFriends } = useFriends(user?.ID!, 9 , 0)
   const { data: users, refetch: refetchUsers } = useUsers()
   const { data: courses, refetch: refetchCourses } = useCourses()
   const { data: assignments, refetch: refetchAssignments } = useAssignments()
@@ -47,8 +46,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   useEffect(() => {
     if (user) {
-      refetchFollowers()
-      refetchFollowing()
+      refetchFriends()
       refetchUsers()
       refetchCourses()
       refetchAssignments()
@@ -66,7 +64,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     <div>
       {
         user ? (
-          <AuthContext.Provider value={{ user, followers, following, users, courses, assignments, notes }
+          <AuthContext.Provider value={{ user, friends, users, courses, assignments, notes }
           }>
             {children}
           </AuthContext.Provider >

@@ -23,12 +23,6 @@ import (
 )
 
 // DocCreateResp represents the server response
-type DocCreateResp struct {
-	RemoteID           string `json:"remote_id"`
-	RemoteAssignmentID string `json:"remote_assignment_id"`
-	StorageKey         string `json:"storage_key"`
-}
-
 // GetDocuments retrieves all documents
 func GetDocuments() ([]models.Document, error) {
 
@@ -88,7 +82,7 @@ func GetAssignmentDocuments(assignmentID string) ([]models.Document, error) {
 }
 
 // sendMultipartFile sends file using multipart/form-data with your authenticated client
-func SendDocument(localDocument *models.LocalDocument) (*DocCreateResp, error) {
+func SendDocument(localDocument *models.LocalDocument) (string, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
 	var url string = fmt.Sprintf("%s/documents", api_url)
@@ -101,7 +95,7 @@ func SendDocument(localDocument *models.LocalDocument) (*DocCreateResp, error) {
 	// Create form file field
 	fileWriter, err := writer.CreateFormFile("file", localDocument.FileName)
 	if err != nil {
-		return nil, fmt.Errorf("error creating form file: %v", err)
+		return "", fmt.Errorf("error creating form file: %v", err)
 	}
 
 	if localDocument.HasLocalFile {
@@ -109,14 +103,14 @@ func SendDocument(localDocument *models.LocalDocument) (*DocCreateResp, error) {
 		// Open the file
 		fileContent, err := os.Open(localDocument.FilePath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open file: %w", err)
+			return "", fmt.Errorf("failed to open file: %w", err)
 		}
 		defer fileContent.Close()
 
 		// Copy file content to form
 		_, err = io.Copy(fileWriter, fileContent)
 		if err != nil {
-			return nil, fmt.Errorf("error copying file content: %v", err)
+			return "", fmt.Errorf("error copying file content: %v", err)
 		}
 
 	}
@@ -124,17 +118,17 @@ func SendDocument(localDocument *models.LocalDocument) (*DocCreateResp, error) {
 	// Add metadata part
 	metadataWriter, err := writer.CreateFormField("metadata")
 	if err != nil {
-		return nil, fmt.Errorf("error creating form field: %v", err)
+		return "", fmt.Errorf("error creating form field: %v", err)
 	}
 
 	metadataJSON, err := json.Marshal(localDocument)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling metadata: %v", err)
+		return "", fmt.Errorf("error marshalling metadata: %v", err)
 	}
 
 	_, err = metadataWriter.Write(metadataJSON)
 	if err != nil {
-		return nil, fmt.Errorf("error writing metadata: %v", err)
+		return "", fmt.Errorf("error writing metadata: %v", err)
 	}
 
 	// Close the writer to finalize the multipart message
@@ -143,7 +137,7 @@ func SendDocument(localDocument *models.LocalDocument) (*DocCreateResp, error) {
 	// Create HTTP request using your server URL
 	req, err := http.NewRequest("POST", url, &buf)
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
+		return "", fmt.Errorf("error creating request: %v", err)
 	}
 
 	// Set headers - the Content-Type is crucial for multipart
@@ -151,42 +145,44 @@ func SendDocument(localDocument *models.LocalDocument) (*DocCreateResp, error) {
 
 	// Set auth header with token refresh
 	if err := SetAuthHeaderRequest(req); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	// Send request using default client
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error sending request: %v", err)
+		return "", fmt.Errorf("error sending request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	// Read response
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error reading response: %v", err)
+		return "", fmt.Errorf("error reading response: %v", err)
 	}
 
 	// Success - parse response
-	var uploadResp DocCreateResp
-	if err := json.Unmarshal(respBody, &uploadResp); err != nil {
-		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse success response")
+	var storageKey string
+	if err := json.Unmarshal(respBody, &storageKey); err != nil {
+		return "", errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse success response")
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		var serverError *errors.AppError
 		if err := json.Unmarshal(respBody, &serverError); err != nil {
-			return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
+			return "", errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 		}
-		return nil, serverError.ToServerError(resp.StatusCode)
+		return "", serverError.ToServerError(resp.StatusCode)
 	}
 
-	return &uploadResp, nil
+	return storageKey, nil
 
 }
 
 // SendDocumentWithProgress sends document with progress tracking
-func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDocument, fileProgress *progress.Progress) (*DocCreateResp, error) {
+func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDocument, fileProgress *progress.Progress) (string, error) {
+
+	log.Println("Sending document with progress (client)", localDocument.ID, localDocument.FileSize)
 	api_url := secrets.CONSTANTS["API_URL"]
 	url := fmt.Sprintf("%s/documents", api_url)
 
@@ -197,14 +193,14 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 	// Create form file field
 	fileWriter, err := writer.CreateFormFile("file", localDocument.FileName)
 	if err != nil {
-		return nil, fmt.Errorf("error creating form file: %v", err)
+		return "", fmt.Errorf("error creating form file: %v", err)
 	}
 
 	if localDocument.HasLocalFile {
 		// Open the file
 		fileContent, err := os.Open(localDocument.FilePath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open file: %w", err)
+			return "", fmt.Errorf("failed to open file: %w", err)
 		}
 		defer fileContent.Close()
 
@@ -214,24 +210,25 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 		// Copy file content with progress tracking
 		_, err = io.Copy(fileWriter, progressReader)
 		if err != nil {
-			return nil, fmt.Errorf("error copying file content: %v", err)
+			return "", fmt.Errorf("error copying file content: %v", err)
 		}
+
 	}
 
 	// Add metadata
 	metadataWriter, err := writer.CreateFormField("metadata")
 	if err != nil {
-		return nil, fmt.Errorf("error creating form field: %v", err)
+		return "", fmt.Errorf("error creating form field: %v", err)
 	}
 
 	metadataJSON, err := json.Marshal(localDocument)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling metadata: %v", err)
+		return "", fmt.Errorf("error marshalling metadata: %v", err)
 	}
 
 	_, err = metadataWriter.Write(metadataJSON)
 	if err != nil {
-		return nil, fmt.Errorf("error writing metadata: %v", err)
+		return "", fmt.Errorf("error writing metadata: %v", err)
 	}
 
 	writer.Close()
@@ -239,13 +236,13 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 	// Create HTTP request with context for cancellation
 	req, err := http.NewRequestWithContext(ctx, "POST", url, &buf)
 	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
+		return "", fmt.Errorf("error creating request: %v", err)
 	}
 
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	if err := SetAuthHeaderRequest(req); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	// Initialize progress manager (reuse if exists, or create new)
@@ -281,40 +278,37 @@ func SendDocumentWithProgress(ctx context.Context, localDocument *models.LocalDo
 			},
 		},
 	}
-
 	go GetProgress(ctx, localDocument.ID, 60)
 	resp, err := httpClient.Do(req)
 	if err != nil {
 
 		// Check if cancelled
 		if ctx.Err() == context.Canceled {
-			return nil, fmt.Errorf("upload cancelled")
+			return "", fmt.Errorf("upload cancelled")
 		}
 
 		progress.GetManager(ctx).Remove(localDocument.ID)
-		return nil, fmt.Errorf("error sending request: %v", err)
+		return "", fmt.Errorf("error sending request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error reading response: %v", err)
+		return "", fmt.Errorf("error reading response: %v", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		var serverError *errors.AppError
 		if err := json.Unmarshal(respBody, &serverError); err != nil {
-			return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
+			return "", errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
 		}
-		return nil, serverError.ToServerError(resp.StatusCode)
+		return "", serverError.ToServerError(resp.StatusCode)
 	}
 
-	var uploadResp DocCreateResp
-	if err := json.Unmarshal(respBody, &uploadResp); err != nil {
-		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse success response")
-	}
+	storageKey := string(respBody)
+	fmt.Println(storageKey)
 
-	return &uploadResp, nil
+	return storageKey, nil
 }
 
 // SendDocument remains for metadata-only uploads (no progress tracking)

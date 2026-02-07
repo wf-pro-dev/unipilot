@@ -3,7 +3,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogError } from "@/wailsjs/runtime/runtime"
 import { models} from '@/wailsjs/go/models'
-import { assignmentKeys } from './use-assignments'
+import { toast } from 'sonner'
+import { CreateNote } from '@/wailsjs/go/main/App'
 
 // Query keys for consistent cache management
 export const noteKeys = {
@@ -31,6 +32,22 @@ export function useNotes() {
     staleTime: 2 * 60 * 1000, // Notes change frequently - 2 minutes
     gcTime: 10 * 60 * 1000,   // Keep in cache for 10 minutes
   })
+}
+
+export function useNote(noteID: string) {
+  
+  // Directly subscribe to assignment cache changes
+  const { data: notes } = useQuery({
+    queryKey: noteKeys.lists(),
+    enabled: false,
+  })
+  
+  const currentNote = (notes as models.LocalNote[])?.find(n => n.ID === noteID)
+  return {
+    data: currentNote,
+    isLoading: false,
+    isError: false,
+  }
 }
 
 // Hook for updating notes with optimistic updates
@@ -92,7 +109,7 @@ export function useCreateNote() {
   
   return useMutation({
     mutationFn: async (newNote: models.LocalNote) => {
-      return await window.go.main.App.CreateNote(newNote)
+      return await CreateNote(newNote)
     },
     // Optimistically add the new note
    // Optimistically add the new note
@@ -114,6 +131,10 @@ export function useCreateNote() {
       queryClient.setQueryData(noteKeys.lists(), context.previousNotes)
     }
     LogError("Failed to create note: " + err)
+    toast.error("Failed to create note")
+  },
+  onSuccess: () => {
+    toast.success("Note created successfully")
   },
   
   onSettled: () => {
@@ -196,7 +217,7 @@ export function useAcceptNote() {
 
 export function useCourseNotes(course: models.LocalCourse) {
   const { data: notes } = useNotes()
-  const courseNotes = (notes || []).filter(note => note.CourseCode == course.Code)
+  const courseNotes = (notes || []).filter(note => note.CourseID == course.ID)
   return courseNotes
 }
 

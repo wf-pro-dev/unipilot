@@ -4,59 +4,31 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MessageCircle, UserPlus, UserMinus } from "lucide-react"
-import { useFollow, useFollowers, useFollowing } from "@/hooks/use-follows"
-import { useUsers } from "@/hooks/use-users"
-import { useAuthContext } from "../provider/auth-provider"
+import { useUser } from "@/hooks/use-users"
 import { Skeleton } from "../ui/skeleton"
-import { toast } from "sonner"
 
-import { models} from "@/wailsjs/go/models"
+import { models } from "@/wailsjs/go/models"
 import { UserDetailsModal } from "./user-details-modal"
 import { useState } from "react"
+import { useAcceptFriendRequest, useCancelFriendRequest, useFriendShipStatus, useRemoveFriend, useSendFriendRequest } from "@/hooks/use-friends"
 
 interface UserItemProps {
-  userID: number
+  userID: string
   user?: models.User
 }
 
-export function UserItem({ userID, user: userProp }: UserItemProps) {
+export function UserItem({ userID }: UserItemProps) {
 
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
 
-  const { data: followers, isLoading: followersLoading } = useFollowers(userID)
-  const { data: following, isLoading: followingLoading } = useFollowing(userID)
-
-  const { data: users, isLoading: userLoading } = useUsers()
-  const user = userProp || users?.find((user) => user.ID === userID)
-  const { user: currentUser, followers: currentUserFollowers, following: currentUserFollowing } = useAuthContext()
-
-
-  // Check if current user is following this user by checking if current user is in the followers list
-  const isFollowed = currentUserFollowing?.some((following) => following.ID === userID)
-  // Check if this user is following the current user by checking if the current user is in the following list
-  const isFollowing = currentUserFollowers?.some((follower) => follower.ID === userID)
-
-  const followMutation = useFollow(currentUser!, isFollowed!)
+  const { data: user } = useUser(userID)
+  const { data: friendShipStatus, isLoading: friendShipStatusLoading } = useFriendShipStatus(userID)
+  const { mutate: sendFriendRequest } = useSendFriendRequest(userID)
+  const { mutate: cancelFriendRequest } = useCancelFriendRequest(userID)
+  const { mutate: acceptFriendRequest } = useAcceptFriendRequest(userID)
+  const { mutate: removeFriend } = useRemoveFriend(userID)
 
 
-  const handleFollow = () => {
-    followMutation.mutate(user!, {
-      onSuccess: () => {
-        if (isFollowed) {
-          toast.success("You just unfollowed " + user?.Username)
-        } else {
-          toast.success("You are now following " + user?.Username)
-        }
-      },
-      onError: () => {
-        if (isFollowed) {
-          toast.error("Failed to unfollow " + user?.Username)
-        } else {
-          toast.error("Failed to follow " + user?.Username)
-        }
-      }
-    })
-  }
 
   const handleOpenDetails = () => {
     setIsDetailsOpen(true)
@@ -92,32 +64,24 @@ export function UserItem({ userID, user: userProp }: UserItemProps) {
 
         <div className="space-y-5">
 
-          <div className="grid grid-cols-3 gap-3">
-            <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/5 border border-white/5">
-              {followersLoading ? (
-                <Skeleton className="w-8 h-5 bg-white/10" />
-              ) : (
-                <span className="text-white font-bold text-lg">{followers?.length}</span>
-              )}
-              <span className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mt-0.5">Followers</span>
-            </div>
+          <div className="grid grid-cols-2 gap-4">
 
             <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/5 border border-white/5">
-              {followingLoading ? (
+              {friendShipStatusLoading ? (
                 <Skeleton className="w-8 h-5 bg-white/10" />
               ) : (
-                <span className="text-white font-bold text-lg">{following?.length}</span>
+                <span className="text-white font-bold text-lg">{friendShipStatus?.friends_count}</span>
               )}
               <span className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mt-0.5">Following</span>
             </div>
 
             <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white/5 border border-white/5">
-              <span className="text-white font-bold text-lg">{users?.find(u => u.ID === userID)?.CoursesCode?.length || 0}</span>
+              <span className="text-white font-bold text-lg">{user?.CoursesCode?.length || 0}</span>
               <span className="text-[10px] uppercase tracking-wider text-gray-500 font-medium mt-0.5">Courses</span>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-1.5 items-center min-h-[24px]">
+          <div className="flex flex-wrap gap-1.5 items-center">
             {user?.CoursesCode && user?.CoursesCode?.length > 0 ? (
               <>
                 {user?.CoursesCode?.slice(0, 3).map((course: string) => (
@@ -132,50 +96,70 @@ export function UserItem({ userID, user: userProp }: UserItemProps) {
                 )}
               </>
             ) : (
-              <span className="text-[10px] text-gray-500 italic pl-1">No courses enrolled</span>
+              <span className="text-[10px] text-gray-500 italic">No courses enrolled</span>
             )}
           </div>
 
-          <div className="flex gap-2 pt-1">
-            {isFollowed! ? (
+          <div className="flex gap-2">
+            {friendShipStatus?.status === "accepted" ? (
               <Button
                 variant="outline"
                 size="sm"
                 className="flex-1 text-red-400 bg-red-500/5 border-red-500/20 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/30 transition-all h-9 text-xs font-medium"
                 onClick={(e) => {
                   e.stopPropagation()
-                  handleFollow()
+                  removeFriend()
                 }}
               >
                 <UserMinus className="mr-1.5 w-3.5 h-3.5" />
-                Unfollow
+                Remove Friend
               </Button>
-            ) : isFollowing! ? (
-              <Button
-                variant="default"
-                size="sm"
-                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 transition-all h-9 text-xs font-medium"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleFollow()
-                }}>
-                Follow Back
-              </Button>
-
             ) : (
+              friendShipStatus?.status === "pending" ? (
 
-              <Button
-                variant="default"
-                size="sm"
-                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 transition-all h-9 text-xs font-medium"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleFollow()
-                }}
-              >
-                <UserPlus className="mr-1.5 w-3.5 h-3.5" />
-                Follow
-              </Button>
+                friendShipStatus?.is_pending_for_you ? (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="flex-1 bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 transition-all h-9 text-xs font-medium"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      acceptFriendRequest()
+                    }}>
+                    Accept Request
+                  </Button>
+
+                ) : (
+
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    className="rounded-md flex-1 font-normal"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      cancelFriendRequest()
+                    }}
+                  >
+                    <UserPlus className="mr-1.5 w-3.5 h-3.5" />
+                    Cancel Request
+                  </Button>
+                )
+
+              ) : (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="flex-1 bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 transition-all h-9 text-xs font-medium"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    sendFriendRequest()
+                  }}
+
+                >
+                  <UserPlus className="mr-1.5 w-3.5 h-3.5" />
+                  Add Friend
+                </Button>
+              )
             )}
 
             <Button
@@ -193,8 +177,6 @@ export function UserItem({ userID, user: userProp }: UserItemProps) {
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
         user={user!}
-        followers={followers || []}
-        following={following || []}
       />
     </GlassCard>
   )

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { LogError } from "@/wailsjs/runtime/runtime"
 import { models } from '@/wailsjs/go/models'
 import { GetRemoteUsers } from '@/wailsjs/go/main/App'
+import { assignmentKeys } from './use-assignments'
 
 // Query keys for consistent cache management
 export const userKeys = {
@@ -34,5 +35,20 @@ export function useUsers() {
   })
 }
 
+export function useUser(id: string) { 
+  
+  // Directly subscribe to assignment cache changes
+  const { data: users } = useQuery({
+    queryKey: userKeys.lists(),
+    enabled: false,
+  })
+  
+  const user = (users as models.User[])?.find(u => u.ID === id)
+  return {
+    data: user,
+    isLoading: false,
+    isError: false,
+  }
+}
 // Legacy support - keep the same interface for existing components
 export { useUsers as useUsersLegacy } 

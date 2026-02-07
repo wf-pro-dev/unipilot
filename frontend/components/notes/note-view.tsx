@@ -47,7 +47,7 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
       .filter((note) => {
         const matchesSearch =
           note.Title.toLowerCase().includes(searchTerm.toLowerCase())
-        const matchesCourse = selectedCourse === "all" || note.CourseCode === selectedCourse
+        const matchesCourse = selectedCourse === "all" || note.CourseID === selectedCourse
         return matchesSearch && matchesCourse
       })
       .sort((a, b) => {
@@ -80,7 +80,7 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
           title="No notes found"
           description="Create a note to get started"
           className="flex-1 items-center"
-          onClick={() => SetDialogState({ modelType: "note", dialogType: "add" })}
+          onClick={() => SetDialogState({ modelType: "note", dialogType: "add", id: "add-note" })}
           buttonText="Create Note"
         />
       </div>
@@ -167,14 +167,11 @@ export function NoteView({ title, notes, onNoteClick, onDelete, onEdit, filter, 
 
 
         <div>
-          <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-3">
             {(filteredNotes || []).map((note, index) => (
               <NoteItem
                 key={note.ID}
-                note={note}
-                onEdit={onEdit}
-                onDelete={onDelete}
-                onNoteClick={onNoteClick}
+                noteID={note.ID}
                 disabled={isLoading || !note.Content}
               />
             ))}

@@ -5,22 +5,20 @@ import { CardContent, CardFooter } from "@/components/ui/card"
 import { GlassCard } from "@/components/ui/glass-card"
 import { CopyPlus, X } from "lucide-react"
 import { models } from "@/wailsjs/go/models"
-import { useCourses } from "@/hooks/use-courses"
 import { cn } from "@/lib/utils"
 import { parseDeadline } from "@/lib/date-utils"
 import { format } from "date-fns"
 import { Avatar, AvatarImage } from "@radix-ui/react-avatar"
 import { AvatarFallback } from "../ui/avatar"
 import { Badge } from "../ui/badge"
-import { NoteDetailModal } from "./note-detail-modal"
-import { useState } from "react"
+import { useNote, useDeleteNote } from "@/hooks/use-notes"
+import { useDialogContext } from "../provider/dialog-provider"
 
-interface NoteItemProps<T extends models.LocalNote | models.Note> {
-  note: T
-  onNoteClick?: (noteID: number) => void
-  onDelete?: (note: T) => void
+interface NoteItemProps{
+  noteID: string
+  noteRO?: models.LocalNote | models.Note
   disabled?: boolean
-  mode: "default" | "user"
+  mode?: "default" | "user"
   user?: models.User
   onCopy?: (note: models.Note) => void
 }
@@ -28,38 +26,31 @@ interface NoteItemProps<T extends models.LocalNote | models.Note> {
 
 
 export function NoteItem({
-  note,
+  noteID,
+  noteRO,
   mode = "default",
-  onDelete,
-  onNoteClick,
   disabled = false,
   onCopy,
   user,
-}: NoteItemProps<models.LocalNote | models.Note>) {
+}: NoteItemProps) {
 
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-
-  const handleCardClick = () => {
-    setIsDetailModalOpen(true)
-  }
-
-  const handleCloseDetailModal = () => {
-    setIsDetailModalOpen(false)
-  }
+  const { SetDialogState } = useDialogContext()
 
 
   function DefaultNoteItem({
-    note,
-    onDelete,
+    noteID,
     disabled = false,
-    mode = "default",
-  }: NoteItemProps<models.LocalNote>) {
+  }: NoteItemProps) {
   
-    if (!note || !onDelete) return null
+    const { data: note } = useNote(noteID)
+    const { mutate: deleteNote } = useDeleteNote()
+
+
+    if (!note) return null
   
     const handleDelete = (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation()
-      onDelete(note)
+      deleteNote(note as models.LocalNote)
     }
   
   
@@ -68,7 +59,7 @@ export function NoteItem({
         <GlassCard
           variant="outline"
           className={`${disabled ? 'opacity-50' : ''}`}
-          onClick={handleCardClick}
+          onClick={()=>{SetDialogState({ modelType: "note", dialogType: "details", id: noteID })}}
         >
           <CardContent className="p-5">
             <div className="flex items-start space-x-4">
@@ -112,19 +103,18 @@ export function NoteItem({
   }
   
   function UserNoteItem({
-    note,
-    onDelete,
+    noteRO,
     disabled = false,
     onCopy,
     mode = "user",
     user,
-  }: NoteItemProps<models.Note>) {
+  }: NoteItemProps) {
   
-    if (!note || !onCopy || !user) return null
+    if (!noteRO || !onCopy || !user) return null
   
     const handleCopy = (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation()
-      onCopy(note)
+      onCopy(noteRO as models.Note)
     }
   
   
@@ -132,14 +122,14 @@ export function NoteItem({
       <GlassCard
         variant="outline"
         className={`${disabled ? 'opacity-50' : ''}`}
-        onClick={handleCardClick}
+        onClick={()=>{SetDialogState({ modelType: "note", dialogType: "details", id: noteRO.ID })}}
       >
         <CardContent className="p-5">
           <div className="flex items-start space-x-4">
             <div className="flex-1 space-y-3">
               <div className="flex gap-3 justify-between items-start">
                 <div className="space-y-1 flex-1 min-w-0">
-                  <p className="text-caption text-text-caption flex items-center line-clamp-1 leading-relaxed">{note.Subject}</p>
+                  <p className="text-caption text-text-caption flex items-center line-clamp-1 leading-relaxed">{noteRO.Subject}</p>
                 </div>
                 <div className="flex items-center flex-shrink-0">
                   <Button onClick={handleCopy} variant={"outline"} size="icon" className="rounded-full w-7 h-7">
@@ -148,7 +138,7 @@ export function NoteItem({
                 </div>
               </div>
   
-              <h5 className="text-h5 font-medium line-clamp-2 tracking-tight ">{note.Title}</h5>
+              <h5 className="text-h5 font-medium line-clamp-2 tracking-tight ">{noteRO.Title}</h5>
   
               <div className="w-full h-px bg-gray-600">
   
@@ -169,20 +159,15 @@ export function NoteItem({
             </Avatar>
           </Badge>
         </CardFooter>
-        <NoteDetailModal
-          key={note.ID} // Force re-render when note changes
-          note={note}
-          isOpen={isDetailModalOpen}
-          onClose={handleCloseDetailModal}
-        />
+       
       </GlassCard>
     )
   }
 
   switch (mode) {
     case "user":
-      return <UserNoteItem note={note as models.Note} onDelete={onDelete} onNoteClick={onNoteClick} disabled={disabled} onCopy={onCopy} mode={mode} user={user} />
+      return <UserNoteItem noteID={noteID} noteRO={noteRO} disabled={disabled} onCopy={onCopy} mode={mode} user={user} />
     default:
-      return <DefaultNoteItem note={note as models.LocalNote} onDelete={onDelete} onNoteClick={onNoteClick} disabled={disabled} onCopy={onCopy} mode={mode} />
+      return <DefaultNoteItem noteID={noteID} disabled={disabled}  />
   }
 }

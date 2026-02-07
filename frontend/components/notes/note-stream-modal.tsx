@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, X, Sparkles, BookOpen } from "lucide-react"
 import { useCourses } from "@/hooks/use-courses"
-import { StyledMarkdownRenderer } from "./markdown-renderer"
+import { StyledMarkdownRenderer } from "../markdown/markdown-renderer"
 import { useEffect, useRef } from "react"
 import { models } from "@/wailsjs/go/models"
 
@@ -30,8 +30,8 @@ export function NoteStreamModal({
   error
 }: NoteStreamModalProps) {
   const { data: courses } = useCourses()
-  const { CourseCode, Subject, Title } = note
-  const course = courses?.find(c => c.Code === CourseCode)
+  const { CourseID ,Subject, Title } = note
+  const course = courses?.find(c => c.ID === CourseID)
   const contentEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom as content streams

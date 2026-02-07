@@ -123,6 +123,10 @@ func (c *SSE) establishAndStream(httpClient *http.Client) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusUnauthorized {
+		return errors.NewAppError(errors.AuthUnauthorized, "Unauthorized", nil)
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		return errors.NewAppError(errors.ClientResponseInvalid, "Received non-200 status code", nil)
 	}
@@ -142,6 +146,7 @@ func (c *SSE) establishAndStream(httpClient *http.Client) error {
 			if err == io.EOF {
 				return errors.NewAppError(errors.NetworkConnectionFailed, "Server closed connection (EOF)", nil)
 			}
+			log.Printf("[SSEClient] Error reading from SSE stream: %v %v", line, err)
 			return errors.Wrap(err, errors.FSStreamFailed, "Error reading from SSE stream")
 		}
 

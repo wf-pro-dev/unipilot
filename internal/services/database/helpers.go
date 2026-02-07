@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
@@ -122,24 +123,25 @@ func (h *Database) DeleteNote(note *models.LocalNote) error {
 
 func (h *Database) CreateDocument(ctx context.Context, document *models.LocalDocument) error {
 
+	log.Println("Creating document", document.ID, document.FileSize)
 	var err error
 
-	document.FilePath = fileops.GetFilePath(document) // Reset the file path
+	db := h.db.Debug()
+
+	if document.HasLocalFile {
+		// Upload the document locally
+		err = fileops.WriteDocument(document, db)
+		if err != nil {
+			return errors.Wrap(err, errors.FSWriteFailed, "Failed to write document on disk")
+		}
+	}
 
 	if err = document.Validate(h.db); err != nil {
 		return err
 	}
 
-	if err = h.db.Create(&document).Error; err != nil {
+	if err = db.Create(document).Error; err != nil {
 		return errors.HandleDBCreateError(err)
-	}
-
-	if document.HasLocalFile {
-		// Upload the document locally
-		err = fileops.WriteDocument(document, h.db)
-		if err != nil {
-			return errors.Wrap(err, errors.FSWriteFailed, "Failed to write document on disk")
-		}
 	}
 
 	return nil

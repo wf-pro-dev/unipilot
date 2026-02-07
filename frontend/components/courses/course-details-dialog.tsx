@@ -23,15 +23,13 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { models } from "@/wailsjs/go/models"
-import { useAssignments, useUpdateAssignment } from "@/hooks/use-assignments"
-import { CourseEditDialog } from "./course-edit-dialog"
-import { memo, useCallback, useEffect, useMemo, useState } from "react"
+import { useAssignments } from "@/hooks/use-assignments"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { LogInfo } from "@/wailsjs/runtime/runtime"
 import { format } from "date-fns"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
 import { useCourseNotes, useDeleteNote } from "@/hooks/use-notes"
 import { NoteItem } from "../notes/note-item"
-import { useUpdateNote } from "@/hooks/use-notes"
 import { toast } from "sonner"
 import { Input } from "../ui/input"
 import { useRouter } from "next/navigation"
@@ -43,7 +41,7 @@ import { useDialogContext } from "../provider/dialog-provider"
 interface CourseDetailsDialogProps {
   isOpen: boolean
   onClose: () => void
-  courseId: number
+  courseId: string
   courseRO?: models.Course
   mode?: "default" | "readonly"
 }
@@ -76,7 +74,7 @@ export function CourseDetailsDialog({
   const [selectedIndex, setSelectedIndex] = useState(0)
 
   const course_assignments = useMemo(() => {
-    return (assignments || []).filter((assignment: models.LocalAssignment) => assignment.CourseCode === course?.Code) || []
+    return (assignments || []).filter((assignment: models.LocalAssignment) => assignment.Course?.ID === course?.ID) || []
   }, [assignments, course])
 
   const completed_assignments_count = useMemo(() => {
@@ -358,7 +356,7 @@ export function CourseDetailsDialog({
                         <div className="flex -ml-4 py-2">
                           {filteredNotes.map((note) => (
                             <div className="flex-none w-full min-w-0 pl-4" key={note.ID}>
-                              <NoteItem note={note} onDelete={handleDeleteNote} mode="default" />
+                              <NoteItem noteID={note.ID}  mode="default" />
                             </div>
                           ))}
                         </div>

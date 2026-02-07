@@ -60,8 +60,7 @@ const navItems = [
   {
     href: "/community", label: "Community", icon: Users, items: [
       { href: "/community?view=explore", label: "Explore" },
-      { href: "/community?view=followers", label: "Followers" },
-      { href: "/community?view=following", label: "Following" },
+      { href: "/community?view=friends", label: "Friends" },
       { href: "/community?view=social", label: "Social" },
     ]
   },
@@ -156,6 +155,7 @@ export function MainSidebar() {
                             <item.icon width={16} height={16} strokeWidth={1.5} />
                             <span className="group-data-[collapsible=icon]:hidden">{item.label}</span>
                           </Link>
+                          
                           <CollapsibleTrigger asChild>
                             <div role="button" className="hover:bg-white/10 rounded-sm cursor-pointer group-data-[collapsible=icon]:hidden">
                               <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />

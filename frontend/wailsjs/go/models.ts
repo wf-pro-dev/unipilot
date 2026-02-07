@@ -1,150 +1,24 @@
 export namespace client {
 	
-	export class RemoteUser {
-	    ID: string;
-	    // Go type: time
-	    CreatedAt: any;
-	    // Go type: time
-	    UpdatedAt: any;
-	    DeletedAt: gorm.DeletedAt;
-	    Username: string;
-	    Email: string;
-	    Password: string;
-	    PasswordHash: string;
-	    Avatar: string;
-	    University: string;
-	    Semester: string;
-	    Year: string;
-	    IsVerified: boolean;
-	    Language: string;
-	    CoursesCode: string[];
-	    // Go type: time
-	    LastSync?: any;
-	    Courses: models.Course[];
-	    Assignments: models.Assignment[];
-	    Notes: models.Note[];
-	    OwnerRequests: models.CourseInvitation[];
-	    ReceiverRequests: models.CourseInvitation[];
-	    SentFriendRequests: models.Friendship[];
-	    ReceivedFriendRequests: models.Friendship[];
-	    CoursesCode: string[];
+	export class FriendStatusResponse {
+	    status?: string;
+	    is_pending_for_you: boolean;
+	    friends_count: number;
+	    pending_request_count: number;
+	    mutual_friends_count: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new RemoteUser(source);
+	        return new FriendStatusResponse(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.ID = source["ID"];
-	        this.CreatedAt = this.convertValues(source["CreatedAt"], null);
-	        this.UpdatedAt = this.convertValues(source["UpdatedAt"], null);
-	        this.DeletedAt = this.convertValues(source["DeletedAt"], gorm.DeletedAt);
-	        this.Username = source["Username"];
-	        this.Email = source["Email"];
-	        this.Password = source["Password"];
-	        this.PasswordHash = source["PasswordHash"];
-	        this.Avatar = source["Avatar"];
-	        this.University = source["University"];
-	        this.Semester = source["Semester"];
-	        this.Year = source["Year"];
-	        this.IsVerified = source["IsVerified"];
-	        this.Language = source["Language"];
-	        this.CoursesCode = source["CoursesCode"];
-	        this.LastSync = this.convertValues(source["LastSync"], null);
-	        this.Courses = this.convertValues(source["Courses"], models.Course);
-	        this.Assignments = this.convertValues(source["Assignments"], models.Assignment);
-	        this.Notes = this.convertValues(source["Notes"], models.Note);
-	        this.OwnerRequests = this.convertValues(source["OwnerRequests"], models.CourseInvitation);
-	        this.ReceiverRequests = this.convertValues(source["ReceiverRequests"], models.CourseInvitation);
-	        this.SentFriendRequests = this.convertValues(source["SentFriendRequests"], models.Friendship);
-	        this.ReceivedFriendRequests = this.convertValues(source["ReceivedFriendRequests"], models.Friendship);
-	        this.CoursesCode = source["CoursesCode"];
+	        this.status = source["status"];
+	        this.is_pending_for_you = source["is_pending_for_you"];
+	        this.friends_count = source["friends_count"];
+	        this.pending_request_count = source["pending_request_count"];
+	        this.mutual_friends_count = source["mutual_friends_count"];
 	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-
-}
-
-export namespace fileops {
-	
-	export class FileUploadRequest {
-	    DocumentID: string;
-	    AssignmentID: string;
-	    UserID: string;
-	    Type: string;
-	    FileName: string;
-	    FilePath: string;
-	    FileSize: number;
-	    FileContent: any;
-	    StorageKey: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new FileUploadRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.DocumentID = source["DocumentID"];
-	        this.AssignmentID = source["AssignmentID"];
-	        this.UserID = source["UserID"];
-	        this.Type = source["Type"];
-	        this.FileName = source["FileName"];
-	        this.FilePath = source["FilePath"];
-	        this.FileSize = source["FileSize"];
-	        this.FileContent = source["FileContent"];
-	        this.StorageKey = source["StorageKey"];
-	    }
-	}
-	export class FileUploadResponse {
-	    LocalDocument?: models.LocalDocument;
-	    Success: boolean;
-	    Message: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new FileUploadResponse(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.LocalDocument = this.convertValues(source["LocalDocument"], models.LocalDocument);
-	        this.Success = source["Success"];
-	        this.Message = source["Message"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
 	}
 
 }
@@ -772,6 +646,7 @@ export namespace models {
 	    AssignmentID: string;
 	    // Go type: time
 	    SyncedAt?: any;
+	    FileContent: any;
 	    Assignment: LocalAssignment;
 	    Parent?: LocalDocument;
 	    Versions: LocalDocument[];
@@ -797,6 +672,7 @@ export namespace models {
 	        this.HasLocalFile = source["HasLocalFile"];
 	        this.AssignmentID = source["AssignmentID"];
 	        this.SyncedAt = this.convertValues(source["SyncedAt"], null);
+	        this.FileContent = source["FileContent"];
 	        this.Assignment = this.convertValues(source["Assignment"], LocalAssignment);
 	        this.Parent = this.convertValues(source["Parent"], LocalDocument);
 	        this.Versions = this.convertValues(source["Versions"], LocalDocument);
@@ -1060,8 +936,8 @@ export namespace models {
 
 export namespace progress {
 	
-	export class TrackerSnapshot {
-	    upload_id: string;
+	export class ProgressSnapshot {
+	    progress_id: string;
 	    total: number;
 	    current: number;
 	    status: string;
@@ -1071,12 +947,12 @@ export namespace progress {
 	    percentage: number;
 	
 	    static createFrom(source: any = {}) {
-	        return new TrackerSnapshot(source);
+	        return new ProgressSnapshot(source);
 	    }
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.upload_id = source["upload_id"];
+	        this.progress_id = source["progress_id"];
 	        this.total = source["total"];
 	        this.current = source["current"];
 	        this.status = source["status"];

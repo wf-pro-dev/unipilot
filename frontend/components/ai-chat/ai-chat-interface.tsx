@@ -11,7 +11,7 @@ import { DefaultChatTransport, generateId } from 'ai';
 import { useConversationHistory, useSaveUIMessage } from '@/hooks/use-aimessages';
 import { UIMessage } from '@ai-sdk/react';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
-import { StyledMarkdownRenderer } from '../notes/markdown-renderer';
+import { StyledMarkdownRenderer } from '../markdown/markdown-renderer';
 import { GlassCard } from '../ui/glass-card';
 import { format } from 'date-fns';
 import { parseDeadline } from '@/lib/date-utils';

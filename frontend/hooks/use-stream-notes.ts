@@ -91,51 +91,35 @@ export function useStreamNote() {
 
                             case 'complete':
                                 // Completion event - streaming finished, now create note locally
-                                try {
-                                    // Finalize the accumulated content
-                                    setContent(accumulatedContentRef.current)
-                                    setIsStreaming(false)
 
-                                    // Get noteData from ref (safe access)
-                                    const currentNoteData = noteDataRef.current
-                                    if (!currentNoteData) {
-                                        console.error('Note data not available in completion handler')
-                                        toast.error('Failed to save note: missing note data')
-                                        return
-                                    }
+                                // Finalize the accumulated content
+                                setContent(accumulatedContentRef.current)
+                                setIsStreaming(false)
 
-
-                                    // Create note locally using accumulated content
-                                    const localNote: models.LocalNote = {
-                                        Title: currentNoteData.Title,
-                                        Subject: currentNoteData.Subject,
-                                        CourseCode: currentNoteData.CourseCode,
-                                        CourseID: currentNoteData.CourseID,
-                                        RemoteCourseID: currentNoteData.RemoteCourseID,
-                                        Content: accumulatedContentRef.current,
-                                        Videos: '',
-                                    } as models.LocalNote
-
-                                    console.log("localNote", localNote)
-
-                                    CreateNote(localNote, {
-                                        onSuccess: () => {
-                                            queryClient.invalidateQueries({ queryKey: noteKeys.lists() })
-                                            toast.success('Note generated and saved successfully!')
-                                        },
-                                        onError: (error) => {
-                                            console.error('Error creating note locally:', error)
-                                            toast.warning('Note generated but failed to save locally. Please sync.')
-                                        }
-                                    })
-
-                                } catch (parseErr) {
-                                    console.error('Error parsing complete event:', parseErr)
-                                    // Even if parsing fails, mark as complete
-                                    setIsStreaming(false)
-                                    queryClient.invalidateQueries({ queryKey: noteKeys.lists() })
-                                    toast.success('Note generation completed')
+                                // Get noteData from ref (safe access)
+                                const currentNoteData = noteDataRef.current
+                                if (!currentNoteData) {
+                                    console.error('Note data not available in completion handler')
+                                    toast.error('Failed to save note: missing note data')
+                                    return
                                 }
+
+
+                                var id = crypto.randomUUID()
+                                // Create note locally using accumulated content
+                                const localNote: models.LocalNote = {
+                                    ID: id,
+                                    Title: currentNoteData.Title,
+                                    Subject: currentNoteData.Subject,
+                                    CourseID: currentNoteData.CourseID,
+                                    Content: accumulatedContentRef.current,
+                                    Videos: '',
+                                } as unknown as models.LocalNote
+
+
+                                CreateNote(localNote)
+
+
                                 break
 
                             default:

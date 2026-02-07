@@ -10,22 +10,25 @@ import {
 import { useAuthContext } from "../provider/auth-provider"
 import { models } from "@/wailsjs/go/models"
 import { GlassCard } from "../ui/glass-card"
+import { useState } from "react"
 
 
 interface CoursesSelectProps {
   value: string
   onValueChange: (value: string) => void
-  selectedCourse: models.LocalCourse | undefined
   placeholder?: string
 }
 
 export function CoursesSelect({
   value,
   onValueChange,
-  selectedCourse,
   placeholder = "Select course"
 }: CoursesSelectProps) {
+
+  const [selectedCourse, setSelectedCourse] = useState<models.LocalCourse | undefined>(undefined)
   const { courses } = useAuthContext()
+
+
 
   const getCoursesBySemester = () => {
     const data: Record<string, models.LocalCourse[]> = {}
@@ -37,10 +40,19 @@ export function CoursesSelect({
 
   const coursesBySemester = getCoursesBySemester()
 
+  const handleValueChange = (value: string) => {
+    if (value === "all") {
+      setSelectedCourse(undefined)
+    } else {
+      setSelectedCourse(courses?.find(course => course.ID === value))
+    }
+    onValueChange(value)
+  }
+
 
 
   return (
-    <Select value={value} onValueChange={onValueChange}>
+    <Select value={selectedCourse?.ID || "all"} onValueChange={handleValueChange}>
       <SelectTrigger className="bg-white/5 border-white/10 text-gray-400 h-10 rounded-xl">
         {selectedCourse && ( 
           <div className="flex items-center gap-2">
@@ -70,9 +82,9 @@ export function CoursesSelect({
                   value={course.ID}
                   className="focus:bg-white/10 focus:text-white cursor-pointer rounded-lg py-2 px-3"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <div className={`h-3 w-3 rounded-full ${course.Color}`} />
-                    <div className="flex items-center gpa-2">
+                    <div className="flex items-center gap-2">
                       <span className="text-body-small">{course.Code}</span>
                       <span className="text-xs text-gray-400">•</span>
                       <span className="text-text-caption">{course.Name}</span>

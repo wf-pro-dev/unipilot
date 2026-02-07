@@ -35,11 +35,7 @@ func (a *Auth) Register(userData *models.User) (*database.Database, *Auth, error
 	agent := fiber.Post(fmt.Sprintf("%s/auth/register", api_url))
 	agent.JSON(userData)
 
-	statusCode, body, errs := agent.Bytes()
-	if len(errs) > 0 {
-		return nil, nil, errs[0]
-	}
-
+	statusCode, body, _ := agent.Bytes()
 	if statusCode != 200 {
 		serverError := errors.ParseServerError(body, statusCode)
 		return nil, nil, serverError

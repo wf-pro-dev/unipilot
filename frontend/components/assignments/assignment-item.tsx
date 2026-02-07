@@ -22,7 +22,7 @@ import { format } from "date-fns"
 import { useDialogContext } from "../provider/dialog-provider"
 
 interface AssignmentItemProps {
-  assignmentId: number
+  assignmentId: string
   size?: "default" | "sm"
   disabled?: boolean
   variant?: GlassCardVariants
@@ -190,7 +190,7 @@ const BaseAssignmentItem = ({
                 </div>
 
                 <div className="flex flex-col gap-1 min-w-0 max-w-3/4 flex-1" >
-                  <span className="text-caption font-semibold text-gray-400 uppercase tracking-wider">{assignment.CourseCode}</span>
+                  <span className="text-caption font-semibold text-gray-400 uppercase tracking-wider">{assignment.Course?.Code}</span>
                   <p className="text-body font-medium text-white truncate leading-tight mr-2">{assignment.Title}</p>
                   <div className="text-caption text-gray-400 flex items-center gap-1.5">
                     <Clock className="w-3 h-3" />
@@ -263,7 +263,7 @@ const BaseAssignmentItem = ({
             </div>
 
             <div className="flex flex-col gap-1 min-w-0 max-w-3/4 flex-1" >
-              <span className="text-caption font-semibold text-gray-400 uppercase tracking-wider">{assignment.CourseCode}</span>
+              <span className="text-caption font-semibold text-gray-400 uppercase tracking-wider">{assignment.Course?.Code}</span>
               <p className="text-body font-medium text-white truncate leading-tight">{assignment.Title}</p>
               <div className="text-caption text-gray-400 flex items-center gap-1.5">
                 <Clock className="w-3 h-3" />

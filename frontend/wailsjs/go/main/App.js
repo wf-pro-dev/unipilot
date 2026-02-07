@@ -14,8 +14,16 @@ export function AcceptDocument(arg1) {
   return window['go']['main']['App']['AcceptDocument'](arg1);
 }
 
+export function AcceptFriendRequest(arg1) {
+  return window['go']['main']['App']['AcceptFriendRequest'](arg1);
+}
+
 export function AcceptNote(arg1) {
   return window['go']['main']['App']['AcceptNote'](arg1);
+}
+
+export function CancelFriendRequest(arg1) {
+  return window['go']['main']['App']['CancelFriendRequest'](arg1);
 }
 
 export function CopyAssignment(arg1, arg2) {
@@ -34,8 +42,8 @@ export function CreateCourse(arg1) {
   return window['go']['main']['App']['CreateCourse'](arg1);
 }
 
-export function CreateDocument(arg1, arg2) {
-  return window['go']['main']['App']['CreateDocument'](arg1, arg2);
+export function CreateDocument(arg1) {
+  return window['go']['main']['App']['CreateDocument'](arg1);
 }
 
 export function CreateNote(arg1) {
@@ -122,6 +130,14 @@ export function GetFileInfo(arg1) {
   return window['go']['main']['App']['GetFileInfo'](arg1);
 }
 
+export function GetFriendShipStatus(arg1) {
+  return window['go']['main']['App']['GetFriendShipStatus'](arg1);
+}
+
+export function GetFriends(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetFriends'](arg1, arg2, arg3);
+}
+
 export function GetLAssignment(arg1) {
   return window['go']['main']['App']['GetLAssignment'](arg1);
 }
@@ -148,10 +164,6 @@ export function GetSubmissionDocuments(arg1) {
 
 export function GetSupportDocuments(arg1) {
   return window['go']['main']['App']['GetSupportDocuments'](arg1);
-}
-
-export function GetUploadProgress(arg1) {
-  return window['go']['main']['App']['GetUploadProgress'](arg1);
 }
 
 export function GetUser(arg1) {
@@ -202,6 +214,10 @@ export function Register(arg1) {
   return window['go']['main']['App']['Register'](arg1);
 }
 
+export function RemoveFriend(arg1) {
+  return window['go']['main']['App']['RemoveFriend'](arg1);
+}
+
 export function SaveDocumentAs(arg1) {
   return window['go']['main']['App']['SaveDocumentAs'](arg1);
 }
@@ -212,6 +228,10 @@ export function SaveUIMessage(arg1, arg2) {
 
 export function SendDocument(arg1) {
   return window['go']['main']['App']['SendDocument'](arg1);
+}
+
+export function SendFriendRequest(arg1) {
+  return window['go']['main']['App']['SendFriendRequest'](arg1);
 }
 
 export function StartNotificationDaemon() {
@@ -248,10 +268,6 @@ export function UploadDocument(arg1, arg2, arg3, arg4) {
 
 export function UploadDocumentRAG(arg1) {
   return window['go']['main']['App']['UploadDocumentRAG'](arg1);
-}
-
-export function UploadNewDocumentVersion(arg1) {
-  return window['go']['main']['App']['UploadNewDocumentVersion'](arg1);
 }
 
 export function UploadProfilePicture() {

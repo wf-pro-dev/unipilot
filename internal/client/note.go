@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/secrets"
 
@@ -41,21 +42,10 @@ func CreateNote(n *models.Note) error {
 		return err
 	}
 
-	statusCode, body, errs := agent.Bytes()
-	if len(errs) > 0 {
-		return errs[0]
-	}
-
-	if statusCode != 200 {
-		return fmt.Errorf("server returned status %d: %s", statusCode, string(body))
-	}
-
-	var response struct {
-		RemoteID uint `json:"remote_id"`
-	}
-
-	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("failed to decode response: %w", err)
+	statusCode, body, _ := agent.Bytes()
+	if statusCode != fiber.StatusCreated {
+		serverError := errors.ParseServerError(body, statusCode)
+		return serverError
 	}
 
 	return nil
@@ -74,13 +64,10 @@ func UpdateNote(id string, column, value string) error {
 		return err
 	}
 
-	statusCode, _, errs := agent.Bytes()
-	if len(errs) > 0 {
-		return errs[0]
-	}
-
-	if statusCode != 200 {
-		return fmt.Errorf("server returned status %d", statusCode)
+	statusCode, body, _ := agent.Bytes()
+	if statusCode != fiber.StatusNoContent {
+		serverError := errors.ParseServerError(body, statusCode)
+		return serverError
 	}
 
 	return nil
@@ -94,13 +81,10 @@ func DeleteNote(id string) error {
 		return err
 	}
 
-	statusCode, _, errs := agent.Bytes()
-	if len(errs) > 0 {
-		return errs[0]
-	}
-
-	if statusCode != 200 {
-		return fmt.Errorf("server returned status %d", statusCode)
+	statusCode, body, _ := agent.Bytes()
+	if statusCode != fiber.StatusNoContent {
+		serverError := errors.ParseServerError(body, statusCode)
+		return serverError
 	}
 
 	return nil

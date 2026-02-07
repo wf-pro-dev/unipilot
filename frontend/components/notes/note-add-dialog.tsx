@@ -38,10 +38,10 @@ const subjects = [
 
 interface NoteAddDialogProps {
     isOpen: boolean
-    setOpen: (open: boolean) => void
+    onClose: () => void
 }
 
-export function NoteAddDialog({ isOpen, setOpen }: NoteAddDialogProps) {
+export function NoteAddDialog({ isOpen, onClose }: NoteAddDialogProps) {
 
     const [showStreamModal, setShowStreamModal] = useState(false)
     const [selectedCourse, setSelectedCourse] = useState<models.LocalCourse | undefined>(undefined)
@@ -64,9 +64,7 @@ export function NoteAddDialog({ isOpen, setOpen }: NoteAddDialogProps) {
         defaultValues: {
             title: "",
             subject: "",
-            course_code: "",
-            course_id: 0,
-            remote_course_id: 0,
+            course_id: "",
         },
     })
 
@@ -88,21 +86,16 @@ export function NoteAddDialog({ isOpen, setOpen }: NoteAddDialogProps) {
     }
 
     const onSubmit = async (data: NoteValues) => {
-        console.log("onSubmit")
         setIsSubmitting(true)
         try {
-            
-            
             const noteData: models.LocalNote = {
                 Title: data.title,
                 Subject: data.subject,
-                CourseCode: data.course_code,
                 CourseID: data.course_id,
-                RemoteCourseID: data.remote_course_id,
-            } as models.LocalNote
+            } as unknown as models.LocalNote
             setStreamNoteData(noteData)
             // Close form dialog
-            setOpen(false)
+            onClose()
 
             // Reset streaming state and show stream modal
             reset()
@@ -118,25 +111,19 @@ export function NoteAddDialog({ isOpen, setOpen }: NoteAddDialogProps) {
         }
     }
 
-    const handleCourseChange = (course: models.LocalCourse | undefined) => {
-        if (!course) return
-        setSelectedCourse(course)
-        form.setValue("course_id", course?.ID || 0)
-        form.setValue("remote_course_id", course?.RemoteID || 0)
-        form.setValue("course_code", course?.Code || "")
-    }
     const handleOpenChange = (open: boolean) => {
-        setOpen(open)
+
         if (!open) {
             form.reset()
         }
+        onClose()
     }
 
     const handleErrorResolved = () => {
         setTimeout(() => {
             setIsSubmitting(false)
         }, 200)
-        
+
     }
 
     useEffect(() => {
@@ -145,7 +132,7 @@ export function NoteAddDialog({ isOpen, setOpen }: NoteAddDialogProps) {
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange} modal={false}>
-            
+
             <DialogContent className="glass border-white/10 text-white max-w-md p-0 overflow-hidden gap-0">
                 <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
                     <DialogTitle className="text-h3">Add Note</DialogTitle>
@@ -186,7 +173,7 @@ export function NoteAddDialog({ isOpen, setOpen }: NoteAddDialogProps) {
                                                 <FormErrorMessage
                                                     fieldState={fieldState}
                                                     formState={form.formState}
-                                                    config={{ strategy: "onSubmit", submitAttempted: isSubmitting   }}
+                                                    config={{ strategy: "onSubmit", submitAttempted: isSubmitting }}
                                                     onErrorResolved={handleErrorResolved}
                                                 />
                                             </FormItem>
@@ -195,7 +182,7 @@ export function NoteAddDialog({ isOpen, setOpen }: NoteAddDialogProps) {
 
                                     <FormField
                                         control={form.control}
-                                        name="course_code"
+                                        name="course_id"
                                         render={({ field, fieldState }) => (
                                             <FormItem>
                                                 <FormLabel className="text-caption font-medium uppercase tracking-wider text-gray-400 group-focus-within:text-white ml-1 transition-colors duration-300">
@@ -204,8 +191,6 @@ export function NoteAddDialog({ isOpen, setOpen }: NoteAddDialogProps) {
                                                 <CoursesSelect
                                                     value={field.value}
                                                     onValueChange={field.onChange}
-                                                    onCourseChange={handleCourseChange}
-                                                    selectedCourse={selectedCourse}
                                                 />
                                                 <FormErrorMessage
                                                     fieldState={fieldState}
@@ -241,7 +226,7 @@ export function NoteAddDialog({ isOpen, setOpen }: NoteAddDialogProps) {
                                             <FormErrorMessage
                                                 fieldState={fieldState}
                                                 formState={form.formState}
-                                                config={{ strategy: "onSubmit", submitAttempted: isSubmitting  }}
+                                                config={{ strategy: "onSubmit", submitAttempted: isSubmitting }}
                                                 onErrorResolved={handleErrorResolved}
                                             />
                                         </FormItem>
@@ -252,7 +237,7 @@ export function NoteAddDialog({ isOpen, setOpen }: NoteAddDialogProps) {
                                     <Button
                                         type="button"
                                         variant="ghost"
-                                        onClick={() => setOpen(false)}
+                                        onClick={() => handleOpenChange(false)}
                                         className="w-1/4 h-11 text-gray-400 hover:text-white hover:bg-white/5 rounded-xl transition-colors"
                                     >
                                         <ArrowLeft className="h-4 w-4" /> Cancel
