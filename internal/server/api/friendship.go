@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
@@ -10,6 +11,7 @@ import (
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/server"
+	"unipilot/internal/server/sse/grpc/messages"
 )
 
 // FriendStatusResponse represents the friendship status between two users
@@ -62,8 +64,13 @@ func HandleSendFriendRequest(c *fiber.Ctx) error {
 
 	// Extract target user ID from path parameter
 	var addresseeID string
-	if addresseeID = c.Params("id"); addresseeID != "" {
-		return errors.WrapServer(fmt.Errorf("user ID required"), errors.ReqParamMissing, "User ID required", fiber.StatusBadRequest)
+	if addresseeID = c.Params("id"); addresseeID == "" {
+		return errors.WrapServer(
+			fmt.Errorf("user ID required"),
+			errors.ReqParamInvalid,
+			"User ID required",
+			fiber.StatusBadRequest,
+		)
 	}
 
 	// Prevent self-friending
@@ -84,14 +91,25 @@ func HandleSendFriendRequest(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error sending friend request", fiber.StatusInternalServerError)
 	}
 
-	// Clear cache for both users
-	clearCtx := context.Background()
-	if err := CacheService.DeleteUserFriends(clearCtx, currentUser.ID); err != nil {
-		server.LogWarn(clearCtx, errors.WrapServer(err, errors.CacheOperationFailed, "Failed to clear friends cache", fiber.StatusInternalServerError))
-	}
-	if err := CacheService.DeleteUserFriends(clearCtx, addresseeID); err != nil {
-		server.LogWarn(clearCtx, errors.WrapServer(err, errors.CacheOperationFailed, "Failed to clear friends cache", fiber.StatusInternalServerError))
-	}
+	go func() {
+		// Send message to addressee
+		if GrpcClient != nil {
+			_, err := (*GrpcClient).SendMessage(context.Background(),
+				&messages.Message{
+					ReceiverId: addresseeID,
+					SenderId:   currentUser.ID,
+					Title:      "Friend Request",
+					Message:    fmt.Sprintf("%s sent you a friend request", currentUser.Username),
+					Type:       string(models.MessageNoContent),
+					Data:       []byte(""),
+				},
+			)
+			if err != nil {
+				server.LogWarn(context.Background(), errors.WrapServer(err, errors.GRPCFailed, "Failed to send message", fiber.StatusInternalServerError))
+			}
+		}
+
+	}()
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -121,39 +139,42 @@ func HandleAcceptFriendRequest(c *fiber.Ctx) error {
 	if err != nil {
 		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
 	}
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
+	}
 
-	var friendshipID string
-	if friendshipID = c.Params("id"); friendshipID != "" {
+	var requesterID string
+	if requesterID = c.Params("id"); requesterID == "" {
 		return errors.WrapServer(fmt.Errorf("request ID required"), errors.ReqParamMissing, "Request ID required", fiber.StatusBadRequest)
 	}
 
-	friendship, err := models.GetFriendshipByID(friendshipID, db)
-	if err != nil {
-		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting friendship", fiber.StatusInternalServerError)
-	}
-	if friendship == nil {
-		return errors.WrapServer(errors.NewAppError(errors.DBRecordNotFound, "Friend request not found", nil), errors.DBRecordNotFound, "Friend request not found", fiber.StatusBadRequest)
-	}
-
 	// Accept the friend request
-	if err := models.AcceptFriendRequest(friendship, db); err != nil {
+	if err := models.AcceptFriendRequest(requesterID, currentUser.ID, db); err != nil {
 		if errors.HasCode(err, errors.DBRecordNotFound) {
 			return errors.WrapServer(err, errors.DBRecordNotFound, "Friend request not found", fiber.StatusBadRequest)
 		}
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error accepting friend request", fiber.StatusInternalServerError)
 	}
 
-	// Clear cache for both users
-	clearCtx := context.Background()
-	if err := CacheService.DeleteUserFriends(clearCtx, friendship.RequesterID); err != nil {
-		server.LogWarn(clearCtx, errors.WrapServer(err, errors.CacheOperationFailed, "Failed to clear friends cache", fiber.StatusInternalServerError))
-	}
-	if err := CacheService.DeleteUserFriends(clearCtx, friendship.AddresseeID); err != nil {
-		server.LogWarn(clearCtx, errors.WrapServer(err, errors.CacheOperationFailed, "Failed to clear friends cache", fiber.StatusInternalServerError))
-	}
-
-	// TODO: Send notification to requester
-	// Notification that their friend request was accepted
+	go func() {
+		// Send message to requester
+		if GrpcClient != nil {
+			_, err = (*GrpcClient).SendMessage(context.Background(),
+				&messages.Message{
+					ReceiverId: requesterID,
+					SenderId:   currentUser.ID,
+					Title:      "Friend Request Accepted",
+					Message:    fmt.Sprintf("%s accepted your friend request", currentUser.Username),
+					Type:       string(models.MessageNoContent),
+					Data:       []byte(""),
+				},
+			)
+		}
+		if err != nil {
+			server.LogWarn(context.Background(), errors.WrapServer(err, errors.GRPCFailed, "Failed to send message", fiber.StatusInternalServerError))
+		}
+	}()
 
 	return c.SendStatus(fiber.StatusNoContent)
 }
@@ -220,13 +241,8 @@ func HandleCancelFriendRequest(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
 	}
 
-	var requesterID string
-	if requesterID = c.Params("id"); requesterID != "" {
-		return errors.WrapServer(fmt.Errorf("user ID required"), errors.ReqParamMissing, "User ID required", fiber.StatusBadRequest)
-	}
-
 	var addresseeID string
-	if addresseeID = c.Params("id"); addresseeID != "" {
+	if addresseeID = c.Params("id"); addresseeID == "" {
 		return errors.WrapServer(fmt.Errorf("user ID required"), errors.ReqParamMissing, "User ID required", fiber.StatusBadRequest)
 	}
 
@@ -265,7 +281,7 @@ func HandleRemoveFriend(c *fiber.Ctx) error {
 
 	// Parse UUID
 	var friendID string
-	if friendID = c.Params("id"); friendID != "" {
+	if friendID = c.Params("id"); friendID == "" {
 		return errors.WrapServer(
 			err,
 			errors.ReqParamInvalid,
@@ -318,64 +334,38 @@ func HandleGetFriends(c *fiber.Ctx) error {
 
 	// Parse UUID
 	var userID string
-	if userID = c.Params("id"); userID != "" {
+	if userID = c.Params("id"); userID == "" {
+		log.Println("User ID required:", userID)
 		return errors.WrapServer(
-			err,
-			errors.ReqParamInvalid,
-			"Invalid user ID format",
+			fmt.Errorf("user ID required"),
+			errors.ReqParamMissing,
+			"User ID required",
 			fiber.StatusBadRequest,
 		)
 	}
 
 	// Parse pagination parameters
 	limit := 20
-	offset := 0
 
 	if limitStr := c.Query("limit"); limitStr != "" {
 		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
 			limit = l
 		} else {
-			return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting limit to int", fiber.StatusBadRequest)
+			return errors.WrapServer(fmt.Errorf("error limit is in"), errors.ReqParamInvalid, "Error converting limit to int", fiber.StatusBadRequest)
 		}
 	}
 
-	if offsetStr := c.Query("offset"); offsetStr != "" {
-		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
-			offset = o
-		} else {
-			return errors.WrapServer(err, errors.ReqParamInvalid, "Error converting offset to int", fiber.StatusBadRequest)
-		}
+	var cursor *models.Cursor
+	if err := c.BodyParser(&cursor); err != nil {
+		return errors.WrapServer(err, errors.ReqParamInvalid, "Error unmarshalling cursor", fiber.StatusBadRequest)
 	}
 
-	var friends []models.User
-
-	// Try cache first
-	friends, err = CacheService.GetUserFriends(ctx, userID)
-	if err == nil {
-		return c.JSON(friends)
-	} else if errors.HasCode(err, errors.CacheOperationFailed) {
-		server.LogWarn(ctx, errors.WrapServer(err, errors.CacheOperationFailed, "Error getting friends from cache", fiber.StatusInternalServerError))
-	}
-
-	// Cache miss - query database
-	friends, err = models.GetFriends(userID, limit, offset, db)
+	results, err := models.GetFriends(userID, cursor, limit, db)
 	if err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting friends from database", fiber.StatusInternalServerError)
 	}
 
-	// Cache the friends
-	for _, friend := range friends {
-		if err := CacheService.SetUserFriends(ctx, userID, friend.ID, &friend); err != nil {
-			server.LogWarn(ctx, errors.WrapServer(err, errors.RedisFailed, "Error caching friend", fiber.StatusInternalServerError))
-		}
-	}
-
-	// Set cache expiration
-	if err := CacheService.SetExpirationUserFriends(ctx, userID); err != nil {
-		server.LogWarn(ctx, errors.WrapServer(err, errors.RedisFailed, "Error setting cache expiration for friends", fiber.StatusInternalServerError))
-	}
-
-	return c.JSON(friends)
+	return c.JSON(results)
 }
 
 // HandleGetPendingRequests retrieves pending friend requests for the current user
@@ -510,7 +500,7 @@ func HandleGetFriendStatus(c *fiber.Ctx) error {
 
 	// Parse UUID
 	var otherUserID string
-	if otherUserID = c.Params("id"); otherUserID != "" {
+	if otherUserID = c.Params("id"); otherUserID == "" {
 		return errors.WrapServer(
 			err,
 			errors.ReqParamInvalid,

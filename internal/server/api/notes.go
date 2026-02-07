@@ -375,8 +375,10 @@ func DeleteNoteHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(fmt.Errorf("note ID required"), errors.ReqParamMissing, "Note ID required", fiber.StatusBadRequest)
 	}
 
-	note := models.Note{Base: models.Base{ID: noteID}}
-	// Step 2: Delete note from database
+	note, err := models.GetNote(noteID, db.Preload("Course"))
+	if err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting note from database", fiber.StatusInternalServerError)
+	}
 	if err := db.Delete(&note).Error; err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error deleting note from database", fiber.StatusInternalServerError)
 	}

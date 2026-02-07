@@ -21,14 +21,11 @@ import (
 // Each client maintains a persistent HTTP connection and receives real-time
 // notifications through a buffered message channel.
 type SSEClient struct {
-	// UserID uniquely identifies the authenticated user for this connection
-	UserID string
-	// Messages is a buffered channel for queuing outbound notifications
-	Messages chan []byte
-	// Connected indicates if the client connection is active
-	Connected bool
-	// LastActive tracks the last heartbeat or message sent to detect stale connections
+	UserID     string
+	Messages   chan []byte
+	Connected  bool
 	LastActive time.Time
+	closeOnce  sync.Once
 }
 
 // SSEServer manages multiple SSE client connections and handles message broadcasting.
@@ -166,18 +163,23 @@ func (s *SSEServer) AddClient(userID string) *SSEClient {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Close old client's channel if it exists (prevents goroutine leak)
+	ctx := context.WithValue(context.Background(), "component", "sse")
+
 	if oldClient, exists := s.clients[userID]; exists {
-		close(oldClient.Messages)
+		oldClient.closeOnce.Do(func() {
+			close(oldClient.Messages)
+		})
+		server.LogDebug(ctx, "replacing existing sse client", userID)
 	}
 
 	// Create new client...
 	client := &SSEClient{
-		UserID:    userID,
-		Messages:  make(chan []byte, 100),
-		Connected: true,
+		UserID:     userID,
+		Messages:   make(chan []byte, 100),
+		Connected:  true,
+		LastActive: time.Now(),
 	}
-	ctx := context.WithValue(context.Background(), "component", "sse")
+
 	server.LogDebug(ctx, "new sse client added", userID)
 
 	s.clients[userID] = client
@@ -215,11 +217,14 @@ func (s *SSEServer) RemoveClient(userID string) {
 
 	// Step 2: Check if client exists and perform cleanup
 	if client, ok := s.clients[userID]; ok {
-		// Step 3: Close message channel to signal goroutine termination
-		close(client.Messages)
-
-		// Step 4: Remove client from active connections map
+		// Safe close - will only happen once even if called multiple times
+		client.closeOnce.Do(func() {
+			close(client.Messages)
+		})
 		delete(s.clients, userID)
+
+		ctx := context.WithValue(context.Background(), "component", "sse")
+		server.LogDebug(ctx, "sse client removed", userID)
 	}
 }
 
@@ -403,8 +408,6 @@ func (s *SSEServer) SSEHandler(c *fiber.Ctx) error {
 
 		defer func() {
 			// Step 4: Cleanup client connection on function exit
-			ctx := context.WithValue(context.Background(), "component", "sse")
-			server.LogDebug(ctx, "sse client removed", userID)
 			s.RemoveClient(userID)
 		}()
 

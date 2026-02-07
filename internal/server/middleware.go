@@ -460,19 +460,22 @@ func ErrorHandlerMiddleware(c *fiber.Ctx) error {
 	// Try to extract AppError (no status code)
 	var appErr *errors.AppError
 	if Errors.As(err, &appErr) {
-		// Convert AppError to ServerError with 500 status
-		serverErr = appErr.ToServerError(fiber.StatusInternalServerError)
-		c.Locals("error_handled", true)
-	}
 
-	ctx = context.WithValue(ctx, "error_code", serverErr.Code)
-	ctx = context.WithValue(ctx, "status_code", serverErr.StatusCode)
-	ctx = context.WithValue(ctx, "root", errors.GetRootAppError(serverErr))
+		serverErr := appErr.ToServerError(fiber.StatusInternalServerError)
+
+		ctx = context.WithValue(ctx, "error_code", serverErr.Code)
+		ctx = context.WithValue(ctx, "status_code", serverErr.StatusCode)
+		ctx = context.WithValue(ctx, "root", errors.GetRootAppError(serverErr))
+
+		LogError(ctx, serverErr)
+
+		// Send JSON response
+		c.Locals("error_handled", true)
+		return c.Status(serverErr.StatusCode).JSON(serverErr)
+	}
 
 	c.SetUserContext(ctx)
 
-	LogError(ctx, serverErr)
-
 	c.Locals("error_handled", true)
-	return c.Status(fiber.StatusInternalServerError).JSON(serverErr)
+	return nil
 }

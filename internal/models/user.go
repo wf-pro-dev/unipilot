@@ -247,6 +247,10 @@ func (Friendship) TableName() string {
 // BeforeCreate hook to ensure requester_id < addressee_id for consistency
 // This prevents duplicate friendships (A->B and B->A)
 func (f *Friendship) BeforeCreate(tx *gorm.DB) error {
+
+	if err := f.Base.BeforeCreate(tx); err != nil {
+		return err
+	}
 	// Ensure requesterID != addresseeID
 	if f.RequesterID == f.AddresseeID {
 		return errors.NewAppError(errors.ValidationInvalid, "Cannot befriend yourself", nil)
@@ -385,14 +389,15 @@ func SendFriendRequest(requesterID, addresseeID string, db *gorm.DB) error {
 	if err := db.Create(friendship).Error; err != nil {
 		return errors.HandleDBCreateError(err)
 	}
+
 	return nil
 }
 
 // AcceptFriendRequest accepts a pending friend request
-func AcceptFriendRequest(friendship *Friendship, db *gorm.DB) error {
+func AcceptFriendRequest(requesterID, addresseeID string, db *gorm.DB) error {
 
-	if err := db.Model(friendship).
-		Where("id = ?", friendship.ID).
+	if err := db.Model(&Friendship{}).
+		Where("requester_id = ? AND addressee_id = ?", requesterID, addresseeID).
 		Update("status", FriendshipAccepted).Error; err != nil {
 		return errors.HandleDBWriteError(err)
 	}
@@ -455,7 +460,7 @@ func BlockUser(blockerID, blockedID string, db *gorm.DB) error {
 		existing.RequesterID = blockerID
 		existing.AddresseeID = blockedID
 		existing.Status = FriendshipBlocked
-		if err := db.Save(existing).Error; err != nil {
+		if err := db.FirstOrCreate(existing).Error; err != nil {
 			return errors.HandleDBWriteError(err)
 		}
 	} else {
@@ -483,24 +488,48 @@ func UnblockUser(blockerID, blockedID string, db *gorm.DB) error {
 }
 
 // GetFriends retrieves the list of accepted friends for a user
-func GetFriends(userID string, limit, offset int, db *gorm.DB) ([]User, error) {
+func GetFriends(userID string, cursor *Cursor, limit int, db *gorm.DB) (*PageResponse[User], error) {
 	var friends []User
 
 	// Get friendships where user is either requester or addressee with accepted status
-	err := db.Table("users").
+	query := db.Table("users").
 		Select("users.*").
 		Joins("JOIN friendships ON (friendships.requester_id = users.id OR friendships.addressee_id = users.id)").
 		Where("(friendships.requester_id = ? OR friendships.addressee_id = ?) AND friendships.status = ? AND users.id != ? AND friendships.deleted_at IS NULL",
 			userID, userID, FriendshipAccepted, userID).
 		Order("users.username ASC").
-		Limit(limit).
-		Offset(offset).
-		Find(&friends).Error
+		Limit(limit + 1)
 
-	if err != nil {
-		return nil, errors.HandleDBReadError(err)
+	if cursor != nil {
+		query = query.Where(
+			"(friendships.created_at > ?) OR (friendships.created_at = ? AND friendships.id > ?)",
+			cursor.CreatedAt, cursor.CreatedAt, cursor.ID,
+		)
 	}
-	return friends, nil
+
+	if err := query.Scan(&friends).Error; err != nil {
+		return nil, err
+	}
+
+	hasMore := len(friends) > limit
+	if hasMore {
+		friends = friends[:limit]
+	}
+
+	var nextCursor *Cursor
+	if hasMore && len(friends) > 0 {
+		last := friends[len(friends)-1]
+		nextCursor = &Cursor{
+			CreatedAt: last.UpdatedAt,
+			ID:        last.ID,
+		}
+	}
+
+	return &PageResponse[User]{
+		Data:    friends,
+		Cursor:  nextCursor,
+		HasMore: hasMore,
+	}, nil
 }
 
 // GetPendingRequests retrieves pending friend requests received by the user

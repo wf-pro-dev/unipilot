@@ -26,3 +26,18 @@ type Device struct {
 
 	User *User `gorm:"foreignKey:UserID;references:ID" validate:"-"`
 }
+
+type Cursor struct {
+	CreatedAt time.Time
+	ID        string
+}
+
+type PageType interface {
+	Assignment | Course | Note | User | Friendship
+}
+
+type PageResponse[T PageType] struct {
+	Data    []T
+	Cursor  *Cursor
+	HasMore bool
+}
