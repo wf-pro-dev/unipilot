@@ -161,19 +161,12 @@ func SendDocument(localDocument *models.LocalDocument) (string, error) {
 		return "", fmt.Errorf("error reading response: %v", err)
 	}
 
-	// Success - parse response
-	var storageKey string
-	if err := json.Unmarshal(respBody, &storageKey); err != nil {
-		return "", errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse success response")
-	}
-
 	if resp.StatusCode != http.StatusOK {
-		var serverError *errors.AppError
-		if err := json.Unmarshal(respBody, &serverError); err != nil {
-			return "", errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse server error")
-		}
+		serverError := errors.ParseServerError(respBody, resp.StatusCode)
 		return "", serverError.ToServerError(resp.StatusCode)
 	}
+
+	storageKey := string(respBody)
 
 	return storageKey, nil
 

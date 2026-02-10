@@ -98,6 +98,10 @@ export function GetAuthToken() {
   return window['go']['main']['App']['GetAuthToken']();
 }
 
+export function GetClusterStatus(arg1) {
+  return window['go']['main']['App']['GetClusterStatus'](arg1);
+}
+
 export function GetConversationHistory(arg1) {
   return window['go']['main']['App']['GetConversationHistory'](arg1);
 }
@@ -138,10 +142,6 @@ export function GetFriends(arg1, arg2, arg3) {
   return window['go']['main']['App']['GetFriends'](arg1, arg2, arg3);
 }
 
-export function GetLAssignment(arg1) {
-  return window['go']['main']['App']['GetLAssignment'](arg1);
-}
-
 export function GetNetworkStatus() {
   return window['go']['main']['App']['GetNetworkStatus']();
 }
@@ -152,6 +152,10 @@ export function GetNotes() {
 
 export function GetNotificationDaemonStatus() {
   return window['go']['main']['App']['GetNotificationDaemonStatus']();
+}
+
+export function GetRCourses(arg1) {
+  return window['go']['main']['App']['GetRCourses'](arg1);
 }
 
 export function GetRemoteUsers(arg1, arg2) {
@@ -224,6 +228,10 @@ export function SaveDocumentAs(arg1) {
 
 export function SaveUIMessage(arg1, arg2) {
   return window['go']['main']['App']['SaveUIMessage'](arg1, arg2);
+}
+
+export function SendClusterRequest(arg1) {
+  return window['go']['main']['App']['SendClusterRequest'](arg1);
 }
 
 export function SendDocument(arg1) {

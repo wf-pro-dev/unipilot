@@ -1,11 +1,28 @@
 export namespace client {
 	
+	export class CourseStatusResponse {
+	    id: string;
+	    status?: string;
+	    is_pending_for_you: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new CourseStatusResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.status = source["status"];
+	        this.is_pending_for_you = source["is_pending_for_you"];
+	    }
+	}
 	export class FriendStatusResponse {
 	    status?: string;
 	    is_pending_for_you: boolean;
 	    friends_count: number;
 	    pending_request_count: number;
 	    mutual_friends_count: number;
+	    courses_count: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new FriendStatusResponse(source);
@@ -18,6 +35,7 @@ export namespace client {
 	        this.friends_count = source["friends_count"];
 	        this.pending_request_count = source["pending_request_count"];
 	        this.mutual_friends_count = source["mutual_friends_count"];
+	        this.courses_count = source["courses_count"];
 	    }
 	}
 

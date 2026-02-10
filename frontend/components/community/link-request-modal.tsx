@@ -1,12 +1,14 @@
 import { Dialog, DialogContent } from "../ui/dialog";
 import { Button } from "../ui/button";
-import { useAuthContext } from "../provider/auth-provider";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { useState } from "react";
+
+import { useCallback, useState } from "react";
 import { Check, Users, X } from "lucide-react";
 import { useCourse, useCourseShare } from "@/hooks/use-courses";
-import { LogInfo } from "@/wailsjs/runtime/runtime";
 import { models } from "@/wailsjs/go/models";
+import { FriendList } from "./friend-list";
+import { UserItem } from "./user-item";
+import { useAuthContext } from "../provider/auth-provider";
+import { Checkbox } from "../ui/checkbox";
 
 interface LinkRequestModalProps {
     courseID: string
@@ -16,29 +18,52 @@ interface LinkRequestModalProps {
 }
 
 export function LinkRequestModal({ isOpen, onClose, courseID }: LinkRequestModalProps) {
+    
     const { data: course } = useCourse(courseID)
     
-    const { friends } = useAuthContext()
     const [selectedFriends, setSelectedFriends] = useState<string[]>([])
-
+    
     const { mutate: requestLinkCourse } = useCourseShare()
-
-    const handleShare = (friend: models.User) => {
-        if (selectedFriends.includes(friend.ID)) {
-            setSelectedFriends(selectedFriends.filter((f) => f !== friend.ID))
+    
+    const { user: currentUser } = useAuthContext()
+    
+    const onCheckedChange = useCallback((user: models.User, checked: boolean) => {
+        console.log('🟡 onCheckedChange called', { user: user.ID, checked });
+        if (checked) {
+            setSelectedFriends(prev => [...prev, user.ID])
         } else {
-            setSelectedFriends([...selectedFriends, friend.ID])
+            setSelectedFriends(prev => prev.filter(id => id !== user.ID))
         }
-    }
+    }, [])
+
+    const renderActions = useCallback((user: models.User) => (
+        <Checkbox
+            checked={selectedFriends.includes(user.ID)}
+            onCheckedChange={(checked) => onCheckedChange(user, checked as boolean)}
+            className="h-5 w-5 border-white/20 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+        />
+    ), [selectedFriends, onCheckedChange])
+
+    const renderItem = useCallback((user: models.User) => {
+        return (
+            <UserItem 
+                user={user} 
+                size="compact"
+                actions={renderActions}
+            />
+        )
+    }, [renderActions])
 
     const handleRequestLinkCourse = () => {
         if (!course) { return }
         requestLinkCourse({ c: course, usersID: selectedFriends })
     }
 
+
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="glass border-white/10 text-white max-w-xl max-h-[90vh] overflow-y-auto p-0 overflow-hidden gap-0">
+            <DialogContent className="glass border-white/10 text-white max-w-lg max-h-[80vh] overflow-y-auto p-0 overflow-hidden gap-0">
 
                 <div className="p-6 pb-4 border-b border-white/5 bg-white/5">
                     <div className="flex flex-col items-center space-y-1 text-center">
@@ -48,43 +73,13 @@ export function LinkRequestModal({ isOpen, onClose, courseID }: LinkRequestModal
                 </div>
 
                 <div className="p-6 space-y-6">
-                    {friends && friends.length > 0 ? (
-                        <div className="grid grid-cols-3 gap-3">
-                            {friends?.map((friend) => (
-                                <div
-                                    key={friend.ID}
-                                    className={`flex flex-col items-center justify-center p-4 rounded-xl transition-all duration-200 cursor-pointer border ${selectedFriends.includes(friend.ID) ? 'bg-blue-600/20 border-blue-500/50' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'}`}
-                                    onClick={() => handleShare(friend)}
-                                >
-                                    <div className="relative">
-                                        <Avatar className="w-10 h-10 mb-2 ring-2 ring-transparent transition-all duration-200">
-                                            <AvatarImage src={friend.Avatar || "/placeholder.svg"} alt={friend.Username} />
-                                            <AvatarFallback className="bg-gray-700 text-white">
-                                                {friend.Username
-                                                    .split(" ")
-                                                    .map((n: string) => n[0])
-                                                    .join("")}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        {selectedFriends.includes(friend.ID) && (
-                                            <div className="absolute -top-1 -right-1 bg-blue-500 rounded-full p-0.5 ring-2 ring-[#0f172a]">
-                                                <Check className="w-3 h-3 text-white" />
-                                            </div>
-                                        )}
-                                    </div>
-                                    <p className={`text-xs font-medium truncate w-full text-center ${selectedFriends.includes(friend.ID) ? 'text-blue-200' : 'text-gray-300'}`}>{friend.Username}</p>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="py-12 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
-                            <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
-                                <Users className="h-8 w-8 text-gray-500" />
-                            </div>
-                            <h3 className="text-lg font-medium text-white mb-1">No friends found</h3>
-                            <p className="text-gray-400 text-sm">Follow someone to get started</p>
-                        </div>
-                    )}
+                    <FriendList
+                        userID={currentUser?.ID!}
+                        numColumns={1}
+                        itemsPerPage={6}
+                        containerClassName="gap-4"
+                        renderItem={renderItem}
+                    />
 
                     <div className="flex gap-3 pt-2 border-t border-white/5 mt-6">
                         <Button

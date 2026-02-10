@@ -3,9 +3,9 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { PageResponse } from '@/types/models';
 
-interface ScrollProps<T> {
+export interface ScrollProps<T> {
     data: PageResponse<T>
-    renderItem: (item: T) => React.JSX.Element
+    renderItem: (item: T) => React.JSX.Element | null
     keyExtractor?: (item: T, index: number) => string | number;
     numColumns: number
     containerClassName?: string
@@ -42,7 +42,6 @@ export function Scroll<T>({
     // Infinite scroll handler
     const handleScroll = useCallback(() => {
         const container = scrollContainerRef.current;
-        console.log("[Scroll] Container:", !container, !onLoadMore, !data.HasMore, isFetchingMore, loadingRef.current)
         if (!container || !onLoadMore || !data.HasMore || isFetchingMore || loadingRef.current) {
             return;
         }
@@ -111,7 +110,7 @@ export function Scroll<T>({
 interface RowProps<T> {
     rowData: T[]
     numColumns: number
-    renderItem: (item: T) => React.JSX.Element
+    renderItem: (item: T) => React.JSX.Element | null
     containerClassName?: string
     scrollContainerRef: React.RefObject<HTMLDivElement>
     keyExtractor?: (item: T, index: number) => string | number;

@@ -61,7 +61,6 @@ export function useNetworkStatus() {
 
     // Listen to browser online/offline events
     const handleOnline = async () => {
-      console.log("[Network Status] Browser came online")
       setNetworkStatus(prev => ({
         ...prev,
         online: true,
@@ -71,7 +70,6 @@ export function useNetworkStatus() {
     }
 
     const handleOffline = () => {
-      console.log("[Network Status] Browser offline")
       setNetworkStatus(prev => ({
         ...prev,
         online: false,

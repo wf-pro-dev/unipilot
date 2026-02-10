@@ -59,8 +59,6 @@ const BaseAssignmentItem = ({
   onCopy,
 }: AssignmentItemProps) => {
 
-  console.log("AssignmentItem Render", assignmentId)
-
   const [isActionsOpen, setIsActionsOpen] = useState(false)
   
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)

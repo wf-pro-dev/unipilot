@@ -16,6 +16,7 @@ type FriendStatusResponse struct {
 	FriendsCount        int                      `json:"friends_count"`         // Number of friends the user has
 	PendingRequestCount int                      `json:"pending_request_count"` // Number of pending requests for current user
 	MutualFriendsCount  int                      `json:"mutual_friends_count"`  // Number of mutual friends
+	CoursesCount        int                      `json:"courses_count"`         // Number of courses the user has
 }
 
 func GetFriends(userID string, cursor *models.Cursor, limit int) (*models.PageResponse[models.User], error) {

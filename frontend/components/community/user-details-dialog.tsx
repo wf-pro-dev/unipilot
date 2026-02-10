@@ -1,16 +1,15 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
-import { 
-  MessageCircle, 
-  UserPlus, 
-  UserMinus, 
-  Mail, 
-  Calendar, 
+import {
+  MessageCircle,
+  UserPlus,
+  UserMinus,
+  Mail,
+  Calendar,
   GraduationCap,
   BookOpen,
   Users,
@@ -19,15 +18,19 @@ import {
 } from "lucide-react"
 import { models } from "@/wailsjs/go/models"
 import { format } from "date-fns"
-import { 
-  useAcceptFriendRequest, 
-  useCancelFriendRequest, 
-  useFriendShipStatus, 
-  useRemoveFriend, 
-  useSendFriendRequest 
+import {
+  useAcceptFriendRequest,
+  useCancelFriendRequest,
+  useFriendShipStatus,
+  useRemoveFriend,
+  useSendFriendRequest
 } from "@/hooks/use-friends"
 import { cn } from "@/lib/utils"
 import { useMemo } from "react"
+import { useRCourses } from "@/hooks/use-courses"
+import { CourseItem } from "../courses/course-item"
+import { FriendList } from "./friend-list"
+import { UserItem } from "./user-item"
 
 interface UserDetailsDialogProps {
   isOpen: boolean
@@ -36,14 +39,16 @@ interface UserDetailsDialogProps {
 }
 
 export function UserDetailsDialog({ isOpen, onClose, user }: UserDetailsDialogProps) {
-  
-  const { data: friendShipStatus, isLoading: friendShipStatusLoading } = useFriendShipStatus(user?.ID)
-  const { mutate: sendFriendRequest } = useSendFriendRequest(user?.ID)
-  const { mutate: cancelFriendRequest } = useCancelFriendRequest(user?.ID)
-  const { mutate: acceptFriendRequest } = useAcceptFriendRequest(user?.ID)
-  const { mutate: removeFriend } = useRemoveFriend(user?.ID)
 
   if (!isOpen || !user) return null
+
+  const { data: friendShipStatus, isLoading: friendShipStatusLoading } = useFriendShipStatus(user?.ID)
+  const { mutate: sendFriendRequest } = useSendFriendRequest(user.ID)
+  const { mutate: cancelFriendRequest } = useCancelFriendRequest(user.ID)
+  const { mutate: acceptFriendRequest } = useAcceptFriendRequest(user.ID)
+  const { mutate: removeFriend } = useRemoveFriend(user.ID)
+  const { data: courses, isLoading: coursesLoading } = useRCourses(user.ID)
+
 
   // Get friendship action - matching AssignmentDetailsDialog button logic
   const friendshipAction = useMemo(() => {
@@ -82,18 +87,24 @@ export function UserDetailsDialog({ isOpen, onClose, user }: UserDetailsDialogPr
     }
   }, [friendShipStatus])
 
+  
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="glass border-white/10 text-white max-w-4xl p-0 gap-0 max-h-[90vh] overflow-hidden">
-        
+
+        <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent z-0 rounded-2xl pointer-events-none" />
+
+
+
         {/* Two-column layout */}
         <div className="flex flex-col md:flex-row h-full max-h-[90vh]">
-          
+
           {/* Left Sidebar - Profile Card */}
           <div className="md:w-80 bg-white/5 border-r border-white/5 relative overflow-hidden">
 
             <div className="relative p-6 flex flex-col h-full">
-              
+
               {/* Avatar */}
               <div className="flex flex-col items-center mb-6 mt-4">
                 <Avatar className="w-32 h-32 ring-2 ring-white/10 shadow-2xl shadow-black/50 mb-4">
@@ -111,7 +122,7 @@ export function UserDetailsDialog({ isOpen, onClose, user }: UserDetailsDialogPr
                 <h2 className="text-h3 text-text-title text-center mb-1">
                   {user.Username}
                 </h2>
-                
+
                 <p className="text-caption text-text-caption text-center mb-4">
                   {user.Email}
                 </p>
@@ -128,7 +139,7 @@ export function UserDetailsDialog({ isOpen, onClose, user }: UserDetailsDialogPr
                   </div>
                   <div className="flex flex-col items-center px-4 py-2 rounded-lg bg-white/5 border border-white/5">
                     <span className="text-h5 text-white font-bold">
-                      {user.CoursesCode?.length || 0}
+                      {friendShipStatus?.courses_count || 0}
                     </span>
                     <span className="text-caption text-text-caption uppercase tracking-wider">
                       Courses
@@ -141,7 +152,7 @@ export function UserDetailsDialog({ isOpen, onClose, user }: UserDetailsDialogPr
 
               {/* Key info - matching AssignmentDetailsDialog info section styling */}
               <div className="space-y-4 flex-1">
-                
+
                 <div className="flex items-start gap-3">
                   <div className="p-2 rounded-lg bg-white/5 border border-white/5">
                     <GraduationCap className="w-4 h-4 text-text-caption" />
@@ -235,53 +246,8 @@ export function UserDetailsDialog({ isOpen, onClose, user }: UserDetailsDialogPr
 
           {/* Right Content Area */}
           <div className="flex-1 overflow-y-auto">
-            
-            {/* Header matching AssignmentDetailsDialog */}
-            <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
-              <DialogTitle className="text-h3">Profile Details</DialogTitle>
-            </DialogHeader>
 
             <div className="p-6 space-y-6">
-              
-              {/* Courses Section */}
-              <div>
-                <div className="flex items-center space-x-2 text-body font-medium text-text-caption uppercase tracking-wider mb-3">
-                  <BookOpen className="w-4 h-4" />
-                  <span>Current Courses</span>
-                </div>
-
-                {user.CoursesCode && user.CoursesCode.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {user.CoursesCode.map((code: string) => (
-                      <div 
-                        key={code}
-                        className="p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all"
-                      >
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-                            <BookOpen className="w-4 h-4 text-text-caption" />
-                          </div>
-                          <span className="text-body font-bold text-white">
-                            {code}
-                          </span>
-                        </div>
-                        <p className="text-caption text-text-caption">
-                          Course Code
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 px-4 rounded-xl bg-white/5 border border-white/5">
-                    <BookOpen className="w-12 h-12 text-text-muted mx-auto mb-3" />
-                    <p className="text-body text-text-caption">
-                      No courses enrolled yet
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <Separator className="bg-white/10" />
 
               {/* Activity Section */}
               <div>
@@ -291,7 +257,7 @@ export function UserDetailsDialog({ isOpen, onClose, user }: UserDetailsDialogPr
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  
+
                   {/* Friendship status */}
                   <div className="p-4 rounded-xl bg-white/5 border border-white/5">
                     <div className="flex items-center gap-3 mb-2">
@@ -303,11 +269,11 @@ export function UserDetailsDialog({ isOpen, onClose, user }: UserDetailsDialogPr
                           Status
                         </p>
                         <p className="text-body font-bold text-white">
-                          {friendShipStatus?.status === "accepted" 
-                            ? "Friends" 
+                          {friendShipStatus?.status === "accepted"
+                            ? "Friends"
                             : friendShipStatus?.status === "pending"
-                            ? "Pending"
-                            : "Not Connected"}
+                              ? "Pending"
+                              : "Not Connected"}
                         </p>
                       </div>
                     </div>
@@ -369,7 +335,7 @@ export function UserDetailsDialog({ isOpen, onClose, user }: UserDetailsDialogPr
                           Last Sync
                         </p>
                         <p className="text-body font-bold text-white">
-                          {user.LastSync 
+                          {user.LastSync
                             ? format(new Date(user.LastSync), "MMM d, h:mm a")
                             : "Never"}
                         </p>
@@ -382,6 +348,52 @@ export function UserDetailsDialog({ isOpen, onClose, user }: UserDetailsDialogPr
 
                 </div>
               </div>
+
+              <Separator className="bg-white/10" />
+
+
+              {/* Courses Section */}
+              <div>
+                <div className="flex items-center space-x-2 text-body font-medium text-text-caption uppercase tracking-wider mb-3">
+                  <BookOpen className="w-4 h-4" />
+                  <span>Current Courses</span>
+                </div>
+
+                {courses && courses.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {courses.map((course: models.Course) => (
+                      <CourseItem key={course.ID} courseId={course.ID} courseRO={course} size="compact" mode="readonly" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 px-4 rounded-xl bg-white/5 border border-white/5">
+                    <BookOpen className="w-12 h-12 text-text-muted mx-auto mb-3" />
+                    <p className="text-body text-text-caption">
+                      No courses enrolled yet
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <Separator className="bg-white/10" />
+
+              {/* Friends Section */}
+              <div>
+                <div className="flex items-center space-x-2 text-body font-medium text-text-caption uppercase tracking-wider mb-3">
+                  <Users className="w-4 h-4" />
+                  <span>Friends</span>
+                </div>
+
+
+                <FriendList
+                  userID={user.ID}
+                  numColumns={1}
+                  itemsPerPage={6}
+                  containerClassName="gap-4"
+                  renderItem={(user: models.User) => <UserItem user={user} size="compact" />}
+                />
+              </div>
+
 
             </div>
           </div>

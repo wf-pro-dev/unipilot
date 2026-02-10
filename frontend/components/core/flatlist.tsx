@@ -9,16 +9,16 @@ import { Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { GlassCard } from '../ui/glass-card';
 import { UseInfiniteQueryResult, InfiniteData } from '@tanstack/react-query';
+import { cn } from '@/lib/utils';
+import { ScrollProps } from './scroll';
 
-export interface FlatListProps<T> {
+export interface FlatListProps<T> extends Omit<ScrollProps<T>, 'data'> {
     userID: string;
     itemsPerPage: number;
     useScroll: (props: {limit?: number, userID: string}) => UseInfiniteQueryResult<InfiniteData<PageResponse<T>, unknown>, Error>;
-    renderItem: (item: T) => React.JSX.Element;
-    keyExtractor: (item: T) => string | number;
-    numColumns: number;
-    containerClassName?: string;
+    
     emptyState: React.JSX.Element;
+
 }
 
 export function FlatList<T>({

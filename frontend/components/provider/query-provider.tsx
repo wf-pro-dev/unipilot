@@ -8,10 +8,8 @@ interface QueryProviderProps {
   children: ReactNode
 }
 
-let renderCount = 0
 export function QueryProvider({ children }: QueryProviderProps) {
-  renderCount++
-  console.log("QueryProvider render count:", renderCount)
+
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {

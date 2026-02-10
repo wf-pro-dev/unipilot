@@ -13,6 +13,9 @@ export type FriendListProps = Partial<FlatListProps<models.User>> & Pick<FlatLis
 export function FriendList({
     userID,
     containerClassName,
+    itemsPerPage = 20,
+    numColumns = 3,
+    renderItem: CustomRenderItem,
 }: FriendListProps) {
 
     const router = useRouter();
@@ -47,11 +50,11 @@ export function FriendList({
         <FlatList
             key={"friends-" + userID}
             userID={userID}
-            itemsPerPage={20}
+            itemsPerPage={itemsPerPage}
             useScroll={useFriendsScroll}
-            renderItem={renderItem}
+            renderItem={CustomRenderItem || renderItem}
             keyExtractor={(user: models.User) => user.ID}
-            numColumns={3}
+            numColumns={numColumns}
             containerClassName={containerClassName}
             emptyState={EmptyState}
         />

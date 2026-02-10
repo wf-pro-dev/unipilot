@@ -26,11 +26,10 @@ export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
   const router = useRouter();
 
   const { data: nextAssignments } = useNextAssignments()
-  const { data: documentRagIDs } = useAssignmentDocumentIDsRAG(assignment.RemoteID)
-  console.log(documentRagIDs)
+  const { data: documentRagIDs } = useAssignmentDocumentIDsRAG(assignment.ID)
 
   const IsDocumentAdded = useCallback((document: models.LocalDocument) => {
-    return documentRagIDs?.includes(document.RemoteID) || false;
+    return documentRagIDs?.includes(document.ID) || false;
   }, [documentRagIDs]);
 
   const getNextAssignments = useCallback(() => {
@@ -87,7 +86,6 @@ export function AiChatSidebar({ assignment }: AiChatSidebarProps) {
             <div className="flex flex-col">
               {assignment.Documents?.map((document) => {
                 const added = IsDocumentAdded(document)
-                console.log(added, document.FileName)
                 return (
                   <AiDocumentCard key={document.ID} document={document} added={added} />
                 )

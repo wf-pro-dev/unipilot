@@ -1,9 +1,10 @@
 "use client"
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { Separator } from "@/components/ui/separator"
 import {
   BookOpen,
   Users,
@@ -11,32 +12,33 @@ import {
   MapPin,
   Edit,
   Trash2,
-  TrendingUp,
   FileText,
-  Mail,
-  Info,
-  CheckCircle2,
-  Search,
+  Clock,
   Share,
-  ChevronLeft,
-  ChevronRight,
+  Search,
+  CheckCircle2,
+  Award,
+  ArrowRight,
+  AlertCircle,
+  Timer,
+  BarChart3
 } from "lucide-react"
 import Link from "next/link"
 import { models } from "@/wailsjs/go/models"
 import { useAssignments } from "@/hooks/use-assignments"
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { LogInfo } from "@/wailsjs/runtime/runtime"
-import { format } from "date-fns"
+import { useMemo, useState } from "react"
+import { format, differenceInDays, isPast } from "date-fns"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
-import { useCourseNotes, useDeleteNote } from "@/hooks/use-notes"
+import { useCourseNotes } from "@/hooks/use-notes"
 import { NoteItem } from "../notes/note-item"
-import { toast } from "sonner"
 import { Input } from "../ui/input"
 import { useRouter } from "next/navigation"
-import useEmblaCarousel from "embla-carousel-react"
 import { useCourse } from "@/hooks/use-courses"
 import { AssignmentItem } from "../assignments/assignment-item"
 import { useDialogContext } from "../provider/dialog-provider"
+import { cn } from "@/lib/utils"
+import { useGetCourseInvitations } from "@/hooks/use-auth"
+import { CourseItem } from "./course-item"
 
 interface CourseDetailsDialogProps {
   isOpen: boolean
@@ -54,397 +56,232 @@ export function CourseDetailsDialog({
   mode = "default",
 }: CourseDetailsDialogProps) {
 
-
   const { data: courseData } = useCourse(courseId)
-  var course = mode == "default" ? courseData as models.LocalCourse : courseRO
+  const course = mode === "default" ? courseData as models.LocalCourse : courseRO
 
   if (!course) return null
 
   const { SetDialogState } = useDialogContext()
-
   const router = useRouter()
-  const [activeView, setActiveView] = useState("info")
+
+  const [activeView, setActiveView] = useState("overview")
   const [searchTerm, setSearchTerm] = useState("")
 
-
-  const { data: assignments, isLoading } = useAssignments()
+  const { data: assignments } = useAssignments()
   const notes = useCourseNotes(course as models.LocalCourse)
-  const deleteNote = useDeleteNote()
 
-  const [selectedIndex, setSelectedIndex] = useState(0)
+  const { data: courseInvitations } = useGetCourseInvitations()
+  const invitations = useMemo(() => {
+    return (courseInvitations || []).filter((invitation: models.CourseInvitation) =>
+      invitation.Course?.ID === course?.ID && invitation.Status === "pending"
+    ) || []
+  }, [courseInvitations, course])
 
-  const course_assignments = useMemo(() => {
-    return (assignments || []).filter((assignment: models.LocalAssignment) => assignment.Course?.ID === course?.ID) || []
+  // Filter assignments for this course
+  const courseAssignments = useMemo(() => {
+    return (assignments || []).filter((assignment: models.LocalAssignment) =>
+      assignment.Course?.ID === course?.ID
+    ) || []
   }, [assignments, course])
 
-  const completed_assignments_count = useMemo(() => {
-    return course_assignments.filter((assignment: models.LocalAssignment) => assignment.Status === "Done").length
-  }, [course_assignments])
+  // --- Statistics Logic ---
+
+  // Completion stats
+  const completedCount = useMemo(() => {
+    return courseAssignments.filter((a) => a.Status === "Done").length
+  }, [courseAssignments])
+
+  const inProgressCount = useMemo(() => {
+    return courseAssignments.filter((a) => a.Status === "In progress").length
+  }, [courseAssignments])
+
+  const todoCount = useMemo(() => {
+    return courseAssignments.filter((a) => a.Status === "To do").length
+  }, [courseAssignments])
 
   const completionPercentage = useMemo(() => {
-    return (completed_assignments_count / course_assignments.length) * 100
-  }, [completed_assignments_count, course_assignments])
+    return courseAssignments.length > 0
+      ? (completedCount / courseAssignments.length) * 100
+      : 0
+  }, [completedCount, courseAssignments])
 
-  const isCompleted = useMemo(() => {
-    return completionPercentage === 100
-  }, [completionPercentage])
+  // Next Due Assignment (Urgency Logic)
+  const nextAssignment = useMemo(() => {
+    const pending = courseAssignments.filter(a => a.Status !== "Done");
+    // Sort by Deadline (ascending)
+    return pending.sort((a, b) => {
+      const dateA = new Date(a.Deadline).getTime();
+      const dateB = new Date(b.Deadline).getTime();
+      return dateA - dateB;
+    })[0]; // Get the first one
+  }, [courseAssignments]);
 
+  // Timeline Logic
+  const timelineStats = useMemo(() => {
+    const start = new Date(course.StartDate);
+    const end = new Date(course.EndDate);
+    const now = new Date();
 
-  const handleDeleteNote = async (note: models.LocalNote | models.Note) => {
-    const message = "note " + note.Title + " deleted"
-    LogInfo(message + " " + format(new Date(), "yyyy/MM/dd HH:mm:ssxxx"))
-    deleteNote.mutate(note as models.LocalNote, {
-      onSuccess: () => {
-        toast.success("Note deleted successfully")
-      },
-      onError: () => {
-        toast.error("Note deletion failed")
-      }
-    })
-  }
+    const totalDays = differenceInDays(end, start);
+    const daysPassed = differenceInDays(now, start);
+    const daysLeft = differenceInDays(end, now);
 
+    const progress = Math.min(Math.max((daysPassed / totalDays) * 100, 0), 100);
+
+    return { daysLeft: Math.max(0, daysLeft), progress };
+  }, [course.StartDate, course.EndDate]);
+
+  // Filter notes
   const filteredNotes = useMemo(() => {
-    return notes.filter((note) => {
-      const matchesSearch =
-        note.Title.toLowerCase().includes(searchTerm.toLowerCase())
-      return matchesSearch
-    })
+    return notes.filter((note) =>
+      note.Title.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   }, [notes, searchTerm])
 
-  // Embla Carousel setup
-  const [emblaRef, emblaApi] = useEmblaCarousel({
-    align: 'start',
-    containScroll: 'trimSnaps',
-    dragFree: false,
-    skipSnaps: false
-  })
-
-  // Carousel navigation functions
-  const scrollPrev = useCallback(() => {
-    if (emblaApi) emblaApi.scrollPrev()
-  }, [emblaApi])
-
-  const scrollNext = useCallback(() => {
-    if (emblaApi) emblaApi.scrollNext()
-  }, [emblaApi])
-
-  // Track current slide
-  const onSelect = useCallback(() => {
-    if (!emblaApi) return
-    setSelectedIndex(emblaApi.selectedScrollSnap())
-  }, [emblaApi])
-
-  useEffect(() => {
-    if (!emblaApi) return
-    onSelect()
-    emblaApi.on('select', onSelect)
-    return () => {
-      emblaApi.off('select', onSelect)
-    }
-  }, [emblaApi, onSelect])
-
-  // Reset to first page when filter changes
-  useEffect(() => {
-    setSelectedIndex(0)
-    if (emblaApi) {
-      emblaApi.scrollTo(0)
-    }
-  }, [emblaApi])
-
-
   return (
-    <div>
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="glass border-white/10 text-white max-w-xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="glass border-white/10 text-white max-w-5xl p-0 gap-0 max-h-[90vh] flex flex-col md:flex-row">
 
-          <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
-            <div className="flex items-center space-x-4">
-              <div className={`w-8 h-8 rounded-full ${course.Color} shadow-lg shadow-black/20`} />
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">{course.Code}</p>
-                <DialogTitle className="text-h3">{course.Name}</DialogTitle>
+        {/* === LEFT SIDEBAR: Course Identity & Logistics === */}
+        <div className="md:w-80 bg-white/5 border-r border-white/5 relative flex flex-col  overflow-y-auto shrink-0">
+
+          <div className="p-6 flex flex-col ">
+
+            {/* Header: Icon & Title */}
+            <div className="flex flex-col items-center mb-6 mt-2 text-center">
+              <div className={cn(
+                "w-24 h-24 rounded-2xl flex items-center justify-center shadow-2xl shadow-black/50 mb-5 ring-2 ring-white/10",
+                course.Color
+              )}>
+                <BookOpen className="w-10 h-10 text-white" />
+              </div>
+
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="outline" className="text-caption border-white/20 bg-white/5 text-text-caption px-2 py-0.5 h-6">
+                  {course.Code}
+                </Badge>
+                {course.Credits > 0 && (
+                  <Badge variant="outline" className="text-caption border-white/20 bg-white/5 text-text-caption px-2 py-0.5 h-6">
+                    {course.Credits} Credits
+                  </Badge>
+                )}
+              </div>
+
+              <DialogTitle className="text-h3 text-text-title mb-1 leading-tight">
+                {course.Name}
+              </DialogTitle>
+
+              <p className="text-caption text-text-caption font-medium">
+                {course.Semester}
+              </p>
+            </div>
+
+            {/* Progress Section */}
+            {courseAssignments.length > 0 && (
+              <div className="mb-6 bg-white/5 rounded-xl p-4 border border-white/5">
+                <div className="flex justify-between items-end mb-2">
+                  <span className="text-caption text-text-caption uppercase tracking-wider font-semibold">Progress</span>
+                  <span className="text-h5 font-bold text-primary-blue-400">{Math.round(completionPercentage)}%</span>
+                </div>
+                <Progress value={completionPercentage} className="h-2 bg-white/10" />
+                <p className="text-[11px] text-text-caption mt-2 text-right">
+                  {completedCount} / {courseAssignments.length} Completed
+                </p>
+              </div>
+            )}
+
+            <Separator className="bg-white/10 mb-6" />
+
+            {/* Key Logistics Info */}
+            <div className="space-y-4 ">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-white/5 border border-white/5 shrink-0">
+                  <Users className="w-4 h-4 text-text-caption" />
+                </div>
+                <div className=" min-w-0">
+                  <p className="text-caption text-text-caption uppercase tracking-wider mb-0.5">
+                    Instructor
+                  </p>
+                  <p className="text-body text-white font-medium truncate">
+                    {course.Instructor}
+                  </p>
+                  {course.InstructorEmail && (
+                    <a href={`mailto:${course.InstructorEmail}`} className="text-xs text-primary-blue-400 hover:text-primary-blue-300 truncate block mt-0.5">
+                      {course.InstructorEmail}
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-white/5 border border-white/5 shrink-0">
+                  <Clock className="w-4 h-4 text-text-caption" />
+                </div>
+                <div className=" min-w-0">
+                  <p className="text-caption text-text-caption uppercase tracking-wider mb-0.5">
+                    Schedule
+                  </p>
+                  <p className="text-body text-white font-medium">
+                    {course.Schedule || "No schedule"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-white/5 border border-white/5 shrink-0">
+                  <MapPin className="w-4 h-4 text-text-caption" />
+                </div>
+                <div className=" min-w-0">
+                  <p className="text-caption text-text-caption uppercase tracking-wider mb-0.5">
+                    Location
+                  </p>
+                  <p className="text-body text-white font-medium">
+                    {course.Location || "Remote"}
+                  </p>
+                </div>
               </div>
             </div>
-          </DialogHeader>
 
-          <div className="p-6">
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent z-0 rounded-2xl pointer-events-none" />
-            <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
-
-              <TabsList className="flex flex-row bg-white/5 p-1 rounded-xl w-full mb-6 border border-white/5">
-                <TabsTrigger
-                  value="info"
-                  className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
-                >
-                  <Info className="w-4 h-4" />
-                  <span className="text-sm font-medium">Info</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="assignments"
-                  className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span className="text-sm font-medium">Assignments</span>
-                </TabsTrigger>
-                <TabsTrigger
-                  value="notes"
-                  className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
-                >
-                  <BookOpen className="w-4 h-4" />
-                  <span className="text-sm font-medium">Notes</span>
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="info" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                {/* Key Details: Schedule & Location */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 group">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400 group-hover:bg-blue-500/30 transition-colors">
-                        <Calendar className="w-5 h-5" />
-                      </div>
-                      <span className="text-xs font-medium text-blue-200 uppercase tracking-wider">Schedule</span>
-                    </div>
-                    <p className="text-h4 text-white leading-tight">{course.Schedule}</p>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 group">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 bg-emerald-500/20 rounded-lg text-emerald-400 group-hover:bg-emerald-500/30 transition-colors">
-                        <MapPin className="w-5 h-5" />
-                      </div>
-                      <span className="text-xs font-medium text-emerald-200 uppercase tracking-wider">Location</span>
-                    </div>
-                    <p className="text-h4 text-white leading-tight">{course.Location || "Online"}</p>
-                  </div>
-                </div>
-
-                {/* Instructor Section */}
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex items-start gap-4">
-                  <div className="p-3 bg-white/5 rounded-full text-gray-400">
-                    <Users className="w-6 h-6" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-gray-400 uppercase tracking-wider">Instructor</p>
-                    <p className="text-h4 text-white">{course.Instructor}</p>
-                    <div className="flex items-center gap-2 text-sm text-blue-400">
-                      <Mail className="w-3.5 h-3.5" />
-                      <a href={`mailto:${course.InstructorEmail}`} className="hover:underline">{course.InstructorEmail}</a>
-                    </div>
-                  </div>
-                </div>
-
-
-                {/* Course Metadata Grid */}
-                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                  <div className="p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-                    <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider block mb-1.5">Credits</span>
-                    <div className="flex">
-                      <Badge variant="outline" className="border-white/10 bg-white/5 text-white px-2 py-0.5 text-xs">
-                        {course.Credits} credits
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-                    <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider block mb-1.5">Semester</span>
-                    <p className="text-sm font-medium text-white ">{course.Semester}</p>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-                    <div className="flex items-center space-x-1.5 mb-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div>
-                      <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Start Date</span>
-                    </div>
-                    <p className="text-sm font-medium text-white ">{format(course.StartDate, "MMM d, yyyy")}</p>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-                    <div className="flex items-center space-x-1.5 mb-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-red-400"></div>
-                      <span className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">End Date</span>
-                    </div>
-                    <p className="text-sm font-medium text-white ">{format(course.EndDate, "MMM d, yyyy")}</p>
-                  </div>
-                </div>
-
-              </TabsContent>
-
-              <TabsContent value="assignments" className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-                {course_assignments.length > 0 ? (
-
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <label className="text-sm font-medium text-gray-400 uppercase tracking-wider">Recent Assignments</label>
-
-                      <Link href={`/assignments?view=list&course=${course.Code}`}>
-                        <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 h-8 text-xs">
-                          View All
-                        </Button>
-                      </Link>
-                    </div>
-
-                    <div>
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center space-x-2 text-sm">
-                            <TrendingUp className="w-4 h-4 text-green-400" />
-                            <span className={`${isCompleted ? "text-green-400" : "text-white"} font-medium`}>
-                              {completed_assignments_count} of {course_assignments.length} assignments completed
-                            </span>
-                          </div>
-                          <span className="text-sm font-bold text-gray-400">{Math.round(completionPercentage)}%</span>
-                        </div>
-                        <Progress color={isCompleted ? "green" : "white"} value={completionPercentage} className="h-1.5 bg-white/10" />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1">
-                      {course_assignments.slice(0, 3).map((assignment, index) => (
-                        <AssignmentItem key={assignment.ID} assignmentId={assignment.ID} mode="ghost" />
-                      ))}
-                    </div>
-
-
-                  </div>
-
-                ) : (
-
-                  <div className="py-12 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
-                    <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
-                      <CheckCircle2 className="h-8 w-8 text-gray-500" />
-                    </div>
-                    <h3 className="text-lg font-medium text-white mb-1">No assignments found</h3>
-                    <p className="text-gray-400 text-sm">Create an assignment to get started</p>
-                  </div>
-
-                )}
-              </TabsContent>
-
-              <TabsContent value="notes" className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
-
-                <div className="space-y-4">
-                  <div className="flex w-full space-x-3 items-center">
-                    <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Search notes..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 bg-white/5 border-white/10    transition-all duration-300 h-10"
-                      />
-                    </div>
-                    <div >
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="bg-white/5 border-white/10 hover:bg-white/10 hover:text-white h-10"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          router.push(`/notes?course=${course?.Code}`)
-                        }}
-                      >
-                        <FileText className="mr-2 w-3.5 h-3.5" />
-                        View All
-                      </Button>
-                    </div>
-                  </div>
-                  {filteredNotes.length > 0 ? (
-                    <div className="relative group">
-                      <div className="overflow-hidden" ref={emblaRef}>
-                        <div className="flex -ml-4 py-2">
-                          {filteredNotes.map((note) => (
-                            <div className="flex-none w-full min-w-0 pl-4" key={note.ID}>
-                              <NoteItem noteID={note.ID}  mode="default" />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                      {filteredNotes.length > 1 && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="left-0 absolute rounded-full top-1/2 -translate-y-1/2 -translate-x-3 z-10 h-8 w-8 bg-black/40 border-white/10 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={scrollPrev}
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="right-0 absolute rounded-full top-1/2 -translate-y-1/2 translate-x-3 z-10 h-8 w-8 bg-black/40 border-white/10 backdrop-blur-sm text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={scrollNext}
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="py-12 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
-                      <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
-                        <FileText className="h-8 w-8 text-gray-500" />
-                      </div>
-                      <h3 className="text-lg font-medium text-white mb-1">No notes found</h3>
-                      <p className="text-gray-400 text-sm">Create a note to get started</p>
-                    </div>
-                  )}
-
-
-                </div>
-
-
-
-              </TabsContent>
-
-            </Tabs>
-
-
-            {/* Actions */}
+            {/* Bottom Actions */}
             {mode === "default" && (
-              <div className="flex gap-3 mt-6">
-
+              <div className="mt-6 pt-4 border-t border-white/10 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full rounded-lg border-white/10 hover:bg-white/10"
+                    onClick={() => {
+                      SetDialogState({
+                        modelType: "course",
+                        dialogType: "edit",
+                        id: courseId
+                      })
+                    }}
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full rounded-lg border-white/10 hover:bg-white/10"
+                    onClick={() => {
+                      SetDialogState({
+                        modelType: "course",
+                        dialogType: "linkRequest",
+                        id: courseId
+                      })
+                    }}
+                  >
+                    <Share className="w-4 h-4 mr-2" />
+                    Share
+                  </Button>
+                </div>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  className="rounded-full"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    SetDialogState({
-                      modelType: "course",
-                      dialogType: "edit",
-                      id: courseId
-                    })
-                  }}
-                >
-                  <Edit className="w-4 h-4" />
-                  Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    SetDialogState({
-                      modelType: "course",
-                      dialogType: "linkRequest",
-                      id: courseId
-                    })
-                  }}
-                >
-                  <Share className="w-4 h-4" />
-                  Share
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  className="rounded-full"
-                  onClick={(e) => {
-                    e.stopPropagation()
+                  className="w-full text-status-error hover:text-status-error hover:bg-status-error/10"
+                  onClick={() => {
                     SetDialogState({
                       modelType: "course",
                       dialogType: "delete",
@@ -452,19 +289,278 @@ export function CourseDetailsDialog({
                     })
                   }}
                 >
-                  <Trash2 className="w-4 h-4" />
-                  Delete
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Course
                 </Button>
-
               </div>
             )}
           </div>
-        </DialogContent>
+        </div>
 
-      </Dialog>
+        {/* === RIGHT CONTENT: Workspace === */}
+        <div className="w-full flex flex-col bg-bg-base/30 grow-0">
 
-     
+          <Tabs value={activeView} onValueChange={setActiveView} className=" flex flex-col h-full ">
 
-    </div>
+            {/* Top Navigation Bar */}
+            <div className="px-6 border-b border-white/5 bg-white/5 flex-shrink-0">
+              <TabsList className="flex gap-6 bg-transparent h-14 p-0">
+                {['Overview', 'Assignments', 'Notes'].map((tab) => (
+                  <TabsTrigger
+                    key={tab}
+                    value={tab.toLowerCase()}
+                    className="
+                      relative  flex items-center gap-2 px-1
+                      text-sm font-medium text-text-caption 
+                      data-[state=active]:text-white 
+                      border-b-2 border-transparent data-[state=active]:border-primary-blue-500
+                      transition-colors bg-transparent
+                    "
+                  >
+                    {tab === 'Overview' && <Award className="w-4 h-4" />}
+                    {tab === 'Assignments' && <FileText className="w-4 h-4" />}
+                    {tab === 'Notes' && <BookOpen className="w-4 h-4" />}
+                    {tab}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </div>
+
+            {/* Scrollable Content Area */}
+            <div className="flex flex-col min-h-0 p-6">
+
+              {/* --- OVERVIEW TAB --- */}
+              <TabsContent value="overview" className="mt-0 space-y-8 outline-none animate-in fade-in-50 duration-300 overflow-y-auto">
+
+                {/* 1. NEXT UP HERO SECTION */}
+                <section>
+                  <h3 className="text-sm font-medium text-text-caption uppercase tracking-wider mb-3 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4" />
+                    Action Required
+                  </h3>
+
+                  {nextAssignment ? (
+                    <div className="group relative bg-white/5 border border-white/10 hover:border-primary-blue-500/50 rounded-xl p-5 transition-all">
+                      <div className="absolute top-0 left-0 w-1  bg-primary-blue-500 rounded-l-xl" />
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge variant="secondary" className="bg-primary-blue-500/10 text-primary-blue-300 border-primary-blue-500/20">
+                              Up Next
+                            </Badge>
+                            <span className="text-xs text-text-caption font-medium">
+                              Due {format(new Date(nextAssignment.Deadline), "EEEE, MMM d")}
+                            </span>
+                          </div>
+                          <h4 className="text-xl font-semibold text-white group-hover:text-primary-blue-300 transition-colors">
+                            {nextAssignment.Title}
+                          </h4>
+                          <p className="text-sm text-text-caption line-clamp-2 max-w-xl">
+                            {nextAssignment.Todo || "No description provided."}
+                          </p>
+                        </div>
+                        <Button className="shrink-0 rounded-full" onClick={() => setActiveView("assignments")}>
+                          View Details <ArrowRight className="w-4 h-4 ml-2" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gradient-to-br from-status-success/20 to-transparent border border-status-success/20 rounded-xl p-6 text-center">
+                      <div className="w-12 h-12 bg-status-success/20 rounded-full flex items-center justify-center mx-auto mb-3 text-status-success">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-lg font-semibold text-white">All Caught Up!</h4>
+                      <p className="text-text-caption text-sm">You have no pending assignments for this course.</p>
+                    </div>
+                  )}
+                </section>
+
+                <Separator className="bg-white/10" />
+
+                {/* 2. COURSE METRICS GRID */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                  {/* Timeline Stats */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-text-caption uppercase tracking-wider flex items-center gap-2">
+                      <Timer className="w-4 h-4" />
+                      Timeline
+                    </h3>
+                    <div className="bg-white/5 border border-white/5 rounded-xl p-5">
+                      <div className="flex justify-between items-end mb-2">
+                        <div>
+                          <p className="text-2xl font-bold text-white">{timelineStats.daysLeft}</p>
+                          <p className="text-xs text-text-caption uppercase">Days Remaining</p>
+                        </div>
+                        <Badge variant="outline" className="bg-white/5 text-text-caption border-white/10">
+                          {Math.round(timelineStats.progress)}% Elapsed
+                        </Badge>
+                      </div>
+                      <Progress value={timelineStats.progress} className="h-2 mb-3 bg-white/10" />
+                      <div className="flex justify-between text-xs text-text-caption">
+                        <span>{format(new Date(course.StartDate), "MMM d")}</span>
+                        <span>{format(new Date(course.EndDate), "MMM d, yyyy")}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Workload Breakdown */}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-text-caption uppercase tracking-wider flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4" />
+                      Workload
+                    </h3>
+                    <div className="bg-white/5 border border-white/5 rounded-xl p-5 grid grid-cols-3 gap-2 text-center divide-x divide-white/10">
+                      <div>
+                        <p className="text-xl font-bold text-white">{todoCount}</p>
+                        <p className="text-[10px] text-text-caption uppercase mt-1">To Do</p>
+                      </div>
+                      <div>
+                        <p className="text-xl font-bold text-primary-blue-400">{inProgressCount}</p>
+                        <p className="text-[10px] text-text-caption uppercase mt-1">Active</p>
+                      </div>
+                      <div>
+                        <p className="text-xl font-bold text-status-success">{completedCount}</p>
+                        <p className="text-[10px] text-text-caption uppercase mt-1">Done</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. COLLABORATION SECTION */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-text-caption uppercase tracking-wider flex items-center gap-2">
+                      <Users className="w-4 h-4" />
+                      Collaboration & Access
+                    </h3>
+                    {/* Badge for pending requests placeholder */}
+                    <Badge variant="outline" className="bg-white/5 border-white/10 text-text-caption">
+                      0 Pending
+                    </Badge>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/5 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-secondary-purple-500/10 flex items-center justify-center text-secondary-purple-400 border border-secondary-purple-500/20">
+                        <Share className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-white">Share Course Material</p>
+                        <p className="text-xs text-text-caption">Invite peers to view assignments and notes.</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className=" sm:flex-none border-white/10 hover:bg-white/10"
+                        onClick={() => {
+                          SetDialogState({
+                            modelType: "course",
+                            dialogType: "linkRequest",
+                            id: courseId
+                          })
+                        }}
+                      >
+                        Manage Access
+                      </Button>
+                    </div>
+                  </div>
+                  {invitations.length > 0 && (
+                    invitations.map((invitation) => (
+                      <CourseItem
+                        key={invitation.ID}
+                        courseId={invitation.Course?.ID!}
+                        courseRO={invitation.Course!}
+                        mode="readonly"
+                        size="compact"
+                      />
+                    ))
+                  )}
+                </div>
+
+              </TabsContent>
+
+              {/* --- ASSIGNMENTS TAB --- */}
+              <TabsContent value="assignments" className="mt-0  flex flex-col outline-none animate-in fade-in-50 duration-300">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-body font-medium text-text-caption uppercase tracking-wider">
+                    All Tasks ({courseAssignments.length})
+                  </h3>
+                  <Button variant="outline" size="sm" className="bg-white/5 border-white/10 hover:bg-white/10" asChild>
+                    <Link href={`/assignments?view=list&course=${course.Code}`}>
+                      Full View
+                    </Link>
+                  </Button>
+                </div>
+
+                {courseAssignments.length > 0 ? (
+                  <div className="space-y-3 pb-4">
+                    {courseAssignments.map((assignment) => (
+                      <div key={assignment.ID} className="bg-white/5 border border-white/5 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
+                        <AssignmentItem assignmentId={assignment.ID} mode="ghost" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className=" flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-white/10 rounded-xl bg-white/5">
+                    <FileText className="w-12 h-12 text-text-muted mb-4" />
+                    <h3 className="text-lg font-medium text-white">No assignments</h3>
+                    <p className="text-text-caption max-w-xs mt-2">
+                      There are no assignments for this course yet.
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* --- NOTES TAB --- */}
+              <TabsContent value="notes" className="mt-0  flex flex-col outline-none animate-in fade-in-50 duration-300">
+                <div className="mb-4 space-y-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-caption" />
+                    <Input
+                      placeholder="Search notes..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9 bg-white/5 border-white/10 focus:border-primary-blue-500/50 h-10"
+                    />
+                  </div>
+                </div>
+
+                {filteredNotes.length > 0 ? (
+                  <div className="space-y-3 pb-4">
+                    {filteredNotes.map((note) => (
+                      <div key={note.ID} className="bg-white/5 border border-white/5 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
+                        <NoteItem noteID={note.ID} mode="default" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className=" flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-white/10 rounded-xl bg-white/5">
+                    <BookOpen className="w-12 h-12 text-text-muted mb-4" />
+                    <h3 className="text-lg font-medium text-white">
+                      {searchTerm ? 'No matches found' : 'No notes'}
+                    </h3>
+                    <p className="text-text-caption max-w-xs mt-2">
+                      {searchTerm ? 'Try a different keyword.' : 'Start taking notes to track your learning.'}
+                    </p>
+                    <Button
+                      variant="outline"
+                      className="mt-4 border-white/10 bg-white/5"
+                      onClick={() => router.push(`/notes?course=${course?.Code}`)}
+                    >
+                      Create Note
+                    </Button>
+                  </div>
+                )}
+              </TabsContent>
+
+            </div>
+          </Tabs>
+        </div>
+
+      </DialogContent>
+    </Dialog>
   )
 }

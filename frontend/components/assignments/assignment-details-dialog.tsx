@@ -280,6 +280,7 @@ const BaseAssignmentDetailsDialog = ({
                 className="rounded-full"
                 onClick={(e) => {
                   e.stopPropagation()
+                  onClose()
                   deleteMutation.mutate(assignment as models.LocalAssignment)
                 }}
               >

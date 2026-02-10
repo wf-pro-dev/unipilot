@@ -9,7 +9,6 @@ import {
   GetSubmissionDocuments,
   GetUserStorageInfo,
   UploadDocument,
-  UploadNewDocumentVersion,
   OpenDocument,
   SaveDocumentAs,
   DeleteDocument,
@@ -227,7 +226,6 @@ export function useDeleteDocument() {
 
   return useMutation({
     mutationFn: async (document: models.LocalDocument) => {
-      console.log("Deleting document: " + document.ID)
       return await DeleteDocument(document.ID)
     },
 
@@ -331,6 +329,9 @@ export function useUploadDocumentRAG() {
 export function useDeleteDocumentRAG() {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationFn: async (document: models.LocalDocument) => {
+      return await DeleteDocumentRAG(document.AssignmentID, document.ID)
+    },
     onMutate: async (document) => {
       await queryClient.cancelQueries({ queryKey: documentKeys.rag(document.AssignmentID) })
 
@@ -340,9 +341,7 @@ export function useDeleteDocumentRAG() {
         return old.filter(id => id !== document.ID)
       })
     },
-    mutationFn: async (document: models.LocalDocument) => {
-      return await DeleteDocumentRAG(document.AssignmentID, document.ID)
-    },
+   
     onError: (err, variables, context) => {
       queryClient.invalidateQueries({ queryKey: documentKeys.rag(variables.AssignmentID) })
       LogError("Failed to delete document from RAG: " + err)

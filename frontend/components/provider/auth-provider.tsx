@@ -43,7 +43,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       refetchAssignments()
       refetchNotes()
     }
-    console.log("user",user)
   }, [user])
 
   if (isLoadingUser) {

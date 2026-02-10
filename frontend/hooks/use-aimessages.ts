@@ -11,7 +11,7 @@ import { toast } from "sonner"
 export const aimessageKeys = {
     all: ['aimessages'] as const,
     lists: () => [...aimessageKeys.all, 'list'] as const,
-    list: (assignmentID: number) => [...aimessageKeys.lists(), { assignmentID }] as const,
+    list: (assignmentID: string) => [...aimessageKeys.lists(), { assignmentID }] as const,
 }
 // Custom hook for saving messages
 // Hook for updating assignments with optimistic updates
@@ -23,7 +23,7 @@ export function useSaveUIMessage() {
             assignmentID,
             vercelMessage
         }: {
-            assignmentID: number
+            assignmentID: string
             vercelMessage: UIMessage
         }) => {
             return await SaveUIMessage(assignmentID, vercelMessage)
@@ -61,7 +61,7 @@ export function useSaveUIMessage() {
 }
 
 // Custom hook for fetching conversation history
-export const useConversationHistory = (assignmentID: number) => {
+export const useConversationHistory = (assignmentID: string) => {
     return useQuery({
         queryKey: aimessageKeys.list(assignmentID),
         queryFn: async (): Promise<models.LocalAiMessage[]> => {

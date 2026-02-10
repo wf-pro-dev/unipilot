@@ -168,6 +168,7 @@ func (a *App) CopyAssignment(assignment *models.LocalAssignment, includeDocument
 					FileSize:     document.FileSize,
 					StorageKey:   document.StorageKey,
 					HasLocalFile: false,
+					Version:      1,
 				},
 			})
 			if err != nil {
@@ -390,7 +391,7 @@ func (a *App) CreateDocument(document *models.LocalDocument) error {
 	log.Println("Document created (app)", document.ID, document.FileSize, document.HasLocalFile)
 
 	if document.HasLocalFile {
-		return a.uploadDocumentWithProgress(document)
+		return a.sendDocumentWithProgress(document)
 	} else {
 		err = a.SendDocument(document)
 		if err != nil {
@@ -401,9 +402,8 @@ func (a *App) CreateDocument(document *models.LocalDocument) error {
 	return nil
 }
 
-func (a *App) uploadDocumentWithProgress(document *models.LocalDocument) error {
+func (a *App) sendDocumentWithProgress(document *models.LocalDocument) error {
 
-	log.Println("Uploading document with progress", document.ID, document.FileSize)
 	// Initialize progress manager (reuse if exists, or create new)
 	progressManager := progress.GetManager(a.ctx)
 
@@ -426,32 +426,15 @@ func (a *App) uploadDocumentWithProgress(document *models.LocalDocument) error {
 
 	})
 
-	// Perform upload with progress tracking
-	err := a.sendDocumentWithProgress(a.ctx, document, fileProgress)
-	if err != nil {
-		fileProgress.SetError(err)
-		return Errors.Wrap(err, Errors.ClientRequestFailed, "Failed to send document")
-	}
-	return nil
-}
-
-// sendDocumentWithProgress sends document to server with progress tracking
-func (a *App) sendDocumentWithProgress(ctx context.Context, document *models.LocalDocument, fileProgress *progress.Progress) error {
-
-	log.Println("Sending document with progress", document.ID, document.FileSize)
 	if a.DB == nil {
 		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
-	}
-
-	if !a.Auth.IsAuthenticated() {
-		return Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
 
 	db := a.DB.GetDB()
 	// Upload to server
 
 	// Send document with progress tracking
-	storageKey, clientErr := client.SendDocumentWithProgress(ctx, document, fileProgress)
+	storageKey, clientErr := client.SendDocumentWithProgress(a.ctx, document, fileProgress)
 	if clientErr != nil {
 		return Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
 	}
@@ -463,6 +446,33 @@ func (a *App) sendDocumentWithProgress(ctx context.Context, document *models.Loc
 	}
 
 	return nil
+}
+
+func (a *App) SendDocument(document *models.LocalDocument) error {
+
+	if a.DB == nil {
+		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
+	}
+
+	if a.Auth.IsAuthenticated() {
+
+		db := a.DB.GetDB()
+
+		storageKey, clientErr := client.SendDocument(document)
+		if clientErr != nil {
+			return Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
+		}
+
+		if err := db.Model(document).
+			Update("synced_at", time.Now()).
+			Update("storage_key", storageKey).Error; err != nil {
+			return Errors.HandleDBWriteError(err)
+		}
+
+	}
+
+	return nil
+
 }
 
 // GetActiveUploads returns all active uploads
@@ -571,33 +581,6 @@ func (a *App) GetFileAsDataURL(filePath string) (string, error) {
 
 	// Return as data URL
 	return fmt.Sprintf("data:%s;base64,%s", mimeType, base64Data), nil
-}
-
-func (a *App) SendDocument(document *models.LocalDocument) error {
-
-	if a.DB == nil {
-		return Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
-	}
-
-	if a.Auth.IsAuthenticated() {
-
-		db := a.DB.GetDB()
-
-		storageKey, clientErr := client.SendDocument(document)
-		if clientErr != nil {
-			return Errors.Wrap(clientErr, Errors.ClientRequestFailed, "Failed to send document")
-		}
-
-		if err := db.Model(document).
-			Update("synced_at", time.Now()).
-			Update("storage_key", storageKey).Error; err != nil {
-			return Errors.HandleDBWriteError(err)
-		}
-
-	}
-
-	return nil
-
 }
 
 // DownloadDocument retrieves a document file for download
@@ -1056,21 +1039,24 @@ func (a *App) Logout() error {
 
 	//Stop and uninstall daemon service before logout
 	//This ensures the service is removed so another user can install their own
+
 	if a.Daemon != nil {
-		// Stop the daemon first
-		if err := a.Daemon.StopDaemon(); err != nil {
-			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to stop notification daemon"))
-		} else {
-			log.Println("Notification daemon stopped successfully")
-		}
 
-		// Uninstall the daemon service
-		if err := a.Daemon.UninstallDaemon(); err != nil {
-			log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to uninstall notification daemon"))
-		} else {
-			log.Println("Notification daemon uninstalled successfully")
-		}
+		go func() {
+			// Stop the daemon first
+			if err := a.Daemon.StopDaemon(); err != nil {
+				log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to stop notification daemon"))
+			} else {
+				log.Println("Notification daemon stopped successfully")
+			}
 
+			// Uninstall the daemon service
+			if err := a.Daemon.UninstallDaemon(); err != nil {
+				log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to uninstall notification daemon"))
+			} else {
+				log.Println("Notification daemon uninstalled successfully")
+			}
+		}()
 		// Clear daemon manager reference
 		a.Daemon = nil
 	}
@@ -1096,30 +1082,6 @@ func (a *App) GetAuthToken() (string, error) {
 	return token, nil
 }
 
-// GetLAssignment returns an assignment by ID
-func (a *App) GetLAssignment(id string) (*models.LocalAssignment, error) {
-	if a.DB == nil {
-		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
-	}
-	return a.DB.GetLAssignment(id)
-}
-
-// GetCourse returns a course by ID
-func (a *App) GetCourse(id string) (*models.LocalCourse, error) {
-	if a.DB == nil {
-		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
-	}
-	return models.GetLCourse(id, a.DB.GetDB())
-}
-
-// GetUser returns a user by ID
-func (a *App) GetUser(id string) (*models.User, error) {
-	if a.DB == nil {
-		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
-	}
-	return a.DB.GetUser(id)
-}
-
 // GetAssignments returns all assignments for the current user
 func (a *App) GetAssignments() ([]models.LocalAssignment, error) {
 	if a.DB == nil {
@@ -1143,6 +1105,33 @@ func (a *App) GetCourses() ([]models.LocalCourse, error) {
 		return []models.LocalCourse{}, nil
 	}
 	return a.DB.GetCourses()
+}
+
+func (a *App) GetRCourses(userID string) ([]models.Course, error) {
+	if a.DB == nil {
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
+	}
+	courses, err := client.GetCourses(userID)
+	if err != nil {
+		return nil, err
+	}
+	return courses, nil
+}
+
+// GetCourse returns a course by ID
+func (a *App) GetCourse(id string) (*models.LocalCourse, error) {
+	if a.DB == nil {
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
+	}
+	return models.GetLCourse(id, a.DB.GetDB())
+}
+
+// GetUser returns a user by ID
+func (a *App) GetUser(id string) (*models.User, error) {
+	if a.DB == nil {
+		return nil, Errors.Wrap(fmt.Errorf("database not initialized"), Errors.InitDatabaseNotInitialized, "Database not initialized")
+	}
+	return a.DB.GetUser(id)
 }
 
 func (a *App) GetUserCourseInvitations() ([]models.CourseInvitation, error) {
@@ -1526,6 +1515,17 @@ func (a *App) RebuildNotificationDaemon() error {
 	return a.Daemon.RebuildDaemon()
 }
 
+func (a *App) GetClusterStatus(courseID string) (*client.CourseStatusResponse, error) {
+	if !a.Auth.IsAuthenticated() {
+		return nil, nil
+	}
+	courseStatus, err := client.GetClusterStatus(courseID)
+	if err != nil {
+		return nil, err
+	}
+	return courseStatus, nil
+}
+
 // LinkCourse links a course to a list of users
 func (a *App) CourseShare(c *models.LocalCourse, usersID []string) error {
 	if err := client.CourseShare(c, usersID); err != nil {
@@ -1533,6 +1533,14 @@ func (a *App) CourseShare(c *models.LocalCourse, usersID []string) error {
 	}
 	return nil
 }
+
+func (a *App) SendClusterRequest(courseID string) error {
+	if err := client.SendClusterRequest(courseID); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (a *App) AcceptCourseInvitation(invitation *models.CourseInvitation) error {
 
 	err := client.AcceptCourseInvitation(invitation)

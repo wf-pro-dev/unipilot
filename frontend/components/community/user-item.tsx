@@ -3,7 +3,7 @@ import { GlassCard, GlassCardVariants } from "@/components/ui/glass-card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { MessageCircle, UserPlus, UserMinus, Users } from "lucide-react"
+import { MessageCircle, UserPlus, UserMinus, Users, Icon } from "lucide-react"
 import { Skeleton } from "../ui/skeleton"
 
 import { models } from "@/wailsjs/go/models"
@@ -18,11 +18,14 @@ import {
 import { cn } from "@/lib/utils"
 import { LucideIcon } from "lucide-react"
 import { useDialogContext } from "../provider/dialog-provider"
+import { client } from "@/wailsjs/go/models"
+import { useAuthContext } from "../provider/auth-provider"
 
 interface UserItemProps {
   user: models.User
   size?: "default" | "compact"
   variant?: GlassCardVariants
+  actions?: (user: models.User) => React.ReactNode
 }
 
 interface FriendshipActionProps {
@@ -33,25 +36,111 @@ interface FriendshipActionProps {
   className: string
 }
 
+interface FriendshipActionComponentProps {
+  friendShipStatus: client.FriendStatusResponse
+  sendFriendRequest: () => void
+  cancelFriendRequest: () => void
+  acceptFriendRequest: () => void
+  removeFriend: () => void
+}
+
+const FriendshipAction = memo(({ 
+  friendShipStatus, 
+  sendFriendRequest,
+  cancelFriendRequest,
+  acceptFriendRequest,
+  removeFriend
+}: FriendshipActionComponentProps) => {
+  var action: FriendshipActionProps = {
+    label: "Add Friend",
+    variant: "default" as const,
+    Icon: UserPlus,
+    onClick: (e: React.MouseEvent) => {
+      e.stopPropagation()
+      sendFriendRequest()
+    },
+    className: "bg-blue-600 hover:bg-blue-500 text-white"
+  }
+  
+  if (friendShipStatus?.status === "accepted") {
+    action = {
+      label: "Friends",
+      variant: "outline" as const,
+      Icon: Users,
+      onClick: (e: React.MouseEvent) => {
+        e.stopPropagation()
+        removeFriend()
+      },
+      className: "text-emerald-400 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10"
+    }
+  }
+
+  if (friendShipStatus?.status === "pending") {
+    if (friendShipStatus?.is_pending_for_you) {
+      action = {
+        label: "Accept",
+        variant: "default" as const,
+        Icon: UserPlus,
+        onClick: (e: React.MouseEvent) => {
+          e.stopPropagation()
+          acceptFriendRequest()
+        },
+        className: "bg-blue-600 hover:bg-blue-500 text-white"
+      }
+    }
+
+    action = {
+      label: "Pending",
+      variant: "outline" as const,
+      Icon: UserMinus,
+      onClick: (e: React.MouseEvent) => {
+        e.stopPropagation()
+        cancelFriendRequest()
+      },
+      className: "text-gray-400 border-gray-500/20 bg-gray-500/5"
+    }
+  }
+
+  return (
+    <Button
+      variant={action.variant}
+      size="sm"
+      className={cn("flex-1 text-xs font-medium h-9", action.className)}
+      onClick={action.onClick}
+    >
+      <action.Icon className="w-3.5 h-3.5 mr-1.5" />
+      {action.label}
+    </Button>
+  )
+}, (prevProps, nextProps) => {
+  return prevProps.friendShipStatus?.status === nextProps.friendShipStatus?.status &&
+    prevProps.friendShipStatus?.is_pending_for_you === nextProps.friendShipStatus?.is_pending_for_you
+})
+
 const BaseUserItem = ({
   user,
   size = "default",
-  variant = "outline"
+  variant = "outline",
+  actions,
 }: UserItemProps) => {
 
   const { SetDialogState } = useDialogContext()
+
   const { data: friendShipStatus, isLoading: friendShipStatusLoading } = useFriendShipStatus(user.ID)
   const { mutate: sendFriendRequest } = useSendFriendRequest(user.ID)
   const { mutate: cancelFriendRequest } = useCancelFriendRequest(user.ID)
   const { mutate: acceptFriendRequest } = useAcceptFriendRequest(user.ID)
   const { mutate: removeFriend } = useRemoveFriend(user.ID)
 
+  const { user: currentUser } = useAuthContext()
+  const isCurrentUser = useMemo(() => currentUser?.ID === user.ID, [currentUser, user])
+
   const handleOpenDetails = useCallback(() => {
-    SetDialogState({ 
-      modelType: "user", 
-      dialogType: "details", 
-      id: user.ID, 
-      open: true, 
+    SetDialogState({
+      modelType: "user",
+      dialogType: "details",
+      id: user.ID,
+      open: true,
       item: user,
       viewMode: "readonly"
     })
@@ -62,83 +151,10 @@ const BaseUserItem = ({
     // Message functionality
   }, [])
 
-  // Get friendship action state
-  const getFriendshipAction: FriendshipActionProps = useMemo(() => {
-    if (friendShipStatus?.status === "accepted") {
-      return {
-        label: "Friends",
-        variant: "outline" as const,
-        Icon: Users,
-        onClick: (e: React.MouseEvent) => {
-          e.stopPropagation()
-          removeFriend()
-        },
-        className: "text-emerald-400 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10"
-      }
-    }
-
-    if (friendShipStatus?.status === "pending") {
-      if (friendShipStatus?.is_pending_for_you) {
-        return {
-          label: "Accept",
-          variant: "default" as const,
-          Icon: UserPlus,
-          onClick: (e: React.MouseEvent) => {
-            e.stopPropagation()
-            acceptFriendRequest()
-          },
-          className: "bg-blue-600 hover:bg-blue-500 text-white"
-        }
-      }
-
-      return {
-        label: "Pending",
-        variant: "outline" as const,
-        Icon: UserMinus,
-        onClick: (e: React.MouseEvent) => {
-          e.stopPropagation()
-          cancelFriendRequest()
-        },
-        className: "text-gray-400 border-gray-500/20 bg-gray-500/5"
-      }
-    }
-
-    return {
-      label: "Add Friend",
-      variant: "default" as const,
-      Icon: UserPlus,
-      onClick: (e: React.MouseEvent) => {
-        e.stopPropagation()
-        sendFriendRequest()
-      },
-      className: "bg-blue-600 hover:bg-blue-500 text-white"
-    }
-  }, [friendShipStatus])
-
-  const FriendshipAction = memo(({
-    variant,
-    Icon,
-    onClick,
-    className,
-    label
-  }: FriendshipActionProps) => {
-    return (
-      <Button
-        variant={variant}
-        size="sm"
-        className={cn("flex-1 text-xs font-medium h-9", className)}
-        onClick={onClick}
-      >
-        <Icon className="w-3.5 h-3.5 mr-1.5" />
-        {label}
-      </Button>
-    )
-  })
-
-
-
   // Default size - Modern card with focus on avatar and key info
   const DefaultUserItem = () => {
+
+
     return (
       <GlassCard
         variant={variant}
@@ -239,7 +255,21 @@ const BaseUserItem = ({
             {/* Actions */}
             <div className="flex gap-2 pt-2">
 
-              <FriendshipAction {...getFriendshipAction} />
+              {!isCurrentUser && (
+                actions ? (
+                  actions(user)
+                ) : (
+                  friendShipStatus && (
+                    <FriendshipAction 
+                      friendShipStatus={friendShipStatus}
+                      sendFriendRequest={sendFriendRequest}
+                      cancelFriendRequest={cancelFriendRequest}
+                      acceptFriendRequest={acceptFriendRequest}
+                      removeFriend={removeFriend}
+                    />
+                  )
+                )
+              )}
 
               <Button
                 variant="outline"
@@ -253,7 +283,7 @@ const BaseUserItem = ({
           </div>
         </CardContent>
 
-       
+
       </GlassCard>
     )
   }
@@ -264,7 +294,6 @@ const BaseUserItem = ({
       <GlassCard
         variant={variant}
         className="group cursor-pointer hover:bg-white/10 transition-all"
-        onClick={handleOpenDetails}
       >
         <CardContent className="p-4">
           <div className="flex items-center gap-4">
@@ -306,11 +335,26 @@ const BaseUserItem = ({
             </div>
 
             {/* Action button */}
-            <FriendshipAction {...getFriendshipAction} />
+            {!isCurrentUser && (
+              actions ? (
+                actions(user)
+              ) : (
+                friendShipStatus && (
+                  <FriendshipAction 
+                    friendShipStatus={friendShipStatus}
+                    sendFriendRequest={sendFriendRequest}
+                    cancelFriendRequest={cancelFriendRequest}
+                    acceptFriendRequest={acceptFriendRequest}
+                    removeFriend={removeFriend}
+                  />
+                )
+              )
+            )}
+
           </div>
         </CardContent>
 
-       
+
       </GlassCard>
     )
   }
@@ -322,6 +366,7 @@ export const UserItem = memo(BaseUserItem, (prevProps, nextProps) => {
   return (
     prevProps.user.ID === nextProps.user.ID &&
     prevProps.size === nextProps.size &&
-    prevProps.variant === nextProps.variant
+    prevProps.variant === nextProps.variant &&
+    prevProps.actions === nextProps.actions
   )
 })

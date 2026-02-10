@@ -101,13 +101,13 @@ export default function CommunityPage() {
 
           {/* Explore tab: displays all users for discovery and following */}
           <TabsContent value="explore" className="flex flex-col data-[state=active]:flex-1 m-0">
-           <ExploreView ListComponent={<UserList userID={user?.ID!} />} />
+           <ExploreView ListComponent={<UserList userID={user?.ID!} containerClassName="gap-6" />} />
           </TabsContent>
 
 
           {/* Following tab: displays users the current user is following */}
           <TabsContent value="friends" className="flex flex-col data-[state=active]:flex-1 m-0">
-            <ExploreView ListComponent={<FriendList userID={user?.ID!} />} />
+            <ExploreView ListComponent={<FriendList userID={user?.ID!} containerClassName="gap-6" />} />
           </TabsContent>
 
           <TabsContent value="social" className="flex flex-col data-[state=active]:flex-1 m-0">

@@ -22,8 +22,7 @@ interface DocumentUploadDialogProps {
   isOpen: boolean
   onClose: () => void
   onUploadComplete: () => void
-  assignmentId: number
-  remoteAssignmentId: number
+  assignmentId: string
   documentType: "support" | "submission" | "all"
   onSuccess?: (doc: models.LocalDocument) => void
 }
@@ -33,7 +32,6 @@ export function DocumentUploadDialog({
   onClose,
   onUploadComplete,
   assignmentId,
-  remoteAssignmentId,
   documentType,
   onSuccess
 }: DocumentUploadDialogProps) {
@@ -45,16 +43,16 @@ export function DocumentUploadDialog({
 
   const handleUpload = async () => {
 
+    const documentId = crypto.randomUUID()
     const result = await uploadDocument.mutateAsync({
+      documentId,
       assignmentId,
-      remoteAssignmentId,
       documentType: selectedType,
       filePath
     }, {
       onSuccess: (doc) => {
         toast.success("Document uploaded successfully")
         if (doc) {
-          console.log("doc uploaded successfully", doc)
           onSuccess?.(doc)
           setTimeout(() => {
             onUploadComplete()

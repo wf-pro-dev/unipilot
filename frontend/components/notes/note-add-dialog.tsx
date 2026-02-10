@@ -106,7 +106,6 @@ export function NoteAddDialog({ isOpen, onClose }: NoteAddDialogProps) {
             await startStream(noteData)
 
         } catch (error) {
-            console.log("error", error)
             toast.error("Failed to add note")
         }
     }
@@ -125,10 +124,6 @@ export function NoteAddDialog({ isOpen, onClose }: NoteAddDialogProps) {
         }, 200)
 
     }
-
-    useEffect(() => {
-        console.log("isSubmitting", isSubmitting)
-    }, [isSubmitting])
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange} modal={false}>

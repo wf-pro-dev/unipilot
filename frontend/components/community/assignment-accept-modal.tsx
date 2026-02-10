@@ -28,7 +28,6 @@ export function AssignmentAcceptModal({
     const assignment = JSON.parse(assignmentData) as assignment.LocalAssignment
     const deadline = parseDeadline(assignment.Deadline)
 
-    console.log("@ssignment", assignment)
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>

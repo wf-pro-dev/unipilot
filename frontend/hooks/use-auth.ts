@@ -216,7 +216,6 @@ export function useGetCourseInvitations() {
     queryKey: authKeys.coursesInvitations,
     queryFn: async (): Promise<models.CourseInvitation[]> => {
       const invitations = await GetUserCourseInvitations()
-      console.log("useGetCourseInvitations", invitations)
       return invitations
     },
     staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes

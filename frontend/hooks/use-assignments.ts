@@ -174,6 +174,7 @@ export function useCopyAssignment() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: assignmentKeys.lists() })
     },
+    retry: false,
   })
 }
 

@@ -1,11 +1,10 @@
 "use client"
 
 import { useSearchParams } from 'next/navigation';
-import { useAssignments } from '@/hooks/use-assignments';
 import AIChatInterface from '@/components/ai-chat/ai-chat-interface';
-import { Loader2 } from 'lucide-react';
 import { AiChatSidebar } from '@/components/ai-chat/ai-chat-sidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
+import { useAssignment } from '@/hooks/use-assignments';
 
 /**
  * AI Chat page component for assignment-specific AI assistance.
@@ -30,24 +29,21 @@ export default function AIChatPage() {
   const searchParams = useSearchParams();
 
   // Parse assignment ID from URL for deep linking support
-  const assignmentId = parseInt(searchParams.get('assignment') as string);
-  // Fetch all assignments to leverage cached data instead of individual assignment fetch
-  const { data: assignments, isLoading } = useAssignments();
-
-  // Locate target assignment using optional chaining to handle undefined state during initial load
-  const assignment = assignments?.find(a => a.ID === assignmentId);
-
-  // Prevent rendering until data loads to avoid showing "not found" during fetch
-  if (isLoading) {
+  const assignmentId = searchParams.get('assignment');
+  
+  if (!assignmentId) {
     return (
       <div className="page">
         <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin mr-2" />
-          <span>Loading assignment...</span>
+          <div className="text-red-500">Assignment not found</div>
         </div>
       </div>
     );
   }
+  // Fetch all assignments to leverage cached data instead of individual assignment fetch
+  const { data: assignment, isLoading } = useAssignment(assignmentId);
+
+
 
   // Handle invalid assignment ID or missing assignment gracefully
   if (!assignment) {

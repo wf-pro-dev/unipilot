@@ -195,7 +195,6 @@ export function useStreamNote() {
                 // Handle connection open
                 async onopen(res) {
                     if (res.ok && res.status === 200) {
-                        console.log('SSE connection opened successfully')
                     } else if (res.status >= 400 && res.status < 500 && res.status !== 429) {
                         // Client errors - don't retry
                         setError(`HTTP ${res.status}: ${res.statusText}`)
@@ -209,7 +208,6 @@ export function useStreamNote() {
             })
         } catch (err: any) {
             if (err.name === 'AbortError') {
-                console.log('Stream aborted by user')
                 setIsStreaming(false)
             } else {
                 setError(err.message || 'Failed to stream note')

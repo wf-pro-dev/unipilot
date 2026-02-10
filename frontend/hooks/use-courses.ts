@@ -1,11 +1,23 @@
 "use client"
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { models } from "@/wailsjs/go/models"
+import { models, client } from "@/wailsjs/go/models"
 import { LogError, LogInfo } from "@/wailsjs/runtime/runtime"
 import { assignmentKeys } from './use-assignments'
 import { documentKeys } from './use-documents'
-import { GetCourses, CreateCourse, UpdateCourse, DeleteCourse, CourseShare, GetCoursesLinked, AcceptCourseInvitation, DeclineCourseInvitation } from '@/wailsjs/go/main/App'
+import {
+  GetCourses,
+  CreateCourse,
+  UpdateCourse,
+  DeleteCourse,
+  CourseShare,
+  GetCoursesLinked,
+  AcceptCourseInvitation,
+  DeclineCourseInvitation,
+  GetRCourses,
+  SendClusterRequest,
+  GetClusterStatus
+} from '@/wailsjs/go/main/App'
 import { authKeys } from './use-auth'
 import { toast } from 'sonner'
 
@@ -13,10 +25,12 @@ import { toast } from 'sonner'
 export const courseKeys = {
   all: ['courses'] as const,
   lists: () => [...courseKeys.all, 'list'] as const,
+  remote: (userID: string) => [...courseKeys.all, 'remote', userID] as const,
   list: (filters: string) => [...courseKeys.lists(), { filters }] as const,
   details: () => [...courseKeys.all, 'detail'] as const,
   detail: (id: string) => [...courseKeys.details(), id] as const,
   linked: () => [...courseKeys.all, 'linked'] as const,
+  status: (courseID: string) => [...courseKeys.all, 'status', courseID] as const,
 }
 
 // Main hook for fetching courses with caching
@@ -36,14 +50,32 @@ export function useCourses() {
   })
 }
 
+
+// Main hook for fetching courses with caching
+export function useRCourses(userID: string) {
+  return useQuery({
+    queryKey: courseKeys.remote(userID),
+    queryFn: async (): Promise<models.Course[]> => {
+      try {
+        return await GetRCourses(userID)
+      } catch (error) {
+        LogError("Failed to fetch courses: " + error)
+        throw new Error(error instanceof Error ? error.message : "Failed to fetch courses linked")
+      }
+    },
+    staleTime: 60 * 60 * 1000, // Courses linked change less frequently - 1 hour
+    gcTime: 120 * 60 * 1000,   // Keep in cache for 2 hours
+  })
+}
+
 export function useCourse(id: string) {
-  
+
   // Directly subscribe to assignment cache changes
   const { data: courses } = useQuery({
     queryKey: courseKeys.lists(),
     enabled: false,
   })
-  
+
   const currentCourse = (courses as models.LocalCourse[])?.find(c => c.ID === id)
   return {
     data: currentCourse,
@@ -57,7 +89,7 @@ export function useCourseAssignments(courseId: string) {
     queryKey: assignmentKeys.lists(),
     enabled: false,
   })
-  
+
   const currentAssignments = (assignments as models.LocalAssignment[])?.filter(a => a.Course?.ID === courseId)
   return {
     data: currentAssignments,
@@ -70,7 +102,7 @@ export function useCourseAssignments(courseId: string) {
 export function useCoursesLinked() {
   return useQuery({
     queryKey: courseKeys.linked(),
-    queryFn: async (): Promise<models.Course[]> => { 
+    queryFn: async (): Promise<models.Course[]> => {
       try {
         const coursesLinked = await GetCoursesLinked()
         return coursesLinked as models.Course[]
@@ -88,26 +120,26 @@ export function useCoursesLinked() {
 // Hook for creating new courses
 export function useCreateCourse() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (newCourse: models.LocalCourse) => {
       return await CreateCourse(newCourse)
     },
-    
+
     // Optimistically add the new course
     onMutate: async (newCourse) => {
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
-      
+
       const previousCourses = queryClient.getQueryData<models.LocalCourse[]>(courseKeys.lists())
-      
+
       queryClient.setQueryData<models.LocalCourse[]>(courseKeys.lists(), (old) => {
         if (!old) return [newCourse]
         return [newCourse, ...old]
       })
-      
+
       return { previousCourses }
     },
-    
+
     onError: (err, variables, context) => {
       if (context?.previousCourses) {
         queryClient.setQueryData(courseKeys.lists(), context.previousCourses)
@@ -117,11 +149,9 @@ export function useCreateCourse() {
     },
 
     onSuccess: () => {
-      const currentCourses = queryClient.getQueryData<models.LocalCourse[]>(courseKeys.lists())
-      console.log("currentCourses", currentCourses)
       toast.success("Course created successfully")
     },
-    
+
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: courseKeys.lists() })
     },
@@ -131,37 +161,37 @@ export function useCreateCourse() {
 // Hook for updating courses
 export function useUpdateCourse() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async ({ course, column, value }: { course: models.LocalCourse, column: string, value: string }) => {
       return await UpdateCourse(course, column, value)
     },
-    
+
     // Optimistic update for instant UI feedback
     onMutate: async ({ course, column, value }) => {
       await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
-      
+
       const previousCourses = queryClient.getQueryData<models.LocalCourse[]>(courseKeys.lists())
-      
+
       queryClient.setQueryData<models.LocalCourse[]>(courseKeys.lists(), (old) => {
         if (!old) return []
-        return old.map(c => 
-          c.ID === course.ID 
+        return old.map(c =>
+          c.ID === course.ID
             ? { ...course, [column]: value, UpdatedAt: new Date() } as models.LocalCourse
             : c
         )
       })
-      
+
       return { previousCourses }
     },
-    
+
     onError: (err, variables, context) => {
       if (context?.previousCourses) {
         queryClient.setQueryData(courseKeys.lists(), context.previousCourses)
       }
       LogError("Failed to update course: " + err)
     },
-    
+
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: courseKeys.lists() })
     },
@@ -171,41 +201,41 @@ export function useUpdateCourse() {
 // Hook for deleting courses
 export function useDeleteCourse() {
   const queryClient = useQueryClient()
-  
+
   return useMutation({
     mutationFn: async (course: models.LocalCourse) => {
       return await DeleteCourse(course)
     },
-    
+
     // Optimistically remove the course, assignments, and documents
     onMutate: async (course) => {
-      
+
       const previousCourses = queryClient.getQueryData<models.LocalCourse[]>(courseKeys.lists())
       const previousAssignments = queryClient.getQueryData<models.LocalAssignment[]>(assignmentKeys.lists())
-      
+
       // Remove course from cache
       queryClient.setQueryData<models.LocalCourse[]>(courseKeys.lists(), (old) => {
         if (!old) return []
         return old.filter(c => c.ID !== course.ID)
       })
-      
+
       // Remove assignments that belong to this course from cache
       queryClient.setQueryData<models.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
         if (!old) return []
         return old.filter(a => a.Course?.ID !== course.ID)
       })
-      
+
       // Remove all document caches for assignments that belong to this course
       const assignmentsToRemove = previousAssignments?.filter(a => a.Course?.ID === course.ID) || []
-      
+
       assignmentsToRemove.forEach(assignment => {
         // Remove assignment documents
         queryClient.removeQueries({ queryKey: documentKeys.assignmentStorage(assignment.ID) })
       })
-      
+
       return { previousCourses, previousAssignments }
     },
-    
+
     onError: (err, variables, context) => {
       if (context?.previousCourses) {
         queryClient.setQueryData(courseKeys.lists(), context.previousCourses)
@@ -218,12 +248,12 @@ export function useDeleteCourse() {
     onSuccess: () => {
       toast.success("Course deleted successfully")
     },
-    
+
     onSettled: () => {
       // Invalidate all related caches to ensure consistency
       queryClient.invalidateQueries({ queryKey: courseKeys.all })
       queryClient.invalidateQueries({ queryKey: assignmentKeys.all })
-      
+
       // Also invalidate storage info since documents were deleted
       queryClient.invalidateQueries({ queryKey: documentKeys.storage() })
     },
@@ -246,33 +276,47 @@ export function useCourseShare() {
   })
 }
 
+export function useGetClusterStatus(courseID: string) {
+  return useQuery({
+    queryKey: courseKeys.status(courseID),
+    queryFn: async (): Promise<client.CourseStatusResponse> => {
+      try {
+        return await GetClusterStatus(courseID)
+      } catch (error) {
+        LogError("Failed to fetch cluster status: " + error)
+        throw new Error(error instanceof Error ? error.message : "Failed to fetch cluster status")
+      }
+    },
+  })
+}
+export function useSendClusterRequest() {
+  return useMutation({
+    mutationFn: async ({ courseID }: { courseID: string }) => {
+      return await SendClusterRequest(courseID)
+    },
+    onSuccess: () => {
+      toast.success("Course request sent successfully")
+    },
+    onError: (err) => {
+      LogError("Failed to share course: " + err)
+      toast.error("Failed to share course")
+    },
+  })
+}
+
 export function useAcceptCourseInvitation() {
   const queryClient = useQueryClient()
   const createCourse = useCreateCourse()
   const updateCourse = useUpdateCourse()
   return useMutation({
-    
+
     mutationFn: async ({ invitation }: { invitation: models.CourseInvitation }) => {
-     
+
       return await AcceptCourseInvitation(invitation)
     },
     onMutate: async ({ invitation }) => {
 
-
-      await queryClient.cancelQueries({ queryKey: courseKeys.lists() })
-      const previousCourses = queryClient.getQueryData<models.LocalCourse[]>(courseKeys.lists())
-
-      const targetiD = invitation.Course?.ClusterID || invitation.Course?.ID || ""
-
-      var existingCourse = previousCourses?.find(c => c.Code === invitation.CourseCode)
-      if (existingCourse) {
-         await updateCourse.mutate({ course: existingCourse, column: "cluster_id", value: targetiD })
-      } else {
-        const newCourse = models.LocalCourse.createFrom(invitation.Course)
-        newCourse.ClusterID = targetiD
-        await createCourse.mutate(newCourse)
-      }
-     
+      
       await queryClient.cancelQueries({ queryKey: authKeys.coursesInvitations })
       const previousInvitations = queryClient.getQueryData<models.CourseInvitation[]>(authKeys.coursesInvitations)
       queryClient.setQueryData<models.CourseInvitation[]>(authKeys.coursesInvitations, (old) => {
@@ -280,17 +324,27 @@ export function useAcceptCourseInvitation() {
         return old.filter(i => i.ID !== invitation.ID)
       })
 
-      await queryClient.invalidateQueries({ queryKey: courseKeys.linked() })
-
-      return { previousCourses, previousInvitations }
+      return {  previousInvitations }
     },
-    onSuccess: () => {
+    onSuccess: async (_, { invitation }) => {
+      
+      const previousCourses = queryClient.getQueryData<models.LocalCourse[]>(courseKeys.lists())
+
+      const targetiD = invitation.Course?.ClusterID || invitation.Course?.ID || ""
+
+      var existingCourse = previousCourses?.find(c => c.Code === invitation.CourseCode)
+      if (existingCourse) {
+        await updateCourse.mutate({ course: existingCourse, column: "cluster_id", value: targetiD })
+      } else {
+        const newCourse = models.LocalCourse.createFrom(invitation.Course)
+        newCourse.ClusterID = targetiD
+        await createCourse.mutate(newCourse)
+      }
+
       toast.success("Course invitation accepted successfully")
     },
     onError: (err, variables, context) => {
-      if (context?.previousCourses) {
-        queryClient.setQueryData(courseKeys.lists(), context.previousCourses)
-      }
+      
       if (context?.previousInvitations) {
         queryClient.setQueryData(authKeys.coursesInvitations, context.previousInvitations)
       }
@@ -330,7 +384,7 @@ export function useDeclineCourseInvitation() {
       LogError("Failed to decline course invitation: " + err)
       toast.error("Failed to decline course invitation")
     },
-  
+
   })
 }
 
@@ -338,13 +392,13 @@ export function useDeclineCourseInvitation() {
 
 export function useUpcomingCourses() {
   const { data: courses, ...rest } = useCourses()
-  
+
   const upcomingCourses = courses?.filter(course => {
     const now = new Date()
     const startDate = new Date(course.StartDate)
     return startDate > now
   }) || []
-  
+
   return {
     data: upcomingCourses,
     ...rest
@@ -353,11 +407,11 @@ export function useUpcomingCourses() {
 
 export function useCoursesBySemester(semester: string) {
   const { data: courses, ...rest } = useCourses()
-  
-  const semesterCourses = courses?.filter(course => 
+
+  const semesterCourses = courses?.filter(course =>
     course.Semester === semester
   ) || []
-  
+
   return {
     data: semesterCourses,
     ...rest

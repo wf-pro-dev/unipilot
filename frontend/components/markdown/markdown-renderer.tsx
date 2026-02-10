@@ -180,7 +180,6 @@ export function MarkdownRenderer({
     h1: ({ children}) => {
       
       const id = children?.toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-      console.log("h1", id, children)
       return (
         <h1 id={id} className={cn("font-bold tracking-tight text-foreground border-b border-border pb-2 first:mt-0",
           variant === 'compact' ? "text-xl mt-4 mb-2" : "text-3xl mt-10 mb-6"
@@ -191,7 +190,6 @@ export function MarkdownRenderer({
     },
     h2: ({ children }) => {
       const id = children?.toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-      console.log("h2", id, children)
       return (
         <h2 id={id} className={cn("font-semibold tracking-tight text-foreground pb-1",
           variant === 'compact' ? "text-lg mt-4 mb-2" : "text-2xl mt-10 mb-4"
@@ -202,7 +200,6 @@ export function MarkdownRenderer({
     },
     h3: ({ children }) => {
       const id = children?.toString().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-      console.log("h3", id, children)
       return (
       <h3 id={id} className={cn("font-semibold tracking-tight text-foreground",
         variant === 'compact' ? "text-base mt-3 mb-2" : "text-xl mt-8 mb-3"

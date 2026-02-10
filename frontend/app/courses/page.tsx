@@ -41,7 +41,6 @@ export default function CoursesPage() {
   // Fetch courses data with default empty array to prevent undefined errors
   const { user } = useAuthContext()
   const { data: courses = [], isLoading, error } = useCourses()
-  console.log("page ourses", courses)
   const [selectedSemester, setSelectedSemester] = useState<string>(user?.Semester || "")
   const { SetDialogState } = useDialogContext()
 

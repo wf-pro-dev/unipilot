@@ -15,6 +15,7 @@ export function UserList({
 }: UserListProps) {
 
     const renderItem = useCallback((user: models.User) => {
+        if (user.ID === userID) return null;
         return <UserItem user={user} />
     }, []);
 

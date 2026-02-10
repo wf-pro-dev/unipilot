@@ -12,8 +12,7 @@ import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import { GlassCard } from "../ui/glass-card"
 import { useAuthContext } from "../provider/auth-provider"
-import { FriendList, FriendListProps } from "./friend-list"
-import {  UserListProps } from "./user-list"
+
 
 interface ExploreViewProps {
   ListComponent: React.JSX.Element

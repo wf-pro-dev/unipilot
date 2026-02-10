@@ -32,7 +32,7 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
   const { mutate: saveUIMessage } = useSaveUIMessage();
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesStartRef = useRef<HTMLDivElement>(null)
-  const previousAssignmentIdRef = useRef<number | null>(null)
+  const previousAssignmentIdRef = useRef<string | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const { mutate: documentRAGMutation } = useUploadDocumentRAG()
  
@@ -140,7 +140,6 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
       previousAssignmentIdRef.current !== assignment.ID;
 
     if (assignmentChanged) {
-      console.log('Assignment changed, clearing messages');
       setMessages([]);
     }
 
@@ -156,7 +155,7 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
 
 
   const isMessageValid = useMemo(() => {
-    return input.trim().length > 0 && input.trim().length < 1000;
+    return input.trim().length > 0 && input.trim().length < 3000;
   }, [input]);
 
   const handleSuggestionClick = (suggestion: string) => {
@@ -380,7 +379,7 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
                 onKeyDown={handleKeyDown}
                 required
                 minRows={1}
-                maxRows={10}
+                maxRows={30}
               />
               <div className="flex items-center justify-between p-4 bg-white/5">
                 <div className="flex items-center gap-1">
@@ -423,7 +422,6 @@ export default function Chat({ assignment }: AIChatInterfaceProps) {
         onClose={() => setUploadDialogOpen(false)}
         onUploadComplete={handleUploadComplete}
         assignmentId={assignment.ID}
-        remoteAssignmentId={assignment.RemoteID}
         documentType={uploadType}
         onSuccess={handleAddDocumentToContext}
       />
