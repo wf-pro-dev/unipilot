@@ -27,7 +27,7 @@ const qdrantClient = new QdrantClient({
  * @throws {Error} When embedding generation or vector search fails
  */
 const findRelevantContent = async ( userQuery: string, assignmentID: string): Promise<{
-    chunks: Array<{id: string, text: string, score: number, index: number}>;
+    chunks: Array<QdrantChunk>;
     question: string;
     retrieved: boolean;
     error?: boolean;
@@ -65,7 +65,7 @@ const findRelevantContent = async ( userQuery: string, assignmentID: string): Pr
                 selectorOptions: {
                     case: "include",
                     value: {
-                        fields: ["chunk_id","chunk_text", "assignment_id"]
+                        fields: ["chunk_id","chunk_text", "assignment_id", "document_file_name"]
                     }
                 }
             }
@@ -99,9 +99,12 @@ const findRelevantContent = async ( userQuery: string, assignmentID: string): Pr
 
             const chunkText = extractChunkText(payload);
 
+            const documentFileName = extractDocumentFileName(payload);
+
             return {
                 id: chunkId.toString(),
                 text: chunkText,
+                documentFileName: documentFileName,
                 score: point.score || 0,
                 index: index + 1
             } as QdrantChunk;
@@ -135,11 +138,15 @@ const findRelevantContent = async ( userQuery: string, assignmentID: string): Pr
 };
 
 const extractChunkId = (payload: any) => {
-    return payload['chunk_id'].integerValue as number;
+    return payload['chunk_id'].stringValue as string;
 }
 
 const extractChunkText = (payload: any) => {
     return payload['chunk_text'].stringValue as string;
+}
+
+const extractDocumentFileName = (payload: any) => {
+    return payload['document_file_name'].stringValue as string;
 }
 
 const generateFilter = (documentIDs: string[]) => {

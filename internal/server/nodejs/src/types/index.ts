@@ -2,15 +2,13 @@ import { UIMessage } from "ai";
 
 // Assignment types
 export interface Assignment {
-    RemoteID: string;
+    ID: string;
     Title: string;
     Course: {
       Name: string;
       Code: string;
     };
-    Type: {
-      Name: string;
-    };
+    Type: string;
     Priority: string;
     Deadline: string;
     Todo: string;
@@ -27,6 +25,7 @@ export interface Assignment {
   export interface QdrantChunk {
     id: string;
     text: string;
+    documentFileName: string;
     score: number;
     index: number;
   }

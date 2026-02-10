@@ -56,7 +56,7 @@ app.get('/health', (req: Request, res: Response) => {
  * @param {Object} req.body - Request payload
  * @param {Array} req.body.messages - Conversation history in AI SDK format
  * @param {Object} req.body.assignment - Assignment context object
- * @param {string} req.body.assignment.RemoteID - Assignment ID for RAG collection targeting
+ * @param {string} req.body.assignment.ID - Assignment ID for RAG collection targeting
  * @param {string} req.body.assignment.Title - Assignment title for context
  * @param {Object} req.body.assignment.Course - Course information
  * @param {Object} req.body.assignment.Type - Assignment type information
@@ -106,17 +106,22 @@ app.post('/unipilot/ai/v1', asyncHandler(async (req: Request, res: Response) => 
     onChunk: onChunk,
     onFinish: onFinish,
     tools: {
+
+      // Google search tool for internet search
+      // google_search: google.tools.googleSearch({}),
+      
+      
       // RAG tool for knowledge base access
       getInformation: tool({
         description: `<tool_purpose>
-This tool retrieves information from SOURCE 2: DOCUMENT RETRIEVAL (RAG).
+This tool retrieves information from SOURCE 3: DOCUMENT RETRIEVAL (RAG).
 It searches assignment documents, materials, and notes uploaded by the instructor.
 The tool returns raw document chunks as DATA - you MUST synthesize your own answer from this data.
 After receiving chunks, you MUST continue generating text to provide a synthesized answer.
 </tool_purpose>
 
 <when_to_use>
-Use this tool (SOURCE 2) when:
+Use this tool (SOURCE 3) when:
 - The question asks about instructions, requirements, or specifications from documents
 - You need information from uploaded documents, notes, or materials
 - The question asks about assignment-specific details not in assignment metadata
@@ -163,33 +168,31 @@ If chunks don't help, use your model knowledge (SOURCE 3) to provide an answer.
           return await withToolLogging(
             req,
             'getInformation',
-            assignment.RemoteID,
+            assignment.ID,
             { question },
             async () => {
               // Wrap RAG query - logs automatically
               const ragResult = await withRAGLogging(
                 req,
-                assignment.RemoteID,
+                assignment.ID,
                 question,
                 async () => {
                   // Just execute - wrapper handles logging
-                  return await findRelevantContent(question, assignment.RemoteID);
+                  return await findRelevantContent(question, assignment.ID);
                 }
               );
 
               // Update tool context with results
               // (wrapper will log this automatically)
               return {
-                text: ragResult.chunks.map(c => c.text).join('\n\n---\n\n'),
+                text: ragResult.chunks.map(c => `${c.documentFileName}: ${c.text}`).join('\n\n---\n\n'),
                 chunks: ragResult.chunks, // Used by wrapper for chunks_retrieved
               };
             }
           );
 
         },
-      }),
-
-      //google_search: google.tools.googleSearch({})
+      })
     },
   });
 
@@ -226,7 +229,7 @@ This is assignment-specific information provided directly in the context:
 - Title: ${assignment.Title}
 - Course Name: ${assignment.Course.Name} 
 - Course Code: ${assignment.Course.Code}
-- Type: ${assignment.Type.Name}
+- Type: ${assignment.Type}
 - Priority: ${assignment.Priority}
 - Due: ${assignment.Deadline}
 - Todo: ${assignment.Todo}
@@ -247,8 +250,28 @@ COMPLEMENTARY USE: Assignment metadata can complement other sources:
 FALLBACK: If assignment metadata doesn't contain the answer, proceed to Source 2.
 </source_1_assignment_metadata>
 
-<source_2_document_retrieval>
-SOURCE 2: DOCUMENT RETRIEVAL (RAG Tool - Use When Source 1 Insufficient)
+<source_2_internet_search>
+SOURCE 2: INTERNET SEARCH (Google Search - Use When Sources 1 & 2 Insufficient)
+This allows you to search the live internet for up-to-date information, documentation, and external resources.
+
+WHEN TO USE: Use the 'google_search' tool when:
+- The user DIRECTLY requests a web search, internet search, or asks you to "search online", "look it up", "check the web", etc.
+- You need current information (current events, recent technology updates)
+- The user asks about specific external libraries, frameworks, or tools not covered in documents
+- You need to verify facts or find external references
+- The question requires information outside the scope of the assignment documents but relevant to the topic
+
+HOW TO USE: Call the tool SILENTLY.
+- Search for specific queries related to the missing information
+- If user explicitly requests web search, prioritize this source even if other sources might have partial answers
+
+CRITICAL CONSTRAINT: When using 'google_search', DO NOT call any other tools (including 'getInformation') in the same response. User-defined tools cannot be mixed with provider-defined tools. Use google_search alone, then synthesize the answer from the search results.
+
+FALLBACK: If internet search doesn't provide the answer, proceed to Source 4.
+</source_2_internet_search>
+
+<source_3_document_retrieval>
+SOURCE 3: DOCUMENT RETRIEVAL (RAG Tool - Use When Source 1 Insufficient)
 This retrieves specific information from assignment documents, materials, and notes uploaded by the instructor.
 
 WHEN TO USE: Use the 'getInformation' tool when:
@@ -271,27 +294,7 @@ COMPLEMENTARY USE: Document retrieval can complement other sources:
 - Combine document details with assignment metadata for complete answers
 
 FALLBACK: If document retrieval doesn't return relevant information or doesn't fully answer the question, proceed to Source 3.
-</source_2_document_retrieval>
-
-<source_3_internet_search>
-SOURCE 3: INTERNET SEARCH (Google Search - Use When Sources 1 & 2 Insufficient)
-This allows you to search the live internet for up-to-date information, documentation, and external resources.
-
-WHEN TO USE: Use the 'google_search' tool when:
-- The user DIRECTLY requests a web search, internet search, or asks you to "search online", "look it up", "check the web", etc.
-- You need current information (current events, recent technology updates)
-- The user asks about specific external libraries, frameworks, or tools not covered in documents
-- You need to verify facts or find external references
-- The question requires information outside the scope of the assignment documents but relevant to the topic
-
-HOW TO USE: Call the tool SILENTLY.
-- Search for specific queries related to the missing information
-- If user explicitly requests web search, prioritize this source even if other sources might have partial answers
-
-CRITICAL CONSTRAINT: When using 'google_search', DO NOT call any other tools (including 'getInformation') in the same response. User-defined tools cannot be mixed with provider-defined tools. Use google_search alone, then synthesize the answer from the search results.
-
-FALLBACK: If internet search doesn't provide the answer, proceed to Source 4.
-</source_3_internet_search>
+</source_3_document_retrieval>
 
 <source_4_model_knowledge>
 SOURCE 4: MODEL KNOWLEDGE (Built-in Knowledge - Use When Sources 1, 2, & 3 Insufficient)
@@ -320,8 +323,8 @@ KNOWLEDGE SOURCES CAN COMPLEMENT EACH OTHER:
 The sources are not just fallback options - they can work together to provide comprehensive answers:
 
 1. METADATA + DOCUMENTS: Combine assignment context with specific document details for complete understanding
-2. DOCUMENTS + MODEL KNOWLEDGE: Use documents for requirements, model knowledge to explain concepts and provide examples
-3. INTERNET + MODEL KNOWLEDGE: Use internet for current information, model knowledge to explain and contextualize (NOTE: Cannot combine with tool calls - see constraint below)
+2. INTERNET + MODEL KNOWLEDGE: Use internet for current information, model knowledge to explain and contextualize (NOTE: Cannot combine with tool calls - see constraint below)
+3. DOCUMENTS + MODEL KNOWLEDGE: Use documents for requirements, model knowledge to explain concepts and provide examples
 4. ALL SOURCES: Complex questions may benefit from combining metadata context, document requirements, and model knowledge for explanations
 
 IMPORTANT CONSTRAINT: When using 'google_search' tool, you CANNOT combine it with 'getInformation' tool calls. User-defined tools (getInformation) cannot be mixed with provider-defined tools (google_search). If you need both assignment documents and internet search, use them in separate responses or use google_search alone and rely on model knowledge for explanations.
@@ -350,25 +353,27 @@ HOW TO COMBINE:
    - If NO → Proceed to Step 2
 </step_1_check_assignment_metadata>
 
-<step_2_check_document_retrieval>
-2. Determine if the question likely requires information from ASSIGNMENT DOCUMENTS (Source 2)
-   - If question asks about instructions, requirements, or document content → Call 'getInformation' tool IMMEDIATELY
-   - After receiving chunks:
-     * If chunks answer the question → Synthesize answer from chunks
-     * If chunks partially answer → Refine query and call tool again, then synthesize
-     * If chunks don't answer → Proceed to Step 3
-</step_2_check_document_retrieval>
 
-<step_3_check_internet_search>
-3. Determine if the question requires EXTERNAL INFORMATION (Source 3)
+<step_2_check_internet_search>
+2. Determine if the question requires EXTERNAL INFORMATION (Source 2)
    - If user DIRECTLY requests web/internet search → Call 'google_search' tool IMMEDIATELY (even if other sources might help)
+    - If question asks about instructions, requirements, or document content → Call 'getInformation' tool IMMEDIATELY
    - If question asks about current specific info, external docs, or real-world facts not in documents → Call 'google_search' tool
    - CRITICAL: When calling 'google_search', DO NOT call any other tools (including 'getInformation') in the same response
    - After receiving results:
      * If results answer the question → Synthesize answer using search results and model knowledge (no additional tool calls)
-     * If results partially answer → Use model knowledge to fill gaps (no additional tool calls)
-     * If results don't answer → Proceed to Step 4
-</step_3_check_internet_search>
+     * If results don't answer → Proceed to Step 3
+</step_2_check_internet_search>
+
+<step_3_check_document_retrieval>
+3. Determine if the question likely requires information from ASSIGNMENT DOCUMENTS (Source 3)
+   - If question asks about instructions, requirements, or document content → Call 'getInformation' tool IMMEDIATELY
+   - After receiving chunks:
+     * If chunks answer the question → Synthesize answer from chunks
+     * If chunks partially answer → Refine query and call tool again, then synthesize
+     * If chunks don't answer → Proceed to Step 4
+</step_3_check_document_retrieval>
+
 
 <step_4_use_model_knowledge>
 4. Use MODEL KNOWLEDGE (Source 4) when:
@@ -394,15 +399,16 @@ Examples using Source 1 (Assignment Metadata):
 - User: "When is this due?" → Answer from Deadline
 - User: "What course is this for?" → Answer from Course Name/Code
 
-Examples using Source 2 (Document Retrieval):
-- User: "What are the instructions?" → Call 'getInformation'
-- User: "What is the submission format?" → Call 'getInformation'
 
-Examples using Source 3 (Internet Search):
+Examples using Source 2 (Internet Search):
 - User: "What is the latest version of Next.js?" → Call 'google_search'
 - User: "Find documentation for this specific library error" → Call 'google_search'
 - User: "Can you search online for..." → Call 'google_search' IMMEDIATELY (explicit request)
 - User: "Look up the current best practices for..." → Call 'google_search'
+
+Examples using Source 3 (Document Retrieval):
+- User: "What are the instructions?" → Call 'getInformation'
+- User: "What is the submission format?" → Call 'getInformation'
 
 Examples using Source 4 (Model Knowledge):
 - User: "Can you write a simple example?" → Answer using your knowledge
@@ -466,6 +472,7 @@ If after multiple tool calls you still don't have complete information:
 - Always evaluate if chunks answer the question before synthesizing
 - If document retrieval doesn't help, fall back to internet or model knowledge
 - Never leave the user without a final synthesized text answer
+- if google_search is used, it must be used alone without calling getInformation
 </critical_rules>
 </document_retrieval_workflow>
 </knowledge_sources>
