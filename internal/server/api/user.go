@@ -57,8 +57,11 @@ func GetUserHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(fmt.Errorf("user ID required"), errors.ReqParamMissing, "User ID required", fiber.StatusBadRequest)
 	}
 
-	user, err := models.GetUser(userID, db.Debug().Omit("password_hash"))
+	user, err := models.GetUser(userID, db.Omit("password_hash"))
 	if err != nil {
+		if errors.HasCode(err, errors.DBRecordNotFound) {
+			return c.JSON(models.User{})
+		}
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting user from database", fiber.StatusInternalServerError)
 	}
 	// Step 3: Send successful response with sanitized user data

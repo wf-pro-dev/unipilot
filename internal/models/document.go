@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -256,7 +255,6 @@ func ValidateFileTypeRAG(fileName string) error {
 	if !ok {
 		return errors.Wrap(fmt.Errorf("file type %s is not supported", ext), errors.FSFileTypeNotSupported, "File type not supported for RAG")
 	}
-	log.Println("valid", valid, "ext", ext)
 	if !valid {
 		return errors.Wrap(fmt.Errorf("file type %s is not supported for RAG", ext), errors.FSFileTypeNotSupported, "File type not supported for RAG")
 	}

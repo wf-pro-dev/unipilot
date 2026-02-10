@@ -37,7 +37,7 @@ type PageType interface {
 }
 
 type PageResponse[T PageType] struct {
-	Data    []T
+	Data    []*T
 	Cursor  *Cursor
 	HasMore bool
 }

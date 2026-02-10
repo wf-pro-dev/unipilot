@@ -81,10 +81,10 @@ func GetUser(id string, db *gorm.DB) (*User, error) {
 	return &user, nil
 }
 
-func GetUsers(cursor *Cursor, limit int, db *gorm.DB) (*PageResponse[User], error) {
-	var users []User
+func GetUserIDs(cursor *Cursor, limit int, db *gorm.DB) ([]string, *Cursor, error) {
+	var userIDs []string
 	query := db.Table("users").
-		Select("users.*").
+		Select("id").
 		Order("username ASC").
 		Limit(limit + 1)
 
@@ -95,30 +95,34 @@ func GetUsers(cursor *Cursor, limit int, db *gorm.DB) (*PageResponse[User], erro
 		)
 	}
 
-	if err := query.Scan(&users).Error; err != nil {
-		return nil, err
+	if err := query.Scan(&userIDs).Error; err != nil {
+		return nil, nil, err
 	}
 
-	hasMore := len(users) > limit
+	hasMore := len(userIDs) > limit
 	if hasMore {
-		users = users[:limit]
+		userIDs = userIDs[:limit]
 	}
 
 	var nextCursor *Cursor
-	if hasMore && len(users) > 0 {
-		last := users[len(users)-1]
+	if hasMore && len(userIDs) > 0 {
+		last := userIDs[len(userIDs)-1]
 		nextCursor = &Cursor{
-			CreatedAt: last.UpdatedAt,
-			ID:        last.ID,
+			CreatedAt: time.Now(),
+			ID:        last,
 		}
 	}
 
-	return &PageResponse[User]{
-		Data:    users,
-		Cursor:  nextCursor,
-		HasMore: hasMore,
-	}, nil
+	return userIDs, nextCursor, nil
 
+}
+
+func GetUsersByIDs(userIDs []string, db *gorm.DB) ([]*User, error) {
+	var users []*User
+	if err := db.Where("id IN ?", userIDs).Find(&users).Error; err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return users, nil
 }
 
 type UserCourseCodes struct {
@@ -519,12 +523,12 @@ func UnblockUser(blockerID, blockedID string, db *gorm.DB) error {
 }
 
 // GetFriends retrieves the list of accepted friends for a user
-func GetFriends(userID string, cursor *Cursor, limit int, db *gorm.DB) (*PageResponse[User], error) {
-	var friends []User
+func GetFriendsIDs(userID string, cursor *Cursor, limit int, db *gorm.DB) ([]string, *Cursor, error) {
+	var friends []string
 
 	// Get friendships where user is either requester or addressee with accepted status
 	query := db.Table("users").
-		Select("users.*").
+		Select("users.id").
 		Joins("JOIN friendships ON (friendships.requester_id = users.id OR friendships.addressee_id = users.id)").
 		Where("(friendships.requester_id = ? OR friendships.addressee_id = ?) AND friendships.status = ? AND users.id != ? AND friendships.deleted_at IS NULL",
 			userID, userID, FriendshipAccepted, userID).
@@ -539,7 +543,7 @@ func GetFriends(userID string, cursor *Cursor, limit int, db *gorm.DB) (*PageRes
 	}
 
 	if err := query.Scan(&friends).Error; err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	hasMore := len(friends) > limit
@@ -551,16 +555,12 @@ func GetFriends(userID string, cursor *Cursor, limit int, db *gorm.DB) (*PageRes
 	if hasMore && len(friends) > 0 {
 		last := friends[len(friends)-1]
 		nextCursor = &Cursor{
-			CreatedAt: last.UpdatedAt,
-			ID:        last.ID,
+			CreatedAt: time.Now(),
+			ID:        last,
 		}
 	}
 
-	return &PageResponse[User]{
-		Data:    friends,
-		Cursor:  nextCursor,
-		HasMore: hasMore,
-	}, nil
+	return friends, nextCursor, nil
 }
 
 // GetPendingRequests retrieves pending friend requests received by the user

@@ -361,9 +361,17 @@ func HandleGetFriends(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ReqParamInvalid, "Error unmarshalling cursor", fiber.StatusBadRequest)
 	}
 
-	results, err := models.GetFriends(userID, cursor, limit, db)
+	friendIDs, nextCursor, err := models.GetFriendsIDs(userID, cursor, limit, db)
 	if err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting friends from database", fiber.StatusInternalServerError)
+	}
+	if err := CacheService.SetUserFriends(ctx, userID, friendIDs); err != nil {
+		return errors.WrapServer(err, errors.CacheOperationFailed, "Error setting friends in cache", fiber.StatusInternalServerError)
+	}
+
+	results, err := CacheService.GetUsersByIDs(ctx, friendIDs, nextCursor, limit, db)
+	if err != nil {
+		return errors.WrapServer(err, errors.CacheOperationFailed, "Error getting friends from cache", fiber.StatusInternalServerError)
 	}
 
 	return c.JSON(results)

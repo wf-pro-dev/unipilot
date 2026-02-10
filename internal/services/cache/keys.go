@@ -6,20 +6,12 @@ import (
 
 // Cache key patterns following model hierarchy: resource1:resource2:...:id
 const (
-
-	// Users resource (MEDIUM: read-heavy shared data)
-	KeyUsers = "users"
+	KeyUser = "user:%s"
 
 	KeyUserClusters = "user:%s:clusters"
 
 	// User -> Followers (HIGH: read-heavy social graph)
-	KeyUserFollowers = "user:%s:followers"
-
-	// User -> Following (HIGH: read-heavy social graph)
-	KeyUserFollowing = "user:%s:following"
-
-	// Progress cache
-	KeyProgress = "progress:%s"
+	KeyUserFriends = "user:%s:friends"
 )
 
 const (
@@ -49,6 +41,11 @@ const (
 const (
 	// Notes
 	KeyNote = "note:%s"
+)
+
+const (
+	// Progress cache
+	KeyProgress = "progress:%s"
 )
 
 // FormatKey formats a cache key with the given identifier (string).

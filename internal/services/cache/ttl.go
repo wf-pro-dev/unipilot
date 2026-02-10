@@ -6,13 +6,10 @@ import "time"
 const (
 
 	// Users resource (MEDIUM: read-heavy, moderate TTL)
-	TTLUsers = 2 * time.Hour
+	TTLUser = 2 * time.Hour
 
-	// User -> Followers (HIGH: read-heavy social graph)
-	TTLUserFollowers = 30 * time.Minute
-
-	// User -> Following (HIGH: read-heavy social graph)
-	TTLUserFollowing = 30 * time.Minute
+	// User -> Friends (HIGH: read-heavy social graph)
+	TTLUserFriends = 1 * time.Hour
 
 	// User -> LinkedCourses (MEDIUM: read-heavy complex query)
 	TTLUserCoursesLinked = 1 * time.Hour

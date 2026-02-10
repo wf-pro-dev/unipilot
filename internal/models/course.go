@@ -281,7 +281,7 @@ func GetClusterCourses(rootID string, db *gorm.DB) ([]string, error) {
 
 	// Find the Root itself and all its Children
 	err := db.Model(&Course{}).
-		Where("id = ? OR parent_id = ?", rootID, rootID).
+		Where("id = ? OR cluster_id = ?", rootID, rootID).
 		Pluck("id", &courseIDs).Error
 
 	return courseIDs, err
@@ -459,20 +459,28 @@ type CourseInvitation struct {
 	Course   *Course `gorm:"foreignKey:CourseID;references:ID" validate:"-"`
 }
 
-func (ci *CourseInvitation) BeforeCreate(tx *gorm.DB) error {
-	var course Course
-	if err := tx.Select("parent_id").First(&course, ci.CourseID).Error; err != nil {
-		return err
-	}
+// FriendStatusResponse represents the friendship status between two users
+type CourseStatusResponse struct {
+	ID              string            `json:"id"`                 // Course ID
+	Status          *InvitationStatus `json:"status"`             // Current friendship status (null if no relationship)
+	IsPendingForYou bool              `json:"is_pending_for_you"` // True if you need to respond to their reque	st	MutualFriendsCount  int               `json:"mutual_friends_count"`  // Number of mutual friends
+}
 
-	if course.ClusterID != nil {
-		return errors.NewAppError(errors.ValidationInvalid,
-			"CourseID must be a parent course, not a child", nil)
-	}
+var NoCourseInvitation = CourseStatusResponse{
+	ID:              "",
+	Status:          nil,
+	IsPendingForYou: false,
+}
+
+func (ci *CourseInvitation) BeforeCreate(tx *gorm.DB) error {
 
 	if exists := InvitationExists(ci.OwnerID, ci.ReceiverID, ci.CourseID, tx); exists {
 		return errors.NewAppError(errors.ValidationInvalid,
 			"An Invitation is still active", nil)
+	}
+
+	if err := ci.Base.BeforeCreate(tx); err != nil {
+		return err
 	}
 
 	return nil
@@ -487,12 +495,26 @@ func (ci *CourseInvitation) Validate() error {
 }
 
 func GetCourseInvitation(id string, db *gorm.DB) (*CourseInvitation, error) {
-	invitation := &CourseInvitation{}
-	err := db.First(&invitation, id).Error
+	invitation := &CourseInvitation{
+		Base: Base{ID: id},
+	}
+	err := db.First(invitation).Error
 	if err != nil {
 		return nil, errors.HandleDBReadError(err)
 	}
-	return invitation, nil
+	return invitation, err
+}
+
+func GetClusterInvatation(ownerID, receiverID, courseID string, db *gorm.DB) (*CourseInvitation, error) {
+	var invitation CourseInvitation
+	err := db.Model(&CourseInvitation{}).
+		Where("owner_id = ? AND receiver_id = ? AND course_id = ?", ownerID, receiverID, courseID).
+		First(&invitation).
+		Error
+	if err != nil {
+		return nil, errors.HandleDBReadError(err)
+	}
+	return &invitation, nil
 }
 
 func InvitationExists(ownerID, receiverID, courseID string, db *gorm.DB) bool {
@@ -503,4 +525,26 @@ func InvitationExists(ownerID, receiverID, courseID string, db *gorm.DB) bool {
 		First(&invitation).
 		Error
 	return err == nil
+}
+
+// GetFriendshipStatus returns the status between two users
+// Returns: status, isPending (waiting for current user to respond), error
+func GetCourseStatus(ownerID, receiverID, courseID string, currentUserID string, db *gorm.DB) (*CourseStatusResponse, error) {
+
+	invitation, err := GetClusterInvatation(ownerID, receiverID, courseID, db)
+	if err != nil {
+		if errors.HasCode(err, errors.DBRecordNotFound) {
+			return &NoCourseInvitation, nil
+		}
+		return nil, err
+	}
+
+	// Check if current user needs to respond to a pending request
+	isPendingForCurrentUser := invitation.Status == InvitationPending && invitation.SenderID != currentUserID
+
+	return &CourseStatusResponse{
+		ID:              invitation.ID,
+		Status:          &invitation.Status,
+		IsPendingForYou: isPendingForCurrentUser,
+	}, nil
 }

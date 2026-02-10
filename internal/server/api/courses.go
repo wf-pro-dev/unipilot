@@ -36,13 +36,16 @@ func GetCoursesHandler(c *fiber.Ctx) error {
 	}
 
 	var userID string
-	if userID = c.Query("id"); userID == "" {
+	if userID = c.Params("id"); userID == "" {
 		return errors.WrapServer(fmt.Errorf("user ID required"), errors.ReqParamMissing, "User ID required", fiber.StatusBadRequest)
 	}
 
 	// Step 2: Query database for user's courses using parameterized query for security
 	var courses []models.Course
 	if courses, err = models.GetCourses(userID, db); err != nil {
+		if errors.HasCode(err, errors.DBRecordNotFound) {
+			return c.JSON([]models.Course{})
+		}
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting courses from database", fiber.StatusInternalServerError)
 	}
 
@@ -314,6 +317,11 @@ func ClusterRequestHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting course", fiber.StatusInternalServerError)
 	}
 
+	// If the course is a cluster, use the cluster ID
+	if cluster.ClusterID != nil {
+		clusterID = *cluster.ClusterID
+	}
+
 	newInvitation := models.CourseInvitation{
 		OwnerID:    cluster.UserID,
 		ReceiverID: currentUser.ID,
@@ -355,9 +363,19 @@ func AcceptInvitationHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(fmt.Errorf("invitation ID required"), errors.ReqParamMissing, "Invitation ID required", fiber.StatusBadRequest)
 	}
 
-	invitation, err := models.GetCourseInvitation(invitationID, db.Preload("Course"))
+	invitation, err := models.GetCourseInvitation(invitationID, db)
 	if err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting invitation", fiber.StatusInternalServerError)
+	}
+
+	course, err := models.GetCourse(invitation.CourseID, db)
+	if err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting course invitation", fiber.StatusInternalServerError)
+
+	}
+
+	if err := db.Model(invitation).Update("status", models.InvitationAccepted).Error; err != nil {
+		return errors.HandleDBWriteError(err).ToServerError(fiber.StatusInternalServerError)
 	}
 
 	// Warm course cache async
@@ -371,10 +389,10 @@ func AcceptInvitationHandler(c *fiber.Ctx) error {
 		// Add course to cluster cache
 		CacheService.AddClusterCourse(context.Background(), invitation.CourseID, invitation.CourseID)
 		// Get courses from cache
-		CacheService.SetCourses(context.Background(), []*models.Course{invitation.Course})
+		CacheService.SetCourses(context.Background(), []*models.Course{course})
 	}()
 
-	courseJSON, err := json.Marshal(invitation.Course)
+	courseJSON, err := json.Marshal(course)
 	if err != nil {
 		return errors.WrapServer(err, errors.ProcJSONMarshalFailed, "Failed to marshal course", fiber.StatusInternalServerError)
 	}
@@ -382,26 +400,26 @@ func AcceptInvitationHandler(c *fiber.Ctx) error {
 	isShare := invitation.OwnerID == invitation.SenderID
 	if GrpcClient != nil {
 		if isShare {
-			ownerMessage := fmt.Sprintf("%s is now linked to your course : %s", currentUser.Username, invitation.Course.Code)
+			ownerMessage := fmt.Sprintf("%s is now linked to your course : %s", currentUser.Username, course.Code)
 			// Send message to the course owner
 			_, err = (*GrpcClient).SendMessage(context.Background(),
 				&messages.Message{
 					ReceiverId: invitation.SenderID,   // Original course owner receives the notification
 					SenderId:   invitation.ReceiverID, // Current user (accepter) is the sender
-					Title:      invitation.Course.Name,
+					Title:      course.Name,
 					Message:    ownerMessage,
 					Data:       []byte(courseJSON),
 					Type:       string(models.MessageCourse),
 				},
 			)
 		} else {
-			receiverMessage := fmt.Sprintf("%s has accepted your course request for %s", currentUser.Username, invitation.Course.Code)
+			receiverMessage := fmt.Sprintf("%s has accepted your course request for %s", currentUser.Username, course.Code)
 			// Send message to the course owner
 			_, err = (*GrpcClient).SendMessage(context.Background(),
 				&messages.Message{
 					ReceiverId: invitation.SenderID,   // Original course owner receives the notification
 					SenderId:   invitation.ReceiverID, // Current user (accepter) is the sender
-					Title:      invitation.Course.Name,
+					Title:      course.Name,
 					Message:    receiverMessage,
 					Data:       []byte(courseJSON),
 					Type:       string(models.MessageCourse),
@@ -484,4 +502,34 @@ func GetCoursesLinkedHandler(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(courses)
+}
+
+func GetClusterStatusHandler(c *fiber.Ctx) error {
+
+	ctx := c.UserContext()
+	db, err := server.GetDB(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "DB not found in context", fiber.StatusInternalServerError)
+	}
+	currentUser, err := server.GetUser(ctx)
+	if err != nil {
+		return errors.WrapServer(err, errors.InternalError, "User not found in context", fiber.StatusInternalServerError)
+	}
+
+	var clusterID string
+	if clusterID = c.Params("id"); clusterID == "" {
+		return errors.WrapServer(fmt.Errorf("cluster ID required"), errors.ReqParamMissing, "Cluster ID required", fiber.StatusBadRequest)
+	}
+
+	cluster, err := models.GetCourse(clusterID, db)
+	if err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting course", fiber.StatusInternalServerError)
+	}
+
+	status, err := models.GetCourseStatus(cluster.UserID, currentUser.ID, clusterID, currentUser.ID, db)
+	if err != nil {
+		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting course status", fiber.StatusInternalServerError)
+	}
+
+	return c.JSON(status)
 }

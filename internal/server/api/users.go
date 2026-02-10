@@ -1,6 +1,9 @@
 package server
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/gofiber/fiber/v2"
 
 	"unipilot/internal/errors"
@@ -61,9 +64,24 @@ func GetUsersHandler(c *fiber.Ctx) error {
 		return errors.WrapServer(err, errors.ReqParamInvalid, "Error unmarshalling cursor", fiber.StatusBadRequest)
 	}
 
-	results, err := models.GetUsers(cursor, 20, db.Debug().Omit("password_hash"))
-	if err != nil {
+	limit := 20
+	if limitStr := c.Query("limit"); limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		} else {
+			return errors.WrapServer(fmt.Errorf("error limit is in"), errors.ReqParamInvalid, "Error converting limit to int", fiber.StatusBadRequest)
+		}
+	}
+
+	var userIDs []string
+	var nextCursor *models.Cursor
+	if userIDs, nextCursor, err = models.GetUserIDs(cursor, limit, db); err != nil {
 		return errors.WrapServer(err, errors.DBQueryFailed, "Error getting users from database", fiber.StatusInternalServerError)
+	}
+
+	results, err := CacheService.GetUsersByIDs(ctx, userIDs, nextCursor, limit, db)
+	if err != nil {
+		return errors.WrapServer(err, errors.CacheOperationFailed, "Error getting users from cache", fiber.StatusInternalServerError)
 	}
 
 	return c.JSON(results)

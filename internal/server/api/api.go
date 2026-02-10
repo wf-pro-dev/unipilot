@@ -102,14 +102,15 @@ func StartServer() error {
 	app.Put("/assignments/:id", server.AuthMiddleware, UpdateAssignmentHandler)
 	app.Delete("/assignments/:id", server.AuthMiddleware, DeleteAssignmentHandler)
 
-	app.Get("/courses/:id", server.AuthMiddleware, GetCoursesHandler)
-	app.Post("/courses", server.AuthMiddleware, CreateCourseHandler)
-	app.Put("/courses/:id", server.AuthMiddleware, UpdateCourseHandler)
 	app.Get("/courses/linked", server.AuthMiddleware, GetCoursesLinkedHandler)
+	app.Get("/courses/:id/cluster-status", server.AuthMiddleware, GetClusterStatusHandler)
+	app.Get("/courses/:id", server.AuthMiddleware, GetCoursesHandler)
 	app.Post("/courses/:id/share", server.AuthMiddleware, ClusterShareHandler)
 	app.Post("/courses/:id/request", server.AuthMiddleware, ClusterRequestHandler)
 	app.Post("/courses/:id/accept", server.AuthMiddleware, AcceptInvitationHandler)
 	app.Post("/courses/:id/decline", server.AuthMiddleware, DeclineInvitationHandler)
+	app.Post("/courses", server.AuthMiddleware, CreateCourseHandler)
+	app.Put("/courses/:id", server.AuthMiddleware, UpdateCourseHandler)
 	app.Delete("/courses/:id", server.AuthMiddleware, DeleteCourseHandler)
 
 	app.Get("/documents/assignments/:id", server.AuthMiddleware, GetAssignmentDocumentsHandler)

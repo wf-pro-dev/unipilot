@@ -12,8 +12,8 @@ import (
 	"unipilot/internal/secrets"
 
 	"code.sajari.com/docconv"
-	"github.com/google/uuid"
 	"github.com/tmc/langchaingo/textsplitter"
+	"gorm.io/datatypes"
 
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
@@ -177,15 +177,17 @@ func GetQdrantVectors(document *models.Document) ([]*qdrant.PointStruct, error) 
 	}
 
 	for i, embedding := range embeddings {
+		newID := datatypes.NewUUIDv4().String()
 		newVector := qdrant.PointStruct{
-			Id:      qdrant.NewIDUUID(uuid.New().String()),
+			Id:      qdrant.NewIDUUID(newID),
 			Vectors: qdrant.NewVectors(embedding.Values...),
 			Payload: qdrant.NewValueMap(map[string]any{
-				"user_id":       document.UserID,
-				"document_id":   document.ID,
-				"assignment_id": document.AssignmentID,
-				"chunk_id":      i,
-				"chunk_text":    chunks[i],
+				"user_id":            document.UserID,
+				"document_file_name": document.FileName,
+				"document_id":        document.ID,
+				"assignment_id":      document.AssignmentID,
+				"chunk_id":           newID,
+				"chunk_text":         chunks[i],
 			}),
 		}
 		vectors = append(vectors, &newVector)
@@ -195,7 +197,7 @@ func GetQdrantVectors(document *models.Document) ([]*qdrant.PointStruct, error) 
 }
 
 func GetTextEmbedding(chunks []string) ([]*genai.ContentEmbedding, error) {
-	fmt.Println("GetTextEmbedding")
+
 	ctx := context.Background()
 
 	GEMINI_API_KEY, err := secrets.GetEnvVar("GEMINI_API_KEY")
