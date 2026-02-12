@@ -134,33 +134,12 @@ export function useDownloadDocument() {
     mutationFn: async (document: models.LocalDocument) => {
       return await DownloadDocument(document)
     },
-    onMutate: async (document) => {
-
-      // Change HasLocalFile to true
-      const previousAssignments = queryClient.getQueryData<models.LocalAssignment[]>(assignmentKeys.lists())
-
-      queryClient.setQueryData<models.LocalAssignment[]>(assignmentKeys.lists(), (old) => {
-        if (!old) return []
-        return old.map((assignment: models.LocalAssignment) => 
-          assignment.ID === document.AssignmentID
-            ? { 
-                ...assignment, 
-                Documents: [document, ...(assignment.Documents || [])]
-              } as models.LocalAssignment
-            : assignment
-        )
-      })
-
-      return { previousAssignments }
-    },
     onSuccess: (_,variables) => {
       toast.success(variables.FileName + " downloaded successfully")
     },
     // If the mutation fails, rollback
-    onError: (err, variables, context) => {
-      if (context?.previousAssignments) {
-        queryClient.setQueryData(assignmentKeys.lists(), context.previousAssignments)
-      }
+    onError: (err) => {
+  
       LogError("Failed to update document: " + err)
       toast.error("Failed to download document")
     },

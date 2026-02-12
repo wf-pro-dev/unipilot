@@ -1,14 +1,12 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, FileText, Info } from "lucide-react";
+import { FileText, Folder, Info } from "lucide-react";
 import { GlassCard } from "./ui/glass-card";
 import { OnFileDrop } from "@/wailsjs/runtime/runtime";
 import { models } from "@/wailsjs/go/models";
 import { useDocuments, useUploadDocument } from "@/hooks/use-documents";
 import { toast } from "sonner";
-import { useCallback, useEffect, useState } from "react";
-import useEmblaCarousel from 'embla-carousel-react'
 import { PickFile } from "@/wailsjs/go/main/App";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
 import { DocumentItem } from "./documents/document-item";
@@ -17,6 +15,8 @@ import { EmptyState } from "./ui/empty-state";
 import { DocumentStorageInfo } from "./documents/document-storage-info";
 import { Checkbox } from "./ui/checkbox";
 import { useProgress } from "@/hooks/use-progress";
+import { Scroll } from "./core/scroll";
+import { Separator } from "./ui/separator";
 
 interface FileUploadProps {
   assignment: models.LocalAssignment;
@@ -25,7 +25,7 @@ interface FileUploadProps {
   setIncludeDocuments?: (includeDocuments: boolean) => void
 }
 
- type DocumentFilter = "All" | "support" | "submission"
+type DocumentFilter = "All" | "support" | "submission"
 
 export default function FileUpload05({ assignment, mode = "default", includeDocuments = true, setIncludeDocuments }: FileUploadProps) {
 
@@ -33,10 +33,7 @@ export default function FileUpload05({ assignment, mode = "default", includeDocu
   var documents = documentData || assignment.Documents || []
 
 
-  const [filter, setFilter] = useState<DocumentFilter>("All")
   const [uploadType, setUploadType] = useState<"support" | "submission">("support")
-  const [selectedIndex, setSelectedIndex] = useState(0)
-  const [activeTab, setActiveTab] = useState("documents")
   const [selectedType, setSelectedType] = useState<"support" | "submission">("support")
   const { activeProgress, addProgress, removeProgress, isProgress } = useProgress()
 
@@ -53,56 +50,6 @@ export default function FileUpload05({ assignment, mode = "default", includeDocu
         toast.error("Failed to pick file: " + error)
       })
   }
-
-  
-
-  // Group documents into pages of 4 (2x2 grid)
-  const documentsPerPage = 1
-  const documentPages: models.LocalDocument[][] = []
-  for (let i = 0; i < ( documents || [] ).length; i += documentsPerPage) {
-    documentPages.push(( documents || [] ).slice(i, i + documentsPerPage))
-  }
-
-
-  // Embla Carousel setup
-  const [emblaRef, emblaApi] = useEmblaCarousel({
-    align: 'start',
-    containScroll: 'trimSnaps',
-    dragFree: false,
-    skipSnaps: false
-  })
-
-  // Track current slide
-  const onSelect = useCallback(() => {
-    if (!emblaApi) return
-    setSelectedIndex(emblaApi.selectedScrollSnap())
-  }, [emblaApi])
-
-  useEffect(() => {
-    if (!emblaApi) return
-    onSelect()
-    emblaApi.on('select', onSelect)
-    return () => {
-      emblaApi.off('select', onSelect)
-    }
-  }, [emblaApi, onSelect])
-
-  // Reset to first page when filter changes
-  useEffect(() => {
-    setSelectedIndex(0)
-    if (emblaApi) {
-      emblaApi.scrollTo(0)
-    }
-  }, [filter, emblaApi])
-
-  // Carousel navigation functions
-  const scrollPrev = useCallback(() => {
-    if (emblaApi) emblaApi.scrollPrev()
-  }, [emblaApi])
-
-  const scrollNext = useCallback(() => {
-    if (emblaApi) emblaApi.scrollNext()
-  }, [emblaApi])
 
 
   const uploadDocument = useUploadDocument()
@@ -121,10 +68,9 @@ export default function FileUpload05({ assignment, mode = "default", includeDocu
 
     const documentId = crypto.randomUUID()
     addProgress(documentId)
-    setActiveTab("documents")
-    
+
     try {
-      
+
       const result = await uploadDocument.mutateAsync({
         documentId: documentId,
         assignmentId: assignment.ID,
@@ -134,7 +80,8 @@ export default function FileUpload05({ assignment, mode = "default", includeDocu
 
     } finally {
       removeProgress(documentId)
-  }}
+    }
+  }
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -154,197 +101,149 @@ export default function FileUpload05({ assignment, mode = "default", includeDocu
 
 
   return (
-    <div className="flex flex-col flex-1 w-full">
+    <div className="flex flex-col  w-full">
       <form onSubmit={onSubmit}>
 
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 w-full">
-          <TabsList className="flex flex-row items-center gap-2 mb-4">
+        <div className="flex flex-col w-full">
 
 
-            <TabsTrigger
-              value="documents"
-              className="flex items-baseline text-body font-medium text-gray-400 uppercase tracking-wider data-[state=active]:text-h6 data-[state=active]:text-white transition-all duration-200"
+          <div className="space-y-4" >
+
+
+            <Select
+              value={selectedType}
+              onValueChange={(value: "support" | "submission") => setSelectedType(value)}
+              disabled={uploadDocument.isPending}
+
             >
-              <span>Documents</span>
-            </TabsTrigger>
-
-            {mode === "default" && (
-              <TabsTrigger
-                value="upload"
-                className="flex items-baseline text-body font-medium text-gray-400 uppercase tracking-wider data-[state=active]:text-h6 data-[state=active]:text-white transition-all duration-200"
-              >
-                <span>Upload</span>
-              </TabsTrigger>
-            )}
-
-
-            {activeTab === "documents" && documentPages?.length > 1 && (
-              <div className="flex flex-1 items-center gap-2 justify-end">
-                {/* Pagination buttons */}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full w-6 h-6  "
-                  onClick={scrollPrev}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full w-6 h-6"
-                  onClick={scrollNext}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-            )}
-
-          </TabsList>
-
-
-
-          <TabsContent value="documents" key="documents" className="space-y-4" >
-
-      
-
-
-            {documentPages?.length > 0 && (
-              <div className="flex flex-col flex-1 gap-4">
-
-                <div className="overflow-hidden" ref={emblaRef}>
-                  <div className="flex w-full gap-4">
-                    {documentPages?.map((page, pageIndex) => (
-
-                      <div className="flex-none w-full min-w-0 px-1" key={pageIndex}>
-
-                        {page.map((document) => (
-                          <DocumentItem key={document.ID} document={document} isUploading={isProgress(document.ID)} mode={mode} />
-                        ))}
-
-                      </div>
-
-                    ))}
-                  </div>
-                </div>
-
-                {mode === "default" && (
-                  <DocumentStorageInfo assignmentID={assignment.ID} />
-                )}
-
-                { mode !== "default" && (
+              <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="glass border-white/10">
+                <SelectItem value="support">
                   <div className="flex items-center gap-2">
-                  <Checkbox checked={includeDocuments} onCheckedChange={(checked) => setIncludeDocuments?.(checked === "indeterminate" ? false : checked)} />
-                    <Label className="text-caption">Do you want to include documents ?</Label>
+                    <FileText className="h-4 w-4 text-blue-400" />
+                    <span className="text-sm">Support Document</span>
                   </div>
-                )}
-              </div>
-
-            )}
-
-            {documentPages?.length === 0 && (
-              <GlassCard variant="board" className="flex flex-col py-10 w-full items-center justify-center">
-                <EmptyState icon={FileText} title="No documents found" description="Upload your first document to get started" />
-              </GlassCard>
-            )}
-          </TabsContent>
-
-          {mode === "default" && (
-              <TabsContent value="upload" key="upload" className="space-y-4" >
+                </SelectItem>
+                <SelectItem value="submission">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-green-400" />
+                    <span className="text-sm">Submission</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
 
 
-                <Select
-                  value={selectedType}
-                  onValueChange={(value: "support" | "submission") => setSelectedType(value)}
-                  disabled={uploadDocument.isPending}
-
-                >
-                  <SelectTrigger className="bg-white/5 border-white/10 focus:border-blue-500 focus:ring-blue-500/20 h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="glass border-white/10">
-                    <SelectItem value="support">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-blue-400" />
-                        <span className="text-sm">Support Document</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="submission">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-green-400" />
-                        <span className="text-sm">Submission</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-
-
-                <GlassCard variant="board"
-                  style={{ "--wails-drop-target": "drop" } as React.CSSProperties}
-                  className="items-center justify-center border border-dashed border-input py-10
+            <GlassCard variant="board"
+              style={{ "--wails-drop-target": "drop" } as React.CSSProperties}
+              className="items-center justify-center border border-dashed border-input py-10
                 [--wails-drop-target:drop] 
               [.wails-drop-target-active_&]:border-blue-500 [.wails-drop-target-active_&]:bg-blue-50 
                 "
-                >
-                  <div className="sm:flex sm:items-center sm:gap-x-3">
+            >
+              <div className="sm:flex sm:items-center sm:gap-x-3">
 
-                    <div className="[--wails-drop-target:none] text-body mt-4 flex items-center  leading-6 sm:mt-0">
-                      <p className="pointer-events-none text-gray-400 ">Drag and drop or</p>
+                <div className="[--wails-drop-target:none] text-body mt-4 flex items-center  leading-6 sm:mt-0">
+                  <p className="pointer-events-none text-gray-400 ">Drag and drop or</p>
 
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="sm"
-                        className="[--wails-drop-target:none] text-body px-2"
-                        onClick={handlePickFile}
-                      >
-                        Choose a file
-                      </Button>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="[--wails-drop-target:none] text-body px-2"
+                    onClick={handlePickFile}
+                  >
+                    Choose a file
+                  </Button>
 
-                      <p className="pointer-events-none text-gray-400 ">to upload</p>
-                    </div>
-
-                  </div>
-
-                </GlassCard>
-
-                {/* File Size Limits */}
-                <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                    <div className="space-y-1 text-xs">
-                      <p className="font-medium text-blue-200">File Limits:</p>
-                      <ul className="space-y-1 text-blue-200/70 list-disc pl-3">
-                        <li>Maximum file size: 50 MB</li>
-                        <li>Maximum per assignment: 200 MB</li>
-                        <li>Total storage limit: 2 GB</li>
-                      </ul>
-                    </div>
-                  </div>
+                  <p className="pointer-events-none text-gray-400 ">to upload</p>
                 </div>
 
-                {/* Supported Formats */}
+              </div>
 
-                <div className="space-y-2">
-                  <Label className="text-gray-400 text-xs font-medium uppercase tracking-wider">Supported Formats</Label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {getSupportedFormats().map((format) => (
-                      <Badge key={format} variant="secondary" className="text-[10px] bg-white/5 hover:bg-white/10 text-gray-300 border-white/10 font-normal">
-                        {format}
-                      </Badge>
-                    ))}
-                  </div>
+            </GlassCard>
+
+            {/* File Size Limits */}
+            <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg">
+              <div className="flex items-start gap-3">
+                <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1 text-xs">
+                  <p className="font-medium text-blue-200">File Limits:</p>
+                  <ul className="space-y-1 text-blue-200/70 list-disc pl-3">
+                    <li>Maximum file size: 50 MB</li>
+                    <li>Maximum per assignment: 200 MB</li>
+                    <li>Total storage limit: 2 GB</li>
+                  </ul>
                 </div>
-              </TabsContent>
-            )}
-        </Tabs>
+              </div>
+            </div>
+
+            {/* Supported Formats */}
+
+            <div className="space-y-2">
+              <Label className="text-gray-400 text-xs font-medium uppercase tracking-wider">Supported Formats</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {getSupportedFormats().map((format) => (
+                  <Badge key={format} variant="secondary" className="text-[10px] bg-white/5 hover:bg-white/10 text-gray-300 border-white/10 font-normal">
+                    {format}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+
+            <Separator className="bg-white/10" />
+
+
+            <div className="flex flex-col flex-1 gap-4">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center space-x-2 text-body font-medium text-gray-400 uppercase tracking-wider">
+                  <Folder className="w-4 h-4" />
+                  <span >Documents</span>
+                </div>
+                {documents.length > 0 ? (
+                  <Scroll
+                    data={{ Data: documents, HasMore: false }}
+                    renderItem={(document: models.LocalDocument) => (
+                      <DocumentItem key={document.ID} document={document} isUploading={isProgress(document.ID)} mode={mode} />
+
+                    )}
+                    keyExtractor={(item: models.LocalDocument) => item.ID}
+                    numColumns={2}
+                    containerClassName="gap-4"
+                  />
+                ) : (
+                  <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
+                    <EmptyState
+                      icon={FileText}
+                      title="No documents found"
+                      description="Upload your first document to get started"
+                      className="flex-1 items-center"
+                    />
+
+                  </div>
+                )}
+              </div>
+
+              {mode === "default" && (
+                <DocumentStorageInfo assignmentID={assignment.ID} />
+              )}
+
+              {mode !== "default" && (
+                <div className="flex items-center gap-2">
+                  <Checkbox checked={includeDocuments} onCheckedChange={(checked) => setIncludeDocuments?.(checked === "indeterminate" ? false : checked)} />
+                  <Label className="text-caption">Do you want to include documents ?</Label>
+                </div>
+              )}
+            </div>
 
 
 
 
+          </div>
+        </div>
       </form>
 
     </div>

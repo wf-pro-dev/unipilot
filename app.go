@@ -157,7 +157,8 @@ func (a *App) CopyAssignment(assignment *models.LocalAssignment, includeDocument
 
 	if includeDocuments {
 		for _, document := range assignment.Documents {
-			err := a.CreateDocument(&models.LocalDocument{
+
+			newDocument := &models.LocalDocument{
 				Base: models.Base{
 					ID: "",
 				},
@@ -170,8 +171,9 @@ func (a *App) CopyAssignment(assignment *models.LocalAssignment, includeDocument
 					HasLocalFile: false,
 					Version:      1,
 				},
-			})
-			if err != nil {
+			}
+			newDocument.FilePath = fileops.GetFilePath(newDocument)
+			if err := a.CreateDocument(newDocument); err != nil {
 				return Errors.Wrap(err, Errors.InternalError, "Failed to create document")
 			}
 		}
@@ -603,9 +605,17 @@ func (a *App) DownloadDocument(document *models.LocalDocument) error {
 		return Errors.Wrap(fmt.Errorf("file not found"), Errors.FSFileNotFound, "File not found")
 	}
 
+	filePath := fileops.GetFilePath(document)
+
 	// write file to disk
-	if err := fileops.WriteDocument(document, db); err != nil {
+	if err := fileops.WriteFile(filePath, downloadResp); err != nil {
 		return Errors.Wrap(err, Errors.FSWriteFailed, "Failed to write file")
+	}
+
+	if err := db.Model(document).
+		Update("has_local_file", true).
+		Update("file_path", filePath).Error; err != nil {
+		return Errors.HandleDBWriteError(err)
 	}
 
 	return nil
@@ -858,13 +868,6 @@ func (a *App) DeleteDocument(documentID string) error {
 		return Errors.Wrap(err, Errors.DBRecordNotFound, "Document not found or access denied")
 	}
 
-	// Delete physical file if it exists
-	if doc.HasLocalFile && doc.FilePath != "" {
-		if err := os.Remove(doc.FilePath); err != nil && !os.IsNotExist(err) {
-			return Errors.Wrap(err, Errors.FSDeleteFailed, "Failed to delete file")
-		}
-	}
-
 	db := a.DB.GetDB()
 
 	err := db.Transaction(func(tx *gorm.DB) error {
@@ -1040,9 +1043,15 @@ func (a *App) Logout() error {
 	//Stop and uninstall daemon service before logout
 	//This ensures the service is removed so another user can install their own
 
-	if a.Daemon != nil {
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Println("Recovered from panic in logout daemon cleanup:", r)
+			}
+		}()
 
-		go func() {
+		if a.Daemon != nil {
+
 			// Stop the daemon first
 			if err := a.Daemon.StopDaemon(); err != nil {
 				log.Println(Errors.Wrap(err, Errors.SysExecFailed, "Failed to stop notification daemon"))
@@ -1056,10 +1065,11 @@ func (a *App) Logout() error {
 			} else {
 				log.Println("Notification daemon uninstalled successfully")
 			}
-		}()
-		// Clear daemon manager reference
-		a.Daemon = nil
-	}
+
+			// Clear daemon manager reference
+			a.Daemon = nil
+		}
+	}()
 
 	return nil
 

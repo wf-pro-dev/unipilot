@@ -4,7 +4,23 @@ import { memo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Edit, Trash2, FileText, ExternalLink, Info, Bot, Clock, CopyPlus } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
+import { Separator } from "@/components/ui/separator"
+import {
+  Edit,
+  Trash2,
+  FileText,
+  ExternalLink,
+  Bot,
+  Clock,
+  CopyPlus,
+  Calendar,
+  Flag,
+  Tag,
+  CheckCircle2,
+  Circle,
+  AlertCircle
+} from "lucide-react"
 import { format } from "date-fns"
 import { models } from "@/wailsjs/go/models"
 import { parseDeadline, calculateDaysDifference, isOverdue, getDueDescription } from "@/lib/date-utils"
@@ -16,7 +32,9 @@ import { useAssignment, useDeleteAssignment } from "@/hooks/use-assignments"
 import { PriorityTag } from "./tags/priority-tag"
 import { useRouter } from "next/navigation"
 import FileUpload05 from "../file-upload-05"
-import { AnimatePresence, motion } from "framer-motion"
+import { DocumentStorageInfo } from "../documents/document-storage-info"
+import { cn } from "@/lib/utils"
+import { EmptyState } from "../ui/empty-state"
 
 interface AssignmentDetailsDialogProps {
   isOpen: boolean
@@ -37,8 +55,6 @@ const BaseAssignmentDetailsDialog = ({
   onCopy,
   mode = "default",
 }: AssignmentDetailsDialogProps) => {
-
-
   const { data: assignmentData } = useAssignment(assignmentId)
   const deleteMutation = useDeleteAssignment()
 
@@ -47,252 +63,361 @@ const BaseAssignmentDetailsDialog = ({
   if (!assignment) return null
 
   const [includeDocuments, setIncludeDocuments] = useState(true)
+  const [activeView, setActiveView] = useState("overview")
 
   const { Title, Deadline, Status, Priority, Type, Todo, Course, Link } = assignment
 
   const router = useRouter()
 
-  const [activeView, setActiveView] = useState("info")
-
   // Parse deadline with timezone awareness
   const deadline = parseDeadline(Deadline)
-
   const isOverdueStatus = isOverdue(deadline, Status)
-
   const daysUntilDue = calculateDaysDifference(deadline)
 
   const handleOpenLink = () => {
     BrowserOpenURL(Link)
   }
 
+  // Status icon helper
+  const getStatusIcon = () => {
+    switch (Status) {
+      case "Done":
+        return <CheckCircle2 className="w-5 h-5 text-status-success" />
+      case "In progress":
+        return <Circle className="w-5 h-5 text-primary-blue-400" />
+      case "To do":
+        return <Circle className="w-5 h-5 text-text-caption" />
+      default:
+        return <Circle className="w-5 h-5 text-text-caption" />
+    }
+  }
+
+  // Priority color helper
+  const getPriorityColor = () => {
+    switch (Priority) {
+      case "High":
+        return "text-status-danger"
+      case "Medium":
+        return "text-primary-yellow-400"
+      case "Low":
+        return "text-status-success"
+      default:
+        return "text-text-caption"
+    }
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="glass border-white/10 text-white max-w-lg p-0 overflow-hidden gap-0">
+      <DialogContent className="glass border-white/10 text-white max-w-5xl p-0 gap-0 max-h-[90vh] flex flex-col md:flex-row">
 
-        <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/5">
+        {/* === LEFT SIDEBAR: Assignment Identity === */}
+        <div className="md:w-80 bg-white/5 border-r border-white/5 relative flex flex-col overflow-y-auto shrink-0">
+          <div className="p-6 flex flex-col">
 
-          <div className="flex items-center space-x-2 mb-1">
-            <div className={`w-2 h-2 rounded-full ${Course?.Color}`} />
-            <span className="text-caption uppercase tracking-wider">{Course?.Name}</span>
-          </div>
-          <DialogTitle className="text-h3">{Title}</DialogTitle>
+            {/* Header: Course & Title */}
+            <div className="flex flex-col items-center mb-6 mt-2 text-center">
+              <div className={cn(
+                "w-20 h-20 rounded-2xl flex items-center justify-center shadow-2xl shadow-black/50 mb-5 ring-2 ring-white/10",
+                Course?.Color
+              )}>
+                <FileText className="w-8 h-8 text-white" />
+              </div>
 
-        </DialogHeader>
+              <div className="flex items-center gap-2 mb-2">
+                <Badge variant="outline" className="text-caption border-white/20 bg-white/5 text-text-caption px-2 py-0.5 h-6">
+                  {Course?.Code}
+                </Badge>
+              </div>
 
+              <DialogTitle className="text-h3 text-text-title mb-1 leading-tight">
+                {Title}
+              </DialogTitle>
 
-        <div className="p-6">
-          <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent z-0 rounded-2xl pointer-events-none" />
+              <p className="text-caption text-text-caption font-medium">
+                {Course?.Name}
+              </p>
+            </div>
 
-          <Tabs value={activeView} onValueChange={setActiveView} className="w-full">
+            <Separator className="bg-white/10 mb-6" />
 
-            <TabsList className="flex flex-row bg-white/5 p-1 rounded-xl w-full border border-white/5 mb-6">
-              <TabsTrigger
-                value="info"
-                className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
-              >
-                <Info className="w-4 h-4" />
-                <span className="text-sm font-medium">Information</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="documents"
-                className="flex-1 flex justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
-              >
-                <FileText className="w-4 h-4" />
-                <span className="text-sm font-medium">Documents</span>
-              </TabsTrigger>
-            </TabsList>
+            {/* Deadline Section */}
+            <div className="mb-6 bg-white/5 rounded-xl p-4 border border-white/5">
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="w-4 h-4 text-primary-blue-400" />
+                <span className="text-caption text-text-caption uppercase tracking-wider font-semibold">Deadline</span>
+              </div>
 
+              <div className="space-y-2">
+                <div className="flex items-baseline justify-between">
+                  <p className="text-h5 font-bold text-white">{format(deadline, "MMM d, yyyy")}</p>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "border-white/10 bg-white/5 text-xs",
+                      isOverdueStatus ? "text-status-danger" : daysUntilDue < 0 ? "text-text-caption" : "text-primary-yellow-400"
+                    )}
+                  >
+                    {getDueDescription(deadline, Status)}
+                  </Badge>
+                </div>
+                <p className="text-sm text-text-caption">{format(deadline, "EEEE 'at' h:mm a")}</p>
 
-            {/* Status and Priority */}
-            <AnimatePresence mode="wait" >
-
-
-              <TabsContent value="info" key="info" className="space-y-6" asChild>
-                <motion.div
-                  key="info"
-                  initial={{ x: -20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: -20, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-
-                  {/* Deadline Section */}
-                  <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 group">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2 text-xs font-medium text-gray-400 uppercase tracking-wider">
-                        <Clock className="w-3.5 h-3.5 text-blue-400" />
-                        <span>Deadline</span>
-                      </div>
-                      <Badge variant="outline" className={`border-white/10 bg-white/5 ${isOverdueStatus ? "text-red-400" : daysUntilDue < 0 ? "text-gray-400" : "text-yellow-400"}`}>
-                        {getDueDescription(deadline, Status)}
-                      </Badge>
+                {!isOverdueStatus && Status !== "Done" && daysUntilDue >= 0 && (
+                  <div className="pt-2">
+                    <div className="flex justify-between text-xs text-text-caption mb-1">
+                      <span>Time remaining</span>
+                      <span className="font-medium">{daysUntilDue} days</span>
                     </div>
-                    <p className="font-medium text-white text-lg">{format(deadline, "EEEE MMMM d, yyyy")}</p>
-                    <p className="text-gray-400 text-sm mt-1">{format(deadline, "h:mm a")}</p>
-
+                    <Progress
+                      value={Math.max(0, 100 - (daysUntilDue / 30) * 100)}
+                      className="h-1.5 bg-white/10"
+                    />
                   </div>
+                )}
+              </div>
+            </div>
 
-                  {/* Tags Grid */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
-                      <span className="text-xs font-medium uppercase tracking-wider">Status</span>
-                      {mode === "default" ? (
-                        <StatusTag assignment={assignment as models.LocalAssignment} variant="outline" />
-                      ) : (
-                        < Badge variant="outline" className={`text-caption font-normal`}>
-                          {Status}
-                        </Badge>
-                      )}
-
-                    </div>
-
-                    <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
-                      <span className="text-xs font-medium uppercase tracking-wider">Priority</span>
-                      {mode === "default" ? (
-                        <PriorityTag assignment={assignment as models.LocalAssignment} variant="outline" />
-                      ) : (
-                        < Badge variant="outline" className={`text-caption font-normal`}>
-                          {Priority}
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="flex flex-col items-center space-y-2 border border-white/5 p-3 rounded-xl bg-white/5">
-                      <span className="text-xs font-medium uppercase tracking-wider">Type</span>
-                      {mode === "default" ? (
-                        <TypeTag assignment={assignment as models.LocalAssignment} variant="outline" />
-                      ) : (
-                        < Badge variant="outline" className={`text-caption font-normal`}>
-                          {Type}
-                        </Badge>
-                      )}
-                    </div>
+            {/* Status, Priority, Type Grid */}
+            <div className="space-y-3 mb-6">
+              {/* Status */}
+              <div className="bg-white/5 border border-white/5 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon()}
+                    <span className="text-sm font-medium text-text-caption uppercase tracking-wider">Status</span>
                   </div>
-
-                  {/* Description */}
-                  {assignment.Todo && (
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2 text-body font-medium text-gray-400 uppercase tracking-wider">
-                        <FileText className="w-4 h-4" />
-                        <span>Description & Notes</span>
-                      </div>
-                      <div className="bg-white/5 border border-white/5  rounded-xl p-4 group">
-                        <div className="overflow-y-auto custom-scrollbar max-h-[100px] group-hover:max-h-[200px] transition-all duration-300 ease-in-out">
-                          <p className="whitespace-pre-wrap leading-relaxed text-sm text-gray-200">{Todo}</p>
-                        </div>
-                      </div>
-                    </div>
+                  {mode === "default" ? (
+                    <StatusTag assignment={assignment as models.LocalAssignment} variant="outline" />
+                  ) : (
+                    <Badge variant="outline" className="text-caption border-white/10 bg-white/5">
+                      {Status}
+                    </Badge>
                   )}
-                </motion.div>
-              </TabsContent>
+                </div>
+              </div>
 
+              {/* Priority */}
+              <div className="bg-white/5 border border-white/5 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Flag className={cn("w-5 h-5", getPriorityColor())} />
+                    <span className="text-sm font-medium text-text-caption uppercase tracking-wider">Priority</span>
+                  </div>
+                  {mode === "default" ? (
+                    <PriorityTag assignment={assignment as models.LocalAssignment} variant="outline" />
+                  ) : (
+                    <Badge variant="outline" className="text-caption border-white/10 bg-white/5">
+                      {Priority}
+                    </Badge>
+                  )}
+                </div>
+              </div>
 
+              {/* Type */}
+              <div className="bg-white/5 border border-white/5 rounded-xl p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-5 h-5 text-text-caption" />
+                    <span className="text-sm font-medium text-text-caption uppercase tracking-wider">Type</span>
+                  </div>
+                  {mode === "default" ? (
+                    <TypeTag assignment={assignment as models.LocalAssignment} variant="outline" />
+                  ) : (
+                    <Badge variant="outline" className="text-caption border-white/10 bg-white/5">
+                      {Type}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
 
+            {/* Actions */}
+            <div className="space-y-2">
+              {mode === "default" && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2 border-white/10 hover:bg-white/10"
+                    onClick={() => router.push(`/chat?assignment=${assignmentId}`)}
+                  >
+                    <Bot className="w-4 h-4" />
+                    <span>AI Assistant</span>
+                  </Button>
 
-              <TabsContent value="documents" key="documents" className="flex flex-col flex-1" asChild>
-                <motion.div
-                  key="documents"
-                  initial={{ x: 20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  exit={{ x: 20, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start gap-2 border-white/10 hover:bg-white/10"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleEditOpen?.()
+                    }}
+                  >
+                    <Edit className="w-4 h-4" />
+                    <span>Edit Details</span>
+                  </Button>
+                </>
+              )}
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start gap-2 border-white/10 hover:bg-white/10"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleOpenLink()
+                }}
+              >
+                <ExternalLink className="w-4 h-4" />
+                <span>Open Link</span>
+              </Button>
+
+              {mode === "readonly" && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onCopy?.(assignment as models.Assignment, includeDocuments)
+                  }}
                 >
-                  <FileUpload05
-                    assignment={assignment as models.LocalAssignment}
-                    mode={mode}
-                    includeDocuments={includeDocuments}
-                    setIncludeDocuments={setIncludeDocuments}
-                  />
-                </motion.div>
-              </TabsContent>
+                  <CopyPlus className="h-4 w-4" />
+                  <span>Copy Assignment</span>
+                </Button>
+              )}
 
-            </AnimatePresence>
-          </Tabs>
-
-          {/* Actions */}
-
-          <div className="grid grid-cols-4 gap-3 mt-6">
-
-            {mode === "default" && (
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-full"
-                onClick={() => router.push(`/chat?assignment=${assignmentId}`)}
-              >
-                <Bot className="w-4 h-4" />
-                <span>AI Help</span>
-              </Button>
-
-
-            )}
-
-
-            {mode === "default" && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="rounded-full"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleEditOpen?.()
-                }}
-              >
-                <Edit className="w-4 h-4" />
-                <span>Edit</span>
-              </Button>
-            )}
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="rounded-full"
-              onClick={(e) => {
-                e.stopPropagation()
-                handleOpenLink()
-              }}
-            >
-              <ExternalLink className="w-4 h-4" />
-              <span>Link</span>
-            </Button>
-
-            {mode === "readonly" && (
-              <Button
-                variant="primary"
-                size="sm"
-                className=" rounded-full"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onCopy?.(assignment as models.Assignment, includeDocuments)
-                }}
-              >
-
-                <CopyPlus className="h-4 w-4" />
-                <span>Copy</span>
-              </Button>
-            )}
-            {mode === "default" && (
-              <Button
-                variant="danger"
-                size="sm"
-                className="rounded-full"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onClose()
-                  deleteMutation.mutate(assignment as models.LocalAssignment)
-                }}
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Delete</span>
-              </Button>
-            )}
+              {mode === "default" && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onClose()
+                    deleteMutation.mutate(assignment as models.LocalAssignment)
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete Assignment</span>
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
+        {/* === RIGHT CONTENT AREA === */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <Tabs value={activeView} onValueChange={setActiveView} className="flex flex-col min-h-0">
+
+            {/* Tabs Header */}
+            <TabsList className="flex border-b border-white/5 px-6 pt-6 pb-0 shrink-0">
+              <TabsTrigger
+                value="overview"
+                className="px-4 py-3 text-sm font-medium text-text-caption uppercase tracking-wider data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-primary-blue-400 transition-all duration-200"
+              >
+                Overview
+              </TabsTrigger>
+              <TabsTrigger
+                value="documents"
+                className="px-4 py-3 text-sm font-medium text-text-caption uppercase tracking-wider data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-primary-blue-400 transition-all duration-200"
+              >
+                Documents
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Tabs Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+
+              {/* OVERVIEW TAB */}
+              <TabsContent value="overview" className="mt-0 space-y-6 outline-none animate-in fade-in-50 duration-300">
+                {/* Urgency Alert */}
+                {isOverdueStatus && (
+                  <div className="bg-status-danger/10 border border-status-danger/20 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-status-danger mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-status-danger mb-1">Assignment Overdue</p>
+                        <p className="text-xs text-status-danger/80">
+                          This assignment is past its deadline. Consider updating the status or extending the deadline.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Quick Info Grid */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-text-caption uppercase tracking-wider">
+                    Quick Information
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-white/5 border border-white/5 rounded-xl p-4 text-center">
+                      <Calendar className="w-5 h-5 text-primary-blue-400 mx-auto mb-2" />
+                      <p className="text-xs text-text-caption uppercase mb-1">Created</p>
+                      <p className="text-sm font-medium text-white">
+                        {format(new Date(assignment.CreatedAt), "MMM d, yyyy")}
+                      </p>
+                    </div>
+                    <div className="bg-white/5 border border-white/5 rounded-xl p-4 text-center">
+                      <Clock className="w-5 h-5 text-primary-purple-400 mx-auto mb-2" />
+                      <p className="text-xs text-text-caption uppercase mb-1">Last Updated</p>
+                      <p className="text-sm font-medium text-white">
+                        {format(new Date(assignment.UpdatedAt), "MMM d, yyyy")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+
+                {/* Description Section */}
+                {Todo && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-text-caption uppercase tracking-wider flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Description & Notes
+                    </h3>
+                    <div className="bg-white/5 border border-white/5 rounded-xl p-5">
+                      <p className="whitespace-pre-wrap leading-relaxed text-sm text-text-body">
+                        {Todo}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {!Todo && (
+                  <div className="flex flex-col items-center justify-center text-center p-12 border-2 border-dashed border-white/10 rounded-xl bg-white/5">
+                    <EmptyState
+                      icon={FileText}
+                      title="No description"
+                      description="Add a description to keep track of important details and requirements."
+                    />
+                  </div>
+                )}
+
+
+
+
+              </TabsContent>
+
+              {/* DOCUMENTS TAB */}
+              <TabsContent value="documents" className="mt-0 space-y-6 outline-none animate-in fade-in-50 duration-300">
+                <FileUpload05
+                  assignment={assignment as models.LocalAssignment}
+                  mode={mode}
+                  includeDocuments={includeDocuments}
+                  setIncludeDocuments={setIncludeDocuments}
+                />
+
+
+              </TabsContent>
+
+            </div>
+          </Tabs>
+        </div>
+
       </DialogContent>
-    </Dialog >
+    </Dialog>
   )
 }
 

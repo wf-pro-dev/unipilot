@@ -143,6 +143,18 @@ func (d *Document) AfterDelete(tx *gorm.DB) error {
 	return nil
 }
 
+func (ld *LocalDocument) BeforeDelete(tx *gorm.DB) error {
+
+	if ld.HasLocalFile {
+		// Delete file from disk
+		if err := os.Remove(ld.FilePath); err != nil {
+			return errors.Wrap(err, errors.FSDeleteFailed, "Failed to delete file")
+		}
+	}
+
+	return nil
+}
+
 // END: GORM Hooks
 
 // START: Conversion Functions

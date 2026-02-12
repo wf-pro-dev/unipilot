@@ -65,36 +65,37 @@ export function DocumentStorageInfo({ assignmentID }: DocumentStorageInfoProps) 
 
       {storageInfo ? (
         <div className="flex flex-col gap-4">
-          {/* Storage Bar */}
-          <GlassCard variant="board" className="space-y-2 p-4">
-            <div className="flex justify-between items-center text-body text-gray-400">
-              <span>Used Storage</span>
-              <span className="font-medium text-white">
-                {formatFileSize(storageInfo.TotalSize)} <span className="text-gray-500">/ 2 GB</span>
-              </span>
-            </div>
-            <Progress value={getStoragePercentage()} className="h-1.5 bg-white/10" />
-            <div className={`text-[10px] text-right ${getStorageColor()} font-medium`}>
-              {Math.round(getStoragePercentage())}% used
-            </div>
-          </GlassCard>
+          <div className="flex gap-4">
+            {/* Storage Bar */}
+            <GlassCard variant="board" className="space-y-2 p-4 basis-2/3">
+              <div className="flex justify-between items-center text-body text-gray-400">
+                <span>Used Storage</span>
+                <span className="font-medium text-white">
+                  {formatFileSize(storageInfo.TotalSize)} <span className="text-gray-500">/ 2 GB</span>
+                </span>
+              </div>
+              <Progress value={getStoragePercentage()} className="h-1.5 bg-white/10" />
+              <div className={`text-[10px] text-right ${getStorageColor()} font-medium`}>
+                {Math.round(getStoragePercentage())}% used
+              </div>
+            </GlassCard>
 
-          {/* Statistics */}
-          <div className="grid grid-cols-2 gap-3">
-            <GlassCard variant="board" className="text-center p-3 rounded-xl bg-white/5 border border-white/5">
-              <div className="text-h5 font-semibold text-white mb-0.5">
-                {storageInfo.DocumentCount} <span className="text-gray-500">/ {storageInfo.TotalCount}</span>
-              </div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">Documents</div>
-            </GlassCard>
-            <GlassCard variant="board" className="text-center p-3 rounded-xl bg-white/5 border border-white/5">
-              <div className="text-h5 font-semibold text-white mb-0.5">
-                {formatFileSize(storageInfo.Size)} <span className="text-gray-500">/ {formatFileSize(storageInfo.TotalSize)}</span>
-              </div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">Used</div>
-            </GlassCard>
+            {/* Statistics */}
+            <div className="flex flex-col gap-4 basis-1/3">
+              <GlassCard variant="board" className="text-center p-3 rounded-xl bg-white/5 border border-white/5">
+                <div className="text-h5 font-semibold text-white mb-0.5">
+                  {storageInfo.DocumentCount} <span className="text-gray-500">/ {storageInfo.TotalCount}</span>
+                </div>
+                <div className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">Documents</div>
+              </GlassCard>
+              <GlassCard variant="board" className="text-center p-3 rounded-xl bg-white/5 border border-white/5">
+                <div className="text-h5 font-semibold text-white mb-0.5">
+                  {formatFileSize(storageInfo.Size)} <span className="text-gray-500">/ {formatFileSize(storageInfo.TotalSize)}</span>
+                </div>
+                <div className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">Used</div>
+              </GlassCard>
+            </div>
           </div>
-
           {/* Storage Levels */}
           <div className="space-y-2">
             {getStoragePercentage() >= 90 && (

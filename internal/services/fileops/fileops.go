@@ -104,49 +104,14 @@ func WriteDocument(document *models.LocalDocument, db *gorm.DB) error {
 	return nil
 }
 
-// DeleteDocument removes a document and its file
-func DeleteDocument(docID, userID string, db *gorm.DB) error {
-	// Get document record
-	var doc models.Document
-	if err := db.Where("id = ? AND user_id = ?", docID, userID).First(&doc).Error; err != nil {
-		return errors.Wrap(err, errors.DBRecordNotFound, "Document not found or access denied")
-	}
-
-	// Get full path
-	fullPath, err := doc.GetFullPath()
-	if err != nil {
-		return errors.Wrap(err, errors.FSFileNotFound, "Failed to get file path")
-	}
-
-	// Delete file from disk
-	if doc.FileExists() {
-		if err := os.Remove(fullPath); err != nil {
-			return errors.Wrap(err, errors.FSDeleteFailed, "Failed to delete file")
-		}
-	}
-
-	// Delete all versions if this is the parent document
-	if doc.ParentDocID == nil {
-		if err := db.Where("parent_doc_id = ?", doc.ID).Delete(&models.Document{}).Error; err != nil {
-			return errors.Wrap(err, errors.DBRecordNotFound, "Failed to delete document versions")
-		}
-	}
-
-	// Delete document record
-	if err := db.Delete(&doc).Error; err != nil {
-		return errors.Wrap(err, errors.DBQueryFailed, "Failed to delete document record")
-	}
-
-	// Update user storage info
-	if err := models.UpdateStorageInfo(userID, db); err != nil {
-		return errors.Wrap(err, errors.DBQueryFailed, "Failed to update storage info")
-	}
-
-	return nil
-}
-
 // writeFile writes content to a file path
 func WriteFile(filePath string, content io.Reader) error {
+
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		return errors.Wrap(err, errors.FSDirFailed, "Failed to create directory")
+	}
+
 	// Create the file
 	file, err := os.Create(filePath)
 	if err != nil {

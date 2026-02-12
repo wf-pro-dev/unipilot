@@ -24,6 +24,7 @@ import { useProgress } from "@/hooks/use-progress"
 import { GlassCard } from "../ui/glass-card"
 import { EventsOn, LogInfo } from "@/wailsjs/runtime/runtime"
 import { Progress } from "../ui/progress"
+import { CardContent } from "../ui/card"
 
 
 interface DocumentItemProps {
@@ -44,13 +45,13 @@ function BaseDocumentItem({ document: doc, isUploading, mode = "default" }: Docu
   useEffect(() => {
 
     if (!isUploading) return
-    var KeyProgress = "upload:progress:" + doc.ID 
+    var KeyProgress = "upload:progress:" + doc.ID
     var KeyStatus = "upload:status:" + doc.ID
     var KeyComplete = "upload:complete:" + doc.ID
     var KeyError = "upload:error:" + doc.ID
 
 
-    EventsOn(KeyProgress, (progressData: progress.TrackerSnapshot) => {
+    EventsOn(KeyProgress, (progressData: progress.ProgressSnapshot) => {
       if (progressData.percentage > progress) {
         setProgress(progressData.percentage)
       }
@@ -66,7 +67,7 @@ function BaseDocumentItem({ document: doc, isUploading, mode = "default" }: Docu
     EventsOn(KeyError, (error: string) => {
       setError(error)
     })
-    
+
   }, [isUploading])
 
   // Document action hooks
@@ -122,17 +123,13 @@ function BaseDocumentItem({ document: doc, isUploading, mode = "default" }: Docu
   }
 
   const handleDownload = async () => {
-    const progressId = crypto.randomUUID()
-    addProgress(progressId)
+
+    addProgress(doc.ID)
 
     try {
-      await downloadDocument.mutateAsync(new models.LocalDocument({
-        ...doc,
-        ID: progressId,
-        HasLocalFile: true
-      }))
+      await downloadDocument.mutateAsync(doc)
     } finally {
-      removeProgress(progressId)
+      removeProgress(doc.ID)
     }
 
   }
@@ -145,93 +142,92 @@ function BaseDocumentItem({ document: doc, isUploading, mode = "default" }: Docu
       <GlassCard
         id={doc.ID.toString()}
         variant="outline"
-        className="
-          grid grid-cols-[auto,1fr,auto] items-center gap-3
-          p-3
-         group relative"
+        className="min-w-0"
       >
-        {/* File Icon */}
-        <div className="flex-shrink-0 p-2.5 rounded-lg bg-white/5 border border-white/5">
-          {getFileIcon(doc.FileName)}
-        </div>
+        <CardContent className="flex flex-1 p-4 gap-4 ">
+          {/* File Icon */}
+          <div className="flex-shrink-0 self-center p-2.5 rounded-lg bg-white/5 border border-white/5">
+            {getFileIcon(doc.FileName)}
+          </div>
 
-        {/* File Info */}
-        <div className="min-w-0 flex flex-col gap-1.5">
-          <p className={`text-body line-clamp-1 tracking-tight`}>
-            {doc.FileName}
-          </p>
+          {/* File Info */}
+          <div className="w-full min-w-0 flex flex-col gap-1.5">
+            <p className={`text-body line-clamp-1 truncate tracking-tight`}>
+              {doc.FileName}
+            </p>
 
-          {!isUploading && (
-            <div className="flex flex-wrap gap-2 items-center">
-              <Badge
-                variant="secondary"
-                className={`text-[10px] border-0 px-1.5 py-0 font-medium h-5 ${getDocumentTypeColor(doc.Type)}`}
-              >
-                {doc.Type === "support" ? "Support" : "Submission"}
-              </Badge>
+            {!isUploading && (
+              <div className="flex flex-wrap gap-2 items-center">
+                <Badge
+                  variant="secondary"
+                  className={`text-[10px] border-0 px-1.5 py-0 font-medium h-5 ${getDocumentTypeColor(doc.Type)}`}
+                >
+                  {doc.Type === "support" ? "Support" : "Submission"}
+                </Badge>
 
-              <Badge variant="outline" className="text-[10px] border-white/10 bg-white/5 text-gray-400 px-1.5 py-0 h-5">
-                v{doc.Version}
-              </Badge>
+                <Badge variant="outline" className="text-[10px] border-white/10 bg-white/5 text-gray-400 px-1.5 py-0 h-5">
+                  v{doc.Version}
+                </Badge>
 
-              <span className="text-caption font-medium uppercase tracking-wider">{formatFileSize(doc.FileSize)}</span>
-              {/* 
+                <span className="text-caption font-medium uppercase tracking-wider">{formatFileSize(doc.FileSize)}</span>
+                {/* 
               <p className={`text-caption flex items-center gap-1 line-clamp-1 leading-relaxed`}  >
                 <Clock className="w-3.5 h-3.5" />
                 {format(new Date(doc.UpdatedAt) || new Date(), "MMM d")}
               </p> */}
-            </div>
-          )}
+              </div>
+            )}
 
-          {isUploading && (
-            <div className="flex flex-1 w-full">
-              <Progress value={progress} className="h-1.5 bg-white/10 w-full" />
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        {mode === "default" && (
-          <div className="flex items-center">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="ghost" className="p-0 h-8 w-8 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-colors" disabled={isLoading}>
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="glass border-white/10 bg-black/90 backdrop-blur-xl">
-                {(doc.HasLocalFile) && (
-                  <>
-                    <DropdownMenuItem onClick={handleOpen} disabled={!doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
-                      <Eye className="h-4 w-4 mr-2" />
-                      Open
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleSaveAs} disabled={!doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
-                      <Download className="h-4 w-4 mr-2" />
-                      Save As...
-                    </DropdownMenuItem>
-                  </>
-                )}
-
-                {!doc.HasLocalFile && (
-                  <DropdownMenuItem onClick={handleDownload} disabled={doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </DropdownMenuItem>
-                )}
-
-
-                <DropdownMenuItem
-                  onClick={() => setDeleteDialogOpen(true)}
-                  className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {isUploading && (
+              <div className="flex flex-1 w-full">
+                <Progress value={progress} className="h-1.5 bg-white/10 w-full" />
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Actions */}
+          {mode === "default" && (
+            <div className="flex items-center">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" variant="ghost" className="p-0 h-8 w-8 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg transition-colors" disabled={isLoading}>
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="glass border-white/10 bg-black/90 backdrop-blur-xl">
+                  {(doc.HasLocalFile) && (
+                    <>
+                      <DropdownMenuItem onClick={handleOpen} disabled={!doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
+                        <Eye className="h-4 w-4 mr-2" />
+                        Open
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleSaveAs} disabled={!doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
+                        <Download className="h-4 w-4 mr-2" />
+                        Save As...
+                      </DropdownMenuItem>
+                    </>
+                  )}
+
+                  {!doc.HasLocalFile && (
+                    <DropdownMenuItem onClick={handleDownload} disabled={doc.HasLocalFile} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </DropdownMenuItem>
+                  )}
+
+
+                  <DropdownMenuItem
+                    onClick={() => setDeleteDialogOpen(true)}
+                    className="text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
+        </CardContent>
       </GlassCard >
 
       {/* Delete Confirmation Dialog */}
