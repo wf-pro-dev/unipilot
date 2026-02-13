@@ -158,8 +158,8 @@ export function GetRCourses(arg1) {
   return window['go']['main']['App']['GetRCourses'](arg1);
 }
 
-export function GetRemoteUsers(arg1, arg2) {
-  return window['go']['main']['App']['GetRemoteUsers'](arg1, arg2);
+export function GetRemoteUsers(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['GetRemoteUsers'](arg1, arg2, arg3, arg4);
 }
 
 export function GetSubmissionDocuments(arg1) {

@@ -259,7 +259,7 @@ export function Dashboard() {
                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/5 ${note.Course?.Color ? `text-${note.Course?.Color.replace('bg-', '').replace('-500', '-400')}` : 'text-gray-400'}`}>
                                                     <FileText className="w-4 h-4" />
                                                 </div>
-                                                <Badge variant="outline" className="border-white/10 text-gray-400 text-[10px]">{note.Course?.Code}</Badge>
+                                                <Badge variant="outline" className="border-white/10 text-gray-400 text-[10px]">{note.Course?.Code   }</Badge>
                                             </div>
                                             <div>
                                                 <h4 className="font-medium text-white line-clamp-2 mb-2">{note.Title}</h4>
@@ -291,7 +291,7 @@ export function Dashboard() {
                                 {upcomingExams && upcomingExams.length > 0 ? (
 
                                     upcomingExams.map(exam => (
-                                        <AssignmentItem key={exam.ID} mode="ghost" assignmentId={exam.ID} />
+                                        <AssignmentItem key={exam.ID} className="p-4" mode="ghost" assignmentId={exam.ID} />
                                     ))
                                 ) : (
 

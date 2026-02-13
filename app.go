@@ -1364,11 +1364,11 @@ func (a *App) GetCourseAssignments(course *models.LocalCourse) ([]models.LocalAs
 }
 
 // GetRemoteUsers returns all users from the remote server
-func (a *App) GetRemoteUsers(cursor *models.Cursor, limit int) (*models.PageResponse[models.User], error) {
+func (a *App) GetRemoteUsers(cursor *models.Cursor, limit int, search string, filters models.Filter) (*models.PageResponse[models.User], error) {
 	if !a.Auth.IsAuthenticated() {
 		return nil, Errors.Wrap(fmt.Errorf("user not authenticated"), Errors.InitUserNotAuthenticated, "User not authenticated")
 	}
-	users, err := client.GetRemoteUsers(cursor, limit)
+	users, err := client.GetRemoteUsers(cursor, limit, search, filters)
 	if err != nil {
 		return nil, err
 	}

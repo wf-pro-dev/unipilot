@@ -41,3 +41,5 @@ type PageResponse[T PageType] struct {
 	Cursor  *Cursor
 	HasMore bool
 }
+
+type Filter map[string]string

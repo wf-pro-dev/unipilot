@@ -83,7 +83,7 @@ export function GetNotificationDaemonStatus():Promise<Record<string, any>>;
 
 export function GetRCourses(arg1:string):Promise<Array<models.Course>>;
 
-export function GetRemoteUsers(arg1:models.Cursor,arg2:number):Promise<models.PageResponse_unipilot_internal_models_User_>;
+export function GetRemoteUsers(arg1:models.Cursor,arg2:number,arg3:string,arg4:models.Filter):Promise<models.PageResponse_unipilot_internal_models_User_>;
 
 export function GetSubmissionDocuments(arg1:string):Promise<Array<models.LocalDocument>>;
 

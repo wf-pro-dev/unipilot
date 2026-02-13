@@ -42,6 +42,7 @@ export function UserDetailsDialog({ isOpen, onClose, user }: UserDetailsDialogPr
 
   if (!isOpen || !user) return null
 
+
   const { data: friendShipStatus, isLoading: friendShipStatusLoading } = useFriendShipStatus(user?.ID)
   const { mutate: sendFriendRequest } = useSendFriendRequest(user.ID)
   const { mutate: cancelFriendRequest } = useCancelFriendRequest(user.ID)

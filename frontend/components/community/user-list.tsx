@@ -6,6 +6,7 @@ import { GlassCard } from "../ui/glass-card";
 import { EmptyState as EmptyStateComponent } from "../ui/empty-state";
 import { Users } from "lucide-react";
 import { useUsersScroll } from "@/hooks/use-users";
+import { SearchList } from "../core/searchlist";
 
 export type UserListProps = Partial<FlatListProps<models.User>> & Pick<FlatListProps<models.User>, 'userID'>;
 
@@ -38,8 +39,9 @@ export function UserList({
     }, [userID]);
 
 
+
     return (
-        <FlatList
+        <SearchList
             key={"users-" + userID}
             userID={userID}
             itemsPerPage={20}
@@ -49,6 +51,21 @@ export function UserList({
             numColumns={3}
             containerClassName={containerClassName}
             emptyState={EmptyState}
+
+            searchConfig={{
+                placeholder: "Search users...",
+                searchableFields: ["Username", "Email"]
+            }}
+            filterDefinitions={[
+                {
+                    field: "University",
+                    label: "University",
+                    type: "select",
+                    extractOptions: (data: models.User[]) => {
+                        return Array.from(new Set(data.map(user => user.University)))
+                    }
+                }
+            ]}
         />
     )
 

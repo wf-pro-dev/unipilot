@@ -21,7 +21,9 @@ import {
   ArrowRight,
   AlertCircle,
   Timer,
-  BarChart3
+  BarChart3,
+  List,
+
 } from "lucide-react"
 import Link from "next/link"
 import { models } from "@/wailsjs/go/models"
@@ -39,6 +41,10 @@ import { useDialogContext } from "../provider/dialog-provider"
 import { cn } from "@/lib/utils"
 import { useGetCourseInvitations } from "@/hooks/use-auth"
 import { CourseItem } from "./course-item"
+import { SearchFilter } from "../core/search-filter/search-filter"
+import { SearchConfig } from "../core/search-filter/types"
+import { Scroll } from "../core/scroll"
+import { EmptyState } from "../ui/empty-state"
 
 interface CourseDetailsDialogProps {
   isOpen: boolean
@@ -137,6 +143,20 @@ export function CourseDetailsDialog({
       note.Title.toLowerCase().includes(searchTerm.toLowerCase())
     )
   }, [notes, searchTerm])
+
+  // Search configuration
+  const searchConfig: SearchConfig<models.LocalAssignment> = {
+    placeholder: "Search assignments by title or course...",
+    searchableFields: ["Title", "Course"],
+    enabled: true
+  }
+
+
+  const handleSearchChange = (searchTerm: string) => {
+    // If you want to persist search in URL, add it here
+    console.log("Search term:", searchTerm)
+  }
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -333,52 +353,48 @@ export function CourseDetailsDialog({
               <TabsContent value="overview" className="mt-0 space-y-8 outline-none animate-in fade-in-50 duration-300 overflow-y-auto">
 
                 {/* 1. NEXT UP HERO SECTION */}
-                <section>
-                  <h3 className="text-sm font-medium text-text-caption uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4" />
-                    Action Required
-                  </h3>
+                {nextAssignment && (
+                  <>
+                    <section>
+                      <h3 className="text-sm font-medium text-text-caption uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        Action Required
+                      </h3>
 
-                  {nextAssignment ? (
-                    <div className="group relative bg-white/5 border border-white/10 hover:border-primary-blue-500/50 rounded-xl p-5 transition-all">
-                      <div className="absolute top-0 left-0 w-1  bg-primary-blue-500 rounded-l-xl" />
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Badge variant="secondary" className="bg-primary-blue-500/10 text-primary-blue-300 border-primary-blue-500/20">
-                              Up Next
-                            </Badge>
-                            <span className="text-xs text-text-caption font-medium">
-                              Due {format(new Date(nextAssignment.Deadline), "EEEE, MMM d")}
-                            </span>
+
+                      <div className="group relative bg-white/5 border border-white/10 hover:border-primary-blue-500/50 rounded-xl p-5 transition-all">
+                        <div className="absolute top-0 left-0 w-1  bg-primary-blue-500 rounded-l-xl" />
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="secondary" className="bg-primary-blue-500/10 text-primary-blue-300 border-primary-blue-500/20">
+                                Up Next
+                              </Badge>
+                              <span className="text-xs text-text-caption font-medium">
+                                Due {format(new Date(nextAssignment.Deadline), "EEEE, MMM d")}
+                              </span>
+                            </div>
+                            <h4 className="text-xl font-semibold text-white group-hover:text-primary-blue-300 transition-colors">
+                              {nextAssignment.Title}
+                            </h4>
+                            <p className="text-sm text-text-caption line-clamp-2 max-w-xl">
+                              {nextAssignment.Todo || "No description provided."}
+                            </p>
                           </div>
-                          <h4 className="text-xl font-semibold text-white group-hover:text-primary-blue-300 transition-colors">
-                            {nextAssignment.Title}
-                          </h4>
-                          <p className="text-sm text-text-caption line-clamp-2 max-w-xl">
-                            {nextAssignment.Todo || "No description provided."}
-                          </p>
+                          <Button className="shrink-0 rounded-full" onClick={() => setActiveView("assignments")}>
+                            View Details <ArrowRight className="w-4 h-4 ml-2" />
+                          </Button>
                         </div>
-                        <Button className="shrink-0 rounded-full" onClick={() => setActiveView("assignments")}>
-                          View Details <ArrowRight className="w-4 h-4 ml-2" />
-                        </Button>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="bg-gradient-to-br from-status-success/20 to-transparent border border-status-success/20 rounded-xl p-6 text-center">
-                      <div className="w-12 h-12 bg-status-success/20 rounded-full flex items-center justify-center mx-auto mb-3 text-status-success">
-                        <CheckCircle2 className="w-6 h-6" />
-                      </div>
-                      <h4 className="text-lg font-semibold text-white">All Caught Up!</h4>
-                      <p className="text-text-caption text-sm">You have no pending assignments for this course.</p>
-                    </div>
-                  )}
-                </section>
 
-                <Separator className="bg-white/10" />
+                    </section>
+
+                    <Separator className="bg-white/10" />
+                  </>
+                )}
 
                 {/* 2. COURSE METRICS GRID */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="gap-6">
 
                   {/* Timeline Stats */}
                   <div className="space-y-3">
@@ -404,27 +420,8 @@ export function CourseDetailsDialog({
                     </div>
                   </div>
 
-                  {/* Workload Breakdown */}
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-medium text-text-caption uppercase tracking-wider flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4" />
-                      Workload
-                    </h3>
-                    <div className="bg-white/5 border border-white/5 rounded-xl p-5 grid grid-cols-3 gap-2 text-center divide-x divide-white/10">
-                      <div>
-                        <p className="text-xl font-bold text-white">{todoCount}</p>
-                        <p className="text-[10px] text-text-caption uppercase mt-1">To Do</p>
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold text-primary-blue-400">{inProgressCount}</p>
-                        <p className="text-[10px] text-text-caption uppercase mt-1">Active</p>
-                      </div>
-                      <div>
-                        <p className="text-xl font-bold text-status-success">{completedCount}</p>
-                        <p className="text-[10px] text-text-caption uppercase mt-1">Done</p>
-                      </div>
-                    </div>
-                  </div>
+
+
                 </div>
 
                 {/* 3. COLLABORATION SECTION */}
@@ -495,23 +492,39 @@ export function CourseDetailsDialog({
                   </Button>
                 </div>
 
-                {courseAssignments.length > 0 ? (
-                  <div className="space-y-3 pb-4">
-                    {courseAssignments.map((assignment) => (
-                      <div key={assignment.ID} className="bg-white/5 border border-white/5 rounded-lg overflow-hidden hover:border-white/20 transition-colors">
-                        <AssignmentItem assignmentId={assignment.ID} mode="ghost" />
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className=" flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-white/10 rounded-xl bg-white/5">
-                    <FileText className="w-12 h-12 text-text-muted mb-4" />
-                    <h3 className="text-lg font-medium text-white">No assignments</h3>
-                    <p className="text-text-caption max-w-xs mt-2">
-                      There are no assignments for this course yet.
-                    </p>
-                  </div>
-                )}
+                <SearchFilter
+                  data={assignments || []}
+                  searchConfig={searchConfig}
+                  onSearchChange={handleSearchChange}
+                  layout="horizontal"
+                >
+                  {(filteredAssignments) => (
+                    <>
+                      {filteredAssignments.length > 0 ? (
+                        <Scroll
+                          data={{ Data: filteredAssignments, HasMore: false }}
+                          renderItem={(assignment: models.LocalAssignment) => (
+                            <AssignmentItem key={assignment.ID} assignmentId={assignment.ID} variant="outline" size="sm" />
+                          )}
+                          keyExtractor={(item: models.LocalAssignment) => item.ID}
+                          numColumns={2}
+                          containerClassName="gap-4"
+                        />
+                      ) : (
+                        <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
+                          <EmptyState
+                            icon={List}
+                            title="No assignments found"
+                            description="Try adjusting your filters or search terms"
+                            className="flex-1 items-center"
+                            onClick={() => router.push(`/assignments?view=all`)}
+                            buttonText="View All Assignments"
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </SearchFilter>
               </TabsContent>
 
               {/* --- NOTES TAB --- */}

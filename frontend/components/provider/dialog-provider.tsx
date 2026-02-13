@@ -199,6 +199,7 @@ export function DialogProvider({ children }: DialogProviderProps) {
             />
 
             <LinkRequestModal
+                key={courseLinkRequestID}
                 courseID={courseLinkRequestID!}
                 isOpen={courseLinkRequestID !== undefined}
                 onClose={() => setCourseLinkRequestID(undefined)}

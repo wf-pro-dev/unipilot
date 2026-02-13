@@ -1,19 +1,13 @@
 "use client"
 
-import { CardContent } from "@/components/ui/card"
-import { GlassCard } from "@/components/ui/glass-card"
-import { AssignmentItem } from "./assignment-item"
-import { List, X } from "lucide-react"
+import { List } from "lucide-react"
 import { models } from "@/wailsjs/go/models"
-import { Input } from "../ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { Filter, Search } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useAuthContext } from "../provider/auth-provider"
-import { CoursesSelect } from "../courses/courses-select"
+import { AssignmentItem } from "./assignment-item"
 import { EmptyState } from "../ui/empty-state"
 import { Scroll } from "../core/scroll"
+import { SearchFilter } from "../core/search-filter/search-filter"
+import { FilterDefinition, SearchConfig } from "../core/search-filter/types"
 
 interface Filter {
   course: string | null
@@ -33,165 +27,124 @@ export function AssignmentsTable({
   isLoading = false
 }: AssignmentsTableProps) {
   const router = useRouter()
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCourse, setSelectedCourse] = useState(filter.course || "all")
-  const [selectedStatus, setSelectedStatus] = useState(filter.status || "all")
-  const [selectedPriority, setSelectedPriority] = useState(filter.priority || "all")
-
-  const { user } = useAuthContext()
-
   const searchParams = useSearchParams()
   const currentView = searchParams.get("view") || "week"
 
-  const statuses = Array.from(new Set((assignments || []).map((assignment) => assignment.Status)))
-  const priorities = Array.from(new Set((assignments || []).map((assignment) => assignment.Priority)))
-
-  // Apply basic filters (simplified for now)
-  const filteredAssignments = useMemo(() => (assignments || []).filter((assignment) => {
-    const matchesSearch =
-      assignment.Title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      assignment.Course?.Name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCourse = selectedCourse === "all" || assignment.Course?.Code === selectedCourse
-    const matchesStatus = selectedStatus === "all" || assignment.Status === selectedStatus
-    const matchesPriority = selectedPriority === "all" || assignment.Priority === selectedPriority
-    return matchesSearch && matchesCourse && matchesStatus && matchesPriority
-  }), [assignments, searchTerm, selectedCourse, selectedStatus, selectedPriority])
-
-  const onCourseChange = (course: string) => {
-    router.push(`/assignments?view=${currentView}&course=${course}&status=${selectedStatus}&priority=${selectedPriority}`)
+  // Search configuration
+  const searchConfig: SearchConfig<models.LocalAssignment> = {
+    placeholder: "Search assignments...",
+    searchableFields: ["Title", "Course"],
+    enabled: true
   }
 
-  const onStatusChange = (status: string) => {
-    router.push(`/assignments?view=${currentView}&course=${selectedCourse}&status=${status}&priority=${selectedPriority}`)
+  // Filter definitions
+  const filterDefinitions: FilterDefinition<models.LocalAssignment>[] = [
+    {
+      field: "Course",
+      label: "Courses",
+      type: "select",
+      placeholder: "All Courses",
+      width: "w-36",
+      extractOptions: (data) => {
+        // Extract unique course codes from nested Course object
+        return Array.from(new Set(
+          data
+            .filter(a => a.Course?.Code)
+            .map(a => a.Course?.Code || "")
+        ))
+      },
+      customOptions: undefined // Or provide custom options if needed
+    },
+    {
+      field: "Status",
+      label: "Statuses",
+      type: "select",
+      placeholder: "All Statuses",
+      width: "w-36"
+    },
+    {
+      field: "Priority",
+      label: "Priorities",
+      type: "select",
+      placeholder: "All Priorities",
+      width: "w-36"
+    }
+  ]
+
+  // Initial filter values from URL params
+  const initialFilters = {
+    Course: filter.course || "all",
+    Status: filter.status || "all",
+    Priority: filter.priority || "all"
   }
 
-  const onPriorityChange = (priority: string) => {
-    router.push(`/assignments?view=${currentView}&course=${selectedCourse}&status=${selectedStatus}&priority=${priority}`)
+  // Handlers
+  const handleFilterChange = (filters: Record<string, string>) => {
+    const courseFilter = filters.Course === "all" ? "" : filters.Course
+    const statusFilter = filters.Status === "all" ? "" : filters.Status
+    const priorityFilter = filters.Priority === "all" ? "" : filters.Priority
+    
+    const params = new URLSearchParams()
+    params.set("view", currentView)
+    if (courseFilter) params.set("course", courseFilter)
+    if (statusFilter) params.set("status", statusFilter)
+    if (priorityFilter) params.set("priority", priorityFilter)
+    
+    router.push(`/assignments?${params.toString()}`)
   }
 
+  const handleSearchChange = (searchTerm: string) => {
+    // If you want to persist search in URL, add it here
+    console.log("Search term:", searchTerm)
+  }
 
-  useEffect(() => {
-    if (filter.course) {
-      setSelectedCourse(filter.course || "all")
-    }
-    if (filter.status) {
-      setSelectedStatus(filter.status || "all")
-    }
-    if (filter.priority) {
-      setSelectedPriority(filter.priority || "all")
-    }
-  }, [filter])
-
-  const clearFilters = () => {
-    setSearchTerm("")
-    setSelectedCourse("all")
-    setSelectedStatus("all")
-    setSelectedPriority("all")
+  const handleClearAll = () => {
     router.push(`/assignments?view=${currentView}`)
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 space-y-4">
-
-      <GlassCard variant="board" className="flex-grow-0 flex-row">
-        <CardContent className="flex-1 p-2">
-          <div className="flex flex-col lg:flex-row lg:items-center space-x-2">
-
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search assignments..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-white/5 border-white/10  rounded-xl transition-all duration-300 h-10"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 m-0 space-y-0">
-
-              <div className="w-36">
-                <CoursesSelect
-                  value={selectedCourse}
-                  onValueChange={onCourseChange}
+    <SearchFilter
+      data={assignments}
+      searchConfig={searchConfig}
+      filterDefinitions={filterDefinitions}
+      initialFilters={initialFilters}
+      onFilterChange={handleFilterChange}
+      onSearchChange={handleSearchChange}
+      onClearAll={handleClearAll}
+      isLoading={isLoading}
+      layout="horizontal"
+    >
+      {(filteredAssignments) => (
+        <>
+          {filteredAssignments.length > 0 ? (
+            <Scroll
+              data={{ Data: filteredAssignments, HasMore: false }}
+              renderItem={(assignment: models.LocalAssignment) => (
+                <AssignmentItem
+                  key={assignment.ID}
+                  assignmentId={assignment.ID}
+                  disabled={isLoading}
+                  variant="outline"
                 />
-              </div>
-
-
-              <Select value={selectedStatus} onValueChange={onStatusChange}>
-                <SelectTrigger className="w-36 bg-white/5 border-white/10 h-10 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-transparent border-none">
-                  <GlassCard variant="board">
-                    <SelectItem value="all" className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">All Statuses</SelectItem>
-                    {statuses.map((status) => (
-                      <SelectItem key={status} value={status} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
-                        {status}
-                      </SelectItem>
-                    ))}
-                  </GlassCard>
-                </SelectContent>
-
-              </Select>
-
-
-              <Select value={selectedPriority} onValueChange={onPriorityChange}>
-                <SelectTrigger className="w-36 bg-white/5 border-white/10 h-10 rounded-xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-transparent border-none">
-                  <GlassCard variant="board">
-                    <SelectItem value="all" className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">All Priorities</SelectItem>
-                    {priorities.map((priority) => (
-                      <SelectItem key={priority} value={priority} className="text-gray-300 focus:text-white focus:bg-white/10 cursor-pointer">
-                        {priority}
-                      </SelectItem>
-                    ))}
-                  </GlassCard>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-        </CardContent>
-      </GlassCard>
-
-
-      <div className="flex h-full min-h-0">
-        {filteredAssignments.length > 0 ? (
-          <Scroll
-            data={{ Data: filteredAssignments, HasMore: false }}
-            renderItem={(assignment: models.LocalAssignment) => (
-              <AssignmentItem
-                key={assignment.ID}
-                assignmentId={assignment.ID}
-                disabled={isLoading}
-                variant="outline"
-              />
-            )}
-            keyExtractor={(item: models.LocalAssignment) => item.ID}
-            numColumns={3}
-            containerClassName="gap-4"
-          />
-        ) : (
-          <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
-            <EmptyState
-              icon={List}
-              title="No assignments found"
-              description="Try adjusting your filters or search terms"
-              className="flex-1 items-center"
-              onClick={clearFilters}
-              buttonText="Clear Filters"
+              )}
+              keyExtractor={(item: models.LocalAssignment) => item.ID}
+              numColumns={3}
+              containerClassName="gap-4"
             />
-
-          </div>
-        )}
-      </div>
-
-
-
-     
-
-    </div >
+          ) : (
+            <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">
+              <EmptyState
+                icon={List}
+                title="No assignments found"
+                description="Try adjusting your filters or search terms"
+                className="flex-1 items-center"
+                onClick={handleClearAll}
+                buttonText="Clear Filters"
+              />
+            </div>
+          )}
+        </>
+      )}
+    </SearchFilter>
   )
 }

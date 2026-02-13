@@ -19,7 +19,7 @@ import {
   UserMinus
 } from "lucide-react"
 import { client, models } from "@/wailsjs/go/models"
-import { useCourseAssignments, useCourse, useDeleteCourse, useGetClusterStatus, useAcceptCourseInvitation } from "@/hooks/use-courses"
+import { useCourseAssignments, useCourse, useDeleteCourse, useGetClusterStatus, useAcceptCourseInvitation, useCourses } from "@/hooks/use-courses"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu"
 import { useDialogContext } from "../provider/dialog-provider"
 import { cn } from "@/lib/utils"
@@ -87,6 +87,10 @@ function BaseCourseItem({
   const handleEdit = (id: string) => {
     SetDialogState({ modelType: "course", dialogType: "edit", id })
   }
+
+
+
+
 
   // Default Course Item
   function DefaultCourseItem() {
@@ -320,6 +324,11 @@ function BaseCourseItem({
     const { mutate: sendClusterRequest } = useSendClusterRequest()
     const { mutate: acceptClusterRequest } = useAcceptCourseInvitation()
 
+    const { data: courses } = useCourses()
+    const currentUserHasCourse = useMemo(() => {
+      return courses?.some((course) => course.Code === courseRO.Code)
+    }, [courseRO, courses])
+
 
     const ClusterActions = memo(({ clusterStatus }: { clusterStatus: client.CourseStatusResponse }) => {
 
@@ -449,10 +458,11 @@ function BaseCourseItem({
 
           {/* Actions */}
 
-          <div className="flex gap-2 border-t border-white/5">
-            {clusterStatus && friendshipStatus?.status == "accepted" && <ClusterActions clusterStatus={clusterStatus} />}
-          </div>
-
+          {!currentUserHasCourse && (
+            <div className="flex gap-2 border-t border-white/5">
+              {clusterStatus && friendshipStatus?.status == "accepted" && <ClusterActions clusterStatus={clusterStatus} />}
+            </div>
+          )}
 
         </CardContent>
       </GlassCard>
@@ -493,8 +503,8 @@ function BaseCourseItem({
         key={course.ID}
         className={` absolute left-1 right-1 border rounded-lg hover:translate-y-0.5 backdrop-blur-lg transition-all duration-300 overflow-hidden  cursor-pointer group 
           ${isOn
-          ? 'border-blue-400/50 ring-2 ring-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
-          : 'bg-white/5 border-white/5 shadow-lg shadow-black/60'
+            ? 'border-blue-400/50 ring-2 ring-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]'
+            : 'bg-white/5 border-white/5 shadow-lg shadow-black/60'
           }`}
         style={{
           top: `${topPosition}px`,

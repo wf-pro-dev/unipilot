@@ -89,7 +89,7 @@ export default function CommunityPage() {
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline text-sm font-medium">Friends</span>
             </TabsTrigger>
-            
+
             <TabsTrigger
               value="social"
               className="flex w-48 justify-center items-center space-x-2 py-2 text-gray-400 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-lg transition-all duration-200"
@@ -101,13 +101,13 @@ export default function CommunityPage() {
 
           {/* Explore tab: displays all users for discovery and following */}
           <TabsContent value="explore" className="flex flex-col data-[state=active]:flex-1 m-0">
-           <ExploreView ListComponent={<UserList userID={user?.ID!} containerClassName="gap-6" />} />
+            <UserList userID={user?.ID!} containerClassName="gap-6" />
           </TabsContent>
 
 
           {/* Following tab: displays users the current user is following */}
           <TabsContent value="friends" className="flex flex-col data-[state=active]:flex-1 m-0">
-            <ExploreView ListComponent={<FriendList userID={user?.ID!} containerClassName="gap-6" />} />
+            <FriendList userID={user?.ID!} containerClassName="gap-6" />
           </TabsContent>
 
           <TabsContent value="social" className="flex flex-col data-[state=active]:flex-1 m-0">

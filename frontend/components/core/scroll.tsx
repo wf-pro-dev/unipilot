@@ -14,6 +14,9 @@ export interface ScrollProps<T> {
     onLoadMore?: () => void
     isFetchingMore?: boolean
     prefetchDistance?: number // Distance from bottom (in pixels) to trigger load
+
+    // Empty state
+    emptyState?: React.JSX.Element;
 }
 
 export function Scroll<T>({
@@ -24,7 +27,8 @@ export function Scroll<T>({
     containerClassName,
     onLoadMore,
     isFetchingMore = false,
-    prefetchDistance = 800
+    prefetchDistance = 800,
+    emptyState
 }: ScrollProps<T>) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const loadingRef = useRef(false);
@@ -78,11 +82,16 @@ export function Scroll<T>({
         };
     }, [handleScroll]);
 
+    if (list.length === 0) {
+        return emptyState;
+    }
+
     return (
         <div
             ref={scrollContainerRef}
             className="flex flex-col overflow-y-auto snap-y snap-mandatory space-y-4 min-h-0 flex-1"
         >
+
             {rows.map((row, index) => (
                 <Row<T>
                     key={index}

@@ -27,6 +27,7 @@ interface AssignmentItemProps {
   disabled?: boolean
   variant?: GlassCardVariants
   mode?: "default" | "ghost" | "user"
+  className?: string
 
   assignment?: models.Assignment
   user?: models.User
@@ -53,29 +54,18 @@ const BaseAssignmentItem = ({
   size = "default",
   disabled = false,
   variant = "default",
-
+  className = "",
   assignment,
   mode = "default",
   onCopy,
 }: AssignmentItemProps) => {
 
   const [isActionsOpen, setIsActionsOpen] = useState(false)
-  
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
-  const [isEditOpen, setIsEditOpen] = useState(false)
 
   const router = useRouter()
 
   const deleteMutation = useDeleteAssignment()
   const { SetDialogState } = useDialogContext()
-
-  const handleEditDialog = useCallback(() => {
-    SetDialogState({ modelType: "assignment", dialogType: "edit", id: assignmentId })
-  }, [])
-
-  const handleDetailsDialog = useCallback(() => {
-    SetDialogState({ modelType: "assignment", dialogType: "details", id: assignmentId })
-  }, [])  
 
 
   const statusColors = {
@@ -164,12 +154,12 @@ const BaseAssignmentItem = ({
 
 
     return (
-      <div className="flex flex-1">
+      <div className={"flex flex-1 transition-all group/assignment-item"}>
         <GlassCard
           key={assignment.ID}
           variant={variant}
           onClick={() => SetDialogState({ modelType: "assignment", dialogType: "details", id: assignmentId })}
-          className="min-w-0"
+          className={cn("min-w-0", className)}
         >
           <CardContent className="flex flex-col flex-1 p-4 gap-4 ">
 
@@ -214,7 +204,7 @@ const BaseAssignmentItem = ({
 
 
         </GlassCard >
-       
+
       </div>
     )
   }
@@ -244,7 +234,7 @@ const BaseAssignmentItem = ({
     return (
       <div
         key={assignment.ID}
-        className="flex hover:bg-white/10 p-4 transition-all group/exam"
+        className={cn("flex hover:bg-white/10 transition-all group/assignment-item", className)}
         onClick={() => SetDialogState({ modelType: "assignment", dialogType: "details", id: assignmentId })}
       >
         <div className="flex flex-1 items-center gap-4 min-w-0">
@@ -272,7 +262,7 @@ const BaseAssignmentItem = ({
 
           <SideActionDropdown isOpen={isActionsOpen} setIsOpen={setIsActionsOpen} sideActions={SideActions} variant={"outline"} />
         </div>
-        
+
       </div>
     )
   }
@@ -282,13 +272,13 @@ const BaseAssignmentItem = ({
     if (!assignment) return null
 
     return (
-      <div className="flex flex-1">
+      <div className={cn("flex flex-1", className)}>
         <GlassCard
           key={assignment.ID}
           variant={variant}
-          onClick={() => SetDialogState({ 
-            modelType: "assignment", 
-            dialogType: "details", 
+          onClick={() => SetDialogState({
+            modelType: "assignment",
+            dialogType: "details",
             id: assignmentId,
             item: assignment,
             viewMode: "readonly"
@@ -357,7 +347,7 @@ const BaseAssignmentItem = ({
           )}
 
         </GlassCard >
-       
+
       </div>
     )
   }
@@ -365,11 +355,28 @@ const BaseAssignmentItem = ({
 
   switch (mode) {
     case "ghost":
-      return <GhostAssignmentItem assignmentId={assignmentId} />
+      return <GhostAssignmentItem assignmentId={assignmentId} className={className} />
     case "user":
-      return <UserAssignmentItem assignmentId={assignmentId} assignment={assignment} disabled={disabled} variant={variant} mode={mode} onCopy={onCopy} size={size} user={user} />
+      return <UserAssignmentItem
+        assignmentId={assignmentId}
+        assignment={assignment}
+        disabled={disabled}
+        variant={variant}
+        mode={mode}
+        onCopy={onCopy}
+        size={size}
+        user={user}
+        className={className}
+      />
     default:
-      return <DefaultssignmentItem assignmentId={assignmentId} disabled={disabled} variant={variant} mode={mode} size={size} />
+      return <DefaultssignmentItem
+        assignmentId={assignmentId}
+        disabled={disabled}
+        variant={variant}
+        mode={mode}
+        size={size}
+        className={className}
+      />
   }
 }
 
