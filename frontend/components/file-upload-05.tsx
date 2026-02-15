@@ -17,6 +17,7 @@ import { Checkbox } from "./ui/checkbox";
 import { useProgress } from "@/hooks/use-progress";
 import { Scroll } from "./core/scroll";
 import { Separator } from "./ui/separator";
+import { ScrollHorizontal } from "./core/scroll-horizontal";
 
 interface FileUploadProps {
   assignment: models.LocalAssignment;
@@ -204,15 +205,16 @@ export default function FileUpload05({ assignment, mode = "default", includeDocu
                   <span >Documents</span>
                 </div>
                 {documents.length > 0 ? (
-                  <Scroll
+                  <ScrollHorizontal
                     data={{ Data: documents, HasMore: false }}
                     renderItem={(document: models.LocalDocument) => (
                       <DocumentItem key={document.ID} document={document} isUploading={isProgress(document.ID)} mode={mode} />
 
                     )}
                     keyExtractor={(item: models.LocalDocument) => item.ID}
-                    numColumns={2}
-                    containerClassName="gap-4"
+                    numColumns={1}
+                    numRows={2}
+                    containerClassName="gap-3"
                   />
                 ) : (
                   <div className="flex flex-1 border border-dashed border-white/10 rounded-xl bg-white/5">

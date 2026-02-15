@@ -16,21 +16,23 @@ import {
   DeclineCourseInvitation,
   GetRCourses,
   SendClusterRequest,
-  GetClusterStatus
+  GetClusterStatus,
+  GetClusterUsers
 } from '@/wailsjs/go/main/App'
 import { authKeys } from './use-auth'
 import { toast } from 'sonner'
+import { PageResponse } from '@/types/models'
 
 // Query keys for consistent cache management
 export const courseKeys = {
   all: ['courses'] as const,
   lists: () => [...courseKeys.all, 'list'] as const,
-  remote: (userID: string) => [...courseKeys.all, 'remote', userID] as const,
+  remote: (userID: string) => ['remote', userID] as const,
   list: (filters: string) => [...courseKeys.lists(), { filters }] as const,
   details: () => [...courseKeys.all, 'detail'] as const,
   detail: (id: string) => [...courseKeys.details(), id] as const,
   linked: () => [...courseKeys.all, 'linked'] as const,
-  status: (courseID: string) => [...courseKeys.all, 'status', courseID] as const,
+  status: (courseID: string, userID?: string) => ['status', courseID, userID || ''] as const,
 }
 
 // Main hook for fetching courses with caching
@@ -276,13 +278,16 @@ export function useCourseShare() {
   })
 }
 
-export function useGetClusterStatus(courseID: string) {
+export function useGetClusterStatus(courseID: string, userID?: string) {
+  console.log('🟡 useGetClusterStatus', courseID, userID)
   return useQuery({
-    queryKey: courseKeys.status(courseID),
+     queryKey: courseKeys.status(courseID, userID),
     queryFn: async (): Promise<client.CourseStatusResponse> => {
       try {
-        return await GetClusterStatus(courseID)
+        console.log('🟡 fetching cluster status', courseID, userID)
+        return await GetClusterStatus(courseID, userID || "")
       } catch (error) {
+        console.log('🟡 error', error)
         LogError("Failed to fetch cluster status: " + error)
         throw new Error(error instanceof Error ? error.message : "Failed to fetch cluster status")
       }
@@ -387,6 +392,7 @@ export function useDeclineCourseInvitation() {
 
   })
 }
+
 
 // Derived data hooks for specific views
 

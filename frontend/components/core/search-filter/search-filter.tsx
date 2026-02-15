@@ -90,14 +90,6 @@ export function SearchFilter<T extends Record<string, any>>({
   const [searchTerm, setSearchTerm] = useState(initialSearchTerm)
   const [filters, setFilters] = useState<FilterState>(initialFilters)
 
-  // Sync with initial values when they change (e.g., URL params change from browser back button)
-  useEffect(() => {
-    setSearchTerm(initialSearchTerm)
-  }, [initialSearchTerm])
-
-  useEffect(() => {
-    setFilters(initialFilters)
-  }, [initialFilters])
 
   // Extract unique options for each filter from the data
   const filterOptions = useMemo(() => {

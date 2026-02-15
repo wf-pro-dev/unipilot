@@ -105,7 +105,7 @@ const FriendshipAction = memo(({
     <Button
       variant={action.variant}
       size="sm"
-      className={cn("flex-1 text-xs font-medium h-9", action.className)}
+      className={cn("text-xs font-medium", action.className)}
       onClick={action.onClick}
     >
       <action.Icon className="w-3.5 h-3.5 mr-1.5" />
@@ -219,18 +219,13 @@ const BaseUserItem = ({
             </div>
 
             {/* University badge */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center">
               <Badge
                 variant="outline"
                 className="text-xs border-white/10 bg-white/5 text-gray-300 font-normal px-3 py-1"
               >
                 {user.University}
               </Badge>
-              {user.Semester && user.Year && (
-                <span className="text-xs text-gray-500">
-                  {user.Semester} • {user.Year}
-                </span>
-              )}
             </div>
 
             {/* Courses - Only show if exists */}

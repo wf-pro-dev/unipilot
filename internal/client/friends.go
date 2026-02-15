@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"unipilot/internal/errors"
 	"unipilot/internal/models"
 	"unipilot/internal/secrets"
@@ -19,13 +20,24 @@ type FriendStatusResponse struct {
 	CoursesCount        int                      `json:"courses_count"`         // Number of courses the user has
 }
 
-func GetFriends(userID string, cursor *models.Cursor, limit int) (*models.PageResponse[models.User], error) {
-
-	fmt.Println("[Client] Getting friends for user:", userID)
+func GetFriends(userID string, cursor *models.Cursor, limit int, search string, filters models.Filter) (*models.PageResponse[models.User], error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent, err := GetAuthAgent(fiber.Get(fmt.Sprintf("%s/users/%s/friends?limit=%d", api_url, userID, limit)).JSON(cursor))
-	if err != nil {
+	query := fmt.Sprintf("%s/users/%s/friends?limit=%d", api_url, userID, limit)
+
+	if search != "" {
+		query += fmt.Sprintf("&search=%s", search)
+	}
+
+	if len(filters) > 0 {
+		for key, value := range filters {
+			value = url.QueryEscape(value)
+			query += fmt.Sprintf("&%s=%s", key, value)
+		}
+	}
+	agent := fiber.Get(query).JSON(cursor)
+
+	if err := SetAuthHeader(agent); err != nil {
 		return nil, err
 	}
 

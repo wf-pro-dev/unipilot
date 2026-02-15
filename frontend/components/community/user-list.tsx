@@ -43,7 +43,7 @@ export function UserList({
     return (
         <SearchList
             key={"users-" + userID}
-            userID={userID}
+            entityID={userID}
             itemsPerPage={20}
             useScroll={useUsersScroll}
             renderItem={renderItem}

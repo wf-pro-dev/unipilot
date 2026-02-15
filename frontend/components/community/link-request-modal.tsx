@@ -1,14 +1,15 @@
 import { Dialog, DialogContent } from "../ui/dialog";
 import { Button } from "../ui/button";
 
-import { useCallback, useState } from "react";
-import { Check, Users, X } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { Check, X } from "lucide-react";
 import { useCourse, useCourseShare } from "@/hooks/use-courses";
 import { models } from "@/wailsjs/go/models";
 import { FriendList } from "./friend-list";
 import { UserItem } from "./user-item";
 import { useAuthContext } from "../provider/auth-provider";
 import { Checkbox } from "../ui/checkbox";
+import { useGetClusterStatus } from "@/hooks/use-courses";
 
 interface LinkRequestModalProps {
     courseID: string
@@ -18,15 +19,16 @@ interface LinkRequestModalProps {
 }
 
 export function LinkRequestModal({ isOpen, onClose, courseID }: LinkRequestModalProps) {
-    
+
     const { data: course } = useCourse(courseID)
-    
+
+    if (!course) return null;
+
     const [selectedFriends, setSelectedFriends] = useState<string[]>([])
-    
+
     const { mutate: requestLinkCourse } = useCourseShare()
-    
     const { user: currentUser } = useAuthContext()
-    
+
     const onCheckedChange = useCallback((user: models.User, checked: boolean) => {
         console.log('🟡 onCheckedChange called', { user: user.ID, checked });
         if (checked) {
@@ -44,10 +46,14 @@ export function LinkRequestModal({ isOpen, onClose, courseID }: LinkRequestModal
         />
     ), [selectedFriends, onCheckedChange])
 
+    const clusterID = useMemo(() => {
+        return course.ClusterID || course.ID
+    }, [course])
+
     const renderItem = useCallback((user: models.User) => {
         return (
-            <UserItem 
-                user={user} 
+            <UserItem
+                user={user}
                 size="compact"
                 actions={renderActions}
             />
@@ -58,8 +64,6 @@ export function LinkRequestModal({ isOpen, onClose, courseID }: LinkRequestModal
         if (!course) { return }
         requestLinkCourse({ c: course, usersID: selectedFriends })
     }
-
-
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
@@ -72,41 +76,45 @@ export function LinkRequestModal({ isOpen, onClose, courseID }: LinkRequestModal
                     </div>
                 </div>
 
-                <div className="p-6 space-y-6">
+                <div className="p-6">
                     <FriendList
-                        userID={currentUser?.ID!}
+                        entityID={currentUser?.ID!}
                         numColumns={1}
                         itemsPerPage={6}
                         containerClassName="gap-4"
                         renderItem={renderItem}
+
+                        initialFilters={{
+                            "course": clusterID
+                        }}
                     />
 
-                    <div className="flex gap-3 pt-2 border-t border-white/5 mt-6">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 border-white/10 bg-transparent hover:bg-white/5 text-gray-300 hover:text-white h-10"
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                onClose()
-                            }}
-                        >
-                            <X className="mr-2 w-4 h-4" />
-                            Cancel
-                        </Button>
-                        <Button
-                            size="sm"
-                            className="flex-1 bg-blue-600 hover:bg-blue-500 text-white border-0 h-10 shadow-[0_0_15px_rgba(37,99,235,0.2)]"
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                handleRequestLinkCourse()
-                            }}
-                            disabled={selectedFriends.length === 0}
-                        >
-                            <Check className="mr-2 w-4 h-4" />
-                            Share with {selectedFriends.length > 0 ? `${selectedFriends.length} ` : ''}Friend{selectedFriends.length !== 1 ? 's' : ''}
-                        </Button>
-                    </div>
+                </div>
+                <div className="p-6 flex gap-3  border-white/5">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 border-white/10 bg-transparent hover:bg-white/5 text-gray-300 hover:text-white h-10"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            onClose()
+                        }}
+                    >
+                        <X className="mr-2 w-4 h-4" />
+                        Cancel
+                    </Button>
+                    <Button
+                        size="sm"
+                        className="flex-1 bg-blue-600 hover:bg-blue-500 text-white border-0 h-10 shadow-[0_0_15px_rgba(37,99,235,0.2)]"
+                        onClick={(e) => {
+                            e.stopPropagation()
+                            handleRequestLinkCourse()
+                        }}
+                        disabled={selectedFriends.length === 0}
+                    >
+                        <Check className="mr-2 w-4 h-4" />
+                        Share with {selectedFriends.length > 0 ? `${selectedFriends.length} ` : ''}Friend{selectedFriends.length !== 1 ? 's' : ''}
+                    </Button>
                 </div>
             </DialogContent>
         </Dialog>

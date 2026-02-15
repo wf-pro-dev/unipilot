@@ -16,16 +16,15 @@ import { FilterState } from './search-filter/types';
 
 export interface SearchListProps<T> extends Omit<ScrollProps<T>, 'data'>, Omit<SearchFilterServerProps<T>, 'data' | 'children' | 'onFilterChange'> {
     
-    userID: string;
+    entityID: string;
     itemsPerPage: number;
-    useScroll: (props: { limit?: number, userID: string, search?: string, filters?: FilterState }) => UseInfiniteQueryResult<InfiniteData<PageResponse<T>, unknown>, Error>;
+    useScroll: (props: { entityID: string, limit?: number, search?: string, filters?: FilterState }) => UseInfiniteQueryResult<InfiniteData<PageResponse<T>, unknown>, Error>;
 
     emptyState?: React.JSX.Element;
-
 }
 
 export function SearchList<T>({
-    userID,
+    entityID,
     itemsPerPage,
     useScroll,
     renderItem,
@@ -33,14 +32,15 @@ export function SearchList<T>({
     numColumns,
     containerClassName,
     emptyState,
-    
+
+    initialFilters,
     searchConfig,
     filterDefinitions,
 
 
 }: SearchListProps<T>) {
 
-    if (!userID) { return null; }
+    if (!entityID) { return null; }
     const [filters, setFilters] = useState<FilterState>({});
     const [searchTerm, setSearchTerm] = useState("");
 
@@ -50,9 +50,8 @@ export function SearchList<T>({
         hasNextPage,
         isFetchingNextPage,
         isLoading,
-        isError,
-        error
-    } = useScroll({ limit: itemsPerPage, userID: userID, search: searchTerm, filters: filters });
+
+    } = useScroll({  entityID: entityID, limit: itemsPerPage, search: searchTerm, filters: filters });
 
     // Flatten all pages into a single PageResponse for the Scroll component
     const flattenedData: PageResponse<T> = useMemo(() => {
@@ -61,6 +60,7 @@ export function SearchList<T>({
         }
         // Combine all pages into single array
         const allPages = data.pages.flatMap(page => page.Data || []);;
+
         // Use the last page's metadata
         const lastPage = data.pages[data.pages.length - 1];
 
@@ -89,6 +89,7 @@ export function SearchList<T>({
             onSearchChange={onSearchChange}
             isLoading={isLoading}
             debounceMs={500}
+            initialFilters={initialFilters}
         >
             {(data) => (
                 <Scroll<T>

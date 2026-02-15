@@ -40,6 +40,7 @@ export function SearchInput({
         onChange={(e) => onChange(e.target.value)}
         className="pl-10 bg-white/5 border-white/10 rounded-xl transition-all duration-300 h-10"
         disabled={disabled}
+        autoCapitalize="off"
       />
     </div>
   )

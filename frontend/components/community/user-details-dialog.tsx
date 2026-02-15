@@ -1,5 +1,7 @@
 "use client"
 
+import { useCallback, useState } from "react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@radix-ui/react-tabs"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -31,6 +33,7 @@ import { useRCourses } from "@/hooks/use-courses"
 import { CourseItem } from "../courses/course-item"
 import { FriendList } from "./friend-list"
 import { UserItem } from "./user-item"
+import { ScrollHorizontal } from "../core/scroll-horizontal"
 
 interface UserDetailsDialogProps {
   isOpen: boolean
@@ -49,6 +52,9 @@ export function UserDetailsDialog({ isOpen, onClose, user }: UserDetailsDialogPr
   const { mutate: acceptFriendRequest } = useAcceptFriendRequest(user.ID)
   const { mutate: removeFriend } = useRemoveFriend(user.ID)
   const { data: courses, isLoading: coursesLoading } = useRCourses(user.ID)
+
+  const [activeView, setActiveView] = useState("overview")
+
 
 
   // Get friendship action - matching AssignmentDetailsDialog button logic
@@ -88,14 +94,15 @@ export function UserDetailsDialog({ isOpen, onClose, user }: UserDetailsDialogPr
     }
   }, [friendShipStatus])
 
-  
+  const renderItem = useCallback((user: models.User) => {
+    return <UserItem user={user} size="compact" />
+  }, [])
+
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="glass border-white/10 text-white max-w-4xl p-0 gap-0 max-h-[90vh] overflow-hidden">
-
-        <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-white/5 to-transparent z-0 rounded-2xl pointer-events-none" />
-
 
 
         {/* Two-column layout */}
@@ -246,161 +253,181 @@ export function UserDetailsDialog({ isOpen, onClose, user }: UserDetailsDialogPr
           </div>
 
           {/* Right Content Area */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 bg-bg-base/30">
 
-            <div className="p-6 space-y-6">
+            <Tabs value={activeView} onValueChange={setActiveView} className="flex flex-col h-full min-h-0">
 
-              {/* Activity Section */}
-              <div>
-                <div className="flex items-center space-x-2 text-body font-medium text-text-caption uppercase tracking-wider mb-3">
-                  <Users className="w-4 h-4" />
-                  <span>Social Activity</span>
-                </div>
+              <TabsList className="flex border-b border-white/5 px-6 pt-6 pb-0 shrink-0">
+                <TabsTrigger
+                  value="overview"
+                  className="px-4 py-3 text-sm font-medium text-text-caption uppercase tracking-wider data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-primary-blue-400 transition-all duration-200"
+                >
+                  Overview
+                </TabsTrigger>
+                <TabsTrigger
+                  value="friends"
+                  className="px-4 py-3 text-sm font-medium text-text-caption uppercase tracking-wider data-[state=active]:text-white data-[state=active]:border-b-2 data-[state=active]:border-primary-blue-400 transition-all duration-200"
+                >
+                  Friends
+                </TabsTrigger>
+              </TabsList>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                  {/* Friendship status */}
-                  <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 rounded-lg bg-white/5">
-                        <Users className="w-4 h-4 text-text-caption" />
-                      </div>
-                      <div>
-                        <p className="text-caption text-text-caption uppercase tracking-wider">
-                          Status
-                        </p>
-                        <p className="text-body font-bold text-white">
-                          {friendShipStatus?.status === "accepted"
-                            ? "Friends"
-                            : friendShipStatus?.status === "pending"
-                              ? "Pending"
-                              : "Not Connected"}
-                        </p>
-                      </div>
+              <div className="p-6 space-y-6 h-full">
+
+                {/* Overview Tab */}
+                <TabsContent value="overview" className="mt-0 space-y-6 outline-none animate-in fade-in-50 duration-300 data-[state=active]:flex data-[state=active]:flex-col data-[state=active]:h-full">
+
+                  <div>
+                    <div className="flex items-center space-x-2 text-body font-medium text-text-caption uppercase tracking-wider mb-3">
+                      <Users className="w-4 h-4" />
+                      <span>Social Activity</span>
                     </div>
-                    {friendShipStatus?.status === "accepted" && (
-                      <p className="text-caption text-text-caption">
-                        Connected since {format(new Date(user.CreatedAt), "MMM d, yyyy")}
-                      </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                      {/* Friendship status */}
+                      <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="p-2 rounded-lg bg-white/5">
+                            <Users className="w-4 h-4 text-text-caption" />
+                          </div>
+                          <div>
+                            <p className="text-caption text-text-caption uppercase tracking-wider">
+                              Status
+                            </p>
+                            <p className="text-body font-bold text-white">
+                              {friendShipStatus?.status === "accepted"
+                                ? "Friends"
+                                : friendShipStatus?.status === "pending"
+                                  ? "Pending"
+                                  : "Not Connected"}
+                            </p>
+                          </div>
+                        </div>
+                        {friendShipStatus?.status === "accepted" && (
+                          <p className="text-caption text-text-caption">
+                            Connected since {format(new Date(user.CreatedAt), "MMM d, yyyy")}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Total friends */}
+                      <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="p-2 rounded-lg bg-white/5">
+                            <Users className="w-4 h-4 text-text-caption" />
+                          </div>
+                          <div>
+                            <p className="text-caption text-text-caption uppercase tracking-wider">
+                              Friends
+                            </p>
+                            <p className="text-body font-bold text-white">
+                              {friendShipStatus?.friends_count || 0}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-caption text-text-caption">
+                          Network connections
+                        </p>
+                      </div>
+
+                      {/* Mutual friends (placeholder) */}
+                      <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="p-2 rounded-lg bg-white/5">
+                            <Users className="w-4 h-4 text-text-caption" />
+                          </div>
+                          <div>
+                            <p className="text-caption text-text-caption uppercase tracking-wider">
+                              Mutual
+                            </p>
+                            <p className="text-body font-bold text-white">
+                              0
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-caption text-text-caption">
+                          Friends in common
+                        </p>
+                      </div>
+
+                      {/* Last activity */}
+                      <div className="p-4 rounded-xl bg-white/5 border border-white/5">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="p-2 rounded-lg bg-white/5">
+                            <Clock className="w-4 h-4 text-text-caption" />
+                          </div>
+                          <div>
+                            <p className="text-caption text-text-caption uppercase tracking-wider">
+                              Last Sync
+                            </p>
+                            <p className="text-body font-bold text-white">
+                              {user.LastSync
+                                ? format(new Date(user.LastSync), "MMM d, h:mm a")
+                                : "Never"}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-caption text-text-caption">
+                          Last data update
+                        </p>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  <Separator className="bg-white/10" />
+
+                  {/* Courses Section */}
+                  <div>
+                    <div className="flex items-center space-x-2 text-body font-medium text-text-caption uppercase tracking-wider mb-3">
+                      <BookOpen className="w-4 h-4" />
+                      <span>Current Courses</span>
+                    </div>
+
+                    {courses && courses.length > 0 ? (
+                      <ScrollHorizontal
+                        data={{ Data: courses || [], HasMore: false }}
+                        renderItem={(course: models.Course) => (
+                          <CourseItem key={course.ID} courseId={course.ID} courseRO={course} size="compact" mode="readonly" />
+                        )}
+                        numRows={1}
+                        numColumns={2}
+                        rowClassName="gap-3"
+                        keyExtractor={(course: models.Course) => course.ID}
+                      />
+                    ) : (
+                      < div className="text-center py-8 px-4 rounded-xl bg-white/5 border border-white/5">
+                        <BookOpen className="w-12 h-12 text-text-muted mx-auto mb-3" />
+                        <p className="text-body text-text-caption">
+                          No courses enrolled yet
+                        </p>
+                      </div>
                     )}
                   </div>
 
-                  {/* Total friends */}
-                  <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 rounded-lg bg-white/5">
-                        <Users className="w-4 h-4 text-text-caption" />
-                      </div>
-                      <div>
-                        <p className="text-caption text-text-caption uppercase tracking-wider">
-                          Friends
-                        </p>
-                        <p className="text-body font-bold text-white">
-                          {friendShipStatus?.friends_count || 0}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-caption text-text-caption">
-                      Network connections
-                    </p>
-                  </div>
+                </TabsContent>
 
-                  {/* Mutual friends (placeholder) */}
-                  <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 rounded-lg bg-white/5">
-                        <Users className="w-4 h-4 text-text-caption" />
-                      </div>
-                      <div>
-                        <p className="text-caption text-text-caption uppercase tracking-wider">
-                          Mutual
-                        </p>
-                        <p className="text-body font-bold text-white">
-                          0
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-caption text-text-caption">
-                      Friends in common
-                    </p>
-                  </div>
+                {/* Friends Tab */}
+                <TabsContent value="friends" className="mt-0 space-y-6 outline-none animate-in fade-in-50 duration-300 data-[state=active]:flex data-[state=active]:flex-col data-[state=active]:h-full">
+                  <FriendList
+                    entityID={user.ID}
+                    numColumns={1}
+                    itemsPerPage={6}
+                    containerClassName="gap-4"
+                    renderItem={renderItem}
+                  />
+                </TabsContent>
 
-                  {/* Last activity */}
-                  <div className="p-4 rounded-xl bg-white/5 border border-white/5">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="p-2 rounded-lg bg-white/5">
-                        <Clock className="w-4 h-4 text-text-caption" />
-                      </div>
-                      <div>
-                        <p className="text-caption text-text-caption uppercase tracking-wider">
-                          Last Sync
-                        </p>
-                        <p className="text-body font-bold text-white">
-                          {user.LastSync
-                            ? format(new Date(user.LastSync), "MMM d, h:mm a")
-                            : "Never"}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="text-caption text-text-caption">
-                      Last data update
-                    </p>
-                  </div>
 
-                </div>
               </div>
 
-              <Separator className="bg-white/10" />
-
-
-              {/* Courses Section */}
-              <div>
-                <div className="flex items-center space-x-2 text-body font-medium text-text-caption uppercase tracking-wider mb-3">
-                  <BookOpen className="w-4 h-4" />
-                  <span>Current Courses</span>
-                </div>
-
-                {courses && courses.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {courses.map((course: models.Course) => (
-                      <CourseItem key={course.ID} courseId={course.ID} courseRO={course} size="compact" mode="readonly" />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 px-4 rounded-xl bg-white/5 border border-white/5">
-                    <BookOpen className="w-12 h-12 text-text-muted mx-auto mb-3" />
-                    <p className="text-body text-text-caption">
-                      No courses enrolled yet
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <Separator className="bg-white/10" />
-
-              {/* Friends Section */}
-              <div>
-                <div className="flex items-center space-x-2 text-body font-medium text-text-caption uppercase tracking-wider mb-3">
-                  <Users className="w-4 h-4" />
-                  <span>Friends</span>
-                </div>
-
-
-                <FriendList
-                  userID={user.ID}
-                  numColumns={1}
-                  itemsPerPage={6}
-                  containerClassName="gap-4"
-                  renderItem={(user: models.User) => <UserItem user={user} size="compact" />}
-                />
-              </div>
-
-
-            </div>
+            </Tabs>
           </div>
 
         </div>
-      </DialogContent>
-    </Dialog>
+      </DialogContent >
+    </Dialog >
   )
 }

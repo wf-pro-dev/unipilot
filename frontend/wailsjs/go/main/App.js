@@ -98,8 +98,12 @@ export function GetAuthToken() {
   return window['go']['main']['App']['GetAuthToken']();
 }
 
-export function GetClusterStatus(arg1) {
-  return window['go']['main']['App']['GetClusterStatus'](arg1);
+export function GetClusterStatus(arg1, arg2) {
+  return window['go']['main']['App']['GetClusterStatus'](arg1, arg2);
+}
+
+export function GetClusterUsers(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['GetClusterUsers'](arg1, arg2, arg3, arg4);
 }
 
 export function GetConversationHistory(arg1) {
@@ -138,8 +142,8 @@ export function GetFriendShipStatus(arg1) {
   return window['go']['main']['App']['GetFriendShipStatus'](arg1);
 }
 
-export function GetFriends(arg1, arg2, arg3) {
-  return window['go']['main']['App']['GetFriends'](arg1, arg2, arg3);
+export function GetFriends(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['GetFriends'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function GetNetworkStatus() {

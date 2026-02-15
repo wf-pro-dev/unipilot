@@ -53,7 +53,9 @@ export function GetAssignments():Promise<Array<models.LocalAssignment>>;
 
 export function GetAuthToken():Promise<string>;
 
-export function GetClusterStatus(arg1:string):Promise<client.CourseStatusResponse>;
+export function GetClusterStatus(arg1:string,arg2:string):Promise<client.CourseStatusResponse>;
+
+export function GetClusterUsers(arg1:string,arg2:models.Cursor,arg3:number,arg4:string):Promise<models.PageResponse_unipilot_internal_models_User_>;
 
 export function GetConversationHistory(arg1:string):Promise<Array<models.LocalAiMessage>>;
 
@@ -73,7 +75,7 @@ export function GetFileInfo(arg1:string):Promise<main.FileInfo>;
 
 export function GetFriendShipStatus(arg1:string):Promise<client.FriendStatusResponse>;
 
-export function GetFriends(arg1:string,arg2:models.Cursor,arg3:number):Promise<models.PageResponse_unipilot_internal_models_User_>;
+export function GetFriends(arg1:string,arg2:models.Cursor,arg3:number,arg4:string,arg5:models.Filter):Promise<models.PageResponse_unipilot_internal_models_User_>;
 
 export function GetNetworkStatus():Promise<Record<string, any>>;
 

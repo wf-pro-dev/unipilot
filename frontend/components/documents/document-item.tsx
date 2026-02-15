@@ -147,7 +147,7 @@ function BaseDocumentItem({ document: doc, isUploading, mode = "default" }: Docu
         <CardContent className="flex flex-1 p-4 gap-4 ">
           {/* File Icon */}
           <div className="flex-shrink-0 self-center p-2.5 rounded-lg bg-white/5 border border-white/5">
-            {getFileIcon(doc.FileName)}
+            {doc.HasLocalFile ? getFileIcon(doc.FileName) : <Upload className="w-4 h-4" />}
           </div>
 
           {/* File Info */}

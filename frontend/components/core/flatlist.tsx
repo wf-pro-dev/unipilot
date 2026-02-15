@@ -16,7 +16,6 @@ export interface FlatListProps<T> extends Omit<ScrollProps<T>, 'data'> {
     userID: string;
     itemsPerPage: number;
     useScroll: (props: {limit?: number, userID: string}) => UseInfiniteQueryResult<InfiniteData<PageResponse<T>, unknown>, Error>;
-    
     emptyState: React.JSX.Element;
 
 }
@@ -29,7 +28,7 @@ export function FlatList<T>({
     keyExtractor,
     numColumns,
     containerClassName,
-    emptyState
+    emptyState,
 }: FlatListProps<T>) {
 
     if (!userID) { return null; }

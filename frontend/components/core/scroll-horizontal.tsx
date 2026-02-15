@@ -3,38 +3,43 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { PageResponse } from '@/types/models';
 
-export interface ScrollProps<T> {
+export interface ScrollHorizontalProps<T> {
     data: PageResponse<T>
     renderItem: (item: T) => React.JSX.Element | null
     keyExtractor?: (item: T, index: number) => string | number;
-    numColumns: number
-    containerClassName?: string
+    numColumns: number // Number of items per row (horizontally)
+    numRows?: number // Number of rows visible (vertically stacked)
+    containerClassName?: string // for the outer scroll container
+    rowClassName?: string // for each individual row
 
     // Infinite scroll props
     onLoadMore?: () => void
     isFetchingMore?: boolean
-    prefetchDistance?: number // Distance from bottom (in pixels) to trigger load
+    prefetchDistance?: number // Distance from right edge (in pixels) to trigger load
 
     // Empty state
     emptyState?: React.JSX.Element;
 }
 
-export function Scroll<T>({
+export function ScrollHorizontal<T>({
     data,
     renderItem,
     keyExtractor,
     numColumns,
+    numRows,
     containerClassName,
+    rowClassName,
     onLoadMore,
     isFetchingMore = false,
     prefetchDistance = 800,
     emptyState
-}: ScrollProps<T>) {
+}: ScrollHorizontalProps<T>) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const loadingRef = useRef(false);
 
     const list = data.Data
 
+    // Chunk data into rows (same as vertical scroll.tsx)
     const rows = useMemo(() => {
         const result = [];
         for (let i = 0; i < list.length; i += numColumns) {
@@ -43,18 +48,29 @@ export function Scroll<T>({
         return result;
     }, [list, numColumns])
 
-    // Infinite scroll handler
+    // Group rows into pages if numRows is specified
+    const pages = useMemo(() => {
+        if (!numRows) return rows.map(row => [row]); // Each row is its own page
+        
+        const result = [];
+        for (let i = 0; i < rows.length; i += numRows) {
+            result.push(rows.slice(i, i + numRows));
+        }
+        return result;
+    }, [rows, numRows]);
+
+    // Infinite scroll handler (horizontal)
     const handleScroll = useCallback(() => {
         const container = scrollContainerRef.current;
         if (!container || !onLoadMore || !data.HasMore || isFetchingMore || loadingRef.current) {
             return;
         }
 
-        const { scrollTop, scrollHeight, clientHeight } = container;
-        const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+        const { scrollLeft, scrollWidth, clientWidth } = container;
+        const distanceFromRight = scrollWidth - (scrollLeft + clientWidth);
 
-        // Trigger load when within prefetchDistance of bottom
-        if (distanceFromBottom < prefetchDistance) {
+        // Trigger load when within prefetchDistance of right edge
+        if (distanceFromRight < prefetchDistance) {
             loadingRef.current = true;
             onLoadMore();
         }
@@ -89,16 +105,17 @@ export function Scroll<T>({
     return (
         <div
             ref={scrollContainerRef}
-            className="flex flex-col overflow-y-auto snap-y snap-mandatory space-y-4 min-h-0 flex-1"
+            className={cn("flex flex-row overflow-x-auto snap-x snap-mandatory space-x-4 min-w-0 flex-1",
+                containerClassName
+            )}
         >
-
-            {rows.map((row, index) => (
-                <Row<T>
-                    key={index}
-                    rowData={row}
+            {pages.map((pageRows, pageIndex) => (
+                <Page<T>
+                    key={pageIndex}
+                    pageRows={pageRows}
                     numColumns={numColumns}
                     renderItem={renderItem}
-                    containerClassName={containerClassName}
+                    rowClassName={rowClassName}
                     scrollContainerRef={scrollContainerRef}
                     keyExtractor={keyExtractor}
                 />
@@ -106,33 +123,31 @@ export function Scroll<T>({
 
             {/* Loading indicator */}
             {isFetchingMore && (
-                <div className="flex items-center justify-center py-4">
+                <div className="flex items-center justify-center px-4">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                 </div>
             )}
-
-
         </div>
     );
 }
 
-interface RowProps<T> {
-    rowData: T[]
+interface PageProps<T> {
+    pageRows: T[][]
     numColumns: number
     renderItem: (item: T) => React.JSX.Element | null
-    containerClassName?: string
+    rowClassName?: string
     scrollContainerRef: React.RefObject<HTMLDivElement>
     keyExtractor?: (item: T, index: number) => string | number;
 }
 
-const Row = <T,>({
-    rowData,
+const Page = <T,>({
+    pageRows,
     numColumns,
     renderItem,
-    containerClassName,
+    rowClassName,
     scrollContainerRef,
     keyExtractor
-}: RowProps<T>) => {
+}: PageProps<T>) => {
     return (
         <motion.div
             initial={{ opacity: 0.5 }}
@@ -142,14 +157,22 @@ const Row = <T,>({
                 amount: 0.8
             }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className={cn("snap-start flex-shrink-0 items-center justify-center overflow-visible",
-                `grid grid-cols-${numColumns}`,
-                containerClassName)}
+            className="snap-start flex-shrink-0 flex flex-col space-y-4 w-full"
         >
-            {rowData.map((item, index) => (
-                <React.Fragment key={index}>
-                    {renderItem(item)}
-                </React.Fragment>
+            {pageRows.map((row, rowIndex) => (
+                <div
+                    key={rowIndex}
+                    className={cn("grid items-center justify-center overflow-visible",
+                        `grid-cols-${numColumns}`,
+                        rowClassName
+                    )}
+                >
+                    {row.map((item, index) => (
+                        <React.Fragment key={index}>
+                            {renderItem(item)}
+                        </React.Fragment>
+                    ))}
+                </div>
             ))}
         </motion.div>
     );

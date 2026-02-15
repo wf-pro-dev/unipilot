@@ -126,10 +126,10 @@ func CourseShare(c *models.LocalCourse, usersID []string) error {
 	return nil
 }
 
-func GetClusterStatus(courseID string) (*CourseStatusResponse, error) {
+func GetClusterStatus(courseID string, userID string) (*CourseStatusResponse, error) {
 
 	api_url := secrets.CONSTANTS["API_URL"]
-	agent := fiber.Get(fmt.Sprintf("%s/courses/%s/cluster-status", api_url, courseID))
+	agent := fiber.Get(fmt.Sprintf("%s/courses/%s/cluster-status/%s", api_url, courseID, userID))
 
 	if err := SetAuthHeader(agent); err != nil {
 		return nil, err
@@ -230,4 +230,31 @@ func GetCoursesLinked() ([]models.Course, error) {
 	}
 
 	return courses, nil
+}
+
+func GetClusterUsers(courseID string, cursor *models.Cursor, limit int, search string) (*models.PageResponse[models.User], error) {
+	api_url := secrets.CONSTANTS["API_URL"]
+	query := fmt.Sprintf("%s/courses/%s/cluster-users?limit=%d", api_url, courseID, limit)
+	if search != "" {
+		query += fmt.Sprintf("&search=%s", search)
+	}
+
+	agent := fiber.Get(query).JSON(cursor)
+
+	if err := SetAuthHeader(agent); err != nil {
+		return nil, err
+	}
+
+	statusCode, body, _ := agent.Bytes()
+	if statusCode != 200 {
+		err := errors.ParseServerError(body, statusCode)
+		return nil, err
+	}
+
+	var response *models.PageResponse[models.User]
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, errors.Wrap(err, errors.ProcJSONUnmarshalFailed, "Failed to parse response")
+	}
+
+	return response, nil
 }

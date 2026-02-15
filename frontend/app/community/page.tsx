@@ -107,7 +107,7 @@ export default function CommunityPage() {
 
           {/* Following tab: displays users the current user is following */}
           <TabsContent value="friends" className="flex flex-col data-[state=active]:flex-1 m-0">
-            <FriendList userID={user?.ID!} containerClassName="gap-6" />
+            <FriendList entityID={user?.ID!} containerClassName="gap-6" />
           </TabsContent>
 
           <TabsContent value="social" className="flex flex-col data-[state=active]:flex-1 m-0">

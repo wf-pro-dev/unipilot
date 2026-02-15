@@ -65,7 +65,7 @@ export function DocumentStorageInfo({ assignmentID }: DocumentStorageInfoProps) 
 
       {storageInfo ? (
         <div className="flex flex-col gap-4">
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             {/* Storage Bar */}
             <GlassCard variant="board" className="space-y-2 p-4 basis-2/3">
               <div className="flex justify-between items-center text-body text-gray-400">
@@ -97,7 +97,7 @@ export function DocumentStorageInfo({ assignmentID }: DocumentStorageInfoProps) 
             </div>
           </div>
           {/* Storage Levels */}
-          <div className="space-y-2">
+          <div className="space-y-3">
             {getStoragePercentage() >= 90 && (
               <Badge variant="destructive" className="justify-center w-full py-1.5 font-normal">
                 Storage Almost Full

@@ -32,9 +32,10 @@ import { useAssignment, useDeleteAssignment } from "@/hooks/use-assignments"
 import { PriorityTag } from "./tags/priority-tag"
 import { useRouter } from "next/navigation"
 import FileUpload05 from "../file-upload-05"
-import { DocumentStorageInfo } from "../documents/document-storage-info"
 import { cn } from "@/lib/utils"
 import { EmptyState } from "../ui/empty-state"
+import { Action } from "../core/action"
+import { GlassCard } from "../ui/glass-card"
 
 interface AssignmentDetailsDialogProps {
   isOpen: boolean
@@ -108,7 +109,7 @@ const BaseAssignmentDetailsDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="glass border-white/10 text-white max-w-5xl p-0 gap-0 max-h-[90vh] flex flex-col md:flex-row">
+      <DialogContent className="glass border-white/10 text-white max-w-4xl p-0 gap-0 max-h-[90vh] flex flex-col md:flex-row">
 
         {/* === LEFT SIDEBAR: Assignment Identity === */}
         <div className="md:w-80 bg-white/5 border-r border-white/5 relative flex flex-col overflow-y-auto shrink-0">
@@ -161,19 +162,6 @@ const BaseAssignmentDetailsDialog = ({
                   </Badge>
                 </div>
                 <p className="text-sm text-text-caption">{format(deadline, "EEEE 'at' h:mm a")}</p>
-
-                {!isOverdueStatus && Status !== "Done" && daysUntilDue >= 0 && (
-                  <div className="pt-2">
-                    <div className="flex justify-between text-xs text-text-caption mb-1">
-                      <span>Time remaining</span>
-                      <span className="font-medium">{daysUntilDue} days</span>
-                    </div>
-                    <Progress
-                      value={Math.max(0, 100 - (daysUntilDue / 30) * 100)}
-                      className="h-1.5 bg-white/10"
-                    />
-                  </div>
-                )}
               </div>
             </div>
 
@@ -231,85 +219,12 @@ const BaseAssignmentDetailsDialog = ({
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="space-y-2">
-              {mode === "default" && (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start gap-2 border-white/10 hover:bg-white/10"
-                    onClick={() => router.push(`/chat?assignment=${assignmentId}`)}
-                  >
-                    <Bot className="w-4 h-4" />
-                    <span>AI Assistant</span>
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full justify-start gap-2 border-white/10 hover:bg-white/10"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleEditOpen?.()
-                    }}
-                  >
-                    <Edit className="w-4 h-4" />
-                    <span>Edit Details</span>
-                  </Button>
-                </>
-              )}
-
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-start gap-2 border-white/10 hover:bg-white/10"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleOpenLink()
-                }}
-              >
-                <ExternalLink className="w-4 h-4" />
-                <span>Open Link</span>
-              </Button>
-
-              {mode === "readonly" && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="w-full justify-start gap-2"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onCopy?.(assignment as models.Assignment, includeDocuments)
-                  }}
-                >
-                  <CopyPlus className="h-4 w-4" />
-                  <span>Copy Assignment</span>
-                </Button>
-              )}
-
-              {mode === "default" && (
-                <Button
-                  variant="danger"
-                  size="sm"
-                  className="w-full justify-start gap-2"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onClose()
-                    deleteMutation.mutate(assignment as models.LocalAssignment)
-                  }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete Assignment</span>
-                </Button>
-              )}
-            </div>
           </div>
         </div>
 
         {/* === RIGHT CONTENT AREA === */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Tabs value={activeView} onValueChange={setActiveView} className="flex flex-col min-h-0">
+        <div className="flex-1 bg-bg-base/30">
+          <Tabs value={activeView} onValueChange={setActiveView} className="flex flex-col h-full min-h-0">
 
             {/* Tabs Header */}
             <TabsList className="flex border-b border-white/5 px-6 pt-6 pb-0 shrink-0">
@@ -328,7 +243,7 @@ const BaseAssignmentDetailsDialog = ({
             </TabsList>
 
             {/* Tabs Content */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="h-full overflow-y-auto p-6">
 
               {/* OVERVIEW TAB */}
               <TabsContent value="overview" className="mt-0 space-y-6 outline-none animate-in fade-in-50 duration-300">
@@ -346,15 +261,40 @@ const BaseAssignmentDetailsDialog = ({
                     </div>
                   </div>
                 )}
-                
+
+                {/* Actions */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Action
+                    label="AI Help"
+                    Icon={Bot}
+                    onClick={() => router.push(`/chat?assignment=${assignmentId}`)}
+                  />
+                  <Action
+                    label="Open Link"
+                    Icon={ExternalLink}
+                    onClick={() => handleOpenLink()}
+                  />
+                  <Action
+                    label="Edit Assignment"
+                    Icon={Edit}
+                    onClick={() => handleEditOpen?.()}
+                  />
+                  <Action
+                    label="Delete Assignment"
+                    Icon={Trash2}
+                    onClick={() => deleteMutation.mutate(assignment as models.LocalAssignment)}
+                  />
+
+                </div>
+
                 {/* Quick Info Grid */}
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <h3 className="text-sm font-medium text-text-caption uppercase tracking-wider">
                     Quick Information
                   </h3>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-white/5 border border-white/5 rounded-xl p-4 text-center">
-                      <Calendar className="w-5 h-5 text-primary-blue-400 mx-auto mb-2" />
+                      <Calendar className="w-5 h-5 text-white mx-auto mb-2" />
                       <p className="text-xs text-text-caption uppercase mb-1">Created</p>
                       <p className="text-sm font-medium text-white">
                         {format(new Date(assignment.CreatedAt), "MMM d, yyyy")}
@@ -367,35 +307,33 @@ const BaseAssignmentDetailsDialog = ({
                         {format(new Date(assignment.UpdatedAt), "MMM d, yyyy")}
                       </p>
                     </div>
+
+                    <div className="col-span-2">
+                      {Todo && (
+                        <GlassCard
+                          className="p-4"
+                          variant="board"
+                        >
+                          <p className="whitespace-pre-wrap leading-relaxed text-sm text-text-body">
+                            {Todo}
+                          </p>
+                        </GlassCard>
+                      )}
+                      {!Todo && (
+                        <div className="flex flex-col items-center justify-center text-center p-12 border border-white/10 rounded-xl bg-white/5">
+                          <EmptyState
+                            icon={FileText}
+                            title="No description"
+                            description="Add a description to keep track of important details and requirements."
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
 
                 {/* Description Section */}
-                {Todo && (
-                  <div className="space-y-3">
-                    <h3 className="text-sm font-medium text-text-caption uppercase tracking-wider flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Description & Notes
-                    </h3>
-                    <div className="bg-white/5 border border-white/5 rounded-xl p-5">
-                      <p className="whitespace-pre-wrap leading-relaxed text-sm text-text-body">
-                        {Todo}
-                      </p>
-                    </div>
-                  </div>
-                )}
-                {!Todo && (
-                  <div className="flex flex-col items-center justify-center text-center p-12 border-2 border-dashed border-white/10 rounded-xl bg-white/5">
-                    <EmptyState
-                      icon={FileText}
-                      title="No description"
-                      description="Add a description to keep track of important details and requirements."
-                    />
-                  </div>
-                )}
-
-
 
 
               </TabsContent>
@@ -413,11 +351,11 @@ const BaseAssignmentDetailsDialog = ({
               </TabsContent>
 
             </div>
-          </Tabs>
-        </div>
+          </Tabs >
+        </div >
 
-      </DialogContent>
-    </Dialog>
+      </DialogContent >
+    </Dialog >
   )
 }
 

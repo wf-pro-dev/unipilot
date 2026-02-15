@@ -19,7 +19,7 @@ import {
   UserMinus
 } from "lucide-react"
 import { client, models } from "@/wailsjs/go/models"
-import { useCourseAssignments, useCourse, useDeleteCourse, useGetClusterStatus, useAcceptCourseInvitation, useCourses } from "@/hooks/use-courses"
+import { useCourseAssignments, useCourse, useDeleteCourse, useGetClusterStatus, useAcceptCourseInvitation, useCourses, useDeclineCourseInvitation } from "@/hooks/use-courses"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu"
 import { useDialogContext } from "../provider/dialog-provider"
 import { cn } from "@/lib/utils"
@@ -87,10 +87,6 @@ function BaseCourseItem({
   const handleEdit = (id: string) => {
     SetDialogState({ modelType: "course", dialogType: "edit", id })
   }
-
-
-
-
 
   // Default Course Item
   function DefaultCourseItem() {
@@ -318,11 +314,12 @@ function BaseCourseItem({
   function ReadonlyCourseItem() {
     if (!courseRO) return null
 
-    const { data: clusterStatus } = useGetClusterStatus(courseRO.ID)
+    const { data: clusterStatus } = useGetClusterStatus(courseRO.ID, courseRO.UserID)
     const { data: friendshipStatus } = useFriendShipStatus(courseRO.UserID)
 
     const { mutate: sendClusterRequest } = useSendClusterRequest()
     const { mutate: acceptClusterRequest } = useAcceptCourseInvitation()
+    const { mutate: declineClusterRequest } = useDeclineCourseInvitation()
 
     const { data: courses } = useCourses()
     const currentUserHasCourse = useMemo(() => {
@@ -338,6 +335,9 @@ function BaseCourseItem({
         Icon: LogOut,
         onClick: (e: React.MouseEvent) => {
           e.stopPropagation()
+          sendClusterRequest({
+            courseID: courseRO.ID
+          })
         },
         className: "bg-primary-blue-500 hover:bg-primary-blue-600 text-white"
       }
@@ -348,9 +348,7 @@ function BaseCourseItem({
           Icon: LogOut,
           onClick: (e: React.MouseEvent) => {
             e.stopPropagation()
-            sendClusterRequest({
-              courseID: courseRO.ID
-            })
+            
           },
           className: "text-red-400 hover:text-red-300"
         }
@@ -363,6 +361,12 @@ function BaseCourseItem({
             Icon: UserPlus,
             onClick: (e: React.MouseEvent) => {
               e.stopPropagation()
+              acceptClusterRequest({
+                invitation: {
+                  ID: clusterStatus.id,
+                  Course: courseRO as models.Course
+                } as models.CourseInvitation
+              })
             },
             className: "bg-primary-blue-500 hover:bg-primary-blue-600 text-white"
           }
@@ -373,12 +377,10 @@ function BaseCourseItem({
             Icon: UserMinus,
             onClick: (e: React.MouseEvent) => {
               e.stopPropagation()
-              acceptClusterRequest({
-                invitation: {
-                  ID: clusterStatus.id,
-                  Course: courseRO as models.Course
-                } as models.CourseInvitation
-              })
+              declineClusterRequest({
+                ID: clusterStatus.id,
+                Course: courseRO as models.Course
+              } as models.CourseInvitation)
             },
             className: "text-red-400 hover:text-red-300"
           }

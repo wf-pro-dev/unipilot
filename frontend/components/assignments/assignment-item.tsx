@@ -60,6 +60,8 @@ const BaseAssignmentItem = ({
   onCopy,
 }: AssignmentItemProps) => {
 
+  console.log("AssignmentItem className", className)
+
   const [isActionsOpen, setIsActionsOpen] = useState(false)
 
   const router = useRouter()
@@ -108,10 +110,6 @@ const BaseAssignmentItem = ({
       e.stopPropagation()
       BrowserOpenURL(assignment.Link)
     }
-
-
-
-
 
     const handleOpenAIHelp = (e: React.MouseEvent<HTMLDivElement>) => {
       e.stopPropagation()
@@ -209,7 +207,7 @@ const BaseAssignmentItem = ({
     )
   }
 
-  const GhostAssignmentItem = ({ assignmentId }: AssignmentItemProps) => {
+  const GhostAssignmentItem = ({ assignmentId, className }: AssignmentItemProps) => {
     const { data: assignment } = useAssignment(assignmentId)
 
     if (!assignment) return null
@@ -230,6 +228,7 @@ const BaseAssignmentItem = ({
     ]
 
 
+    console.log("Ghost className", className)
 
     return (
       <div

@@ -1164,6 +1164,17 @@ func (a *App) GetCoursesLinked() ([]models.Course, error) {
 	return courses, nil
 }
 
+func (a *App) GetClusterUsers(courseID string, cursor *models.Cursor, limit int, search string) (*models.PageResponse[models.User], error) {
+	if !a.Auth.IsAuthenticated() {
+		return nil, nil
+	}
+	users, err := client.GetClusterUsers(courseID, cursor, limit, search)
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
 // GetNotes returns all notes for the current user
 func (a *App) GetNotes() ([]models.LocalNote, error) {
 	if a.DB == nil {
@@ -1386,11 +1397,11 @@ func (a *App) GetFriendShipStatus(userID string) (*client.FriendStatusResponse, 
 	return friendshipStatus, nil
 }
 
-func (a *App) GetFriends(userID string, cursor *models.Cursor, limit int) (*models.PageResponse[models.User], error) {
+func (a *App) GetFriends(userID string, cursor *models.Cursor, limit int, search string, filters models.Filter) (*models.PageResponse[models.User], error) {
 	if !a.Auth.IsAuthenticated() {
 		return nil, nil
 	}
-	users, err := client.GetFriends(userID, cursor, limit)
+	users, err := client.GetFriends(userID, cursor, limit, search, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -1525,11 +1536,11 @@ func (a *App) RebuildNotificationDaemon() error {
 	return a.Daemon.RebuildDaemon()
 }
 
-func (a *App) GetClusterStatus(courseID string) (*client.CourseStatusResponse, error) {
+func (a *App) GetClusterStatus(courseID string, userID string) (*client.CourseStatusResponse, error) {
 	if !a.Auth.IsAuthenticated() {
 		return nil, nil
 	}
-	courseStatus, err := client.GetClusterStatus(courseID)
+	courseStatus, err := client.GetClusterStatus(courseID, userID)
 	if err != nil {
 		return nil, err
 	}
